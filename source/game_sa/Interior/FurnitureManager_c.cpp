@@ -22,11 +22,11 @@ bool FurnitureManager_c::Init() {
     g_currSubGroupId = 0;
     g_currFurnitureId = 0;
 
-    for (auto& i : m_FurnitureItem) {
-        m_FurnitureList.AddItem(&i);
+    for (auto& i : m_furnitureEntities) {
+        m_furnitureEntityPool.AddItem(&i);
     }
     
-    rng::for_each(m_Groups, &FurnitureGroup_c::Init);
+    rng::for_each(m_groups, &FurnitureGroup_c::Init);
 
     LoadFurniture();
 
@@ -35,8 +35,8 @@ bool FurnitureManager_c::Init() {
 
 // 0x5911A0
 void FurnitureManager_c::Exit() {
-    m_FurnitureList.RemoveAll();
-    rng::for_each(m_Groups, &FurnitureGroup_c::Exit);
+    m_furnitureEntityPool.RemoveAll();
+    rng::for_each(m_groups, &FurnitureGroup_c::Exit);
 }
 
 // notsa
@@ -76,7 +76,7 @@ void FurnitureManager_c::LoadFurniture() {
             char groupName[128];
             VERIFY(sscanf(l, "%s %s", tag, groupName) == 2);
             VERIFY((grpId = FurnitureManager_c::GetGroupId(groupName)) != -1);
-            grp = &m_Groups[grpId];
+            grp = &m_groups[grpId];
         } else if (!strcmp(tag, "SUBGROUP:")) {
             char  subGroupName[128];
             int32 subGrpId;
@@ -183,10 +183,10 @@ int32 FurnitureManager_c::GetSubGroupId(const char* name) {
 
 // 0x5911E0
 Furniture_c* FurnitureManager_c::GetFurniture(int32 groupId, int32 subGroupId, int16 id, uint8 wealth) {
-    return m_Groups[groupId].GetFurniture(subGroupId, id, wealth);
+    return m_groups[groupId].GetFurniture(subGroupId, id, wealth);
 }
 
 // 0x591220
 int32 FurnitureManager_c::GetRandomId(int32 groupId, int32 subGroupId, uint8 wealth) {
-    return m_Groups[groupId].GetRandomId(subGroupId, wealth);
+    return m_groups[groupId].GetRandomId(subGroupId, wealth);
 }

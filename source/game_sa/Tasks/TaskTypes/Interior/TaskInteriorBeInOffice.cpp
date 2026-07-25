@@ -40,12 +40,12 @@ void CTaskInteriorBeInOffice::GetInfoForPedToUse(CPed* ped, int32* outDur) {
     // How this isn't an infinite loop is beyond me
     eInteriorInfoType type;
     do {
-        type = !m_CurrIntInfo || m_CurrIntInfo->Type != UNK_6 ? UNK_6 : UNK_7;
+        type = !m_CurrIntInfo || m_CurrIntInfo->Type != SITAT_DESK ? SITAT_DESK : STANDSTILL_TIMED;
         m_IntGrp->FindInteriorInfo(type, &m_CurrIntInfo, &m_CurrInt);
     } while (!m_CurrIntInfo);
 
     // Figure out duration now
-    *outDur = type == UNK_6 // NOTSA: Moved this outside the loop, no need for it to be there
+    *outDur = type == SITAT_DESK // NOTSA: Moved this outside the loop, no need for it to be there
         ? CGeneral::RandomBool(20.f)
             ? CGeneral::GetRandomNumberInRange(5'000, 30'000)
             : -1
