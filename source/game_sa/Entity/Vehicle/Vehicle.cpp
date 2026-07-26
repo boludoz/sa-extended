@@ -29,6 +29,12 @@
 
 auto& planeRotorDmgTimeMS = StaticRef<uint32>(0xC1CC1C);
 
+auto& g_fHeadlightCoronastarAlpha = StaticRef<float>(0x8D3684);  // 0.4f
+auto& g_fTaillightCoronastarAlpha = StaticRef<float>(0x8D3688);  // 0.2f - name inferred from its neighbour, IDA has it unnamed
+auto& fBrakeLightRed = StaticRef<float>(0x8D368C);                // 0.1f
+auto& fBrakeLightGreen = StaticRef<float>(0x8D3690);              // 0.02f
+auto& fBrakeLightBlue = StaticRef<float>(0x8D3694);               // 0.02f
+
 auto& fBurstTyreMod = StaticRef<float>(0x8D34B4);                // 0.13f
 auto& fBurstSpeedMax = StaticRef<float>(0x8D34B8);               // 0.3f
 auto& CAR_NOS_EXTRA_SKID_LOSS = StaticRef<float>(0x8D34BC);      // 0.9f
@@ -205,8 +211,8 @@ void CVehicle::InjectHooks() {
     RH_ScopedInstall(DoHeadLightReflectionSingle, 0x6E1440);
     RH_ScopedInstall(DoHeadLightReflectionTwin, 0x6E1600);
     RH_ScopedInstall(DoHeadLightReflection, 0x6E1720);
-    // RH_ScopedInstall(DoTailLightEffect, 0x6E1780);
-    // RH_ScopedInstall(DoVehicleLights, 0x6E1A60);
+    RH_ScopedInstall(DoTailLightEffect, 0x6E1780);
+    RH_ScopedInstall(DoVehicleLights, 0x6E1A60);
     RH_ScopedInstall(FillVehicleWithPeds, 0x6E2900);
     RH_ScopedInstall(DoBladeCollision, 0x6E2E50);
     // RH_ScopedInstall(AddVehicleUpgrade, 0x6E3290);
@@ -4504,14 +4510,290 @@ void CVehicle::DoHeadLightReflection(CMatrix& matrix, uint32 flags, bool left, b
     }
 }
 
+// `nLightFlags` is accepted but never read - the original ignores it too.
 // 0x6E1780
-bool CVehicle::DoTailLightEffect(int32 lightId, CMatrix& matrix, uint8 arg2, uint8 arg3, uint32 arg4, uint8 arg5) {
-    return ((bool(__thiscall*)(CVehicle*, int32, CMatrix&, uint8, uint8, uint32, uint8))0x6E1780)(this, lightId, matrix, arg2, arg3, arg4, arg5);
+bool CVehicle::DoTailLightEffect(int32 lightId, CMatrix& matVehicle, bool isRight, bool forcedOff, uint32 nLightFlags, bool lightsOn) {
+    // The Stallion and the Sabre carry their tail lights on the rear bumper, so they go with it when it's knocked off
+    if (m_nModelIndex == MODEL_STALLION || m_nModelIndex == MODEL_SABRE) {
+        if (AsAutomobile()->m_damageManager.GetPanelStatus(REAR_BUMPER) != DAMSTATE_OK) {
+            return false;
+        }
+    }
+
+    // lightId 0 -> DUMMY_LIGHT_REAR_MAIN, 1 -> DUMMY_LIGHT_REAR_SECONDARY
+    const auto& dummyPos = GetVehicleModelInfo()->m_pVehicleStruct->m_avDummyPos[2 * lightId + 1];
+    if (lightId == 1 && dummyPos.IsZero()) {
+        return false; // The secondary pair is optional
+    }
+
+    // Kept in object space, as `RegisterCorona` transforms it by the matrix of the entity it's attached to
+    auto coronaPos = dummyPos;
+    if (!isRight) {
+        coronaPos.x -= 2.0f * dummyPos.x;
+    }
+
+    auto       toCam   = TheCamera.GetPosition() - matVehicle.TransformPoint(coronaPos);
+    const auto camDist = toCam.NormaliseAndMag();
+    const auto facing  = DotProduct(toCam, matVehicle.GetBackward()); // Tail lights shine backwards
+
+    if (forcedOff || facing <= 0.0f) {
+        return false;
+    }
+    if (TheCamera.GetActiveCam().m_nMode == MODE_1STPERSON && this == FindPlayerVehicle(-1, false)) {
+        return false; // Can't see your own tail lights from the driver's seat
+    }
+
+    auto brightness = facing * 0.5f + 0.2f;
+    auto coronaSize = (1.0f - camDist * 0.0066666668f) * g_fTaillightCoronastarAlpha * facing; // 0.0066666668f == 1/150, the corona range below
+    if (IsSubTrain() && m_nModelIndex != MODEL_TRAM) {
+        brightness = std::min(brightness * 3.0f, 1.0f);
+        coronaSize *= 4.0f;
+    }
+
+    // Braking lights them up fully, otherwise they only glow along with the headlights
+    uint8 red   = 0;
+    auto  isLit = false;
+    if (m_BrakePedal > 0.0f && !vehicleFlags.bIsHandbrakeOn && m_pDriver) {
+        red   = (uint8)(int32)(brightness * 128.0f);
+        isLit = true;
+    } else if (lightsOn) {
+        red   = (uint8)(int32)(brightness * 96.0f);
+        isLit = true;
+    }
+
+    // Registered even when unlit (`red` stays 0) - the original always gets this far
+    CCoronas::RegisterCorona(
+        reinterpret_cast<uint32>(this) + 8 + 2 * lightId + (isRight ? 1 : 0), this,
+        red, 0, 0, 128,
+        coronaPos, coronaSize, TheCamera.m_fLODDistMultiplier * 150.0f,
+        CORONATYPE_HEADLIGHT, FLARETYPE_NONE, CORREFL_SIMPLE, LOSCHECK_OFF, TRAIL_OFF,
+        std::sqrt(facing), false, 0.5f, false, 15.0f, false, false
+    );
+
+    return isLit;
 }
 
 // 0x6E1A60
-void CVehicle::DoVehicleLights(CMatrix& matrix, eVehicleLightsFlags flags) {
-    ((void(__thiscall*)(CVehicle*, CMatrix&, uint32))0x6E1A60)(this, matrix, flags);
+void CVehicle::DoVehicleLights(CMatrix& matVehicle, eVehicleLightsFlags nLightFlags) {
+    if (ms_forceVehicleLightsOff) {
+        return;
+    }
+
+    //
+    // Bring `bLightsOn` in line with what the time of day / the driver wants
+    //
+    if (const auto wantLightsOn = GetVehicleLightsStatus(); wantLightsOn != (bool)vehicleFlags.bLightsOn) {
+        switch (m_info.m_nStatus) {
+        case STATUS_WRECKED:
+            break; // Wrecks keep whatever they had
+        case STATUS_ABANDONED:
+            if (!IsSubTrain()) {
+                // An abandoned vehicle only gives its lights up once the camera has moved away from it
+                if (vehicleFlags.bLightsOn) {
+                    const auto camOffset = TheCamera.GetPosition() - GetPosition();
+                    if (std::fabs(camOffset.x) + std::fabs(camOffset.y) > 100.0f) {
+                        vehicleFlags.bLightsOn = false;
+                    }
+                }
+                break;
+            }
+            [[fallthrough]];
+        default:
+            vehicleFlags.bLightsOn = wantLightsOn;
+        }
+    }
+
+    const auto alarmGoingOff = !CanUpdateHornCounter(); // The original `CannotUpdateCarHorn` (0x4F4CE0)
+
+    auto forceLightsOn = false; // Headlights are lit even though `bLightsOn` isn't set
+    auto allLightsOff  = false; // Dark phase of the alarm blink - nothing lights up at all this frame
+
+    switch (m_nOverrideLights) {
+    case FORCE_CAR_LIGHTS_OFF:
+        vehicleFlags.bLightsOn = false;
+        break;
+    case FORCE_CAR_LIGHTS_ON:
+        forceLightsOn = true;
+        break;
+    }
+
+    if (alarmGoingOff) { // A going-off alarm blinks every 256 ms
+        forceLightsOn = (CTimer::m_snTimeInMilliseconds & 0x100) != 0;
+        allLightsOff  = !forceLightsOn;
+    }
+
+    // The ZR-350's pop-up headlights have to finish opening before any light comes out of them
+    if (m_nModelIndex == MODEL_ZR350 && m_info.m_nStatus != STATUS_WRECKED && vehicleFlags.bEngineOn) {
+        constexpr auto POPUP_LIGHTS_OPEN_ANGLE = 0.69813174f; // = DegreesToRadians(40.0f)
+        constexpr auto POPUP_LIGHTS_OPEN_SPEED = 0.01f;
+
+        auto& openAngle = AsAutomobile()->m_fPropRotate; // 0x958, reused as the pop-up light angle here
+        if (vehicleFlags.bLightsOn || forceLightsOn || alarmGoingOff) {
+            openAngle = std::min(openAngle + CTimer::GetTimeStep() * POPUP_LIGHTS_OPEN_SPEED, POPUP_LIGHTS_OPEN_ANGLE);
+            if (openAngle < POPUP_LIGHTS_OPEN_ANGLE) {
+                return; // Still opening
+            }
+        } else if (openAngle > 0.0f) {
+            openAngle = std::max(0.0f, openAngle - CTimer::GetTimeStep() * POPUP_LIGHTS_OPEN_SPEED);
+        }
+    }
+
+    // Only automobiles track per-light damage. Anything else has no light to speak of unless the
+    // caller passes `VEHICLE_LIGHTS_IGNORE_DAMAGE` (which bikes and trains do).
+    const auto* damageMgr = IsAutomobile() ? &AsAutomobile()->m_damageManager : nullptr;
+
+    m_nRenderLightsFlags &= 0xF0;
+
+    const auto IsLightIntact = [&](eLights light) {
+        return (nLightFlags & VEHICLE_LIGHTS_IGNORE_DAMAGE)
+            || (damageMgr && damageMgr->GetLightStatus(light) == VEHICLE_LIGHT_OK);
+    };
+
+    const auto twinLights = (nLightFlags & VEHICLE_LIGHTS_TWIN) != 0;
+
+    auto headR = IsLightIntact(LIGHT_FRONT_RIGHT);
+    auto headL = twinLights && IsLightIntact(LIGHT_FRONT_LEFT);
+    auto rearR = IsLightIntact(LIGHT_REAR_LEFT); // sic - the original asks for the same light for both sides
+    auto rearL = twinLights && IsLightIntact(LIGHT_REAR_LEFT);
+
+    if (nLightFlags & VEHICLE_LIGHTS_DISABLE_FRONT) {
+        headR = headL = false;
+    }
+    if (nLightFlags & VEHICLE_LIGHTS_DISABLE_REAR) {
+        rearR = rearL = false;
+    }
+
+    if (!vehicleFlags.bEngineOn) {
+        return;
+    }
+
+    const auto DoTailLights = [&](bool lightsOn) {
+        const auto rightOff = allLightsOff || !rearR;
+        m_renderLights.m_bRightRear = DoTailLightEffect(0, matVehicle, true, rightOff, nLightFlags, lightsOn);
+        if (m_renderLights.m_bRightRear) {
+            DoTailLightEffect(1, matVehicle, true, rightOff, nLightFlags, lightsOn);
+        }
+        if (twinLights) {
+            const auto leftOff = allLightsOff || !rearL;
+            m_renderLights.m_bLeftRear = DoTailLightEffect(0, matVehicle, false, leftOff, nLightFlags, lightsOn);
+            if (m_renderLights.m_bLeftRear) {
+                DoTailLightEffect(1, matVehicle, false, leftOff, nLightFlags, lightsOn);
+            }
+        }
+    };
+
+    if (!vehicleFlags.bLightsOn && !forceLightsOn && !allLightsOff) {
+        DoTailLights(false); // Headlights are off, but the tail lights still glow when braking
+        return;
+    }
+
+    //
+    // Headlights
+    //
+    const auto headROff = allLightsOff || !headR;
+    const auto headLOff = allLightsOff || !headL;
+
+    m_renderLights.m_bRightFront = DoHeadLightEffect(DUMMY_LIGHT_FRONT_MAIN, matVehicle, 1, headROff);
+    m_renderLights.m_bLeftFront  = DoHeadLightEffect(DUMMY_LIGHT_FRONT_MAIN, matVehicle, 0, headLOff);
+
+    // Registers the beam line and the corona star of one headlight. `isRight` picks both the side the
+    // secondary light dummy is mirrored to and the pair of corona IDs to use.
+    const auto DoHeadLightCoronas = [&](bool isRight, bool lightOff) {
+        const auto* vehStruct = GetVehicleModelInfo()->m_pVehicleStruct;
+        if (!vehStruct->IsDummyActive(DUMMY_LIGHT_FRONT_SECONDARY)) {
+            return;
+        }
+        const auto& dummyPos = vehStruct->m_avDummyPos[DUMMY_LIGHT_FRONT_SECONDARY];
+
+        // Kept in object space, as `RegisterCorona` transforms it by the matrix of the entity it's attached to
+        auto lightPos = dummyPos + GetForwardVector() * 0.05f;
+        if (!isRight) {
+            lightPos.x -= 2.0f * dummyPos.x;
+        }
+
+        auto       toCam    = TheCamera.GetPosition() - matVehicle.TransformPoint(lightPos);
+        const auto camDist  = toCam.NormaliseAndMag();
+        const auto facing   = DotProduct(toCam, matVehicle.GetForward());
+
+        if (lightOff || facing <= 0.0f) {
+            return;
+        }
+        if (TheCamera.GetActiveCam().m_nMode == MODE_1STPERSON && this == FindPlayerVehicle(-1, false)) {
+            return; // Don't dazzle the player with their own headlights
+        }
+
+        const auto brightness  = std::sqrt(facing);
+        const auto isTrain     = IsSubTrain() && m_nModelIndex != MODEL_TRAM;
+        const auto halogen     = (bool)m_pHandlingData->m_bHalogenLights;
+        const auto coronaRange = TheCamera.m_fLODDistMultiplier * 150.0f;
+
+        // The line along the beam - only visible when looking almost straight into the light
+        if (brightness > (isTrain ? 0.85f : 0.9f) && camDist < 40.0f) {
+            const auto lineRG = (uint8)(halogen ? 150 : 160);
+            const auto lineB  = (uint8)(halogen ? 195 : 140);
+            CCoronas::RegisterCorona(
+                reinterpret_cast<uint32>(this) + (isRight ? 7 : 6), this,
+                lineRG, lineRG, lineB, 255,
+                lightPos, isTrain ? 0.3f : 0.075f, coronaRange,
+                CORONATYPE_HEADLIGHTLINE, FLARETYPE_NONE, CORREFL_NONE, LOSCHECK_OFF, TRAIL_OFF,
+                brightness, false, 0.3f, false, 15.0f, false, false
+            );
+        }
+
+        // ..and the corona star itself, which fades out with distance
+        auto starIntensity = brightness * 0.5f + 0.3f;
+        auto starSize      = (1.0f - camDist * 0.0066666668f) * brightness * g_fHeadlightCoronastarAlpha;
+        if (isTrain) {
+            starIntensity = std::min(starIntensity * 2.0f, 1.0f);
+            starSize *= 4.0f;
+        }
+
+        const auto starRG = (uint8)(int32)(starIntensity * (halogen ? 190.0f : 210.0f));
+        const auto starB  = (uint8)(int32)(starIntensity * (halogen ? 255.0f : 195.0f));
+        CCoronas::RegisterCorona(
+            reinterpret_cast<uint32>(this) + (isRight ? 3 : 2), this,
+            starRG, starRG, starB, 128,
+            lightPos, starSize, coronaRange,
+            CORONATYPE_HEADLIGHT, FLARETYPE_NONE, CORREFL_SIMPLE, LOSCHECK_OFF, TRAIL_OFF,
+            brightness, false, 0.5f, false, 15.0f, false, false
+        );
+    };
+
+    if (m_renderLights.m_bRightFront) {
+        DoHeadLightCoronas(true, headROff);
+    }
+    if (m_renderLights.m_bLeftFront) {
+        DoHeadLightCoronas(false, headLOff);
+    }
+
+    DoTailLights(true);
+
+    if (allLightsOff) {
+        return;
+    }
+
+    if (!IsSubTrain()) {
+        DoHeadLightReflection(matVehicle, nLightFlags, headL, headR);
+    }
+
+    //
+    // Light the world in front of / behind us
+    //
+    if (headR || headL) {
+        CPointLights::AddLight(
+            PLTYPE_DIRECTIONAL, GetPosition(), matVehicle.GetForward(), 20.0f,
+            1.0f, 1.0f, 1.0f,
+            m_vecMoveSpeed.SquaredMagnitude2D() < 0.2025f // Only fogs up when driving slowly
+        );
+    }
+
+    if ((rearR || rearL) && m_BrakePedal > 0.0f && !vehicleFlags.bIsHandbrakeOn && m_pDriver) {
+        CPointLights::AddLight(
+            PLTYPE_DIRECTIONAL, GetPosition() - matVehicle.GetForward() * 4.0f, matVehicle.GetBackward(), 10.0f,
+            fBrakeLightRed, fBrakeLightGreen, fBrakeLightBlue,
+            0, false, this
+        );
+    }
 }
 
 // unused

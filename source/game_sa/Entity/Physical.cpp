@@ -921,9 +921,11 @@ void CPhysical::AddCollisionRecord(CEntity* collidedEntity)
         if (collidedEntity->GetIsTypeVehicle())
         {
             auto* collidedVehicle = collidedEntity->AsVehicle();
-            if (vehicle->m_nAlarmState == -1)
+            // Cars fitted with an alarm sit at 0xFFFF until something sets it off. The cast matters:
+            // `m_nAlarmState` is unsigned, so a bare `== -1` promotes to `int` and never matches.
+            if (vehicle->m_nAlarmState == (uint16)-1)
                 vehicle->m_nAlarmState = 15000;
-            if (collidedVehicle->m_nAlarmState == -1)
+            if (collidedVehicle->m_nAlarmState == (uint16)-1)
                 collidedVehicle->m_nAlarmState = 15000;
         }
     }

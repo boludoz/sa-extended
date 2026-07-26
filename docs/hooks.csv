@@ -3624,6 +3624,8 @@ CVehicle,DoHeadLightReflection,0x006E1720,1,0,0
 CVehicle,DoHeadLightReflectionSingle,0x006E1440,1,0,0
 CVehicle,DoHeadLightReflectionTwin,0x006E1600,1,0,0
 CVehicle,DoPlaneGunFireFX,0x006D4AD0,1,0,0
+CVehicle,DoTailLightEffect,0x006E1780,1,0,0
+CVehicle,DoVehicleLights,0x006E1A60,1,0,0
 CVehicle,ExtinguishCarFire,0x006D2460,1,0,0
 CVehicle,FillVehicleWithPeds,0x006E2900,1,0,0
 CVehicle,FindTyreNearestPoint,0x006D7BC0,1,0,0

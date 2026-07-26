@@ -648,8 +648,8 @@ public:
     void DoHeadLightReflectionSingle(CMatrix& matrix, bool isRight);
     void DoHeadLightReflectionTwin(CMatrix& matrix);
     void DoHeadLightReflection(CMatrix& matrix, uint32 flags, bool left, bool right);
-    bool DoTailLightEffect(int32 lightId, CMatrix& matrix, uint8 arg2, uint8 arg3, uint32 arg4, uint8 arg5);
-    void DoVehicleLights(CMatrix& matrix, eVehicleLightsFlags flags);
+    bool DoTailLightEffect(int32 lightId, CMatrix& matVehicle, bool isRight, bool forcedOff, uint32 nLightFlags, bool lightsOn);
+    void DoVehicleLights(CMatrix& matVehicle, eVehicleLightsFlags nLightFlags);
 
     void FillVehicleWithPeds(bool bSetClothesToAfro);
     bool DoBladeCollision(CVector pos, CMatrix& matrix, int16 rotorType, float radius, float damageMult);
@@ -718,7 +718,12 @@ public: // NOTSA functions
     [[nodiscard]] bool IsCreatedBy(eVehicleCreatedBy v) const { return v == m_nCreatedBy; }
     [[nodiscard]] bool IsMissionVehicle() const { return m_nCreatedBy == MISSION_VEHICLE; }
 
-    bool CanUpdateHornCounter() { return m_nAlarmState == 0 || m_nAlarmState == -1 || m_info.m_nStatus == STATUS_WRECKED; }
+    /// Inverse of the original `CannotUpdateCarHorn` (0x4F4CE0).
+    /// Mind the cast: `m_nAlarmState` is unsigned, so a bare `== -1` promotes to `int` and never matches the
+    /// 0xFFFF "alarm fitted, currently silent" sentinel that `CCarGenerator` writes.
+    [[nodiscard]] bool CanUpdateHornCounter() const {
+        return m_nAlarmState == 0 || m_nAlarmState == (uint16)-1 || m_info.m_nStatus == STATUS_WRECKED;
+    }
 
     CPlane* AsPlane() { return reinterpret_cast<CPlane*>(this); }
     CHeli*  AsHeli()  { return reinterpret_cast<CHeli*>(this); }
