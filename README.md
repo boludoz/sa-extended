@@ -1,6 +1,6 @@
-## gtasa-reversed [![Build Status](https://github.com/gta-reversed/gta-reversed/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/gta-reversed/gta-reversed/actions?query=workflow%3ABuild) fork with experimental options.
+## gtasa-extended [![Build Status](https://github.com/gta-reversed/gta-reversed/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/gta-reversed/gta-reversed/actions?query=workflow%3ABuild).
 
-A project to reverse Grand Theft Auto San Andreas completely, and to rewrite and document every function.
+The most advanced reversion of Grand Theft Auto San Andreas.
 
 ### Community
 Please join our community Discord: [GTA Groupies](https://discord.gg/FG8XJ5Npqe) [The invite is permanent, feel free to share it!]
