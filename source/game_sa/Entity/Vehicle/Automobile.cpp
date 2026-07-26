@@ -102,6 +102,8 @@ void CAutomobile::InjectHooks()
     RH_ScopedInstall(SetDoorDamage, 0x6B1600);
     RH_ScopedInstall(TowTruckControl, 0x6A40F0);
     RH_ScopedInstall(ProcessCarOnFireAndExplode, 0x6A7090);
+    RH_ScopedInstall(HasCarStoppedBecauseOfLight, 0x44D520);
+    RH_ScopedInstall(UpdateWheelMatrix, 0x6AA290);
 
     RH_ScopedVMTInstall(Fix, 0x6A3440);
     RH_ScopedVMTInstall(DoBurstAndSoftGroundRatios, 0x6A47F0);
@@ -148,6 +150,7 @@ void CAutomobile::InjectHooks()
     RH_ScopedVMTInstall(OpenDoor, 0x6A6AE0);
     RH_ScopedVMTInstall(BlowUpCar, 0x6B3780);
     RH_ScopedVMTInstall(BlowUpCarCutSceneNoExtras, 0x6B3BB0);
+
 }
 
 // 0x6B0A90
@@ -1692,11 +1695,7 @@ int32 CAutomobile::ProcessEntityCollision(CEntity* entity, CColPoint* outColPoin
 
 #ifdef FIX_BUGS
     // FIX_BUGS@CAutomobile::ProcessEntityCollision:1
-    // The original code handled this properly, because `ProcessColModels` returned `0` 
-    // if either colmodel's data was missing
-    // but there's a lot of no-op stuff done below that we can just avoid altogether
-    // Though, in the original code there was an edge case if `m_pTractor == entity || m_pTrailer == entity` => crash
-    // but since I moved the assignment to the outside of the function now it always crashes xD
+    // Avoid proceeding if collision data is missing, as it would cause issues downstream.
     if (!tcd || !ocd) {
         return 0;
     }
@@ -3252,7 +3251,7 @@ bool CAutomobile::GetTowBarPos(CVector& outPos, bool ignoreModelType, CVehicle* 
 
         outPos.x = 0.0f;
         outPos.y = baseY + CModelInfo::GetModelInfo(m_nModelIndex)->GetColModel()->m_boundBox.m_vecMin.y;
-        outPos.z = ((1.0f - (float)m_wMiscComponentAngle / (float)TOWTRUCK_HOIST_DOWN_LIMIT) / 2.0f + 0.5f) - m_fFrontHeightAboveRoad;
+        outPos.z = (1.0f - (float)m_wMiscComponentAngle / (float)TOWTRUCK_HOIST_DOWN_LIMIT) * 0.5f + 0.5f - m_fFrontHeightAboveRoad;
         outPos = m_matrix->TransformPoint(outPos);
         return true;
     }
@@ -3315,11 +3314,10 @@ bool CAutomobile::SetTowLink(CVehicle* tractor, bool placeMeOnRoadProperly) {
     case eEntityStatus::STATUS_ABANDONED:
         break;
     case eEntityStatus::STATUS_SIMPLE:
-        return false;
-    default: {
         CCarCtrl::SwitchVehicleToRealPhysics(this);
         break;
-    }
+    default:
+        return false;
     }
 
     SetStatus(STATUS_IS_TOWED);
@@ -3390,15 +3388,14 @@ bool CAutomobile::BreakTowLink() {
 
 // 0x6A6090
 float CAutomobile::FindWheelWidth(bool bRear) {
-    // TODO: Maybe replace this with `bool flagValaue` and use bitfields directly (instead of bitmasks?)
     static constexpr struct { eVehicleHandlingFlags flag; float mult; } mapping[2][4]{
-        { // Rear wheel
+        { // Rear wheel flags
             { VEHICLE_HANDLING_WHEEL_R_NARROW2, 0.65f },
             { VEHICLE_HANDLING_WHEEL_R_NARROW,  0.8f  },
             { VEHICLE_HANDLING_WHEEL_R_WIDE,    1.1f  },
             { VEHICLE_HANDLING_WHEEL_R_WIDE2,   1.25f }
         },
-        { // Front wheel
+        { // Front wheel flags
             { VEHICLE_HANDLING_WHEEL_F_NARROW2, 0.65f },
             { VEHICLE_HANDLING_WHEEL_F_NARROW,  0.8f  },
             { VEHICLE_HANDLING_WHEEL_F_WIDE,    1.1f  },
@@ -3413,8 +3410,8 @@ float CAutomobile::FindWheelWidth(bool bRear) {
         wheelWidth *= 1.5f;
     }
 
-    // Find first flag and apply it, and return that as the result
-    for (auto&& [flag, mult] : mapping[bRear ? 1 : 0]) {
+    // mapping[0] = rear flags, mapping[1] = front flags
+    for (auto&& [flag, mult] : mapping[bRear ? 0 : 1]) {
         if (m_nHandlingFlagsIntValue & flag) {
             return wheelWidth * mult;
         }
@@ -5534,9 +5531,166 @@ CObject* CAutomobile::RemoveBonnetInPedCollision() {
     return flyingComp;
 }
 
+enum eUpdateWheelFlags {
+    UPDATE_WHEEL_NO_STEER          = 0x1,
+    UPDATE_WHEEL_NO_TILT           = 0x2,
+    UPDATE_WHEEL_NO_HOVER_TILT     = 0x4,
+    UPDATE_WHEEL_NO_HOVER_EFFECTS  = 0x8,
+};
+
 // 0x6AA290
 void CAutomobile::UpdateWheelMatrix(int32 nodeIndex, int32 flags) {
-    ((void(__thiscall*)(CAutomobile*, int32, int32))0x6AA290)(this, nodeIndex, flags); // TODO: Reverse
+    if (!m_aCarNodes[nodeIndex])
+        return;
+
+    constexpr float WHEEL_STEER_FACTOR = 0.5f;
+    constexpr float WHEEL_TILT_FACTOR  = 0.5f;
+    constexpr float DEFAULT_WHEEL_SCALE = 0.55f;
+
+    const auto& mi = *GetVehicleModelInfo();
+
+    bool bFrontWheel = false;
+    bool bRearWheel  = false;
+    int32 wheelNum   = 0;
+    float rhsSide    = 0.f; // -1 = left, +1 = right
+    float steerAngle = 0.f;
+
+    switch (nodeIndex) {
+    case CAR_WHEEL_LF:
+        wheelNum   = 0;
+        rhsSide    = -1.f;
+        bFrontWheel = true;
+        if (!m_pHandlingData->m_bSteerRearwheels)
+            steerAngle = m_fSteerAngle;
+        break;
+    case CAR_WHEEL_RF:
+        wheelNum   = 2;
+        rhsSide    = 1.f;
+        bFrontWheel = true;
+        if (!m_pHandlingData->m_bSteerRearwheels)
+            steerAngle = m_fSteerAngle;
+        break;
+    case CAR_WHEEL_LB:
+    case CAR_WHEEL_LM:
+        wheelNum  = 1;
+        rhsSide   = -1.f;
+        bRearWheel = true;
+        if (m_pHandlingData->m_bSteerRearwheels)
+            steerAngle = -m_fSteerAngle;
+        else if (m_pHandlingData->m_bHbRearwheelSteer)
+            steerAngle = m_f2ndSteerAngle;
+        break;
+    case CAR_WHEEL_RB:
+    case CAR_WHEEL_RM:
+        wheelNum  = 3;
+        rhsSide   = 1.f;
+        bRearWheel = true;
+        if (m_pHandlingData->m_bSteerRearwheels)
+            steerAngle = -m_fSteerAngle;
+        else if (m_pHandlingData->m_bHbRearwheelSteer)
+            steerAngle = m_f2ndSteerAngle;
+        break;
+    default:
+        return;
+    }
+
+    // Compute Ackermann steer angle with left/right flip
+    if (steerAngle != 0.f && !(flags & UPDATE_WHEEL_NO_STEER)) {
+        if (rhsSide < 0.f) {
+            if (bRearWheel) {
+                if (steerAngle > 0.f) steerAngle *= WHEEL_STEER_FACTOR;
+            } else {
+                if (steerAngle < 0.f) steerAngle *= WHEEL_STEER_FACTOR;
+            }
+            steerAngle += PI; // mirror left wheels
+        } else {
+            if (bRearWheel) {
+                if (steerAngle < 0.f) steerAngle *= WHEEL_STEER_FACTOR;
+            } else {
+                if (steerAngle > 0.f) steerAngle *= WHEEL_STEER_FACTOR;
+            }
+        }
+    } else {
+        steerAngle = rhsSide < 0.f ? PI : 0.f;
+    }
+
+    CMatrix mat;
+    mat.Attach(RwFrameGetMatrix(m_aCarNodes[nodeIndex]), false);
+    CVector posn = mat.GetPosition();
+    posn.z = m_wheelPosition[wheelNum];
+
+    // Determine scale
+    float scale = m_fWheelScale;
+    float width = 1.f;
+    if (mi.m_nWheelModelIndex == -1) {
+        // Wheels are part of the model; adjust for different front/rear sizes
+        if (bRearWheel)
+            scale *= mi.m_fWheelSizeRear / mi.m_fWheelSizeFront;
+        width = mi.m_fWheelSizeFront / (DEFAULT_WHEEL_SCALE * m_fWheelScale);
+    } else {
+        scale = bRearWheel ? mi.m_fWheelSizeRear : mi.m_fWheelSizeFront;
+    }
+
+    // Special case: combine harvester middle wheels
+    if (m_nModelIndex == MODEL_COMBINE && (nodeIndex == CAR_WHEEL_LM || nodeIndex == CAR_WHEEL_RM)) {
+        constexpr float COMBINE_MIDDLE_WHEEL_SIZE = 1.7f;
+        constexpr float COMBINE_MIDDLE_WHEEL_POS  = 0.45f;
+        scale  = COMBINE_MIDDLE_WHEEL_SIZE / mi.m_fWheelSizeFront;
+        posn.z += COMBINE_MIDDLE_WHEEL_POS * (COMBINE_MIDDLE_WHEEL_SIZE - mi.m_fWheelSizeRear);
+        if (rhsSide < 0.f) steerAngle -= PI;
+        steerAngle *= 0.5f;
+        if (rhsSide < 0.f) steerAngle += PI;
+    } else if (m_nModelIndex == MODEL_STUNT && nodeIndex == CAR_WHEEL_LF) {
+        steerAngle = 0.f;
+    }
+
+    // Width flags (monster trucks and quads ignore them)
+    if (IsSubMonsterTruck() || IsSubQuad()) {
+        width = 1.f;
+    } else if (bRearWheel) {
+        if      (m_pHandlingData->m_bWheelRNarrow2) width *= 0.65f;
+        else if (m_pHandlingData->m_bWheelRNarrow)  width *= 0.8f;
+        else if (m_pHandlingData->m_bWheelRWide)    width *= 1.1f;
+        else if (m_pHandlingData->m_bWheelRWide2)   width *= 1.25f;
+    } else if (bFrontWheel) {
+        if      (m_pHandlingData->m_bWheelFNarrow2) width *= 0.65f;
+        else if (m_pHandlingData->m_bWheelFNarrow)  width *= 0.8f;
+        else if (m_pHandlingData->m_bWheelFWide)    width *= 1.1f;
+        else if (m_pHandlingData->m_bWheelFWide2)   width *= 1.25f;
+    }
+
+    if (m_nModelIndex == MODEL_KART)
+        width *= 1.5f;
+
+    mat.SetScale(width * scale, scale, scale);
+
+    if (IsSubHeli()) {
+        mat.Rotate({0.f, 0.f, steerAngle});
+    } else if (m_damageManager.GetWheelStatus((eCarWheel)wheelNum) == eCarWheelStatus::WHEEL_STATUS_BURST) {
+        mat.Rotate({rhsSide * m_wheelRotation[wheelNum], 0.f, steerAngle + 0.3f * std::sin(rhsSide * m_wheelRotation[wheelNum])});
+    } else {
+        mat.Rotate({rhsSide * m_wheelRotation[wheelNum], 0.f, steerAngle});
+    }
+
+    if (autoFlags.bIsMonsterTruck || m_pHandlingData->m_bHydraulicInst
+     || (m_pHandlingData->m_bAxleFSolid && bFrontWheel)
+     || (m_pHandlingData->m_bAxleRSolid  && bRearWheel)) {
+        // Solid axle: tilt based on height difference between opposite wheels
+        const auto oppositeWheel = wheelNum > 1 ? wheelNum - 2 : wheelNum + 2;
+        const auto tilt = m_wheelPosition[wheelNum] - m_wheelPosition[oppositeWheel];
+        mat.RotateY(std::atan2(-rhsSide * tilt, 2.f * std::abs(posn.y)));
+    } else if (!(flags & UPDATE_WHEEL_NO_HOVER_TILT)
+            && !(bFrontWheel && m_pHandlingData->m_bAxleFNotlit)
+            && !(bRearWheel  && m_pHandlingData->m_bAxleRNotlit)) {
+        const auto heightOffset = posn.z + m_fFrontHeightAboveRoad - (bFrontWheel ? mi.m_fWheelSizeFront : mi.m_fWheelSizeRear) * 0.5f;
+        const float tiltSign = ((bFrontWheel && m_pHandlingData->m_bAxleFReverse)
+                             || (bRearWheel  && m_pHandlingData->m_bAxleRReverse))
+                             ? -1.f : 1.f;
+        mat.RotateY(tiltSign * std::asin(std::clamp<float>(rhsSide * WHEEL_TILT_FACTOR * heightOffset, -1.f, 1.f)));
+    }
+
+    mat.GetPosition() = posn;
+    mat.UpdateRW();
 }
 
 // 0x6ADEF0
@@ -6375,7 +6529,69 @@ void CAutomobile::FireTruckControl(CFire* fire) {
 
 // 0x44D520
 bool CAutomobile::HasCarStoppedBecauseOfLight() {
-    return ((bool(__thiscall*)(CAutomobile*))0x44D520)(this); // TODO: Reverse
+    if (GetStatus() != STATUS_SIMPLE && GetStatus() != STATUS_PHYSICS) {
+        return false;
+    }
+
+    const auto oldNode = m_autoPilot.m_startingRouteNode;
+    const auto newNode = m_autoPilot.m_currentAddress;
+
+    if (!ThePaths.m_pPathNodes[oldNode.m_wAreaId] || !ThePaths.m_pPathNodes[newNode.m_wAreaId]) {
+        return false;
+    }
+
+    const auto& oldPathNode = ThePaths.m_pPathNodes[oldNode.m_wAreaId][oldNode.m_wNodeId];
+    if (oldPathNode.m_nNumLinks != 0) {
+        const auto* nodeLinks = ThePaths.m_pNodeLinks[oldNode.m_wAreaId];
+        for (uint32 i = 0; i < oldPathNode.m_nNumLinks; i++) {
+            const auto linkIdx = i + oldPathNode.m_wBaseLinkId;
+            if (nodeLinks[linkIdx].m_wAreaId == newNode.m_wAreaId && nodeLinks[linkIdx].m_wNodeId == newNode.m_wNodeId) {
+                const auto naviLinkAddr = ThePaths.m_pNaviLinks[oldNode.m_wAreaId][linkIdx];
+                const auto areaId = naviLinkAddr.m_wAreaId;
+                const auto linkId = naviLinkAddr.m_wCarPathLinkId;
+
+                if (ThePaths.m_pPathNodes[areaId]) {
+                    const auto& carLink = ThePaths.m_pNaviNodes[areaId][linkId];
+                    if (carLink.m_nTrafficLightState & 3) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+
+    const auto veryOldNode = m_autoPilot.m_endingRouteNode;
+    if (!veryOldNode.IsValid() || veryOldNode.m_wAreaId == (uint16)-1) {
+        return false;
+    }
+
+    if (!ThePaths.m_pPathNodes[veryOldNode.m_wAreaId]) {
+        return false;
+    }
+
+    const auto& veryOldPathNode = ThePaths.m_pPathNodes[veryOldNode.m_wAreaId][veryOldNode.m_wNodeId];
+    if (veryOldPathNode.m_nNumLinks == 0) {
+        return false;
+    }
+
+    const auto* veryOldNodeLinks = ThePaths.m_pNodeLinks[veryOldNode.m_wAreaId];
+    for (uint32 i = 0; i < veryOldPathNode.m_nNumLinks; i++) {
+        const auto linkIdx = i + veryOldPathNode.m_wBaseLinkId;
+        if (veryOldNodeLinks[linkIdx].m_wAreaId == oldNode.m_wAreaId && veryOldNodeLinks[linkIdx].m_wNodeId == oldNode.m_wNodeId) {
+            const auto naviLinkAddr = ThePaths.m_pNaviLinks[veryOldNode.m_wAreaId][linkIdx];
+            const auto areaId = naviLinkAddr.m_wAreaId;
+            const auto linkId = naviLinkAddr.m_wCarPathLinkId;
+
+            if (ThePaths.m_pPathNodes[areaId]) {
+                const auto& carLink = ThePaths.m_pNaviNodes[areaId][linkId];
+                if (carLink.m_nTrafficLightState & 3) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
 }
 
 /*!
