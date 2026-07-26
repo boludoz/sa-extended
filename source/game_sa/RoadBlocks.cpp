@@ -4,6 +4,12 @@
 #include "PedPlacement.h"
 #include "TaskComplexWanderCop.h"
 #include "TaskSimpleStandStill.h"
+#include "VisibilityPlugins.h"
+#include "Population.h"
+#include "CarCtrl.h"
+#include "DamageManager.h"
+#include "FireManager.h"
+#include "ModelIndices.h"
 #include <extensions/File.hpp>
 
 void CRoadBlocks::InjectHooks() {
@@ -13,7 +19,7 @@ void CRoadBlocks::InjectHooks() {
     RH_ScopedInstall(Init, 0x461100);
     RH_ScopedInstall(ClearScriptRoadBlocks, 0x460EC0);
     RH_ScopedInstall(ClearSpaceForRoadBlockObject, 0x461020);
-    RH_ScopedInstall(CreateRoadBlockBetween2Points, 0x4619C0, { .reversed = false });
+    RH_ScopedInstall(CreateRoadBlockBetween2Points, 0x4619C0);
     RH_ScopedInstall(GenerateRoadBlockPedsForCar, 0x461170);
     RH_ScopedInstall(GenerateRoadBlocks, 0x4629E0);
     RH_ScopedInstall(GetRoadBlockNodeInfo, 0x460EE0);
@@ -102,7 +108,271 @@ bool CRoadBlocks::ClearSpaceForRoadBlockObject(CVector cornerA, CVector cornerB)
 
 // 0x4619C0
 void CRoadBlocks::CreateRoadBlockBetween2Points(CVector a, CVector b, bool isGangRoadBlock) {
-    plugin::Call<0x4619C0, CVector, CVector, bool>(a, b, isGangRoadBlock);
+    //! How many vehicles a single roadblock may consist of
+    constexpr auto MAX_ROADBLOCK_VEHICLES = 5;
+
+    //! How many barriers get lined up alongside it
+    constexpr auto MAX_ROADBLOCK_BARRIERS = 8;
+
+    //! Temporary props stay around for 10 minutes
+    constexpr auto TEMP_OBJECT_LIFETIME = 600'000u;
+
+    const auto length = (b - a).Magnitude();
+    const auto center = (a + b) * 0.5f;
+
+    auto along = b - a;
+    along.Normalise();
+
+    auto across = CVector{ along.y, -along.x, 0.0f };
+    across.Normalise();
+    if (DotProduct(FindPlayerCoors() - center, across) < 0.0f) { // Point the block at the player
+        across *= -1.0f;
+    }
+
+    eModelID model;
+    if (isGangRoadBlock) {
+        model = CPopulation::PickRiotRoadBlockCar();
+        if (model == MODEL_INVALID) {
+            return;
+        }
+    } else {
+        const auto* const wanted = FindPlayerWanted();
+        model = wanted->AreArmyRequired()  ? MODEL_BARRACKS
+              : wanted->AreFbiRequired()   ? MODEL_FBIRANCH
+              : wanted->AreSwatRequired()  ? MODEL_ENFORCER
+                                           : CStreaming::GetDefaultCopCarModel(false);
+        if (!CStreaming::IsModelLoaded(model)) {
+            model = CStreaming::GetDefaultCopCarModel(false);
+        }
+        if (model == MODEL_COPBIKE) { // A bike is no use as a barricade
+            return;
+        }
+    }
+
+    const auto vehBB = CModelInfo::GetModelInfo(model)->GetColModel()->m_boundBox;
+
+    // How much of the line one vehicle eats up, depending on how it is turned
+    const auto sidewaysSpan = vehBB.m_vecMax.x - vehBB.m_vecMin.x + 2.0f;
+    const auto forwardSpan  = vehBB.m_vecMax.y - vehBB.m_vecMin.y + 0.2f + (isGangRoadBlock ? 0.5f : 0.0f);
+
+    // Decide the orientation of each vehicle up front, then see how many actually fit
+    std::array<bool, MAX_ROADBLOCK_VEHICLES> isSideways{};
+    auto numVehicles = 0;
+    auto lengthLeft  = length;
+    for (auto i = 0; i < MAX_ROADBLOCK_VEHICLES; i++) {
+        isSideways[i] = model == MODEL_BARRACKS || isGangRoadBlock
+                      ? false
+                      : (CGeneral::GetRandomNumber() & 1) != 0;
+
+        const auto span = isSideways[i] ? sidewaysSpan : forwardSpan;
+        if (lengthLeft < span) {
+            break;
+        }
+        lengthLeft -= span;
+        if (++numVehicles == MAX_ROADBLOCK_VEHICLES) {
+            break;
+        }
+    }
+
+    const auto vehGap = lengthLeft / (float)(numVehicles + 1);
+
+    auto cursor = vehGap;
+    for (auto i = 0; i < numVehicles; i++) {
+        auto onItsSide = false; // Riot roadblocks like to tip cars over
+
+        CMatrix m{};
+        float   dist;
+        if (isSideways[i]) {
+            dist = sidewaysSpan * 0.5f + cursor;
+
+            m.GetRight()   = CVector{ across.y, -across.x, 0.0f };
+            m.GetForward() = across;
+            m.GetUp()      = CVector{ 0.0f, 0.0f, 1.0f };
+        } else {
+            dist = forwardSpan * 0.5f + cursor;
+
+            if (isGangRoadBlock) {
+                onItsSide = CGeneral::GetRandomNumber() < 64;
+            }
+
+            if (onItsSide) {
+                m.GetRight()   = CVector{ 0.0f, 0.0f, 1.0f };
+                m.GetForward() = along;
+                m.GetUp()      = CVector{ -along.y, along.x, 0.0f };
+            } else {
+                m.GetRight()   = CVector{ along.y, -along.x, 0.0f };
+                m.GetForward() = along;
+                m.GetUp()      = CVector{ 0.0f, 0.0f, 1.0f };
+            }
+
+            if (CGeneral::GetRandomNumber() & 1) { // Face the other way down the road
+                if (onItsSide) {
+                    m.RotateY(PI);
+                } else {
+                    m.RotateZ(PI);
+                }
+            }
+        }
+
+        m.RotateZ(((float)CGeneral::GetRandomNumber() - 128.0f) * (isSideways[i]
+            ? (isGangRoadBlock ? 0.004f : 0.002f)
+            : (isGangRoadBlock ? 0.006f : 0.003f)));
+
+        m.SetTranslateOnly(a + along * dist);
+        m.GetPosition().z += 0.3f - (onItsSide ? vehBB.m_vecMin.x : vehBB.m_vecMin.z);
+
+        cursor = forwardSpan * 0.5f + vehGap + dist;
+
+        if (!ClearSpaceForRoadBlockObject(m.TransformPoint(vehBB.m_vecMin), m.TransformPoint(vehBB.m_vecMax))) {
+            continue;
+        }
+
+        if (isGangRoadBlock && (onItsSide || CGeneral::GetRandomNumber() < 64)) {
+            // A burnt-out wreck rather than a working vehicle
+            auto* const wreck = new CObject(ModelIndices::MI_ROADBLOCKFUCKEDCAR1, true);
+            wreck->GetMatrix() = m;
+            wreck->SetPosn(m.GetPosition());
+            wreck->SetIsStatic(false);
+
+            CObject::nNoTempObjects++;
+            wreck->m_nObjectType  = OBJECT_TEMPORARY;
+            wreck->m_nRemovalTime = CTimer::GetTimeInMS() + TEMP_OBJECT_LIFETIME;
+            CWorld::Add(wreck);
+
+            gFireManager.StartFire(wreck, nullptr, 2.8f, true, 60'000, 2);
+            if (auto* const fire = wreck->m_pFire) {
+                fire->SetRemovalDist(92);
+            }
+            continue;
+        }
+
+        auto* const veh = new CAutomobile(model, RANDOM_VEHICLE, true);
+        veh->SetStatus(STATUS_ABANDONED);
+
+        m.GetPosition().z += veh->GetHeightAboveRoad() - 0.6f;
+        veh->GetMatrix() = m;
+        veh->PlaceOnRoadProperly();
+        veh->SetIsStatic(false);
+        veh->UpdateRwMatrix();
+        veh->UpdateRwFrame();
+
+        veh->m_nDoorLock = CARLOCK_UNLOCKED;
+        CCarCtrl::JoinCarWithRoadSystem(veh);
+
+        veh->m_autoPilot.m_nCarMission  = MISSION_NONE;
+        veh->m_autoPilot.m_nTempAction  = TEMPACT_NONE;
+        veh->m_autoPilot.m_nCurrentLane = 0;
+        veh->m_autoPilot.m_nNextLane    = 0;
+        veh->m_autoPilot.m_speed        = 0.0f;
+        veh->m_autoPilot.m_nCruiseSpeed = 0;
+
+        veh->vehicleFlags.bNeverUseSmallerRemovalRange = true;
+        veh->vehicleFlags.bIsLocked                    = false;
+        veh->vehicleFlags.bEngineOn                    = false;
+
+        auto onFire = false;
+        if (isGangRoadBlock) {
+            if ((int32)CGeneral::GetRandomNumberInRange(0.0f, 4.0f) != 0) { // 3 in 4 are already burning
+                veh->BlowUpCarCutSceneNoExtras(true, true, true, true);
+                veh->m_nTimeWhenBlowedUp += 1'000'000;
+                onFire = true;
+            } else {
+                veh->SetTotalDamage(true);
+            }
+        } else if (veh->UsesSiren() && (CGeneral::GetRandomNumber() & 1)) {
+            veh->vehicleFlags.bSirenOrAlarm = true;
+        }
+
+        if (veh->GetMatrix().GetUp().z <= 0.94f) { // Ended up on its roof, not worth keeping
+            delete veh;
+            continue;
+        }
+
+        CVisibilityPlugins::SetClumpAlpha(veh->GetRpClump(), 0);
+        CWorld::Add(veh);
+
+        veh->vehicleFlags.bCreateRoadBlockPeds = true;
+        veh->m_nTimeTillWeNeedThisCar          = CTimer::GetTimeInMS() + 7'000;
+        veh->m_nNumPedsForRoadBlock            = numVehicles <= 3 ? 2 : 1;
+
+        if (isSideways[i]) {
+            // Sideways cars get their doors flung open, and the peds stand behind them
+            veh->m_nPedsPositionForRoadBlock = 2;
+
+            const auto OpenDoorIfPresent = [veh](eDoors door) {
+                const auto node = CDamageManager::GetCarNodeIndexFromDoor(door);
+                if (veh->m_aCarNodes[node]) {
+                    veh->OpenDoor(nullptr, node, door, 1.0f, true);
+                }
+            };
+            OpenDoorIfPresent(DOOR_LEFT_FRONT);
+            if (veh->m_nNumPedsForRoadBlock > 1) {
+                OpenDoorIfPresent(DOOR_RIGHT_FRONT);
+            }
+        } else {
+            // Peds go on whichever side of the car the player is approaching from
+            veh->m_nPedsPositionForRoadBlock = DotProduct(veh->GetPosition() - FindPlayerCoors(), veh->GetMatrix().GetRight()) >= 0.0f;
+        }
+
+        if (onFire) {
+            gFireManager.StartFire(veh, nullptr, 2.8f, true, 60'000, 2);
+            if (auto* const fire = veh->m_pFire) {
+                fire->SetRemovalDist(92);
+            }
+        }
+    }
+
+    if (isGangRoadBlock) { // Riots don't get tidy roadwork barriers
+        return;
+    }
+
+    const auto barrierBB   = CModelInfo::GetModelInfo(ModelIndices::MI_ROADWORKBARRIER1)->GetColModel()->m_boundBox;
+    const auto barrierSpan = barrierBB.m_vecMax.x - barrierBB.m_vecMin.x + 0.5f;
+
+    const auto numBarriers = std::min((int32)(length / barrierSpan), MAX_ROADBLOCK_BARRIERS);
+    const auto barrierGap  = (length - (float)numBarriers * barrierSpan) / (float)(numBarriers + 1);
+
+    CObject::DeleteAllTempObjectsInArea(center, length * 0.5f);
+
+    for (auto i = 0; i < numBarriers; i++) {
+        const auto dist = ((float)i + 0.5f) * barrierSpan + (float)(i + 1) * barrierGap;
+
+        CMatrix m{};
+        m.SetUnity();
+        m.SetTranslate(CVector{});
+
+        // Barriers stand across the block, i.e. turned 90 degrees from the vehicles
+        m.GetRight()   = along;
+        m.GetForward() = CVector{ along.y, -along.x, 0.0f };
+        m.GetUp()      = CVector{ 0.0f, 0.0f, 1.0f };
+        m.RotateZ(((float)CGeneral::GetRandomNumber() - 128.0f) * 0.003f);
+
+        // Set back from the vehicles, on the near side
+        auto pos = a + along * dist + across * 5.0f;
+        pos.x += (float)(CGeneral::GetRandomNumber() & 0xF) * 0.05f;
+        pos.y += (float)(CGeneral::GetRandomNumber() & 0xF) * 0.05f;
+
+        bool foundGround{};
+        pos.z = CWorld::FindGroundZFor3DCoord({ pos.x, pos.y, pos.z + 2.0f }, &foundGround, nullptr);
+        if (!foundGround) {
+            continue;
+        }
+        pos.z -= barrierBB.m_vecMin.z;
+        m.SetTranslateOnly(pos);
+
+        if (!ClearSpaceForRoadBlockObject(m.TransformPoint(barrierBB.m_vecMin), m.TransformPoint(barrierBB.m_vecMax))) {
+            continue;
+        }
+
+        auto* const barrier = new CObject(ModelIndices::MI_ROADWORKBARRIER1, true);
+        barrier->GetMatrix() = m;
+        barrier->SetPosn(m.GetPosition());
+
+        CObject::nNoTempObjects++;
+        barrier->m_nObjectType  = OBJECT_TEMPORARY;
+        barrier->m_nRemovalTime = CTimer::GetTimeInMS() + TEMP_OBJECT_LIFETIME;
+        CWorld::Add(barrier);
+    }
 }
 
 // 0x461170

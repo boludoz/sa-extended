@@ -54,6 +54,7 @@ public:
 
     bool HasTimeToBurn() const;
     bool IsNotInRemovalDistance() const;
+    void SetRemovalDist(uint8 dist) { m_RemovalDist = dist; }
     auto& GetPosition() const { return m_Position; }
 
     //! Script thing ID
