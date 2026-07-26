@@ -66,8 +66,70 @@ CAESound::CAESound(
     SetPosition(pos);
 }
 
+// 0x4EF660
 CAESound::~CAESound() {
     UnregisterWithPhysicalEntity();
+}
+
+// Inlined into both `0x4EF0A0` and `0x4EF680`
+void CAESound::CopyValuesFrom(const CAESound& rhs) {
+    m_BankSlot            = rhs.m_BankSlot;
+    m_SoundID             = rhs.m_SoundID;
+    m_AudioEntity         = rhs.m_AudioEntity;
+    m_Event               = rhs.m_Event;
+    m_ClientVariable      = rhs.m_ClientVariable;
+    m_Volume              = rhs.m_Volume;
+    m_RollOffFactor       = rhs.m_RollOffFactor;
+    m_Speed               = rhs.m_Speed;
+    m_SpeedVariance       = rhs.m_SpeedVariance;
+    m_CurrPos             = rhs.m_CurrPos;
+    m_PrevPos             = rhs.m_PrevPos;
+    m_LastFrameUpdatedAt  = rhs.m_LastFrameUpdatedAt;
+    m_CurrTimeUpdateMs    = rhs.m_CurrTimeUpdateMs;
+    m_PrevTimeUpdateMs    = rhs.m_PrevTimeUpdateMs;
+    m_CurrCamDist         = rhs.m_CurrCamDist;
+    m_PrevCamDist         = rhs.m_PrevCamDist;
+    m_Doppler             = rhs.m_Doppler;
+    m_FrameDelay          = rhs.m_FrameDelay;
+    m_Flags               = rhs.m_Flags;
+    m_IsInUse             = rhs.m_IsInUse;
+    // NOTE: `m_IsAudioHardwareAware` (+0x5A) is intentionally not copied, the original skips it
+    m_PlayTime            = rhs.m_PlayTime;
+    m_IsPhysicallyPlaying = rhs.m_IsPhysicallyPlaying;
+    m_ListenerVolume      = rhs.m_ListenerVolume;
+    m_ListenerSpeed       = rhs.m_ListenerSpeed;
+    m_HasRequestedStopped = rhs.m_HasRequestedStopped;
+    m_Headroom            = rhs.m_Headroom;
+    m_Length              = rhs.m_Length;
+}
+
+// 0x4EF0A0
+CAESound::CAESound(const CAESound& rhs) {
+    CopyValuesFrom(rhs);
+
+    m_PhysicalEntity = nullptr;
+    if (rhs.m_PhysicalEntity) {
+        m_PhysicalEntity = rhs.m_PhysicalEntity;
+        m_PhysicalEntity->RegisterReference(&m_PhysicalEntity);
+    }
+}
+
+// 0x4EF680
+CAESound& CAESound::operator=(const CAESound& rhs) {
+    if (this == &rhs) {
+        return *this;
+    }
+
+    UnregisterWithPhysicalEntity();
+    CopyValuesFrom(rhs);
+
+    m_PhysicalEntity = nullptr;
+    if (rhs.m_PhysicalEntity) {
+        m_PhysicalEntity = rhs.m_PhysicalEntity;
+        m_PhysicalEntity->RegisterReference(&m_PhysicalEntity);
+    }
+
+    return *this;
 }
 
 // 0x4EFE50
@@ -103,7 +165,10 @@ void CAESound::Initialise(
 
 // 0x4EF1A0
 void CAESound::UnregisterWithPhysicalEntity() {
-    m_PhysicalEntity = nullptr;
+    if (m_PhysicalEntity) {
+        m_PhysicalEntity->CleanUpOldReference(&m_PhysicalEntity);
+        m_PhysicalEntity = nullptr;
+    }
 }
 
 // 0x4EF1C0
@@ -205,9 +270,10 @@ void CAESound::NewVPSLEntry() {
 
 // 0x4EF820
 void CAESound::RegisterWithPhysicalEntity(CEntity* entity) {
-    CAESound::UnregisterWithPhysicalEntity();
+    UnregisterWithPhysicalEntity();
     if (entity) {
         m_PhysicalEntity = entity;
+        entity->RegisterReference(&m_PhysicalEntity);
     }
 }
 

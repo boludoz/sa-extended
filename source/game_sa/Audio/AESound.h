@@ -53,6 +53,11 @@ public:
     );
     ~CAESound();
 
+    // Both copy the same 27 fields and re-register the physical entity for the
+    // new object. Neither touches `m_IsAudioHardwareAware` - see `CopyValuesFrom`.
+    CAESound(const CAESound& rhs);            // 0x4EF0A0
+    CAESound& operator=(const CAESound& rhs); // 0x4EF680
+
     void Initialise(
         eSoundBankSlot  bankSlot,
         eSoundID        sfxId,
@@ -111,11 +116,19 @@ public:
     bool IsAudioHardwareAware() const { return m_IsAudioHardwareAware; }
     bool IsPhysicallyPlaying() const { return m_IsPhysicallyPlaying; }
 
+private:
+    //! Field-for-field copy shared by the copy ctor and `operator=`, matching what
+    //! the original inlines into both. Deliberately skips `m_PhysicalEntity` (the
+    //! caller re-registers it) and `m_IsAudioHardwareAware`, which the original
+    //! never copies - `0x4EF680` moves `+0x58` and `+0x5C` with separate 16-bit
+    //! `mov`s and leaves `+0x5A` alone.
+    void CopyValuesFrom(const CAESound& rhs);
+
 public:
     eSoundBankSlot     m_BankSlot{};             //!< Slot to use for the sound
     eSoundID           m_SoundID{};              //!< Sound ID in the bank that's loaded into the slot
     CAEAudioEntity*    m_AudioEntity{};          //!< The entity that's playing this sound
-    notsa::EntityRef<> m_PhysicalEntity{};       //!< If set, the sound is tied to this entity
+    CEntity*           m_PhysicalEntity{};       //!< If set, the sound is tied to this entity. Raw like the original: `CEntity::RegisterReference` nulls it out when the entity dies
     int32              m_Event{ AE_UNDEFINED };  //!< Not necessarily `eAudioEvents`, for ex. see `CAEWeaponAudioEntity`
     float              m_ClientVariable{ -1.f }; //!< Custom variable set when playing the sound
     float              m_Volume{};               //!< Volume of the sound (Used to calculate the final volume, `ListenerVolume`)
