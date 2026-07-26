@@ -2,6 +2,7 @@
 
 #include "ColourSet.h"
 #include "eWeatherType.h"
+#include "reversiblebugfixes/Bugs.hpp"
 
 class CTimeCycleBox;
 class CBox;
@@ -244,10 +245,17 @@ public: // NOTSA
 
     static auto GetBoxes() { return m_aBoxes | rngv::take(m_NumBoxes); }
     static bool ShouldIgnoreSky() {
+        // Same out-of-range `m_ExtraColour` as in `CColourSet`'s ctor -- see the bugfix.
+        const auto hour    = notsa::bugfixes::CTimeCycle_ExtraColour_NegativeIndex
+            ? std::clamp<int32>(m_ExtraColour, 0, (int32)NUM_HOURS - 1)
+            : m_ExtraColour;
+        const auto weather = notsa::bugfixes::CTimeCycle_ExtraColour_NegativeIndex
+            ? std::clamp<int32>(m_ExtraColourWeatherType, 0, (int32)NUM_WEATHERS - 1)
+            : m_ExtraColourWeatherType;
         return (
-            m_nSkyTopRed[m_ExtraColour][m_ExtraColourWeatherType]   == 0 &&
-            m_nSkyTopGreen[m_ExtraColour][m_ExtraColourWeatherType] == 0 &&
-            m_nSkyTopBlue[m_ExtraColour][m_ExtraColourWeatherType]  == 0
+            m_nSkyTopRed[hour][weather]   == 0 &&
+            m_nSkyTopGreen[hour][weather] == 0 &&
+            m_nSkyTopBlue[hour][weather]  == 0
         );
     }
 };

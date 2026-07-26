@@ -62,6 +62,16 @@ inline const ReversibleBugFix Interior_c_Shop_PlaceFixedUnits_UninitCounterX{
                    "Use 0, matching ARM64.",
     .Credit      = "Contributors"
 };
+inline const ReversibleBugFix CTimeCycle_ExtraColour_NegativeIndex{
+    .Name        = "Extra Colour Negative Table Index",
+    .Description = "Opcode 04F9 (`set_interior <n> color_to <flag>`) passes `n - 1` to "
+                   "`CTimeCycle::StartExtraColour` with no check for `n == 0`, which is how the stock "
+                   "scripts switch the extra colour off. That leaves `m_ExtraColour` at -1, and every "
+                   "timecycle table is then read at `[-1][21]`, two bytes before the array. Vanilla gets "
+                   "away with it because `m_ExtraColourInter` is fading to zero at the same time, so the "
+                   "garbage is blended in at ~0 weight. Clamp the indices to the table instead.",
+    .Credit      = "Contributors"
+};
 inline const ReversibleBugFix CCarCtrl_RemoveDistantCars_UseAfterFree{
     .Name        = "CCarCtrl::RemoveDistantCars Use-After-Free",
     .Description = "Fix user-after-free of vehicles (possibly) deleted by PossiblyRemoveVehicle",

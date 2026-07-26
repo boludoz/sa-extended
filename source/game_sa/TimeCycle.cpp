@@ -44,6 +44,12 @@ void CTimeCycle::Initialise(bool padFile) {
         return;
     }
 
+    // Declared once for the whole file, and deliberately not re-initialised per line:
+    // TIMECYC.DAT ships with a malformed line (the LA `WEATHER_CLOUDY` 20:00 row gives a
+    // single `255` where three sky-bottom components belong), so `sscanf` stops short of
+    // the 52 conversions and leaves the trailing variables holding the previous line's
+    // values. The original relies on exactly that -- it never looks at the return value --
+    // and zeroing them here changes what that row renders as.
     int32 ambR, ambG, ambB;
     int32 ambObjR, ambObjG, ambObjB;
     int32 dirR, dirG, dirB;
@@ -73,7 +79,9 @@ void CTimeCycle::Initialise(bool padFile) {
                 }
             }
 
-            const auto n = sscanf(line,
+            // NOTE: The return value is deliberately ignored, as in the original. See the
+            // comment on the locals above -- one row of the stock TIMECYC.DAT is short.
+            sscanf(line,
                 "%d %d %d " // Static ambience color
                 "%d %d %d " // Dynamic ambience color
                 "%d %d %d " // Direct light color - NOP
@@ -119,13 +127,6 @@ void CTimeCycle::Initialise(bool padFile) {
                 &postFx2A, &postFx2R, &postFx2G, &postFx2B,
                 &cloudAlpha, &highLightMinIntensity, &waterFogAlpha, &dirMult
             );
-            if (n < 51) {
-                // TODO:
-                // R* made a mistake in line 320:
-                // instead of the first 3 RGB values, only 255 is specified,
-                // which causes the entire line to shift and be read incorrectly
-                NOTSA_LOG_WARN("Bad timecyc line: '{}'", line);
-            }
 
             m_nAmbientRed[h][w]   = ambR;
             m_nAmbientGreen[h][w] = ambG;

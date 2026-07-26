@@ -1,6 +1,7 @@
 #include "StdInc.h"
 
 #include "ColourSet.h"
+#include "TimeCycle.h"
 
 void CColourSet::InjectHooks() {
     RH_ScopedClass(CColourSet);
@@ -12,6 +13,13 @@ void CColourSet::InjectHooks() {
 
 // 0x55F4B0
 CColourSet::CColourSet(int32 timeId, int32 weatherId) {
+    // The original indexes the tables flat and unchecked, as `weatherId + timeId * NUM_WEATHERS`,
+    // so a negative `timeId` just reads before the array. See the bugfix for how that happens.
+    if (notsa::bugfixes::CTimeCycle_ExtraColour_NegativeIndex) {
+        timeId    = std::clamp<int32>(timeId, 0, (int32)NUM_HOURS - 1);
+        weatherId = std::clamp<int32>(weatherId, 0, (int32)NUM_WEATHERS - 1);
+    }
+
     m_fAmbientRed               = CTimeCycle::m_nAmbientRed[timeId][weatherId];
     m_fAmbientGreen             = CTimeCycle::m_nAmbientGreen[timeId][weatherId];
     m_fAmbientBlue              = CTimeCycle::m_nAmbientBlue[timeId][weatherId];
