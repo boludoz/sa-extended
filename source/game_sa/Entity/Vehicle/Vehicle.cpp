@@ -227,7 +227,7 @@ void CVehicle::InjectHooks() {
     // RH_ScopedGlobalInstall(SetCompAlphaCB, 0x6D2950);
     RH_ScopedGlobalInstall(IsVehiclePointerValid, 0x6E38F0);
     // RH_ScopedGlobalInstall(RemoveUpgradeCB, 0x6D3300);
-    // RH_ScopedGlobalInstall(FindUpgradeCB, 0x6D3370);
+    RH_ScopedGlobalInstall(FindUpgradeCB, 0x6D3370);
     RH_ScopedGlobalOverloadedInstall(RemoveObjectsCB, "Object", 0x6D33B0, RwObject*(*)(RwObject*, void*), { .reversed = false });
     RH_ScopedGlobalOverloadedInstall(RemoveObjectsCB, "Frame", 0x6D3420, RwFrame*(*)(RwFrame*, void*));
     RH_ScopedGlobalInstall(CopyObjectsCB, 0x6D3450);
@@ -463,7 +463,7 @@ void CVehicle::SetModelIndex(uint32 index) {
 
 // 0x6D6410
 void CVehicle::DeleteRwObject() {
-    SetRemapTexDictionary(-1);
+    // SetRemapTexDictionary(-1); // Android
     RemoveAllUpgrades();
     CEntity::DeleteRwObject();
 }
@@ -1144,14 +1144,19 @@ int32 CVehicle::GetRemapIndex() {
 
 // 0x6D0BC0
 void CVehicle::SetRemapTexDictionary(int32 txdId) {
-    if (txdId != m_nPreviousRemapTxd) {
-        if (txdId == -1) {
-            m_pRemapTexture = nullptr;
-            CTxdStore::RemoveRef(m_nPreviousRemapTxd);
-            m_nPreviousRemapTxd = -1;
-        }
-        m_nRemapTxd = txdId;
+    if (txdId == m_nPreviousRemapTxd)
+    {
+        return;
     }
+
+    if (txdId == -1)
+    {
+        m_pRemapTexture = nullptr;
+        CTxdStore::RemoveRef(m_nPreviousRemapTxd);
+        m_nPreviousRemapTxd = -1;
+    }
+    m_nRemapTxd = txdId;
+
 }
 
 // index for m_awRemapTxds[] array
@@ -1256,10 +1261,13 @@ bool CVehicle::CustomCarPlate_TextureCreate(CVehicleModelInfo* model) {
 
 // 0x6D1150
 void CVehicle::CustomCarPlate_TextureDestroy() {
-    if (m_pCustomCarPlate) {
-        RwTextureDestroy(m_pCustomCarPlate);
-        m_pCustomCarPlate = nullptr;
+    if (m_pCustomCarPlate)
+    {
+        return;
     }
+
+    RwTextureDestroy(m_pCustomCarPlate);
+    m_pCustomCarPlate = nullptr;
 }
 
 // 0x6D1180
@@ -1524,13 +1532,16 @@ void CVehicle::RemoveDriver(bool dontTurnEngineOff) {
 }
 
 // 0x6D1A50
-CPed* CVehicle::SetUpDriver(int32 gangPedType, bool createAsMale, bool createAsCriminal) {
-    if (m_pDriver) {
+CPed* CVehicle::SetUpDriver(int32 CarRating, bool bMustBeMale, bool bCriminal)
+{
+    if (m_pDriver != nullptr)
+    {
         return m_pDriver;
     }
 
-    if (IsCreatedBy(eVehicleCreatedBy::RANDOM_VEHICLE)) {
-        CPopulation::AddPedInCar(this, true, gangPedType, 0, createAsMale, createAsCriminal);
+    if (IsCreatedBy(eVehicleCreatedBy::RANDOM_VEHICLE))
+    {
+        CPopulation::AddPedInCar(this, true, CarRating, 0, bMustBeMale, bCriminal);
         return m_pDriver;
     }
 
@@ -2272,7 +2283,16 @@ RpAtomic* RemoveUpgradeCB(RpAtomic* atomic, void* data) {
 
 // 0x6D3370
 RpAtomic* FindUpgradeCB(RpAtomic* atomic, void* data) {
-    return ((RpAtomic * (__cdecl*)(RpAtomic*, void*))0x6D3370)(atomic, data);
+    const auto search = static_cast<tCompSearchStructById*>(data);
+
+    if (!(CVisibilityPlugins::GetAtomicId(atomic) & eAtomicComponentFlag::ATOMIC_UPGRADE)) {
+        return atomic;
+    }
+    if (search->m_nId != CVisibilityPlugins::GetModelInfo(atomic)->CarMod) {
+        return atomic;
+    }
+    search->m_pFrame = reinterpret_cast<RwFrame*>(atomic); // The original struct holds an `RwObject*` here, so an atomic is fine
+    return nullptr;
 }
 
 // 0x6D33B0
@@ -2370,10 +2390,10 @@ void CVehicle::RemoveUpgrade(int32 upgradeId) {
 
 // 0x6D3650
 int32 CVehicle::GetUpgrade(int32 upgradeId) {
-    struct { int32 upgradeId; RpAtomic* atomic; } data = { upgradeId, nullptr };
+    tCompSearchStructById data = { upgradeId, nullptr };
     RpClumpForAllAtomics(GetRpClump(), FindUpgradeCB, &data);
-    if (data.atomic) {
-        return CVisibilityPlugins::GetModelInfoIndex(data.atomic);
+    if (data.m_pFrame) {
+        return CVisibilityPlugins::GetModelInfoIndex(reinterpret_cast<RpAtomic*>(data.m_pFrame));
     }
 
     switch (upgradeId) {
