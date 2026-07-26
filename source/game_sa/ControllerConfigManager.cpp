@@ -793,18 +793,20 @@ void CControllerConfigManager::ReinitControls() {
     const auto MouseSetUp = WinInput::GetMouseSetUp();
 #endif
     ControlsManager.InitDefaultControlConfigMouse(MouseSetUp, FrontEndMenuManager.m_ControlMethod == eController::MOUSE_PLUS_KEYS);
-
-    if (AllValidWinJoys.JoyStickNum[PAD1].bJoyAttachedToPort) {
 #ifdef NOTSA_USE_SDL3
-        ControlsManager.InitDefaultControlConfigJoyPad(JOYBUTTON_COUNT - 1);
+    // NOTSA: `AllValidWinJoys` is filled by the DirectInput enumeration, which never runs
+    // under SDL3, so gating on `bJoyAttachedToPort` here left the pad without a default
+    // mapping. SDL reports the button count per gamepad, so just take the maximum.
+    ControlsManager.InitDefaultControlConfigJoyPad(JOYBUTTON_COUNT - 1);
 #else
+    if (AllValidWinJoys.JoyStickNum[PAD1].bJoyAttachedToPort) {
         DIDEVCAPS devCaps;
         devCaps.dwSize = sizeof(DIDEVCAPS);
         if (!FAILED(PSGLOBAL(diDevice1)->GetCapabilities(&devCaps))) {
             ControlsManager.InitDefaultControlConfigJoyPad(devCaps.dwButtons);
         }
-#endif
     }
+#endif
 }
 
 // 0x52F590
@@ -898,8 +900,12 @@ void CControllerConfigManager::ClearSimButtonPressCheckers() {
 // unused
 // 0x52D1C0
 eJoyButtons CControllerConfigManager::GetJoyButtonJustUp() {
-    // Check each button from 0 to JOYBUTTON_SIXTEEN-1
-    for (int32 buttonIndex = eJoyButtons::NO_JOYBUTTONS; buttonIndex < eJoyButtons::JOYBUTTON_SIXTEEN; buttonIndex++) {
+    if (m_bJoyJustInitialised) {
+        return eJoyButtons::NO_JOYBUTTONS;
+    }
+
+    // Check each button from 0 to JOYBUTTON_SIXTEEN
+    for (auto buttonIndex = 0; buttonIndex < int32(notsa::IsFixBugs() ? JOYBUTTON_COUNT : JOYBUTTON_SIXTEEN); buttonIndex++) {
         // Check if button is released in current state but was pressed in previous state
         const bool isCurrentlyPressed = (m_NewJoyState.rgbButtons[buttonIndex] & 0x80) != 0;
         const bool wasPreviouslyPressed = (m_OldJoyState.rgbButtons[buttonIndex] & 0x80) != 0;
@@ -915,8 +921,11 @@ eJoyButtons CControllerConfigManager::GetJoyButtonJustUp() {
 
 // 0x52D1E0
 eJoyButtons CControllerConfigManager::GetJoyButtonJustDown() {
-    // Check each button from 0 to JOYBUTTON_SIXTEEN-1
-    for (int32 buttonIndex = eJoyButtons::NO_JOYBUTTONS; buttonIndex < eJoyButtons::JOYBUTTON_SIXTEEN; buttonIndex++) {
+    if (m_bJoyJustInitialised) {
+        return eJoyButtons::NO_JOYBUTTONS;
+    }
+    // Check each button from 0 to JOYBUTTON_SIXTEEN
+    for (auto buttonIndex = 0; buttonIndex < int32(notsa::IsFixBugs() ? JOYBUTTON_COUNT : JOYBUTTON_SIXTEEN); buttonIndex++) {
         // Check if button is pressed in current state but wasn't pressed in previous state
         const bool isCurrentlyPressed = (m_NewJoyState.rgbButtons[buttonIndex] & 0x80) != 0;
         const bool wasPreviouslyPressed = (m_OldJoyState.rgbButtons[buttonIndex] & 0x80) != 0;

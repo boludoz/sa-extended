@@ -127,8 +127,7 @@ public:
 #ifdef NOTSA_USE_SDL3
     bool ProcessMouseEvent(const SDL_Event& e, CMouseControllerState& ms);
     bool ProcessKeyboardEvent(const SDL_Event& e, CKeyboardState& ks);
-    bool ProcessGamepadEvent(const SDL_Event & e, CControllerState& cs);
-    bool ProcessJoyStickEvent(const SDL_Event& e, CControllerState& cs);
+    void UpdateJoystick(CControllerState& cs, ePadID padID);
 
     static bool ProcessEvent(const SDL_Event& e, bool ignoreMouseEvents, bool ignoreKeyboardEvents);
 #endif
@@ -224,6 +223,7 @@ public:
     [[nodiscard]] bool GroupControlBackJustDown() const noexcept            { return !DisablePlayerControls && IsDPadDownPressed(); }                                        // 0x541260
 
     // KEYBOARD
+    [[nodiscard]] bool IsFKeyJustUp(eFKeyID key) const noexcept             { return !NewKeyState.FKeys[key] && OldKeyState.FKeys[key]; }
     [[nodiscard]] bool IsFKeyJustDown(eFKeyID key) const noexcept           { return NewKeyState.FKeys[key] && OldKeyState.FKeys[key]; }
     [[nodiscard]] bool IsFKeyJustPressed(eFKeyID key) const noexcept        { return NewKeyState.FKeys[key] && !OldKeyState.FKeys[key]; }
     [[nodiscard]] bool IsF1JustPressed() const noexcept                     { return IsFKeyJustPressed(FKEY1); }
@@ -239,6 +239,7 @@ public:
     [[nodiscard]] bool IsF11JustPressed() const noexcept                    { return IsFKeyJustPressed(FKEY11); }
     [[nodiscard]] bool IsF12JustPressed() const noexcept                    { return IsFKeyJustPressed(FKEY12); }
 
+    [[nodiscard]] bool IsStandardKeyJustUp(uint8 key) const noexcept        { return !NewKeyState.standardKeys[key] && OldKeyState.standardKeys[key]; }
     [[nodiscard]] bool IsStandardKeyJustDown(uint8 key) const noexcept      { return NewKeyState.standardKeys[key] && OldKeyState.standardKeys[key]; }                       //
     [[nodiscard]] bool IsStandardKeyJustPressed(uint8 key) const noexcept   { return NewKeyState.standardKeys[key] && !OldKeyState.standardKeys[key]; }                      // 0x4D59B0
     [[nodiscard]] bool IsLeftCtrlJustPressed() const noexcept               { return KEY_IS_PRESSED(lctrl); }                                                                //
@@ -264,6 +265,7 @@ public:
     static bool IsTabJustPressed() noexcept                                 { return KEY_IS_PRESSED(tab); }                                                                  // 0x744D90
     static bool IsEscJustPressed() noexcept                                 { return KEY_IS_PRESSED(esc); }                                                                  // 0x572DB0
     static bool IsBackspacePressed() noexcept                               { return KEY_IS_PRESSED(back); }                                                                 // 0x57C360
+    [[nodiscard]] static bool IsBackspaceJustUp() noexcept                  { return !NewKeyState.back && OldKeyState.back; }                                                //
 
     // KEYBOARD END
 

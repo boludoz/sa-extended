@@ -4,6 +4,10 @@
 #include "VideoMode.h"
 #include "app/app.h"
 
+#ifdef NOTSA_USE_SDL3
+#include <SDL3/SDL.h>
+#endif
+
 void RsInjectHooks() {
     RH_ScopedNamespaceName("Rs");
     RH_ScopedCategoryGlobal();
@@ -157,10 +161,19 @@ RsEventStatus RsMouseEventHandler(RsEvent event, void* param) {
 
 // 0x6195A0
 RsEventStatus RsPadEventHandler(RsEvent event, void* param) {
+#ifdef NOTSA_USE_SDL3
+    // Process SDL events to keep the gamepad state updated
+    SDL_PumpEvents();
     if (RsGlobal.pad.used) {
         return RsGlobal.pad.inputEventHandler(event, param);
     }
-    return rsEVENTNOTPROCESSED;
+    return rsEVENTPROCESSED;
+#else
+    if (RsGlobal.pad.used) {
+        return RsGlobal.pad.inputEventHandler(event, param);
+    }
+    return rsEVENTPROCESSED;
+#endif
 }
 
 // 0x6195D0
