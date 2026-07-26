@@ -3,7 +3,6 @@
 #include "PedGroupIntelligence.h"
 #include "Tasks/Allocators/PedGroup/PedGroupDefaultTaskAllocator.h"
 #include "Tasks/Allocators/PedGroup/PedGroupDefaultTaskAllocators.h"
-#include <reversiblebugfixes/Bugs.hpp>
 
 void CPedGroupIntelligence::InjectHooks() {
     RH_ScopedClass(CPedGroupIntelligence);
@@ -20,6 +19,7 @@ void CPedGroupIntelligence::InjectHooks() {
     RH_ScopedInstall(SetDefaultTaskAllocatorType, 0x5FBB70);
     RH_ScopedInstall(SetDefaultTaskAllocator, 0x5FB280);
     RH_ScopedInstall(ComputeDefaultTasks, 0x5F88D0);
+    RH_ScopedInstall(ComputeScriptCommandTasks, 0x5F7800);
     RH_ScopedInstall(ProcessIgnorePlayerGroup, 0x5F87A0);
     RH_ScopedInstall(ReportAllBarScriptTasksFinished, 0x5F8780);
     RH_ScopedInstall(GetTaskDefault, 0x5F86C0);
@@ -157,15 +157,19 @@ void CPedGroupIntelligence::Process() {
         }
     }
 
-    bool hasMemberListChanged{};
-    for (auto&& [i, mem] : rngv::enumerate(m_pPedGroup->GetMembership().GetMembers())) {
+    // 0x5FC4FE - The task pairs are index-matched with the group's member slots,
+    // so empty slots must be copied over as well (`GetMembers()` filters those out).
+    auto& membership = m_pPedGroup->GetMembership();
+    bool  hasMemberListChanged{};
+    for (auto i = 0; i < TOTAL_PED_GROUP_MEMBERS; i++) {
+        const auto mem = membership.GetMember(i);
         if (m_PedTaskPairs[i].Ped == mem) {
             continue;
         }
         m_PedTaskPairs[i].Ped          = mem;
         m_SecondaryPedTaskPairs[i].Ped = mem;
         m_DefaultPedTaskPairs[i].Ped   = mem;
-        hasMemberListChanged             = true;
+        hasMemberListChanged           = true;
     }
     if (hasMemberListChanged) {
         if (m_PrimaryTaskAllocator) { // 0x5FC616
@@ -188,12 +192,8 @@ void CPedGroupIntelligence::Process() {
     if (m_HighestPriorityEvent) { // 0x5FC6A2
         if (ShouldSetHighestPriorityEventAsCurrent()) {
             delete std::exchange(m_CurrentEvent, std::exchange(m_HighestPriorityEvent, nullptr));
-            if (notsa::bugfixes::GenericUB) {
-                if (m_PrimaryTaskAllocator == m_EventResponseTaskAllocator) {
-                    m_PrimaryTaskAllocator = nullptr;
-                }
-            }
-            delete std::exchange(m_EventResponseTaskAllocator, ComputeEventResponseTasks());
+            delete std::exchange(m_EventResponseTaskAllocator, nullptr); // Deleted *before* computing the new one, as in 0x5FC74F
+            m_EventResponseTaskAllocator = ComputeEventResponseTasks();
         } else if ( // 0x5FC6F6
                m_HighestPriorityEvent->GetEvent().GetEventType() == m_CurrentEvent->GetEvent().GetEventType()
             && m_HighestPriorityEvent->GetEvent().CanBeInterruptedBySameEvent()
@@ -212,7 +212,9 @@ void CPedGroupIntelligence::Process() {
 
     if (!m_PrimaryTaskAllocator && m_CurrentEvent) { // 0x5FC7A7
         if (m_EventResponseTaskAllocator) {
-            m_PrimaryTaskAllocator = m_EventResponseTaskAllocator->ProcessGroup(this);
+            // NOTE: The returned allocator is discarded on purpose (0x5FC7C1). Assigning it to
+            // `m_PrimaryTaskAllocator` aliases the two pointers, and both are `delete`d in `Flush()`.
+            (void)m_EventResponseTaskAllocator->ProcessGroup(this);
         }
     }
 
@@ -224,11 +226,6 @@ void CPedGroupIntelligence::Process() {
 
 // 0x5F7410
 void CPedGroupIntelligence::SetPrimaryTaskAllocator(CTaskAllocator* ta) {
-    if (notsa::bugfixes::GenericUB) {
-        if (m_EventResponseTaskAllocator == m_PrimaryTaskAllocator) {
-            m_EventResponseTaskAllocator = nullptr;
-        }
-    }
     delete std::exchange(m_PrimaryTaskAllocator, ta);
 }
 
@@ -308,9 +305,10 @@ bool CPedGroupIntelligence::ShouldSetHighestPriorityEventAsCurrent() {
         return true;
     }
 
-    // Same type, but current can't be interrupted by it?
+    // Same type, but it can't interrupt an event of its own type?
+    // NOTE: 0x5FC6D1 asks the *highest priority* event, not the current one.
     if (m_HighestPriorityEvent->GetEvent().GetEventType() == m_CurrentEvent->GetEvent().GetEventType()) {
-        if (!m_CurrentEvent->GetEvent().CanBeInterruptedBySameEvent()) {
+        if (!m_HighestPriorityEvent->GetEvent().CanBeInterruptedBySameEvent()) {
             return false;
         }
     }
@@ -437,6 +435,42 @@ CTaskAllocator* CPedGroupIntelligence::ComputeEventResponseTasks() {
     return CGroupEventHandler::ComputeEventResponseTasks(*m_CurrentEvent, m_pPedGroup);
 }
 
+// 0x5F7800
 void CPedGroupIntelligence::ComputeScriptCommandTasks() {
-    plugin::CallMethod<0x5F7800>(this);
+    auto& membership = m_pPedGroup->GetMembership();
+
+    // Re-index the pairs onto the group's member slots, carrying over the task each ped already had
+    PedTaskPairs updated{};
+    for (auto i = 0; i < TOTAL_PED_GROUP_MEMBERS; i++) {
+        const auto& cur = m_ScriptCommandPedTaskPairs[i];
+
+        updated[i].Ped  = cur.Ped;
+        updated[i].Task = cur.Task;
+
+        const auto mem = membership.GetMember(i);
+        if (mem == cur.Ped) {
+            continue;
+        }
+        updated[i].Ped  = mem;
+        updated[i].Task = GetTaskScriptCommand(mem); // Null if this ped had no task (or isn't in the pairs at all)
+    }
+
+    // Now get rid of the tasks that weren't carried over, that is, those of peds no longer in the group
+    for (auto& tp : m_ScriptCommandPedTaskPairs) {
+        if (!tp.Task) {
+            continue;
+        }
+        const auto it = rng::find(updated, tp.Ped, &CPedTaskPair::Ped);
+        if (it != updated.end() && it->Task) {
+            continue;
+        }
+        delete std::exchange(tp.Task, nullptr);
+        tp.Ped = nullptr;
+    }
+
+    // 0x5F78FA - Only `Ped` and `Task` are copied back, the other fields are left as they were
+    for (auto i = 0; i < TOTAL_PED_GROUP_MEMBERS; i++) {
+        m_ScriptCommandPedTaskPairs[i].Ped  = updated[i].Ped;
+        m_ScriptCommandPedTaskPairs[i].Task = updated[i].Task;
+    }
 }

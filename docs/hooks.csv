@@ -1491,6 +1491,7 @@ CPedGroupMembership,SetLeader,0x005FB9C0,1,0,0
 CPedGroupIntelligence,AddEvent-,0x005F7470,1,0,0
 CPedGroupIntelligence,ComputeDefaultTasks,0x005F88D0,1,0,0
 CPedGroupIntelligence,ComputeEventResponseTasks,0x005FC440,1,0,0
+CPedGroupIntelligence,ComputeScriptCommandTasks,0x005F7800,1,0,0
 CPedGroupIntelligence,Constructor,0x005F7250,1,0,0
 CPedGroupIntelligence,Flush,0x005F7350,1,0,0
 CPedGroupIntelligence,FlushTasks,0x005F79C0,1,0,0
