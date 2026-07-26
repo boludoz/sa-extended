@@ -59,28 +59,28 @@ void CTaskInteriorBeInHouse::GetInfoForPedToUse(CPed* ped, int32* outDuration) {
         const auto rndChance0To100 = CGeneral::GetRandomNumberInRange(0, 100);
         if (rndChance0To100 < chanceA) {
             if (CGeneral::DoCoinFlip()) {
-                FindInterior({ UNK_4, UNK_3 });
+                FindInterior({ LIEINBED_RIGHT, LIEINBED_LEFT });
             } else {
-                FindInterior({ UNK_3, UNK_4 });
+                FindInterior({ LIEINBED_LEFT, LIEINBED_RIGHT });
             }
         }
         if (m_intInfo) {
             return;
         }
         if (rndChance0To100 < chanceA + chanceB) {
-            FindInterior({ UNK_1 });
+            FindInterior({ SITIN_CHAIR });
             if (m_intInfo) {
                 return;
             }
 
-            FindInterior({ UNK_5 });
+            FindInterior({ RUNTIMED_ANIM });
             if (m_intInfo) {
                 *outDuration = CGeneral::GetRandomNumberInRange(5'000, 30'000);
                 return;
             }
         }
         if (!m_intInfo) {
-            FindInterior({ UNK_1, UNK_2 });
+            FindInterior({ SITIN_CHAIR, STANDSTILL_INDEFINITELY });
         }
 }
 

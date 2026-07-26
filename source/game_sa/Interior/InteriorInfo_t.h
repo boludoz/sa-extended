@@ -6,17 +6,20 @@
 
 class CEntity;
 
+/// What a ped does when it walks up to an interior info marker.
+/// NOTE: `STANDSTILL_INDEFINITELY` fixes an obvious typo in the recovered name.
 enum class eInteriorInfoType {
-    UNK_1 = 1,
-    UNK_2 = 2,
-    UNK_3 = 3,
-    UNK_4 = 4,
-    UNK_5 = 5,
-    UNK_6 = 6,
-    UNK_7 = 7,
-    UNK_8 = 8,
-    UNK_9 = 9,
-    UNK_10 = 10
+    NONE = 0,
+    SITIN_CHAIR,
+    STANDSTILL_INDEFINITELY,
+    LIEINBED_LEFT,
+    LIEINBED_RIGHT,
+    RUNTIMED_ANIM,
+    SITAT_DESK,
+    STANDSTILL_TIMED,
+    RUN_ANIM,
+    RUNSEQUENCE_ANIM,
+    STANDSTILL_LOOPED,
 };
 
 struct InteriorInfo_t {

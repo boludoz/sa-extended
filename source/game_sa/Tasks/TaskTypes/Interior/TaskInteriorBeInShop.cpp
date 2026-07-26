@@ -61,7 +61,7 @@ void CTaskInteriorBeInShop::ScanForStuff(CPed* ped) {
         ped->GetEventGroup().Add(CEventInteriorUseInfo{ closestIntInfo, closestInt, 0, false });
     };
     switch (closestIntInfo->Type) {
-    case eInteriorInfoType::UNK_8: {
+    case eInteriorInfoType::RUN_ANIM: {
         if (CGeneral::DoCoinFlip()) {
             g_ikChainMan.LookAt(
                 "TaskBeInShop",
@@ -81,7 +81,7 @@ void CTaskInteriorBeInShop::ScanForStuff(CPed* ped) {
         }
         break;
     }
-    case eInteriorInfoType::UNK_9: {
+    case eInteriorInfoType::RUNSEQUENCE_ANIM: {
         if (!CGeneral::DoCoinFlip()) {
             m_bScanForStuff = false;
             PedAddUseInfoEvent();

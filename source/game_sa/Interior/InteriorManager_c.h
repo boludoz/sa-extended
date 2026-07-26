@@ -65,6 +65,8 @@ public:
     auto GetObjects() const { return m_Objects | rng::views::take(m_ObjectCount); }
 
 private:
+    friend class Interior_c; // Interiors read the manager's state directly, as in the original
+
     Interior_c               m_Interiors[8]{};               // 0x0
     TList_c<Interior_c>      m_InteriorPool{};               // 0x3CA0
     InteriorGroup_c          m_InteriorGroups[8]{};          // 0x3CAC

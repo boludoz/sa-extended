@@ -54,6 +54,14 @@ inline const ReversibleBugFix AESound_UpdatePlayTime_DivisionByZero{
     .Description = "Avoid Division-by-zero in CAESound::UpdatePlayTime",
     .Credit      = "Pirulax"
 };
+inline const ReversibleBugFix Interior_c_Shop_PlaceFixedUnits_UninitCounterX{
+    .Name        = "Shop_PlaceFixedUnits Uninitialised Counter Position",
+    .Description = "When a shop has room for a counter on neither side of its door, the original never assigns the "
+                   "counter's X tile yet still uses it to place two interior markers. The x86 build reads the stack "
+                   "slot holding `this`, throwing the markers millions of tiles out; the ARM64 build reads 0. "
+                   "Use 0, matching ARM64.",
+    .Credit      = "Contributors"
+};
 inline const ReversibleBugFix CCarCtrl_RemoveDistantCars_UseAfterFree{
     .Name        = "CCarCtrl::RemoveDistantCars Use-After-Free",
     .Description = "Fix user-after-free of vehicles (possibly) deleted by PossiblyRemoveVehicle",

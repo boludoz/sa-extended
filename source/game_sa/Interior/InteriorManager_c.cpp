@@ -116,9 +116,9 @@ bool InteriorManager_c::Update() {
             const auto& fxPos = ifx.Entity->GetPosition();
 
             i->m_box        = ifx.Effects[k];
-            i->m_interiorId = (uint32)(fxPos.x * fxPos.y * fxPos.z) + ifx.FxIds[k];
-            i->m_areaCode   = ifx.Entity->GetAreaCode();
-            i->m_pGroup     = grp;
+            i->m_id             = (uint32)(fxPos.x * fxPos.y * fxPos.z) + ifx.FxIds[k];
+            i->m_areaCode       = ifx.Entity->GetAreaCode();
+            i->m_pInteriorGroup = grp;
 
             i->Init(ifx.Effects[k]->m_Pos);
             grp->AddInterior(i);
@@ -382,7 +382,7 @@ int32 InteriorManager_c::FindStealableObjectId(int32 interiorId, int32 modelId, 
 
 // 0x5982B0
 bool InteriorManager_c::HasInteriorHadStealDataSetup(Interior_c* interior) const {
-    return m_InteriorCount && notsa::contains(GetInteriorIds(), interior->m_interiorId);
+    return m_InteriorCount && notsa::contains(GetInteriorIds(), interior->m_id);
 }
 
 // 0x598280

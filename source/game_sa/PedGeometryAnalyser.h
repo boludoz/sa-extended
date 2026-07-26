@@ -23,6 +23,9 @@ VALIDATE_SIZE(CPointRoute, 0x64);
 
 class CPedGeometryAnalyser {
 public:
+    //! Radius a ped is treated as occupying when fitting it through gaps
+    static inline auto& ms_fPedNominalRadius = StaticRef<float>(0x8D22B0);
+
     static void InjectHooks();
     
     static bool CanPedJumpObstacle(const CPed& ped, const CEntity& entity);
