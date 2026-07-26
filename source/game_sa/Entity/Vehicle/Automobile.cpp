@@ -5776,95 +5776,72 @@ void CAutomobile::BlowUpCarsInPath() {
 }
 
 // 0x6AF420
-void CAutomobile::PlaceOnRoadProperly()
-{
-    auto* cm = GetColModel();
-    auto fStartY =  cm->m_pColData->m_pLines[0].m_vecStart.y;
-    auto fEndY   = -cm->m_pColData->m_pLines[3].m_vecStart.y;
-
-    const auto& vecPos = GetPosition();
-
-    auto vecRearCheck = vecPos - GetForward() * fEndY;
-    vecRearCheck.z = vecPos.z;
-
-    auto vecFrontCheck = vecPos + GetForward() * fStartY;
-    vecFrontCheck.z = vecPos.z;
-
-    bool bColFoundFront = false;
+void CAutomobile::PlaceOnRoadProperly() {
     CColPoint colPoint{};
-    CEntity* colEntity;
-    float fColZ;
-    if (CWorld::ProcessVerticalLine(vecFrontCheck, vecFrontCheck.z + 5.0F, colPoint, colEntity, true)) {
-        m_bTunnel = colEntity->m_bTunnel;
-        m_bTunnelTransition = colEntity->m_bTunnelTransition;
+    CEntity*  colEntity = nullptr;
 
-        fColZ = colPoint.m_vecPoint.z;
-        m_pEntityWeAreOn = colEntity;
-        bColFoundFront = true;
-    }
-    if (CWorld::ProcessVerticalLine(vecFrontCheck, vecFrontCheck.z - 5.0F, colPoint, colEntity, true)) {
-        if (!bColFoundFront || std::fabs(vecFrontCheck.z - colPoint.m_vecPoint.z) < std::fabs(vecFrontCheck.z - fColZ)) {
-            m_bTunnel = colEntity->m_bTunnel;
+    auto* cm      = GetColModel();
+    auto  fStartY = cm->m_pColData->m_pLines[0].m_vecStart.y;
+    auto  fEndY   = -cm->m_pColData->m_pLines[3].m_vecStart.y;
+
+    // Trace up and down from `point`, keep whichever hit is closer, and drop `point` onto it.
+    const auto ProcessPoint = [&](CVector& point, CStoredCollPoly& colPoly) {
+        auto foundZ  = 0.0f;
+        auto upFound = false;
+
+        if (CWorld::ProcessVerticalLine(point, point.z + 5.0f, colPoint, colEntity, true)) {
+            m_pEntityWeAreOn    = colEntity;
+            m_bTunnel           = colEntity->m_bTunnel;
             m_bTunnelTransition = colEntity->m_bTunnelTransition;
 
-            fColZ = colPoint.m_vecPoint.z;
-            m_pEntityWeAreOn = colEntity;
-
-            m_FrontCollPoly.ligthing = colPoint.m_nLightingB;
-            vecFrontCheck.z = fColZ;
+            foundZ  = colPoint.m_vecPoint.z;
+            upFound = true;
         }
-    }
-    else if (bColFoundFront) {
-        m_FrontCollPoly.ligthing = colPoint.m_nLightingB;
-        vecFrontCheck.z = fColZ;
-    }
 
-    bool bColFoundRear = false;
-    colEntity = nullptr;
-    if (CWorld::ProcessVerticalLine(vecRearCheck, vecRearCheck.z + 5.0F, colPoint, colEntity, true)) {
-        m_bTunnel = colEntity->m_bTunnel;
-        m_bTunnelTransition = colEntity->m_bTunnelTransition;
-
-        fColZ = colPoint.m_vecPoint.z;
-        m_pEntityWeAreOn = colEntity;
-        bColFoundRear = true;
-    }
-    if (CWorld::ProcessVerticalLine(vecRearCheck, vecRearCheck.z - 5.0F, colPoint, colEntity, true)) {
-        if (!bColFoundRear || std::fabs(vecRearCheck.z - colPoint.m_vecPoint.z) < std::fabs(vecRearCheck.z - fColZ)) {
-            m_bTunnel = colEntity->m_bTunnel;
+        const auto downFound = CWorld::ProcessVerticalLine(point, point.z - 5.0f, colPoint, colEntity, true);
+        if (downFound && (!upFound || std::fabs(point.z - colPoint.m_vecPoint.z) < std::fabs(point.z - foundZ))) {
+            m_pEntityWeAreOn    = colEntity;
+            m_bTunnel           = colEntity->m_bTunnel;
             m_bTunnelTransition = colEntity->m_bTunnelTransition;
 
-            fColZ = colPoint.m_vecPoint.z;
-            m_pEntityWeAreOn = colEntity;
-
-            m_RearCollPoly.ligthing = colPoint.m_nLightingB;
-            vecRearCheck.z = fColZ;
+            foundZ = colPoint.m_vecPoint.z;
         }
-    }
-    else if (bColFoundRear) {
-        m_RearCollPoly.ligthing = colPoint.m_nLightingB;
-        vecRearCheck.z = fColZ;
-    }
 
-    auto fHeightAboveRoad = GetHeightAboveRoad();
-    vecFrontCheck.z += fHeightAboveRoad;
-    vecRearCheck.z += m_fRearHeightAboveRoad;
+        if (upFound || downFound) {
+            colPoly.ligthing = colPoint.m_nLightingB;
+            point.z          = foundZ;
+        }
+    };
+
+    const auto& vecPos         = GetPosition();
+    CVector     vecAlongLength = GetForward();
+
+    CVector frontPoint = vecPos + (vecAlongLength * fStartY);
+    frontPoint.z       = vecPos.z;
+    ProcessPoint(frontPoint, m_StoredCollPolys[COL_FRONT]);
+    frontPoint.z += GetHeightAboveRoad();
+
+    CVector rearPoint = vecPos - (vecAlongLength * fEndY);
+    rearPoint.z       = vecPos.z;
+    ProcessPoint(rearPoint, m_StoredCollPolys[COL_REAR]);
+    rearPoint.z += m_fRearHeightAboveRoad;
 
     auto fLength = fEndY + fStartY;
-    GetRight().Set((vecFrontCheck.y - vecRearCheck.y) / fLength, -((vecFrontCheck.x - vecRearCheck.x) / fLength), 0.0F);
 
-    auto vecDiff = vecFrontCheck - vecRearCheck;
-    vecDiff.Normalise();
-    GetForward() = vecDiff;
+    GetRight().Set((frontPoint.y - rearPoint.y) / fLength, -((frontPoint.x - rearPoint.x) / fLength), 0.0f);
 
-    auto vecCross = CrossProduct(GetRight(), GetForward());
-    GetUp() = vecCross;
+    CVector frontVec = frontPoint - rearPoint;
+    frontVec.Normalise();
+    GetForward() = frontVec;
 
-    CVector vecNewPos = (vecFrontCheck * fEndY + vecRearCheck * fStartY) / fLength;
-    SetPosn(vecNewPos);
+    GetUp()    = CrossProduct(GetRight(), GetForward());
 
-    if (IsSubPlane())
+    CVector resultCoors = (frontPoint * fEndY + rearPoint * fStartY) / fLength;
+    SetPosn(resultCoors);
+
+    if (IsSubPlane()) {
         AsPlane()->m_planeCreationHeading = CGeneral::GetATanOfXY(GetForward().x, GetForward().y);
+    }
 }
 
 // 0x6AF910
