@@ -27,3 +27,7 @@ enum eCrimeType : uint32 {
 
     MAX_CRIMES
 };
+
+//! Scoped and fixed-underlying-type enums are not implicitly formattable, so give
+//! fmt a conversion for the `NOTSA_LOG_*` call sites that print one.
+inline auto format_as(eCrimeType e) { return static_cast<std::underlying_type_t<eCrimeType>>(e); }
