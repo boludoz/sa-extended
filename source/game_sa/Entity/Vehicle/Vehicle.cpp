@@ -2034,8 +2034,8 @@ void CVehicle::AddDamagedVehicleParticles() {
     }
 
     RwMatrix* matrix = nullptr;
-    if (GetRpAtomic()) {
-        matrix = RwFrameGetMatrix(RpAtomicGetFrame(GetRpAtomic()));
+    if (GetRpClump()) {
+        matrix = RwFrameGetMatrix(RpClumpGetFrame(GetRpClump()));
     }
 
     if (!m_pOverheatParticle && matrix) {
