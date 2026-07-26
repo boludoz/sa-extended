@@ -27,6 +27,13 @@ struct EntityRef {
         }
     }
 
+    //! The implicit copy assignment would raw-copy `m_Ptr` without registering this
+    //! object's address, leaving a dangling pointer once the entity is destroyed
+    //! (`ResolveReferences` would only null out the source's `m_Ptr`)
+    EntityRef<T>& operator=(const EntityRef<T>& o) noexcept {
+        return *this = o.m_Ptr;
+    }
+
     // Assignments should be done without a (possibly) temporary `EntityRef` instance
     // (This way we avoid extra calls to `CleanUpOld/RegisterReference`...)
     EntityRef<T>& operator=(T* ptr) noexcept {
