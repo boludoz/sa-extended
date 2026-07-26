@@ -5069,6 +5069,13 @@ CObject* CAutomobile::SpawnFlyingComponent(eCarNodes nodeIndex, uint32 collision
     obj->m_nObjectType = OBJECT_TEMPORARY;
 
     obj->SetIsStatic(false);
+    obj->objectFlags.bIsPickup = false;
+    obj->objectFlags.bChangesVehColor = true; // bParentIsACar
+    obj->m_nCarColor[0] = m_nPrimaryColor;
+    obj->m_nCarColor[1] = m_nSecondaryColor;
+    // obj->m_nCarColor[2] = m_nTertiaryColor;
+    // obj->m_nCarColor[3] = m_nQuaternaryColor;
+    obj->SetRemapTexture(m_pRemapTexture, m_nRemapTxd);
 
     CObject::nNoTempObjects++;
     if (CObject::nNoTempObjects <= 20u) {
@@ -5081,13 +5088,12 @@ CObject* CAutomobile::SpawnFlyingComponent(eCarNodes nodeIndex, uint32 collision
         obj->m_nRemovalTime = CTimer::GetTimeInMS() + 4'000;
     }
 
+    const auto isBonnetBootOrWindscreen = collisionType == 3 || collisionType == 4 || nodeIndex == eCarNodes::CAR_WINDSCREEN;
+
     const auto GetMoveSpeedZ = [&, this] {
         if (m_vecMoveSpeed.z <= 0.f) {
             if (m_matrix->GetUp().z < 0.f /*flipped*/) {
-                switch (collisionType) {
-                case 3:
-                case 4:
-                case 18:
+                if (isBonnetBootOrWindscreen) {
                     return 0.04f - m_vecMoveSpeed.z * 1.5f;
                 }
             }
@@ -5100,16 +5106,11 @@ CObject* CAutomobile::SpawnFlyingComponent(eCarNodes nodeIndex, uint32 collision
     obj->m_vecTurnSpeed = m_vecTurnSpeed * 2.f;
 
     auto objDir = Normalized(obj->GetPosition() - GetPosition());
-    switch (collisionType) {
-    case 3:
-    case 4:
-    case 18: {
+    if (isBonnetBootOrWindscreen) {
         objDir += m_matrix->GetUp();
         if (m_matrix->GetUp().z > 0.f/*not flipped*/) {
             obj->m_matrix->GetPosition() += m_matrix->GetUp() * m_vecMoveSpeed.Magnitude2D();
         }
-        break;
-    }
     }
 
     obj->ApplyMoveForce(objDir);

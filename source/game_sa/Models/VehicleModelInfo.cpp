@@ -750,6 +750,23 @@ RwObject* CVehicleModelInfo::MoveObjectsCB(RwObject* object, void* data)
     return object;
 }
 
+// NOTSA
+int32 CVehicleModelInfo::FindMarkerColour(std::span<const CRGBA> markers, CRGBA colour)
+{
+    colour.a = 0; // The markers are stored without one
+    const auto it = rng::find(markers, colour);
+    return it != markers.end()
+        ? (int32)std::distance(markers.begin(), it)
+        : -1;
+}
+
+// NOTSA
+bool CVehicleModelInfo::IsMarkerColour(CRGBA colour)
+{
+    return FindMarkerColour(ms_paintMarkerColours, colour) != -1
+        || FindMarkerColour(ms_lightMarkerColours, colour) != -1;
+}
+
 RpMaterial* CVehicleModelInfo::SetEditableMaterialsCB(RpMaterial* material, void* data)
 {
     auto ppEntries = reinterpret_cast<tRestoreEntry**>(data);
@@ -769,15 +786,7 @@ RpMaterial* CVehicleModelInfo::SetEditableMaterialsCB(RpMaterial* material, void
     }
 
     if (RpMaterialGetTexture(material) == ms_pLightsTexture) {
-        int32 iLightIndex = -1;
-        if (color == CRGBA(255, 175, 0, 0))
-            iLightIndex = 0;
-        else if (color == CRGBA(0, 255, 200, 0))
-            iLightIndex = 1;
-        else if (color == CRGBA(185, 255, 0, 0))
-            iLightIndex = 2;
-        else if (color == CRGBA(255, 60, 0, 0))
-            iLightIndex = 3;
+        const auto iLightIndex = FindMarkerColour(ms_lightMarkerColours, color);
 
         (*ppEntries)->m_pAddress = RpMaterialGetColor(material);
         (*ppEntries)->m_pValue = *reinterpret_cast<void**>(RpMaterialGetColor(material));
@@ -801,17 +810,11 @@ RpMaterial* CVehicleModelInfo::SetEditableMaterialsCB(RpMaterial* material, void
         }
     }
     else {
-        int32 iColorIndex;
-        if (color == CRGBA(60, 255, 0, 0))
-            iColorIndex = ms_currentCol[0];
-        else if (color == CRGBA(255, 0, 175, 0))
-            iColorIndex = ms_currentCol[1];
-        else if (color == CRGBA(0, 255, 255, 0))
-            iColorIndex = ms_currentCol[2];
-        else if (color == CRGBA(255, 0, 255, 0))
-            iColorIndex = ms_currentCol[3];
-        else
+        const auto iMarkerIndex = FindMarkerColour(ms_paintMarkerColours, color);
+        if (iMarkerIndex == -1)
             return material;
+
+        const auto iColorIndex = ms_currentCol[iMarkerIndex];
 
         (*ppEntries)->m_pAddress = RpMaterialGetColor(material);
         (*ppEntries)->m_pValue = *reinterpret_cast<void**>(RpMaterialGetColor(material));

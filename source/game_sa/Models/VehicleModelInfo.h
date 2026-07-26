@@ -236,6 +236,15 @@ public:
     static constexpr int32 NUM_CURRENT_COLORS = 4;
     static inline auto& ms_currentCol = StaticRef<uint8[NUM_CURRENT_COLORS]>(0xB4E3F0);
 
+    // NOTSA: The colours a model's paintable materials are marked with in its DFF.
+    // `SetEditableMaterialsCB` swaps each of them for `ms_vehicleColourTable[ms_currentCol[i]]`.
+    static constexpr std::array<CRGBA, NUM_CURRENT_COLORS> ms_paintMarkerColours{{
+        {  60, 255,   0 }, // Primary
+        { 255,   0, 175 }, // Secondary
+        {   0, 255, 255 }, // Tertiary
+        { 255,   0, 255 }, // Quaternary
+    }};
+
     // number of wheel upgrades available
     // static int16 ms_numWheelUpgrades[4];
     static constexpr int32 NUM_WHEELS = 4;
@@ -250,6 +259,14 @@ public:
     // Light states for currently rendered car
     static constexpr int32 NUM_LIGHTS = 4;
     static inline auto& ms_lightsOn = StaticRef<uint8[NUM_LIGHTS]>(0xB4E3E8);
+
+    // NOTSA: The colours a model's light materials are marked with in its DFF - Indexed like `ms_lightsOn`
+    static constexpr std::array<CRGBA, NUM_LIGHTS> ms_lightMarkerColours{{
+        { 255, 175,   0 }, // Front left
+        {   0, 255, 200 }, // Front right
+        { 185, 255,   0 }, // Rear left
+        { 255,  60,   0 }, // Rear right
+    }};
 
     // extras ids for next-spawned car
     // static char ms_compsUsed[2];
@@ -298,6 +315,10 @@ public:
     bool IsUpgradeAvailable(eVehicleUpgradePosn upgrade);
     // set current vehicle colour for model
     void SetVehicleColour(uint8 prim, uint8 sec, uint8 tert, uint8 quat);
+    // NOTSA: Index of `colour` (alpha ignored) within `markers`, or `-1` if it isn't one of them
+    static int32 FindMarkerColour(std::span<const CRGBA> markers, CRGBA colour);
+    // NOTSA: Whether `colour` is one of the marker colours an unpainted vehicle material carries
+    static bool IsMarkerColour(CRGBA colour);
     // get color for car. variationShift determines how many color variations to skip.
     // For example, 1 will simply give you next color variation.
     void ChooseVehicleColour(uint8& prim, uint8& sec, uint8& tert, uint8& quat, int32 variationShift);

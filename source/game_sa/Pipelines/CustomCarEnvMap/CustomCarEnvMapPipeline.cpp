@@ -436,18 +436,11 @@ void CCustomCarEnvMapPipeline::CustomPipeRenderCB(RwResEntry* resEntry, void* ob
             RxD3D9InstanceDataRender(header, mesh);
         } else {
             if (isLightingEnabled) { // 0x5D9E3D
-                // Some car materials are initially painted over, so for those we use black (0, 0, 0) instead
-                const auto isSpecialColor = notsa::contains<uint32>({
-                    0xAF00FF, // @ 0x5D9E6B
-                    0x00FFB9, // @ 0x5D9E8D
-                    0x00FF3C, // @ 0x5D9E84...
-                    0x003CFF,
-                    0x00AFFF,
-                    0xC8FF00, // @ 0x5D9E9B...
-                    0xFF00FF,
-                    0xFFFF00,
-                }, CRGBA{mat->color}.ToIntRGB());
-                const auto color = isSpecialColor
+                // 0x5D9E62 - Detect and clear all default vehicle re-map colours: materials that never went
+                // through `CVehicleModelInfo::SetEditableMaterials` (such as the ones of a detached car part,
+                // which is rendered as an object) still carry the marker colours of the DFF.
+                const auto isMarkerColor = notsa::IsFixBugs() && CVehicleModelInfo::IsMarkerColour(mat->color);
+                const auto color = isMarkerColor
                     ? CRGBA{0, 0, 0, mat->color.alpha}
                     : CRGBA{mat->color};
 
