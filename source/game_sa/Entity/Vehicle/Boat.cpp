@@ -1021,7 +1021,7 @@ void CBoat::BlowUpCar(CEntity* culprit, bool inACutscene) {
     CVisibilityPlugins::SetClumpForAllAtomicsFlag(GetRpClump(), eAtomicComponentFlag::ATOMIC_PIPE_NO_EXTRA_PASSES_LOD);
     m_vecMoveSpeed.z += 0.13F;
     m_fHealth = 0.0F;
-    m_wBombTimer = 0;
+    m_DelayedExplosion = 0;
 
     const auto& vecPos = GetPosition();
     TheCamera.CamShake(0.4F, vecPos);

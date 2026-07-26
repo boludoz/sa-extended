@@ -78,8 +78,8 @@ void CTrailer::SetupSuspensionLines() {
         lineEnd.z += m_pHandlingData->m_fSuspensionLowerLimit - m_pHandlingData->m_fSuspensionUpperLimit - mi->m_fWheelSizeFront / 2;
         colData->m_pLines[i].m_vecEnd = lineEnd;
 
-        m_aSuspensionSpringLength[i] = m_pHandlingData->m_fSuspensionUpperLimit - m_pHandlingData->m_fSuspensionLowerLimit;
-        m_aSuspensionLineLength[i] = colData->m_pLines[i].m_vecStart.z - colData->m_pLines[i].m_vecEnd.z;
+        m_fSuspensionLength[i] = m_pHandlingData->m_fSuspensionUpperLimit - m_pHandlingData->m_fSuspensionLowerLimit;
+        m_fLineLength[i] = colData->m_pLines[i].m_vecStart.z - colData->m_pLines[i].m_vecEnd.z;
     }
 
     cl->m_boundBox.m_vecMin.z = std::min(cl->m_boundBox.m_vecMin.z, colData->m_pLines[0].m_vecEnd.z);
@@ -120,7 +120,7 @@ void CTrailer::SetupSuspensionLines() {
     const float weightRatio = supportLegY / (avgWheelY + supportLegY);
 
     const float suspensionForceFactor = m_pHandlingData->m_fSuspensionForceLevel * 4.0f;
-    const float heightAboveRoad = m_aSuspensionSpringLength[0] * (1.0f - weightRatio / suspensionForceFactor)
+    const float heightAboveRoad = m_fSuspensionLength[0] * (1.0f - weightRatio / suspensionForceFactor)
                                 + mi->m_fWheelSizeFront / 2 - colData->m_pLines[0].m_vecStart.z;
 
     m_fFrontHeightAboveRoad = heightAboveRoad;

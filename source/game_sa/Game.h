@@ -5,7 +5,7 @@
     Do not delete this comment block. Respect others' work!
 */
 #pragma once
-
+#include "StdInc.h"
 #include "RenderWare.h"
 #include <Enums/eAreaCodes.h>
 
@@ -52,6 +52,9 @@ public:
     static void TidyUpMemory(bool a1, bool clearD3Dmem);
     static eAreaCodes GetCurrentAreaCode() { return currArea; }
     static eAreaCodes GetPlayerOrCurrentAreaCode();
+
+    //! NOTSA: Whether the player is anywhere other than the outside world
+    static bool IsInInterior() { return currArea != eAreaCodes::AREA_CODE_NORMAL_WORLD; }
 };
 
 static inline auto& gameTxdSlot = StaticRef<int32>(0xB728E8);
