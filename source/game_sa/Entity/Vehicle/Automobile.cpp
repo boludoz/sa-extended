@@ -5511,24 +5511,30 @@ void CAutomobile::ProcessSwingingDoor(eCarNodes nodeIdx, eDoors doorIdx)
 * @brief Remove bonnet if it's present and open
 * @returns Flying component object (May be null even in case the bonnet was removed - See `SpawnFlyingComponent` as to when this happens)
 */
-CObject* CAutomobile::RemoveBonnetInPedCollision() {
-    if (!m_aCarNodes[eCarNodes::CAR_BONNET]) {
-        return nullptr; // Not present
-    }
+CPhysical* CAutomobile::RemoveBonnetInPedCollision()
+{
+	if(m_aCarNodes[eCarNodes::CAR_BONNET] && (m_damageManager.GetDoorStatus(eDoors::DOOR_BONNET) == DAMSTATE_OPENED || m_damageManager.GetDoorStatus(eDoors::DOOR_BONNET) == DAMSTATE_OPENED_DAMAGED))
+	{
+		if(m_doors[eDoors::DOOR_BONNET].m_openAngle > m_doors[eDoors::DOOR_BONNET].GetAngleWhenOpen() * 0.4f)
+		{
+            CPhysical *pBonnet;
+            if (notsa::IsFixBugs())
+            {
+                pBonnet = SpawnFlyingComponent(eCarNodes::CAR_BONNET, COMPGROUP_BONNET);
+            }
+            else
+            {
+                pBonnet = SpawnFlyingComponent(eCarNodes::CAR_BONNET, COMPGROUP_DOOR);
+            }
 
-    if (!m_damageManager.IsDoorPresent(eDoors::DOOR_BONNET) || !m_damageManager.IsDoorOpen(eDoors::DOOR_BONNET)) {
-        return nullptr; // Not open/missing
-    }
+			m_vehicleAudio.AddAudioEvent(eAudioEvents::AE_BONNET_FLUBBER_FLUBBER, pBonnet);
 
-    if (const auto& bonnet = m_doors[eDoors::DOOR_BONNET]; bonnet.GetAngleWhenOpen() * 0.4f >= bonnet.m_angle) {
-        return nullptr; // Not open enough
-    }
-
-    auto* const flyingComp = SpawnFlyingComponent(eCarNodes::CAR_BONNET, 2u);
-    m_vehicleAudio.AddAudioEvent(eAudioEvents::AE_BONNET_FLUBBER_FLUBBER, flyingComp);
-    SetComponentVisibility(m_aCarNodes[eCarNodes::CAR_BONNET], eAtomicComponentFlag::ATOMIC_NONE);
-    m_damageManager.SetDoorStatus(eDoors::DOOR_BONNET, eDoorStatus::DAMSTATE_NOTPRESENT);
-    return flyingComp;
+			SetComponentVisibility(m_aCarNodes[eCarNodes::CAR_BONNET], eAtomicComponentFlag::ATOMIC_NONE);
+			m_damageManager.SetDoorStatus(eDoors::DOOR_BONNET, eDoorStatus::DAMSTATE_NOTPRESENT);
+			return pBonnet;
+		}
+	}
+	return nullptr;
 }
 
 enum eUpdateWheelFlags {

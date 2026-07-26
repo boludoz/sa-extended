@@ -274,7 +274,7 @@ public:
     void ProcessHarvester();
     void ProcessSwingingDoor(eCarNodes nodeIndex, eDoors door);
     // Returns spawned flying component?
-    CObject* RemoveBonnetInPedCollision();
+    CPhysical* RemoveBonnetInPedCollision();
     void UpdateWheelMatrix(int32 nodeIndex, int32 flags);
     void PopDoor(eCarNodes nodeIndex, eDoors door, bool showVisualEffect);
     void PopPanel(eCarNodes nodeIndex, ePanels panel, bool showVisualEffect);
