@@ -1,4 +1,4 @@
-/*
+﻿/*
     Plugin-SDK file
     Authors: GTA Community. See more here
     https://github.com/DK22Pac/plugin-sdk
@@ -210,7 +210,7 @@ public:
     uint16          m_nAvoidTheGeometryProbsDirn{};
     float           m_fWideScreenReductionAmount{};
     float           m_fStartingFOVForInterPol{};
-    std::array<CCam, 3>            m_aCams{}; /* 2 = debug cam */
+    CCam            m_aCams[3]{}; /* 2 = debug cam */
     CGarage*        m_pToGarageWeAreIn{};
     CGarage*        m_pToGarageWeAreInForHackAvoidFirstPerson{};
     CQueuedMode     m_PlayerMode{};
@@ -242,7 +242,7 @@ public:
     RwCamera*       m_pRwCamera{};
     CEntity*        m_pTargetEntity{};
     CEntity*        m_pAttachedEntity{};
-    std::array<CCamPathSplines, 4> m_aPathArray{};
+    CCamPathSplines m_aPathArray[4]{};
     bool            m_bMirrorActive{};
     bool            m_bResetOldMatrix{};
     CMatrix         m_mCameraMatrix{ CMatrix::Identity() };
@@ -251,11 +251,11 @@ public:
     CMatrix         m_mMatInverse{};
     CMatrix         m_mMatMirrorInverse{};
     CMatrix         m_mMatMirror{};
-    std::array<CVector, 4> m_avecFrustumNormals{};
-    std::array<CVector, 4> m_avecFrustumWorldNormals{};
-    std::array<CVector, 4> m_avecFrustumWorldNormals_Mirror{};
-    std::array<float, 4>   m_fFrustumPlaneOffsets{};
-    std::array<float, 4>   m_fFrustumPlaneOffsets_Mirror{};
+    CVector         m_avecFrustumNormals[4]{};
+    CVector         m_avecFrustumWorldNormals[4]{};
+    CVector         m_avecFrustumWorldNormals_Mirror[4]{};
+    float           m_fFrustumPlaneOffsets[4]{};
+    float           m_fFrustumPlaneOffsets_Mirror[4]{};
     CVector         m_vecRightFrustumNormal{};  //!< unused?
     CVector         m_vecBottomFrustumNormal{}; //!< unused?
     CVector         m_vecTopFrustumNormal{};    //!< unused?
@@ -331,12 +331,12 @@ public:
     int32           field_D70{};
     int32           field_D74{};
 
-    static inline auto& m_f3rdPersonCHairMultY = StaticRef<float>(0xB6EC10);
-    static inline auto& m_f3rdPersonCHairMultX = StaticRef<float>(0xB6EC14);
-    static inline auto& m_fMouseAccelVertical = StaticRef<float>(0xB6EC18);
-    static inline auto& m_fMouseAccelHorzntl = StaticRef<float>(0xB6EC1C);
-    static inline auto& m_bUseMouse3rdPerson = StaticRef<bool>(0xB6EC2E);
-    static inline auto& bDidWeProcessAnyCinemaCam = StaticRef<bool>(0xB6EC2D);
+    static float &m_f3rdPersonCHairMultY;
+    static float &m_f3rdPersonCHairMultX;
+    static float &m_fMouseAccelVertical;
+    static float &m_fMouseAccelHorzntl;
+    static bool &m_bUseMouse3rdPerson;
+    static bool &bDidWeProcessAnyCinemaCam;
 
 public:
     static void InjectHooks();
@@ -369,7 +369,7 @@ public:
     void ProcessMusicFade();
     void ProcessScriptedCommands();
     void ProcessShake();
-    CVector* ProcessShake(float intensity);
+    void ProcessShake(float ratio);
     void ProcessVectorMoveLinear();
     void ProcessVectorMoveLinear(float ratio);
     void ProcessVectorTrackLinear();
@@ -441,9 +441,9 @@ public:
 
     void AllowShootingWith2PlayersInCar(bool bAllow);
     void ApplyVehicleCameraTweaks(CVehicle* vehicle);
-    void AvoidTheGeometry(const CVector* arg2, const CVector* arg3, CVector* arg4, float FOV);
+    void AvoidTheGeometry(const CVector& camPos, const CVector& targetPos, CVector& outCamPos, float fov);
 
-    void CalculateDerivedValues(bool bForMirror, bool bOriented);
+    void CalculateDerivedValues(bool bForMirror, bool bUpdateOrientation);
     void CalculateFrustumPlanes(bool bForMirror);
     float CalculateGroundHeight(eGroundHeightType type);
     void CalculateMirroredMatrix(CVector posn, float mirrorV, CMatrix* camMatrix, CMatrix* mirrorMatrix);
@@ -452,7 +452,7 @@ public:
     void AddShake(float duration, float a2, float a3, float a4, float a5);
     void AddShakeSimple(float duration, int32 type, float intensity);
     void CamShake(float strength, CVector from);
-    void CameraColDetAndReact(CVector* source, CVector* target);
+    bool CameraColDetAndReact(CVector* source, CVector* target);
     void CameraGenericModeSpecialCases(CPed* targetPed);
     void CameraPedAimModeSpecialCases(CPed* ped);
     void CameraPedModeSpecialCases();
@@ -460,7 +460,7 @@ public:
     void ClearPlayerWeaponMode();
     bool ConeCastCollisionResolve(const CVector& pos, const CVector& lookAt, CVector& outDest, float rad, float minDist, float& outDist);
     bool ConsiderPedAsDucking(CPed* ped);
-    void CopyCameraMatrixToRWCam(bool bUpdateMatrix);
+    void CopyCameraMatrixToRWCam(bool bDontStoreOldMatrix);
     void DealWithMirrorBeforeConstructRenderList(bool bActiveMirror, CVector mirrorNormal, float mirrorV, CMatrix* matMirror);
     void DeleteCutSceneCamDataMemory();
     void DrawBordersForWideScreen();

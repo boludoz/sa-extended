@@ -1,4 +1,4 @@
-/*
+﻿/*
     Plugin-SDK file
     Authors: GTA Community. See more here
     https://github.com/DK22Pac/plugin-sdk
@@ -139,14 +139,14 @@ public:
     void DoCamBump(float horizontal, float vertical);
     void Finalise_DW_CineyCams(const CVector& src, const CVector& dest, float roll, float fov, float nearClip, float shakeDegree);
     void GetCoreDataForDWCineyCamMode(CEntity*& entity, CVehicle*& vehicle, CVector& dest, CVector& src, CVector& targetUp, CVector& targetRight, CVector& targetFwd, CVector& targetVel, float& targetSpeed, CVector& targetAngVel, float& targetAngSpeed, CColSphere& colSphere);
-    void GetLookFromLampPostPos(CEntity* target, CPed* cop, const CVector& vecTarget, const CVector& vecSource);
+    bool GetLookFromLampPostPos(CEntity* target, CPed* cop, const CVector& vecTarget, CVector& vecSource);
     void GetVectorsReadyForRW();
     void Get_TwoPlayer_AimVector(CVector&);
     bool IsTimeToExitThisDWCineyCamMode(int32 camId, const CVector& src, const CVector& dst, float t, bool lineOfSightCheck);
-    void KeepTrackOfTheSpeed(const CVector&, const CVector&, const CVector&, const float&, const float&, const float&);
+    void KeepTrackOfTheSpeed(const CVector& source, const CVector& targetToLookAt, const CVector& up, const float& trueAlpha, const float& trueBeta, const float& fov);
     void LookBehind();
     void LookRight(bool bLookRight);
-    void RotCamIfInFrontCar(const CVector&, float);
+    bool RotCamIfInFrontCar(const CVector& targetCoors, float targetOrientation);
     bool Using3rdPersonMouseCam() const;
     bool GetWeaponFirstPersonOn();
     void ClipAlpha();
@@ -163,13 +163,13 @@ public:
     void Process_Cam_TwoPlayer_InCarAndShooting();
     void Process_Cam_TwoPlayer_Separate_Cars();
     void Process_Cam_TwoPlayer_Separate_Cars_TopDown();
-    void Process_DW_BirdyCam(bool);
-    void Process_DW_CamManCam(bool);
-    void Process_DW_HeliChaseCam(bool);
-    void Process_DW_PlaneCam1(bool);
-    void Process_DW_PlaneCam2(bool);
-    void Process_DW_PlaneCam3(bool);
-    void Process_DW_PlaneSpotterCam(bool);
+    bool Process_DW_BirdyCam(bool bCheckValid);
+    bool Process_DW_CamManCam(bool bCheckValid);
+    bool Process_DW_HeliChaseCam(bool bCheckValid);
+    bool Process_DW_PlaneCam1(bool bCheckValid);
+    bool Process_DW_PlaneCam2(bool bCheckValid);
+    bool Process_DW_PlaneCam3(bool bCheckValid);
+    bool Process_DW_PlaneSpotterCam(bool bCheckValid);
     void Process_Editor(const CVector& target, float orientation, float speedVar, float speedVarWanted);
     void Process_Fixed(const CVector& target, float orientation, float speedVar, float speedVarWanted);
     void Process_FlyBy(const CVector& target, float orientation, float speedVar, float speedVarWanted);
