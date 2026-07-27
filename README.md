@@ -1,6 +1,6 @@
 ## gtasa-extended [![Build Status](https://github.com/gta-reversed/gta-reversed/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/gta-reversed/gta-reversed/actions?query=workflow%3ABuild).
 
-The most advanced reversion of Grand Theft Auto San Andreas.
+The most advanced reversion of Grand Theft Auto San Andreas. Based on GTA-Reversed proyect with a different technical direction and many bug fixes.
 
 ### Community
 Please join our community Discord: [GTA Groupies](https://discord.gg/FG8XJ5Npqe) [The invite is permanent, feel free to share it!]
