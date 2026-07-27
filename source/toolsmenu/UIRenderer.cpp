@@ -164,6 +164,14 @@ void UIRenderer::Render3D() {
 }
 
 void UIRenderer::DebugCode() {
+    //! Scratch hotkeys bound to bare letters and digits. They fire while you type, so anything
+    //! containing one of them breaks: 'J' and 'T' alone make JUMPJET spawn a Buffalo with four
+    //! stars and a jetpack instead of a Hydra. Off by default; flip to use them.
+    static constexpr auto ENABLE_SCRATCH_HOTKEYS = false;
+    if constexpr (!ENABLE_SCRATCH_HOTKEYS) {
+        return;
+    }
+
     CPad* pad = CPad::GetPad();
 
     const auto player = FindPlayerPed();

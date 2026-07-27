@@ -143,7 +143,7 @@ eSecondaryTask CPedGroupIntelligence::GetTaskSecondarySlot(CPed* ped) {
     if (const auto tp = GetPedsTaskPair(ped, m_SecondaryPedTaskPairs)) {
         return tp->Slot;
     }
-    NOTSA_UNREACHABLE(); // Otherwise returned `0`, which is a valid slot...
+    return TASK_SECONDARY_INVALID; // 0x5F865C - `eax` is seeded with -1, not 0
 }
 
 // 0x5FC4A0

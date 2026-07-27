@@ -3001,12 +3001,22 @@ void CStreaming::SetMissionDoesntRequireAnim(int32 slot) {
     SetMissionDoesntRequireModel(IFPToModelId(slot));
 }
 
-// refactored: see 0a0d147e for OG source code
 // 0x409C90
-void CStreaming::SetMissionDoesntRequireModel(int32 nDFForTXDModel) {
-    SetModelIsDeletable(nDFForTXDModel, true);
-    if (IsModelDFF(nDFForTXDModel)) {
-        SetModelIsDeletable(TXDToModelId(CModelInfo::GetModelInfo(nDFForTXDModel)->m_nTxdIndex), true); // Process TXD of DFF
+void CStreaming::SetMissionDoesntRequireModel(int32 modelId) {
+    CStreamingInfo& streamingInfo = GetInfo(modelId);
+    streamingInfo.ClearFlags(STREAMING_MISSION_REQUIRED);
+    if (!streamingInfo.IsGameRequired()) {
+        if (streamingInfo.IsLoaded()) {
+            if (!streamingInfo.InList()) {
+                streamingInfo.AddToList(ms_startLoadedList);
+            }
+        } else if (!streamingInfo.DoKeepInMemory()) {
+            RemoveModel(modelId);
+        }
+    }
+
+    if (IsModelDFF(modelId)) {
+        SetMissionDoesntRequireModel(TXDToModelId(CModelInfo::GetModelInfo(modelId)->m_nTxdIndex));
     }
 }
 
@@ -3015,28 +3025,19 @@ void CStreaming::SetMissionDoesntRequireSpecialChar(int32 slot) {
     SetMissionDoesntRequireModel(slot + SPECIAL_MODELS_RESOURCE_ID);
 }
 
-// Refactored: Added `mission` condition
-// signature changed
 // 0x409C10
-void CStreaming::SetModelIsDeletable(int32 modelId, bool mission) {
+void CStreaming::SetModelIsDeletable(int32 modelId) {
     CStreamingInfo& streamingInfo = GetInfo(modelId);
-
-    if (mission) {
-        streamingInfo.ClearFlags(STREAMING_MISSION_REQUIRED);
-        if (streamingInfo.IsGameRequired()) return;
-    } else {
-        streamingInfo.ClearFlags(STREAMING_GAME_REQUIRED);
-        if (streamingInfo.IsMissionRequired()) return;
+    streamingInfo.ClearFlags(STREAMING_GAME_REQUIRED);
+    if (streamingInfo.DoKeepInMemory()) {
+        return;
     }
 
     if (streamingInfo.IsLoaded()) {
         if (!streamingInfo.InList()) {
             streamingInfo.AddToList(ms_startLoadedList);
         }
-        return;
-    }
-
-    if (!streamingInfo.DoKeepInMemory()) {
+    } else if (!streamingInfo.IsMissionRequired()) {
         RemoveModel(modelId);
     }
 }

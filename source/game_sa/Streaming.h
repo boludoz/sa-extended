@@ -368,7 +368,7 @@ public:
     static void SetMissionDoesntRequireAnim(int32 slot);
     static void SetMissionDoesntRequireModel(int32 modelId);
     static void SetMissionDoesntRequireSpecialChar(int32 slot);
-    static void SetModelIsDeletable(int32 modelId, bool mission = false);
+    static void SetModelIsDeletable(int32 modelId);
     static void SetModelTxdIsDeletable(int32 modelId);
     static void SetModelAndItsTxdDeletable(int32 modelId);
     static void SetSpecialCharIsDeletable(int32 slot);

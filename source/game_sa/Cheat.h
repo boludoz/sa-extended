@@ -16,10 +16,18 @@ public:
     static constexpr auto CHEAT_STRING_SIZE = 30;
     static constexpr auto CHEAT_MIN_HASH_SIZE = 6;
 
-    static inline auto& m_aCheatFunctions = StaticRef<void (*[TOTAL_CHEATS])()>(0x8A5B58);
-    static inline auto& m_aCheatHashKeys = StaticRef<int32[TOTAL_CHEATS]>(0x8A5CC8);
+    //! How many cheats the game itself knows about. `TOTAL_CHEATS` counts the NOTSA entries
+    //! appended to `eCheats` as well, and the three arrays below are sized by the *game*:
+    //! the search loop at 0x438510 stops at 0x5C, and `ResetCheats` clears 0x17 dwords (= 92
+    //! bytes) at 0x438453. Sizing them by `TOTAL_CHEATS` overruns - `m_aCheatFunctions` ends
+    //! exactly where `m_aCheatHashKeys` begins, so the two would overlap.
+    static constexpr auto NUM_GAME_CHEATS = 92;
+    static_assert(NUM_GAME_CHEATS <= TOTAL_CHEATS);
+
+    static inline auto& m_aCheatFunctions = StaticRef<void (*[NUM_GAME_CHEATS])()>(0x8A5B58);
+    static inline auto& m_aCheatHashKeys = StaticRef<int32[NUM_GAME_CHEATS]>(0x8A5CC8);
     static inline auto& m_CheatString = StaticRef<char[CHEAT_STRING_SIZE]>(0x969110);
-    static inline auto& m_aCheatsActive = StaticRef<bool[TOTAL_CHEATS]>(0x969130);
+    static inline auto& m_aCheatsActive = StaticRef<bool[NUM_GAME_CHEATS]>(0x969130);
     static inline auto& m_bHasPlayerCheated = StaticRef<bool>(0x96918C);
 
     // Android

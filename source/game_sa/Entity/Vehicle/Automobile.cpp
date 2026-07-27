@@ -2531,113 +2531,108 @@ bool CAutomobile::IsRoomForPedToLeaveCar(uint32 arg0, CVector* arg1) {
 
 // 0x6A65D0
 void CAutomobile::SetupSuspensionLines() {
-    const auto& mi = *GetVehicleModelInfo();
-          auto& cm = *mi.GetColModel();
-          auto& cd = *cm.m_pColData;
+    const auto mi = GetVehicleModelInfo();
+    auto& cm = *GetColModel();
+    auto cd = cm.m_pColData;
 
-    const bool hadToAllocateLines = !cd.m_nNumLines;
-    if (hadToAllocateLines) {
-        cd.AllocateLines(ModelIndices::IsRhino(m_nModelIndex) ? NUM_RHINO_SUSP_LINES : NUM_AUTOMOBILE_SUSP_LINES);
+    assert(!cm.m_bIsSingleColDataAlloc);
+    assert(cd);
+
+    bool bFirstTime = false;
+    if (!cd->m_pLines) {
+        cd->AllocateLines(ModelIndices::IsRhino(m_nModelIndex) ? 12 : 4);
+        bFirstTime = true;
     }
 
-    // Calculate col line positions for wheels, set spring and line lengths
-    const auto& handling = *m_pHandlingData;
-    for (auto i = 0; i < NUM_AUTOMOBILE_SUSP_LINES; i++) {
-        auto& colLine = cd.m_pLines[i];
+    for (auto i = 0u; i < 4u; i++) {
+        CVector posn;
+        mi->GetWheelPosn((int32)i, posn, false);
 
-        CVector wheelPos;
-        mi.GetWheelPosn(i, wheelPos, false);
-
-        if (IsSubQuad()) {
-            if (wheelPos.x > 0.f)
-                wheelPos.x += 0.15f;
-            else
-                wheelPos.x -= 0.15f;
+        if (m_nVehicleType == VEHICLE_TYPE_QUAD) {
+            if (posn.x > 0.0f) {
+                posn.x += 0.15f;
+            } else {
+                posn.x -= 0.15f;
+            }
         }
 
-        m_wheelPosition[i] = wheelPos.z;
+        m_wheelPosition[i] = posn.z;
 
-        colLine.m_vecStart = CVector{ wheelPos.x, wheelPos.y, wheelPos.z + handling.m_fSuspensionUpperLimit };
-        colLine.m_vecEnd   = CVector{ wheelPos.x, wheelPos.y, wheelPos.z + handling.m_fSuspensionLowerLimit - mi.GetSizeOfWheel((eCarWheel)i) / 2.f };
+        const auto isFront = (i == CAR_WHEEL_FRONT_LEFT || i == CAR_WHEEL_FRONT_RIGHT);
 
-        m_fSuspensionLength[i] = handling.m_fSuspensionUpperLimit - handling.m_fSuspensionLowerLimit;
-        m_fLineLength[i]       = colLine.m_vecStart.z - colLine.m_vecEnd.z;
+        posn.z += m_pHandlingData->m_fSuspensionUpperLimit;
+        cd->m_pLines[i].m_vecStart = posn;
+
+        posn.z += -m_pHandlingData->m_fSuspensionUpperLimit + m_pHandlingData->m_fSuspensionLowerLimit - mi->GetWheelSize(isFront) * 0.5f;
+        cd->m_pLines[i].m_vecEnd = posn;
+
+        m_fSuspensionLength[i] = m_pHandlingData->m_fSuspensionUpperLimit - m_pHandlingData->m_fSuspensionLowerLimit;
+        m_fLineLength[i]       = cd->m_pLines[i].m_vecStart.z - cd->m_pLines[i].m_vecEnd.z;
     }
 
-    // Validate relative wheel positions (skipped for planes and helicopters)
-    assert(GetVehicleAppearance() == eVehicleAppearance::VEHICLE_APPEARANCE_PLANE
-        || GetVehicleAppearance() == eVehicleAppearance::VEHICLE_APPEARANCE_HELI
-        || cd.m_pLines[CAR_WHEEL_FRONT_LEFT].m_vecStart.x  < cd.m_pLines[CAR_WHEEL_FRONT_RIGHT].m_vecStart.x);  // Front left and right wheels are the wrong way round
-    assert(GetVehicleAppearance() == eVehicleAppearance::VEHICLE_APPEARANCE_PLANE
-        || GetVehicleAppearance() == eVehicleAppearance::VEHICLE_APPEARANCE_HELI
-        || cd.m_pLines[CAR_WHEEL_REAR_LEFT].m_vecStart.x   < cd.m_pLines[CAR_WHEEL_REAR_RIGHT].m_vecStart.x);   // Rear left and right wheels are the wrong way round
-    assert(GetVehicleAppearance() == eVehicleAppearance::VEHICLE_APPEARANCE_PLANE
-        || GetVehicleAppearance() == eVehicleAppearance::VEHICLE_APPEARANCE_HELI
-        || cd.m_pLines[CAR_WHEEL_FRONT_LEFT].m_vecStart.y  > cd.m_pLines[CAR_WHEEL_REAR_LEFT].m_vecStart.y);    // Left front and rear wheels are the wrong way round
-    assert(GetVehicleAppearance() == eVehicleAppearance::VEHICLE_APPEARANCE_PLANE
-        || GetVehicleAppearance() == eVehicleAppearance::VEHICLE_APPEARANCE_HELI
-        || cd.m_pLines[CAR_WHEEL_FRONT_RIGHT].m_vecStart.y > cd.m_pLines[CAR_WHEEL_REAR_RIGHT].m_vecStart.y);   // Right front and rear wheels are the wrong way round
-
-    const auto CalculateHeightAboveRoad = [&](eCarWheel wheel) {
-        return (1.f - 1.f / (handling.m_fSuspensionForceLevel * 4.f)) * m_fSuspensionLength[(size_t)wheel]
-             + mi.GetSizeOfWheel(wheel) / 2.f
-             - cd.m_pLines[(size_t)wheel].m_vecStart.z;
-    };
-
-    m_fFrontHeightAboveRoad = CalculateHeightAboveRoad(eCarWheel::CAR_WHEEL_FRONT_LEFT);
-    m_fRearHeightAboveRoad  = CalculateHeightAboveRoad(eCarWheel::CAR_WHEEL_REAR_RIGHT);
-
-    // Adjust wheel's position based on height above road
-    for (auto i = 0u; i < std::size(m_wheelPosition); i++) {
-        m_wheelPosition[i] = mi.GetSizeOfWheel((eCarWheel)i) / 2.f - m_fFrontHeightAboveRoad;
+    if (GetVehicleAppearance() != VEHICLE_APPEARANCE_PLANE && GetVehicleAppearance() != VEHICLE_APPEARANCE_HELI) {
+        assert(cd->m_pLines[0].m_vecStart.x < cd->m_pLines[2].m_vecStart.x);
+        assert(cd->m_pLines[1].m_vecStart.x < cd->m_pLines[3].m_vecStart.x);
+        assert(cd->m_pLines[0].m_vecStart.y > cd->m_pLines[1].m_vecStart.y);
+        assert(cd->m_pLines[2].m_vecStart.y > cd->m_pLines[3].m_vecStart.y);
     }
 
-    // Make sure the bounding box encloses all suspension line collision
-    if (cd.m_pLines[0].m_vecEnd.z < cm.m_boundBox.m_vecMin.z) {
-        cm.m_boundBox.m_vecMin.z = cd.m_pLines[0].m_vecEnd.z;
+    float fStart  = cd->m_pLines[0].m_vecStart.z;
+    float fLength = m_fSuspensionLength[0];
+    fLength *= 1.0f - 1.0f / (4.0f * m_pHandlingData->m_fSuspensionForceLevel);
+    m_fFrontHeightAboveRoad = -fStart + fLength + mi->GetWheelSize(true) * 0.5f;
 
-        // Resize bounding sphere to enclose the updated bounding box
-        const auto boxMinMag = cm.m_boundBox.m_vecMin.Magnitude();
-        const auto boxMaxMag = cm.m_boundBox.m_vecMax.Magnitude();
-        if (cm.m_boundSphere.m_fRadius < std::max(boxMinMag, boxMaxMag))
-            cm.m_boundSphere.m_fRadius = std::max(boxMinMag, boxMaxMag);
+    fStart  = cd->m_pLines[3].m_vecStart.z;
+    fLength = m_fSuspensionLength[3];
+    fLength *= 1.0f - 1.0f / (4.0f * m_pHandlingData->m_fSuspensionForceLevel);
+    m_fRearHeightAboveRoad = -fStart + fLength + mi->GetWheelSize(false) * 0.5f;
+
+    for (auto i = 0u; i < 4u; i++) {
+        const auto isFront = (i == CAR_WHEEL_FRONT_LEFT || i == CAR_WHEEL_FRONT_RIGHT);
+        m_wheelPosition[i] = -m_fFrontHeightAboveRoad + mi->GetWheelSize(isFront) * 0.5f;
     }
 
-    // RC Bandit needs a larger bounding sphere to cover the suspension lines
+    if (cd->m_pLines[0].m_vecEnd.z < cm.m_boundBox.m_vecMin.z) {
+        cm.m_boundBox.m_vecMin.z = cd->m_pLines[0].m_vecEnd.z;
+    }
+
+    fLength = std::max(cm.m_boundBox.m_vecMin.Magnitude(), cm.m_boundBox.m_vecMax.Magnitude());
+    if (cm.m_boundSphere.m_fRadius < fLength) {
+        cm.m_boundSphere.m_fRadius = fLength;
+    }
+
     if (ModelIndices::IsRCBandit(m_nModelIndex)) {
-        cm.m_boundSphere.m_fRadius = 2.f;
-
-        for (auto&& sph : cd.GetSpheres()) {
-            sph.m_fRadius = 0.3f;
+        cm.m_boundSphere.m_fRadius = 2.0f;
+        for (auto i = 0u; i < cd->m_nNumSpheres; i++) {
+            cd->m_pSpheres[i].m_fRadius = 0.3f;
         }
     }
 
-    if (handling.m_bForceGroundClearance && hadToAllocateLines) {
-        const auto minClearance = (ModelIndices::IsKart(m_nModelIndex) ? 0.12f : 0.25f);
-        const auto sphBottomMinZ = -m_fFrontHeightAboveRoad + minClearance;
-        for (auto&& sph : cd.GetSpheres()) {
-            const auto sphBottomZ = sph.m_vecCenter.z - sph.m_fRadius;
-            if (sphBottomZ < sphBottomMinZ) {
-                if (sph.m_fRadius > 0.4f) {
-                    sph.m_fRadius     = std::max(0.4f, sph.m_vecCenter.z - sphBottomMinZ);
-                    sph.m_vecCenter.z = sphBottomMinZ + sph.m_fRadius;
+    if (m_pHandlingData->m_bForceGroundClearance) {
+        float minClearanceOnModel = 0.25f;
+        if (ModelIndices::IsKart(m_nModelIndex)) {
+            minClearanceOnModel = 0.12f;
+        }
+
+        const float fMinPos = -m_fFrontHeightAboveRoad + minClearanceOnModel;
+        for (auto i = 0u; i < cd->m_nNumSpheres; i++) {
+            if (cd->m_pSpheres[i].m_vecCenter.z - cd->m_pSpheres[i].m_fRadius < fMinPos) {
+                if (cd->m_pSpheres[i].m_fRadius > 0.4f) {
+                    cd->m_pSpheres[i].m_fRadius = std::max(0.4f, cd->m_pSpheres[i].m_vecCenter.z - fMinPos);
                 }
+                cd->m_pSpheres[i].m_vecCenter.z = fMinPos + cd->m_pSpheres[i].m_fRadius;
             }
         }
     }
 
-    // Rhino has 12 suspension lines: 4 for real wheels + 4 interpolated per side
     if (ModelIndices::IsRhino(m_nModelIndex)) {
-        for (auto nSide = 0; nSide < 2; nSide++) {
-            for (auto nLine = 0; nLine < NUM_AUTOMOBILE_SUSP_LINES; nLine++) {
-                const auto fMaxMult = static_cast<float>(nLine + 1) * 0.2f;
-                const auto fMinMult = 1.f - fMaxMult;
-                const auto baseIdx  = nSide * 2;
-                const auto lineIdx  = NUM_AUTOMOBILE_SUSP_LINES + nSide * NUM_AUTOMOBILE_SUSP_LINES + nLine;
+        for (auto nSide = 0u; nSide < 2u; nSide++) {
+            for (auto nLine = 0u; nLine < 4u; nLine++) {
+                const float fMinMult = 1.0f - (nLine + 1u) * 0.2f;
+                const float fMaxMult = (nLine + 1u) * 0.2f;
 
-                auto& line      = cd.m_pLines[lineIdx];
-                line.m_vecStart = fMinMult * cd.m_pLines[baseIdx].m_vecStart + fMaxMult * cd.m_pLines[baseIdx + 1].m_vecStart;
-                line.m_vecEnd   = fMinMult * cd.m_pLines[baseIdx].m_vecEnd   + fMaxMult * cd.m_pLines[baseIdx + 1].m_vecEnd;
+                cd->m_pLines[nLine + nSide * 4u + 4u].m_vecStart = fMinMult * cd->m_pLines[nSide * 2u].m_vecStart + fMaxMult * cd->m_pLines[nSide * 2u + 1u].m_vecStart;
+                cd->m_pLines[nLine + nSide * 4u + 4u].m_vecEnd   = fMinMult * cd->m_pLines[nSide * 2u].m_vecEnd   + fMaxMult * cd->m_pLines[nSide * 2u + 1u].m_vecEnd;
             }
         }
     }
