@@ -229,6 +229,13 @@ bool CGame::Shutdown() {
     });
 
     CRenderer::Shutdown();
+
+    // NOTSA: The original flushes this list further down (right after `CTimeCycle::Shutdown`), by which
+    // point `CWorld::ShutDown` has already `delete`d every `CBuilding` the list points at. Vanilla gets
+    // away with it because it only unlinks the nodes, but our nodes validate their item against the pool.
+    // Nothing between here and there touches the list, so flushing it early is behaviour-preserving.
+    CCover::m_ListOfProcessedBuildings.Flush();
+
     CWorld::ShutDown();
     CEntryExitManager::Shutdown();
     g_fx.Exit();
@@ -251,7 +258,6 @@ bool CGame::Shutdown() {
     CSkidmarks::Shutdown();
     CWeaponEffects::Shutdown();
     CTimeCycle::Shutdown();
-    CCover::m_ListOfProcessedBuildings.Flush();
     CPedGroups::CleanUpForShutDown();
     CTaskSequences::CleanUpForShutdown();
     CInformGroupEventQueue::Flush();

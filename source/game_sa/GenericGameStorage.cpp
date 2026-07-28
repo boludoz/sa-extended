@@ -250,7 +250,7 @@ bool CGenericGameStorage::GenericLoad(bool& out_bVariablesLoaded) {
 
         if (std::string_view{ header } != ms_BlockTagName) {
             if (block != 0) {
-                ReportError((eBlocks)(block - 1), eSaveLoadError::LOADING);
+                ReportError((eBlocks)(block - 1), eSaveLoadError::SAVING); // Yes, `SAVING` - the original passes 2 here @ 0x5D1A6E
                 if (block == 1) {
                     uint32 version{};
                     varsBackup.Extract(version); // Restore state
@@ -274,18 +274,22 @@ bool CGenericGameStorage::GenericLoad(bool& out_bVariablesLoaded) {
 
             uint32 varsVer{};
             vars.Extract(varsVer);
+
+            // NOTSA: The original @ 0x5D18E6 calls `GetCurrentVersionNumber` and throws the result
+            // away - it never compares anything and loads a save of any version. Rejecting the save
+            // is opt-in (`Misc.LoadSavesWithMismatchingVersion = false`) for that reason; the two
+            // 1.0 builds ("Unmodified" / "Modified") share an identical save layout, so a mismatch
+            // between them is harmless.
             if (GetCurrentVersionNumber() != varsVer) {
-                NOTSA_LOG_ERR("Tried loading a save file with mismatching version!");
-                NOTSA_LOG_ERR("Got {}, expected {}", SaveVersionName(varsVer), SaveVersionName(GetCurrentVersionNumber()));
+                NOTSA_LOG_WARN("Loading a save file with a mismatching version! Got {}, expected {}", SaveVersionName(varsVer), SaveVersionName(GetCurrentVersionNumber()));
 
                 if (!g_MiscConfig.LoadSavesWithMismatchingVersion) {
-                    NOTSA_LOG_WARN("Starting a new game instead... (You can force load it by setting Misc.LoadSavesWithMismatchingVersion to true in the config)");
+                    NOTSA_LOG_ERR("Starting a new game instead... (Set Misc.LoadSavesWithMismatchingVersion to true in the config to load it anyway)");
 
                     varsBackup.Extract(varsVer); // Restore old state
                     CloseFile();
+                    ms_bLoading = false;
                     return false;
-                } else {
-                    NOTSA_LOG_WARN("Forcefully loading a mismatching save. You are on your own! If the save mismatches with the script, the game will crash.");
                 }
             }
             break;
