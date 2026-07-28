@@ -98,6 +98,15 @@ inline const ReversibleBugFix CCustomCarPlateMgr_GeneratePlateText_MissingLetter
                    "This fix expands those ranges to A-Z (26 chars) and 0-9 (10 chars) for more variety.",
     .Credit      = "j0y"
 };
+inline const ReversibleBugFix CAEVehicleAudioEntity_Terminate_DanglingAudioEntity{
+    .Name        = "CAEVehicleAudioEntity::Terminate - Dangling `CAESound::m_AudioEntity`",
+    .Description = "`Terminate` only stops the sounds whose handle the entity kept. `AddAudioEvent` "
+                   "(AE_BONNET_FLUBBER_FLUBBER) plays a `SOUND_REQUEST_UPDATES` sound tied to the flying "
+                   "component's lifespan and throws the handle away, so that sound outlives the vehicle and "
+                   "`CAESound::UpdateParameters` keeps making a virtual call into the freed pool slot. "
+                   "Detach every remaining sound from the entity instead of leaving the pointer dangling.",
+    .Credit      = "Contributors"
+};
 inline const ReversibleBugFix CAECollisionAudioEntity_PlayLoopingCollisionSound_InvalidSurfaceType{
     .Name        = "CAECollisionAudioEntity::PlayLoopingCollisionSound - Invalid surface type causing OOB",
     .Description = "The surface type passed in could've been an `AE_SURFACE_TYPE_*` which when passed to `g_surfaceInfos` causes an OOB. "

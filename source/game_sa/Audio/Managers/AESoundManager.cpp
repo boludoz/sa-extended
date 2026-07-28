@@ -472,6 +472,17 @@ void CAESoundManager::CancelSoundsOwnedByAudioEntity(CAEAudioEntity* audioEntity
     }
 }
 
+// NOTSA
+void CAESoundManager::DetachSoundsOwnedByAudioEntity(CAEAudioEntity* audioEntity) {
+    for (CAESound& sound : m_VirtuallyPlayingSoundList) {
+        if (sound.m_AudioEntity != audioEntity) {
+            continue;
+        }
+        sound.SetFlags(SOUND_REQUEST_UPDATES, false);
+        sound.m_AudioEntity = nullptr;
+    }
+}
+
 // 0x4EF630, unused
 int16 CAESoundManager::GetVirtualChannelForPhysicalChannel(int16 physicalChannel) const {
     const auto chIdx = physicalChannel - m_AudioHardwareHandle;

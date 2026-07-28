@@ -1,2 +1,3 @@
 Almost the cops shot at ground instead to CJ.
 CJ sometimes run away the cops.
+The radio is shut down every time i press ESC.

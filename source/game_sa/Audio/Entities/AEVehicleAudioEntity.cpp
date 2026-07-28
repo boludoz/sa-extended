@@ -283,6 +283,11 @@ void CAEVehicleAudioEntity::Terminate() {
 
     m_IsPlayerDriverAboutToExit = false;
     m_IsInitialized            = false;
+
+    // Everything above only stops the sounds whose handle we kept; `AddAudioEvent` throws its away
+    if (notsa::bugfixes::CAEVehicleAudioEntity_Terminate_DanglingAudioEntity) {
+        AESoundManager.DetachSoundsOwnedByAudioEntity(this);
+    }
 }
 
 // 0x4F4ED0 - May return nullptr

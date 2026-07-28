@@ -79,6 +79,9 @@ public:
     void      CancelSoundsOwnedByAudioEntity(CAEAudioEntity* audioEntity, bool bFullStop);
     int16     GetVirtualChannelForPhysicalChannel(int16 physicalChannel) const;
 
+    //! NOTSA: Drop every reference to `audioEntity` without stopping the sounds
+    void      DetachSoundsOwnedByAudioEntity(CAEAudioEntity* audioEntity);
+
     auto GetPhysicallyPlayingSoundList() const { return std::span{ m_PhysicallyPlayingSoundList, m_NumAllocatedPhysicalChannels }; }
     auto GetChannelPositions() const { return std::span{ m_ChannelPosition, m_NumAllocatedPhysicalChannels }; }
     auto GetPrioritisedSoundList() const { return std::span{ m_PrioritisedSoundList, m_NumAllocatedPhysicalChannels }; }
