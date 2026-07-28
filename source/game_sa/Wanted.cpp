@@ -507,20 +507,51 @@ int32 CWanted::WorkOutPolicePresence(CVector posn, float radius) {
 // 0x5627D0
 // Returns true if the specified ped is one of the closest to the player.
 bool CWanted::IsClosestCop(CPed* ped, const int32 numCopsToCheck) const {
-    // NOTSA: A bit different but should have the same behavior.
-    std::pair<CCopPed*, float /* distance */> closestCops[MAX_COPS_IN_PURSUIT];
+    CCopPed* cops[MAX_COPS_IN_PURSUIT];
+    int32 numCops = 0;
 
-    for (const auto&& [i, cop] : rngv::enumerate(m_CopsInPursuit)) {
-        closestCops[i].first = cop;
-        closestCops[i].second = cop ? DistanceBetweenPointsSquared(FindPlayerCoors(), cop->GetPosition()) : FLT_MAX;
+    for (auto* cop : m_CopsInPursuit) {
+        if (cop && GetPedPool()->IsObjectValid(cop)) {
+            cops[numCops++] = cop;
+        }
     }
-    rng::sort(closestCops, [](const auto& a, const auto& b) { return a.second < b.second; });
 
-    for (const auto& [cop, _] : closestCops | rngv::take(numCopsToCheck)) {
-        if (cop == ped->AsCop()) {
+    float distsSq[MAX_COPS_IN_PURSUIT];
+    std::fill(std::begin(distsSq), std::end(distsSq), FLT_MAX);
+
+    CCopPed* closestCops[MAX_COPS_IN_PURSUIT];
+    std::fill(std::begin(closestCops), std::end(closestCops), nullptr);
+
+    const auto playerPos = FindPlayerPed()->GetPosition();
+
+    for (int32 i = 0; i < numCops; i++) {
+        distsSq[i] = DistanceBetweenPointsSquared(playerPos, cops[i]->GetPosition());
+    }
+
+    for (int32 i = 0; i < numCopsToCheck; i++) {
+        int32 minIdx = -1;
+        float minDistSq = FLT_MAX;
+
+        for (int32 j = 0; j < numCops; j++) {
+            if (distsSq[j] < minDistSq) {
+                minDistSq = distsSq[j];
+                minIdx = j;
+            }
+        }
+
+        if (minIdx != -1) {
+            closestCops[i] = cops[minIdx];
+            cops[minIdx] = nullptr;
+            distsSq[minIdx] = FLT_MAX;
+        }
+    }
+
+    for (int32 i = 0; i < numCopsToCheck; i++) {
+        if (closestCops[i] == ped->AsCop()) {
             return true;
         }
     }
+
     return false;
 }
 

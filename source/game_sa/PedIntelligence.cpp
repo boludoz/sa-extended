@@ -964,7 +964,7 @@ void CPedIntelligence::Process() {
 // 0x4B85B0
 CTask* CPedIntelligence::GetActivePrimaryTask() const {
     for (const auto i : { TASK_PRIMARY_PHYSICAL_RESPONSE, TASK_PRIMARY_EVENT_RESPONSE_TEMP, TASK_PRIMARY_EVENT_RESPONSE_NONTEMP }) {
-        if (CTask* task = m_TaskMgr.GetTaskPrimary(TASK_PRIMARY_PHYSICAL_RESPONSE)) {
+        if (CTask* task = m_TaskMgr.GetTaskPrimary(i)) {
             return task;
         }
     }

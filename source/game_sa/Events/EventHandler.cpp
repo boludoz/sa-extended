@@ -326,13 +326,17 @@ void CEventHandler::HandleEvents() {
     const auto tempEventRespTask       = pedTM->GetTemporaryEventResponseTask();
     const auto presistentEventRespTask = pedTM->GetPresistentEventResponseTask();
 
-    const auto pedEG                     = &m_Ped->GetEventGroup();
-    const auto pedEGHighestPriorityEvent = pedEG->GetHighestPriorityEvent();
+    const auto pedEG = &m_Ped->GetEventGroup();
+
+    // NOTE: The original captures the highest priority event *once*, before ticking, and re-uses
+    //       that same pointer below - it does not query the group a second time.
+    const auto priorityEvent = pedEG->GetHighestPriorityEvent();
 
     pedEG->TickEvents();
 
-    if (!lastAbortedTask) {
-        m_History.RecordAbortedTask(primaryTask && lastAbortedTask == primaryTask ? primaryTask : nullptr);
+    // Only keep the recorded aborted task while it still is the ped's active primary task
+    if (lastAbortedTask) {
+        m_History.RecordAbortedTask(lastAbortedTask == primaryTask ? primaryTask : nullptr);
     }
 
     if (!tempEventRespTask) {
@@ -346,14 +350,15 @@ void CEventHandler::HandleEvents() {
         m_History.ClearNonTempEvent();
     }
 
-    if (const auto priorityEvent = pedEG->GetHighestPriorityEvent()) {
+    if (priorityEvent) {
         if (priorityEvent->GetEventType() == EVENT_DAMAGE) { // 0x4C4004
             m_Ped->SetIsStatic(false);
         }
 
         if (const auto currEvent = m_History.GetCurrentEvent()) { // 0x4C4015
-            if (currEvent->GetEventType() == pedEGHighestPriorityEvent->GetEventType()) {
-                pedEG->Remove(pedEGHighestPriorityEvent);
+            // An event that may be interrupted by another of its own type must *not* be short-circuited here
+            if (!currEvent->CanBeInterruptedBySameEvent() && currEvent->GetEventType() == priorityEvent->GetEventType()) {
+                pedEG->Remove(priorityEvent);
                 pedEG->RemoveInvalidEvents(false);
                 pedEG->Reorganise();
                 if (!primaryTask) {
@@ -379,7 +384,7 @@ void CEventHandler::HandleEvents() {
                 if (!hasStoppedTimers) { // 0x4C41A9
                     priorityEvent->UnTick();
                     activeTask->MakeAbortable(m_Ped, ABORT_PRIORITY_LEISURE, priorityEvent);
-                    m_History.RecordAbortedTask(activeTask);
+                    m_History.RecordAbortedTask(primaryTask); // 0x4C41C7 - the *primary* task, not the active one
                     pedEG->RemoveInvalidEvents(false);
                     pedEG->Reorganise();
                     return;
@@ -2177,14 +2182,14 @@ void CEventHandler::ComputeSeenCopResponse(CEventSeenCop* e, CTask* tactive, CTa
             return nullptr;
         }
         switch (e->m_TaskId) {
-        case TASK_FINISHED:
+        case TASK_NONE: // 0x4BC062 - The DM's "no response" task id (200), not `TASK_FINISHED`
             return nullptr;
         case TASK_COMPLEX_SMART_FLEE_ENTITY:
             return new CTaskComplexSmartFleeEntity{ e->m_AcquaintancePed, false, 60.f };
         case TASK_COMPLEX_KILL_PED_ON_FOOT:
             return new CTaskComplexKillPedOnFoot{ e->m_AcquaintancePed };
-        default:
-            NOTSA_UNREACHABLE(); // Not sure
+        default: // 0x4BC13C - The original leaves `m_EventResponseTask` untouched here
+            return m_EventResponseTask;
         }
     }();
 }
