@@ -216,7 +216,7 @@ CPed::CPed(ePedType pedType) : CPhysical(), m_pedIK{CPedIK(this)} {
 
     m_vecAnimMovingShift = CVector2D();
     field_56C = CVector();
-    field_578 = CVector(0.0f, 0.0f, 1.0f);
+    m_vecGroundNormal = CVector(0.0f, 0.0f, 1.0f);
 
     m_nPedState = PEDSTATE_IDLE;
     m_nMoveState = PEDMOVE_STILL;

@@ -292,7 +292,7 @@ public:
     float               m_fMoveAnim; // not sure about the name here
     CEntity*            m_standingOnEntity;
     CVector             field_56C;
-    CVector             field_578;
+    CVector             m_vecGroundNormal;
     CEntity*            m_pContactEntity;
     float               field_588;
     CVehicle*           m_pVehicle;         //< Might be set even if the ped isn't in a vehicle, in that case it's the vehicle they should get back into. But (in theory) a ped is guaranteed to be in a vehicle if `bInVehicle` is set.

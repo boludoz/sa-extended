@@ -31,8 +31,116 @@ float& gPedClipDist = *reinterpret_cast<float*>(0xB6EC68);
 float& gLastRadiusUsedInCollisionPreventionOfCamera = *reinterpret_cast<float*>(0xB6EC6C);
 
 
+//! Longest gap between two spline knots that may be skipped over in a single frame
+static constexpr auto MAX_CUTJUMP_TIME = 32.0f; // 0x8D0F80
+
 CCam& CCamera::GetActiveCamera() {
     return TheCamera.m_aCams[TheCamera.m_nActiveCam];
+}
+
+/*!
+ * Advance `marker` to the spline segment covering `timer`.
+ *
+ * A path is `[numKnots, ...knots]`, each knot `stride` floats wide and starting with its
+ * timestamp in seconds. `marker` indexes the *end* knot of the current segment.
+ * A segment longer than `MAX_CUTJUMP_TIME` is never stepped over in one call.
+ */
+static void AdvanceSplineMarker(const float* path, float timer, int32* marker, int32 stride, float lastKnotTime, float segDuration) {
+    if (timer >= lastKnotTime) {
+        return;
+    }
+
+    const auto numKnots = (uint32)path[0];
+    const auto lastIdx  = stride * (int32)numKnots - (stride - 1);
+
+    if ((uint32)(*marker - 1) / (uint32)stride > numKnots) { // The marker ran off the end
+        *marker = lastIdx;
+        return;
+    }
+    if (segDuration > MAX_CUTJUMP_TIME) {
+        return;
+    }
+
+    *marker += stride;
+    if ((uint32)(*marker - 1) / (uint32)stride > numKnots) {
+        *marker = lastIdx;
+    }
+}
+
+/*!
+ * @addr 0x5B2090
+ * @brief Sample a cutscene position spline. Each knot is 10 floats: time, point (3),
+ *        in-tangent (3), out-tangent (3).
+ */
+void FindSplinePathPositionVector(float* outPos, const float* path, float timer, int32* marker) {
+    constexpr auto STRIDE = 10;
+
+    // Both are read before the marker moves; the original keeps using this segment duration
+    // as the denominator below even after stepping forward
+    const auto segDuration = (path[*marker] - path[*marker - STRIDE]) * 1000.0f;
+    const auto lastKnotTime = path[STRIDE * (int32)path[0] - (STRIDE - 1)] * 1000.0f;
+
+    AdvanceSplineMarker(path, timer, marker, STRIDE, lastKnotTime, segDuration);
+
+    const auto i = *marker;
+    const auto t = timer > lastKnotTime
+        ? 1.0f
+        : std::clamp((timer - path[i - STRIDE] * 1000.0f) / segDuration, 0.0f, 1.0f);
+
+    const auto from    = CVector{ path[i - 9], path[i - 8], path[i - 7] };
+    const auto to      = CVector{ path[i + 1], path[i + 2], path[i + 3] };
+    const auto ctrlIn  = CVector{ path[i - 3], path[i - 2], path[i - 1] };
+    const auto ctrlOut = CVector{ path[i + 4], path[i + 5], path[i + 6] };
+
+    auto& out = *reinterpret_cast<CVector*>(outPos);
+    if (ctrlIn.x == from.x && ctrlIn.y == from.y && ctrlIn.z == from.z) { // Degenerate - a straight line will do
+        out = from + (to - from) * t;
+    } else { // Cubic Bezier
+        const auto u = 1.0f - t;
+        out = u * u * u * from
+            + 3.0f * (u * u * t * ctrlIn + u * t * t * ctrlOut)
+            + t * t * t * to;
+    }
+
+    out += TheCamera.m_vecCutSceneOffset;
+}
+
+/*!
+ * @addr 0x5B2330
+ * @brief Sample a cutscene scalar (FOV, roll) spline. Each knot is 4 floats: time, value,
+ *        in-tangent, out-tangent.
+ */
+void FindSplinePathPositionFloat(float* outValue, const float* path, float timer, int32* marker) {
+    constexpr auto STRIDE = 4;
+
+    const auto segDuration  = (path[*marker] - path[*marker - STRIDE]) * 1000.0f;
+    const auto lastKnotTime = path[STRIDE * (int32)path[0] - (STRIDE - 1)] * 1000.0f;
+
+    AdvanceSplineMarker(path, timer, marker, STRIDE, lastKnotTime, segDuration);
+
+    const auto i = *marker;
+    // Unlike the vector version, this one recomputes the segment duration after moving
+    const auto t = timer > lastKnotTime
+        ? 1.0f
+        : std::clamp(
+              (timer - path[i - STRIDE] * 1000.0f) / ((path[i] - path[i - STRIDE]) * 1000.0f),
+              0.0f,
+              1.0f
+          );
+
+    const auto from    = path[i - 3];
+    const auto to      = path[i + 1];
+    const auto ctrlIn  = path[i - 1];
+    const auto ctrlOut = path[i + 2];
+
+    if (ctrlIn == from) {
+        *outValue = from + (to - from) * t;
+    } else {
+        const auto u = 1.0f - t;
+        *outValue = u * u * u * from
+                  + 3.0f * (u * u * t * ctrlIn + u * t * t * ctrlOut)
+                  + t * t * t * to;
+    }
 }
 
 void CCamera::InjectHooks() {
@@ -107,6 +215,8 @@ void CCamera::InjectHooks() {
     RH_ScopedInstall(TakeControl, 0x50C7C0);
     RH_ScopedInstall(TakeControlNoEntity, 0x50C8B0);
     RH_ScopedInstall(TakeControlAttachToEntity, 0x50C910);
+    RH_ScopedInstall(UpdateSoundDistances, 0x515BD0);
+    RH_ScopedOverloadedInstall(IsSphereVisible, "matrix", 0x420C40, bool(CCamera::*)(const CVector&, float, RwMatrix*));
     RH_ScopedInstall(TakeControlWithSpline, 0x50CAE0);
     RH_ScopedInstall(SetCamCollisionVarDataSet, 0x50CB60);
     RH_ScopedInstall(SetNearClipBasedOnPedCollision, 0x50CB90);
@@ -155,6 +265,8 @@ void CCamera::InjectHooks() {
     RH_ScopedOverloadedInstall(ProcessShake, "1", 0x516560, void(CCamera::*)(float));
 
     RH_ScopedGlobalInstall(CamShakeNoPos, 0x50A970);
+    RH_ScopedGlobalInstall(FindSplinePathPositionVector, 0x5B2090);
+    RH_ScopedGlobalInstall(FindSplinePathPositionFloat, 0x5B2330);
 }
 
 CCamera* CCamera::Constructor() { this->CCamera::CCamera(); return this; }
@@ -461,13 +573,13 @@ CVector* CCamera::GetGameCamPosition() {
 // 0x50AE60
 bool CCamera::GetLookingLRBFirstPerson() const {
     return m_aCams[m_nActiveCam].m_nMode == eCamMode::MODE_1STPERSON
-        && m_aCams[m_nActiveCam].m_nDirectionWasLooking != LOOKING_DIRECTION_FORWARD;
+        && m_aCams[m_nActiveCam].m_nDirectionWasLooking != LOOKING_FORWARD;
 }
 
 // 0x50AED0
 bool CCamera::GetLookingForwardFirstPerson() const {
     return m_aCams[m_nActiveCam].m_nMode == eCamMode::MODE_1STPERSON
-        && m_aCams[m_nActiveCam].m_nDirectionWasLooking == LOOKING_DIRECTION_FORWARD;
+        && m_aCams[m_nActiveCam].m_nDirectionWasLooking == LOOKING_FORWARD;
 }
 
 // 0x50AE90
@@ -477,9 +589,9 @@ int32 CCamera::GetLookDirection() const {
         cam.m_nMode != eCamMode::MODE_1STPERSON &&
         cam.m_nMode != eCamMode::MODE_BEHINDBOAT &&
         cam.m_nMode != eCamMode::MODE_FOLLOWPED ||
-        (cam.m_nDirectionWasLooking == LOOKING_DIRECTION_FORWARD)
+        (cam.m_nDirectionWasLooking == LOOKING_FORWARD)
     ) {
-        return LOOKING_DIRECTION_FORWARD;
+        return LOOKING_FORWARD;
     }
 
     return cam.m_nDirectionWasLooking; // todo: unsigned/signed
@@ -520,7 +632,129 @@ float CCamera::GetRoughDistanceToGround() {
 
 // 0x514030
 void CCamera::AvoidTheGeometry(const CVector& camPos, const CVector& targetPos, CVector& outCamPos, float fov) {
-    plugin::CallMethod<0x514030, CCamera*, const CVector&, const CVector&, CVector&, float>(this, camPos, targetPos, outCamPos, fov);
+    constexpr auto fRangePlayerRadius  = 0.5f;  // 0x8CC38C
+    constexpr auto fCloseNearClipLimit = 0.15f; // 0x8CC390
+    constexpr auto fAvoidProbTimerDamp = 0.9f;  // 0x8CC81C
+    constexpr auto fAvoidTweakFOV      = 1.15f; // 0x8CC820
+
+    //! Set at startup; when clear, the second sight test below is skipped entirely
+    static auto& bAvoidTest1 = StaticRef<bool>(0xB6EC65);
+
+    //! Filled in by `CWorld::TestSphereAgainstWorld`
+    static auto& gaTempSphereColPoints = StaticRef<std::array<CColPoint, 32>>(0xB9B250);
+
+    // Buffered over frames, so they live outside the function in the original
+    static auto& AvoidTheWallsFraction      = StaticRef<float>(0xB6EC38);
+    static auto& AvoidTheWallsFractionSpeed = StaticRef<float>(0xB6EC3C);
+
+    const auto playerToCam = targetPos - camPos;
+    m_vecClearGeometryVec  = CVector{};
+
+    const auto defaultDistFromPlayer = playerToCam.Magnitude();
+    const auto groundDistance        = playerToCam.Magnitude2D();
+
+    const auto beta = playerToCam.x == 0.0f && playerToCam.y == 0.0f
+        ? CGeneral::GetATanOfXY(m_mCameraMatrix.GetForward().x, m_mCameraMatrix.GetForward().y) // Should never happen
+        : CGeneral::GetATanOfXY(playerToCam.x, playerToCam.y);
+
+    const auto alpha = groundDistance == 0.0f && playerToCam.z == 0.0f
+        ? 0.0f
+        : CGeneral::GetATanOfXY(groundDistance, playerToCam.z);
+
+    auto front = CVector{ std::cos(beta) * std::cos(alpha), std::sin(beta) * std::cos(alpha), std::sin(alpha) };
+    outCamPos  = targetPos - defaultDistFromPlayer * front;
+    front.Normalise();
+
+    CColPoint cp;
+    CEntity*  hitEntity = nullptr;
+
+    // Make sure `CWorld::pIgnoreEntity` is cleared again as soon as possible
+    CWorld::pIgnoreEntity = m_pTargetEntity; // So we don't find the player
+    if (CWorld::ProcessLineOfSight(targetPos, outCamPos, cp, hitEntity, true, false, false, true, false, false, true, false)) {
+        const auto colPointTagToCam = cp.m_vecPoint;
+        outCamPos = cp.m_vecPoint;
+
+        // Check the other direction to see if anything would come through the near clip plane.
+        // Peds and vehicles are enabled for this one.
+        if (bAvoidTest1
+            && CWorld::ProcessLineOfSight(outCamPos, targetPos, cp, hitEntity, false, true, true, true, false, false, true, false)
+        ) {
+            if ((outCamPos - cp.m_vecPoint).Magnitude() < RwCameraGetNearClipPlane(Scene.m_pRwCamera)) {
+                outCamPos = cp.m_vecPoint;
+            } else if ((outCamPos - colPointTagToCam).Magnitude() < RwCameraGetNearClipPlane(Scene.m_pRwCamera)) {
+                outCamPos = colPointTagToCam; // Only fall back if we'd clip through it
+            }
+        }
+    }
+    CWorld::pIgnoreEntity = nullptr;
+
+    // Pull the near clip in if the player is about to poke through it
+    if (FindPlayerPed()) {
+        const auto distWithCol = (targetPos - outCamPos).Magnitude() - fRangePlayerRadius;
+        if (distWithCol < RwCameraGetNearClipPlane(Scene.m_pRwCamera)) {
+            RwCameraSetNearClipPlane(Scene.m_pRwCamera, std::max(distWithCol, fCloseNearClipLimit));
+        }
+    }
+
+    const auto nearClip      = RwCameraGetNearClipPlane(Scene.m_pRwCamera);
+    const auto nearClipWidth = nearClip * std::tan(DegreesToRadians(fov) * 0.5f) * CDraw::ms_fAspectRatio * fAvoidTweakFOV;
+
+    auto avoidTheWallTargetFraction = 0.0f;
+
+    const auto centreOfCircle = outCamPos + nearClip * front;
+    if (CWorld::TestSphereAgainstWorld(centreOfCircle, nearClipWidth, nullptr, true, false, false, true, false, true)) {
+        const auto& colPos = gaTempSphereColPoints[0].m_vecPoint;
+
+        auto       centreToCol = colPos - centreOfCircle;
+        const auto depthForNoClip = DotProduct(colPos - outCamPos, front);
+
+        if (depthForNoClip > fCloseNearClipLimit && depthForNoClip < 0.90f) {
+            if (depthForNoClip < RwCameraGetNearClipPlane(Scene.m_pRwCamera)) {
+                RwCameraSetNearClipPlane(Scene.m_pRwCamera, depthForNoClip);
+            }
+        } else if (depthForNoClip < fCloseNearClipLimit) {
+            RwCameraSetNearClipPlane(Scene.m_pRwCamera, fCloseNearClipLimit);
+        }
+
+        // Now move the camera so nothing clips
+        const auto distOuterSphereToColPoint = nearClipWidth - centreToCol.Magnitude();
+        centreToCol.Normalise();
+
+        auto colNormal = gaTempSphereColPoints[0].m_vecNormal;
+        colNormal.Normalise();
+
+        const auto colPointSphereOuter = distOuterSphereToColPoint * centreToCol;
+
+        if (DotProduct(colNormal, -centreToCol) < 0.0f) { // Facing away from the camera
+            colNormal = -colNormal;
+        }
+
+        m_vecClearGeometryVec       = colNormal * DotProduct(colNormal, -colPointSphereOuter);
+        avoidTheWallTargetFraction  = 1.0f;
+
+        if (m_pTargetEntity && m_pTargetEntity->GetIsTypePed() && RwCameraGetNearClipPlane(Scene.m_pRwCamera) < 2.0f * fCloseNearClipLimit) {
+            // Is the wall directly behind or ahead of the player? (positive == behind)
+            const auto dotFwd = DotProduct(colNormal, m_pTargetEntity->GetForwardVector());
+            if (dotFwd < 0.0f) {
+                m_fAvoidTheGeometryProbsTimer = std::max(0.0f, m_fAvoidTheGeometryProbsTimer) + CTimer::GetTimeStep();
+            } else if (dotFwd > 0.5f) {
+                m_fAvoidTheGeometryProbsTimer = std::min(0.0f, m_fAvoidTheGeometryProbsTimer) - CTimer::GetTimeStep();
+            }
+
+            // Which way to swing round; don't change our mind until the move has finished
+            if (m_nAvoidTheGeometryProbsDirn == 0) {
+                m_nAvoidTheGeometryProbsDirn = CrossProduct(m_pTargetEntity->GetPosition() - outCamPos, colNormal).z > 0.0f
+                    ? (uint16)-1
+                    : (uint16)1;
+            }
+        }
+    }
+
+    m_fAvoidTheGeometryProbsTimer *= std::pow(fAvoidProbTimerDamp, CTimer::GetTimeStep());
+
+    WellBufferMe(avoidTheWallTargetFraction, AvoidTheWallsFraction, AvoidTheWallsFractionSpeed, 0.2f, 0.05f, false);
+    m_vecClearGeometryVec = AvoidTheWallsFraction * m_vecClearGeometryVec;
+    m_bMoveCamToAvoidGeom = true;
 }
 
 // 0x50AFA0
@@ -1165,7 +1399,48 @@ void CCamera::TakeControlNoEntity(const CVector& fixedModeVector, eSwitchType sw
 
 // 0x50C910
 void CCamera::TakeControlAttachToEntity(CEntity* target, CEntity* attached, CVector* attachedCamOffset, CVector* attachedCamLookAt, float tilt, eSwitchType switchType, int32 whoIsInControlOfTheCamera) {
-    plugin::CallMethod<0x50C910, CCamera*, CEntity*, CEntity*, CVector*, CVector*, float, eSwitchType, int32>(this, target, attached, attachedCamOffset, attachedCamLookAt, tilt, switchType, whoIsInControlOfTheCamera);
+    // Obbe only gets the camera if the script doesn't already have it
+    if (whoIsInControlOfTheCamera == 2 && m_nWhoIsInControlOfTheCamera == 1) {
+        return;
+    }
+    m_nWhoIsInControlOfTheCamera = whoIsInControlOfTheCamera;
+
+    if (!attached) { // Attach to the player if nothing was passed in
+        attached = FindPlayerVehicle(-1, false)
+            ? (CEntity*)FindPlayerVehicle(-1, false)
+            : (CEntity*)CWorld::Players[CWorld::PlayerInFocus].m_pPed;
+    }
+
+    if (target) {
+        if (m_pTargetEntity) {
+            m_pTargetEntity->CleanUpOldReference(&m_pTargetEntity);
+        }
+        m_pTargetEntity = target;
+        m_pTargetEntity->RegisterReference(&m_pTargetEntity);
+        m_bLookingAtVector = false;
+    } else {
+        m_bLookingAtVector = true;
+        m_vecAttachedCamLookAt = *attachedCamLookAt != *attachedCamOffset
+            ? *attachedCamLookAt
+            : CVector{};
+    }
+
+    m_vecAttachedCamOffset = *attachedCamOffset != CVector{}
+        ? *attachedCamOffset
+        : CVector{ 0.0f, 0.0f, 2.0f }; // Default
+
+    m_fAttachedCamAngle = tilt;
+
+    if (m_pAttachedEntity) {
+        m_pAttachedEntity->CleanUpOldReference(&m_pAttachedEntity);
+    }
+    m_pAttachedEntity = attached;
+    m_pAttachedEntity->RegisterReference(&m_pAttachedEntity);
+
+    m_nModeToGoTo       = MODE_ATTACHCAM;
+    m_nTypeOfSwitch     = switchType;
+    m_bLookingAtPlayer  = false;
+    m_bStartInterScript = true;
 }
 
 // 0x50CAE0
@@ -1185,7 +1460,34 @@ void CCamera::UpdateAimingCoors(const CVector& aimingTargetCoors) {
 
 // 0x515BD0
 void CCamera::UpdateSoundDistances() {
-    plugin::CallMethod<0x515BD0, CCamera*>(this);
+    //! How many frames the vertical probe result is spread over
+    constexpr auto PROBE_PERIOD = 12u;
+
+    const auto isAimingOnFoot = notsa::contains({
+        MODE_1STPERSON, MODE_SNIPER, MODE_SNIPER_RUNABOUT, MODE_ROCKETLAUNCHER_RUNABOUT,
+        MODE_ROCKETLAUNCHER_RUNABOUT_HS, MODE_M16_1STPERSON_RUNABOUT, MODE_FIGHT_CAM_RUNABOUT,
+        MODE_1STPERSON_RUNABOUT, MODE_HELICANNON_1STPERSON, MODE_CAMERA, MODE_M16_1STPERSON,
+        MODE_ROCKETLAUNCHER, MODE_ROCKETLAUNCHER_HS
+    }, GetActiveCam().m_nMode) && m_pTargetEntity->GetIsTypePed();
+
+    // Probe from a point out in front of the camera - much closer when aiming on foot
+    const auto origin = GetPosition() + m_mCameraMatrix.GetForward() * (isAimingOnFoot ? 0.5f : 5.0f);
+
+    const auto phase = CTimer::GetFrameCounter() % PROBE_PERIOD;
+    if (phase == 0) {
+        m_fSoundDistUpAsReadOld = m_fSoundDistUpAsRead;
+
+        CColPoint cp;
+        CEntity*  colEntity;
+        m_fSoundDistUpAsRead = CWorld::ProcessVerticalLine(origin, origin.z + 20.0f, cp, colEntity, true, false, false, false, true, false, nullptr)
+            ? cp.m_vecPoint.z - origin.z
+            : 20.0f;
+    }
+
+    // Blend from the old reading to the new one. The original divides by 6 rather than
+    // `PROBE_PERIOD`, so the second half of the cycle extrapolates past the new value.
+    const auto t = (float)(phase + 1) / 6.0f;
+    m_fSoundDistUp = (1.0f - t) * m_fSoundDistUpAsReadOld + t * m_fSoundDistUpAsRead;
 }
 
 // unused
@@ -1246,12 +1548,13 @@ void CCamera::CameraGenericModeSpecialCases(CPed* targetPed) {
         return;
     }
 
+    // Ignore whatever the ped is carrying, in every camera mode
     auto* taskHold = static_cast<CTaskSimpleHoldEntity*>(targetPed->GetIntelligence()->GetTaskHold(false));
     if (!taskHold || !taskHold->m_pEntityToHold) {
         return;
     }
 
-    m_pExtraEntity[m_nExtraEntitiesCount++] = targetPed;
+    m_pExtraEntity[m_nExtraEntitiesCount++] = taskHold->m_pEntityToHold;
 }
 
 // 0x50CD80
@@ -1295,7 +1598,16 @@ bool CCamera::IsExtraEntityToIgnore(CEntity* entity) {
 
 // 0x420C40
 bool CCamera::IsSphereVisible(const CVector& origin, float radius, RwMatrix* transformMatrix) {
-    return plugin::CallMethodAndReturn<bool, 0x420C40, CCamera*, const CVector&, float, RwMatrix*>(this, origin, radius, transformMatrix);
+    // In camera space `y` is depth, `x` is right and `z` is up
+    auto pos = origin;
+    RwV3dTransformPoints(&pos, &pos, 1, transformMatrix);
+
+    return pos.y + radius >= CDraw::ms_fNearClipZ
+        && pos.y - radius <= CDraw::ms_fFarClipZ
+        && pos.x * m_avecFrustumNormals[0].x + pos.y * m_avecFrustumNormals[0].y <= radius
+        && pos.x * m_avecFrustumNormals[1].x + pos.y * m_avecFrustumNormals[1].y <= radius
+        && pos.z * m_avecFrustumNormals[2].z + pos.y * m_avecFrustumNormals[2].y <= radius
+        && pos.z * m_avecFrustumNormals[3].z + pos.y * m_avecFrustumNormals[3].y <= radius;
 }
 
 // 0x420D40 - NOTE: Function has no hook

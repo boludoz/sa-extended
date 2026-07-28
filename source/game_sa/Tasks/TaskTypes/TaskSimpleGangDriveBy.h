@@ -64,6 +64,14 @@ public:
     CTask* Clone() const override;
     bool MakeAbortable(CPed* ped, eAbortPriority priority = ABORT_PRIORITY_URGENT, const CEvent* event = nullptr) override;
     bool ProcessPed(CPed* ped) override;
+
+    void FireGun(CPed* ped);
+
+    //! Inlined - aim the task at the direction a camera worked out, instead of at a target entity
+    void SetUpForCameraFire(CWeaponInfo* weaponInfo, int32 fireDirn) {
+        m_pWeaponInfo    = weaponInfo;
+        m_nFakeShootDirn = (char)fireDirn;
+    }
 };
 VALIDATE_SIZE(CTaskSimpleGangDriveBy, 0x44);
 

@@ -364,7 +364,7 @@ void CRenderer::RenderEverythingBarRoads() {
                     const auto& camMode = CCamera::GetActiveCamera().m_nMode;
                     const auto& lookDirection = TheCamera.GetLookDirection();
                     if (camMode == MODE_WHEELCAM || camMode == MODE_1STPERSON &&
-                        lookDirection != LOOKING_DIRECTION_FORWARD && lookDirection != LOOKING_DIRECTION_UNKNOWN_1 ||
+                        lookDirection != LOOKING_FORWARD && lookDirection != LOOKING_BEHIND ||
                         CVisibilityPlugins::GetClumpAlpha(entity->GetRpClump()) != 255
                     )
                     {

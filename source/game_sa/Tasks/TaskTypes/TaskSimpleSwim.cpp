@@ -858,7 +858,7 @@ void CTaskSimpleSwim::ProcessControlInput(CPlayerPed* ped) {
         } else {
             const auto& camFront = CCamera::GetActiveCamera().m_vecFront;
             ped->m_fAimingRotation = std::atan2(-camFront.x, camFront.y); // heading
-            if (TheCamera.GetLookDirection() != LOOKING_DIRECTION_FORWARD) {
+            if (TheCamera.GetLookDirection() != LOOKING_FORWARD) {
                 ped->m_fAimingRotation += DegreesToRadians(180.0f);
                 if (ped->m_fAimingRotation > DegreesToRadians(180.0f)) {
                     ped->m_fAimingRotation -= DegreesToRadians(360.0f);
@@ -920,7 +920,7 @@ void CTaskSimpleSwim::ProcessControlInput(CPlayerPed* ped) {
         float rotX{};
         if (CCamera::m_bUseMouse3rdPerson) {
             CVector vecActiveCamFront = CCamera::GetActiveCamera().m_vecFront;
-            if (TheCamera.GetLookDirection() != LOOKING_DIRECTION_FORWARD) {
+            if (TheCamera.GetLookDirection() != LOOKING_FORWARD) {
                 vecActiveCamFront.x *= -1.0f;
                 vecActiveCamFront.y *= -1.0f;
                 vecActiveCamFront.z = 0.0f;

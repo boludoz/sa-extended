@@ -19,6 +19,20 @@ class CVehicle;
 
 extern bool& gbFirstPersonRunThisFrame;
 
+//! Which of the "busted" cameras `CCam::ProcessArrestCamOne` settled on
+enum eArrestCam : int32 {
+    ARRESTCAM_NONE                 = 0,
+    ARRESTCAM_DW                   = 1,
+    ARRESTCAM_OVERSHOULDER         = 2,
+    ARRESTCAM_ALONGGROUND          = 3,
+    ARRESTCAM_ALONGGROUND_RIGHT    = 4,
+    ARRESTCAM_ALONGGROUND_RIGHT_UP = 5,
+    ARRESTCAM_ALONGGROUND_LEFT     = 6,
+    ARRESTCAM_ALONGGROUND_LEFT_UP  = 7,
+    ARRESTCAM_FROMLAMPPOST         = 8,
+};
+constexpr auto NUM_ARREST_CAMS = 6u;
+
 class CCam {
 public:
     bool      m_bBelowMinDist;
@@ -98,8 +112,8 @@ public:
     float     m_fBeta_Targeting;
     float     m_fX_Targetting;
     float     m_fY_Targetting;
-    CVehicle* m_pCarWeAreFocussingOn;
-    CVehicle* m_pCarWeAreFocussingOnI;
+    int32     m_nCarWeAreFocussingOn;  //!< Index into `CWorld::Players` the separate-cars camera is nearest to
+    float     m_fCarWeAreFocussingOnI; //!< [0, 1] interpolation between the two cars
     float     m_fCamBumpedHorz;
     float     m_fCamBumpedVert;
     uint32    m_nCamBumpedTime; // TODO: Probably float
@@ -139,13 +153,19 @@ public:
     void DoCamBump(float horizontal, float vertical);
     void Finalise_DW_CineyCams(const CVector& src, const CVector& dest, float roll, float fov, float nearClip, float shakeDegree);
     void GetCoreDataForDWCineyCamMode(CEntity*& entity, CVehicle*& vehicle, CVector& dest, CVector& src, CVector& targetUp, CVector& targetRight, CVector& targetFwd, CVector& targetVel, float& targetSpeed, CVector& targetAngVel, float& targetAngSpeed, CColSphere& colSphere);
+    bool GetLookAlongGroundPos(CEntity* target, CPed* cop, const CVector& vecTarget, CVector& vecSource);
+    bool GetLookOverShoulderPos(CEntity* target, CPed* cop, const CVector& vecTarget, CVector& vecSource);
     bool GetLookFromLampPostPos(CEntity* target, CPed* cop, const CVector& vecTarget, CVector& vecSource);
+    bool ProcessDWBustedCam1(CPed* cop, bool isFirstTime);
     void GetVectorsReadyForRW();
     void Get_TwoPlayer_AimVector(CVector&);
     bool IsTimeToExitThisDWCineyCamMode(int32 camId, const CVector& src, const CVector& dst, float t, bool lineOfSightCheck);
     void KeepTrackOfTheSpeed(const CVector& source, const CVector& targetToLookAt, const CVector& up, const float& trueAlpha, const float& trueBeta, const float& fov);
-    void LookBehind();
-    void LookRight(bool bLookRight);
+    bool GetBoatLook_L_R_HeightOffset(float& outHeightOffset) const;
+    bool IsCamOnAStringMode() const;
+    bool LookBehind();
+    bool LookLeft() { return LookRight(false); }
+    bool LookRight(bool bLookRight);
     bool RotCamIfInFrontCar(const CVector& targetCoors, float targetOrientation);
     bool Using3rdPersonMouseCam() const;
     bool GetWeaponFirstPersonOn();
@@ -160,6 +180,8 @@ public:
     void Process_AimWeapon(const CVector&, float, float, float);
     void Process_AttachedCam();
     void Process_Cam_TwoPlayer();
+    bool Process_Cam_TwoPlayer_TestLOSs(const CVector& tempSource);
+    void Process_Cam_TwoPlayer_CalcSource(float beta, CVector& outSource, CVector& outLookAt, CVector& outTarget);
     void Process_Cam_TwoPlayer_InCarAndShooting();
     void Process_Cam_TwoPlayer_Separate_Cars();
     void Process_Cam_TwoPlayer_Separate_Cars_TopDown();

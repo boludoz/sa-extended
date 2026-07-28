@@ -31,6 +31,11 @@ CTaskSimpleGangDriveBy::CTaskSimpleGangDriveBy(CEntity* target, const CVector* t
     }
 }
 
+// 0x627CC0
+void CTaskSimpleGangDriveBy::FireGun(CPed* ped) {
+    plugin::CallMethod<0x627CC0, CTaskSimpleGangDriveBy*, CPed*>(this, ped);
+}
+
 CTaskSimpleGangDriveBy::~CTaskSimpleGangDriveBy()
 {
     if (m_bAnimsReferenced)

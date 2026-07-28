@@ -36,17 +36,13 @@ enum class eSwitchType : uint16 {
     JUMPCUT
 };
 
-/* todo:
-  LOOKING_BEHIND = 0x0,
-  LOOKING_LEFT = 0x1,
-  LOOKING_RIGHT = 0x2,
-  LOOKING_FORWARD = 0x3,
-*/
+//! Values confirmed against `CCam::Process` (0x526FC0), which dispatches
+//! 0 -> `LookBehind`, 1 -> `LookRight(false)`, 2 -> `LookRight(true)`.
 enum eLookingDirection {
-    LOOKING_DIRECTION_UNKNOWN_1 = 0,
-    LOOKING_DIRECTION_BEHIND    = 1,
-    LOOKING_DIRECTION_UNKNOWN_3 = 2,
-    LOOKING_DIRECTION_FORWARD   = 3,
+    LOOKING_BEHIND  = 0,
+    LOOKING_LEFT    = 1,
+    LOOKING_RIGHT   = 2,
+    LOOKING_FORWARD = 3,
 };
 
 enum class eGroundHeightType : int32 {
@@ -525,6 +521,7 @@ extern bool& gbModelViewer;
 extern int8& gbCineyCamMessageDisplayed;
 extern bool& gPlayerPedVisible;
 extern uint8& gCurCamColVars;
+extern float& gCurDistForCam;
 extern int32& gCameraDirection;
 extern eCamMode& gCameraMode;
 extern uint32& gLastTime2PlayerCameraWasOK;
@@ -535,3 +532,6 @@ static inline auto& gpMadeInvisibleEntities = StaticRef<std::array<CEntity*, 10>
 static inline auto& gNumEntitiesSetInvisible = StaticRef<uint32>(0x9655DC);
 
 void CamShakeNoPos(CCamera* camera, float strength);
+
+void FindSplinePathPositionVector(float* outPos, const float* path, float timer, int32* marker);
+void FindSplinePathPositionFloat(float* outValue, const float* path, float timer, int32* marker);

@@ -466,7 +466,7 @@ void CRadar::CalculateCachedSinCos() {
         cachedCos = std::cos(angle);
     };
 
-    if (TheCamera.GetLookDirection() == LOOKING_DIRECTION_FORWARD) {
+    if (TheCamera.GetLookDirection() == LOOKING_FORWARD) {
         SaveAngle(TheCamera.GetHeading());
 
         return;
@@ -476,7 +476,7 @@ void CRadar::CalculateCachedSinCos() {
     const auto targetEntity = activeCam.m_pCamTargetEntity;
 
     const auto directionToTarget = [&] {
-        if (activeCam.m_nMode == MODE_1STPERSON || TheCamera.GetLookDirection() == LOOKING_DIRECTION_UNKNOWN_1) {
+        if (activeCam.m_nMode == MODE_1STPERSON || TheCamera.GetLookDirection() == LOOKING_BEHIND) {
             return targetEntity->GetMatrix().GetForward().Normalized();
         } else {
             return targetEntity->GetPosition() - activeCam.m_vecSourceBeforeLookBehind;

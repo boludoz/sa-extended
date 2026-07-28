@@ -950,9 +950,10 @@ void CVehicle::ProcessDrivingAnims(CPed* driver, bool blend) {
     if (idleAnim->m_BlendAmount < 1.0F)
         return;
 
+    // The original really does compare against `LOOKING_LEFT` here and below, not `LOOKING_BEHIND`
     if (lookBackAnim
         && CCamera::GetActiveCamera().m_nMode == eCamMode::MODE_1STPERSON
-        && CCamera::GetActiveCamera().m_nDirectionWasLooking == eLookingDirection::LOOKING_DIRECTION_BEHIND
+        && CCamera::GetActiveCamera().m_nDirectionWasLooking == eLookingDirection::LOOKING_LEFT
     ) {
         lookBackAnim->m_BlendDelta = -1000.0F;
     }
@@ -970,7 +971,7 @@ void CVehicle::ProcessDrivingAnims(CPed* driver, bool blend) {
         && GetVehicleAppearance() != VEHICLE_APPEARANCE_PLANE
     ) {
         if ((CCamera::GetActiveCamera().m_nMode != eCamMode::MODE_1STPERSON
-            || CCamera::GetActiveCamera().m_nDirectionWasLooking != eLookingDirection::LOOKING_DIRECTION_BEHIND)
+            || CCamera::GetActiveCamera().m_nDirectionWasLooking != eLookingDirection::LOOKING_LEFT)
             && (!lookBackAnim || lookBackAnim->m_BlendAmount < 1.0F && lookBackAnim->m_BlendDelta <= 0.0F)
         ) {
             CAnimManager::BlendAnimation(driver->GetRpClump(), ANIM_GROUP_DEFAULT, usedAnims->back, 4.0F);
@@ -4913,7 +4914,7 @@ void CVehicle::ProcessWeapons() {
 
 // 0x73F400
 void CVehicle::DoFixedMachineGuns() {
-    if (CCamera::GetActiveCamera().m_nDirectionWasLooking != eLookingDirection::LOOKING_DIRECTION_FORWARD)
+    if (CCamera::GetActiveCamera().m_nDirectionWasLooking != eLookingDirection::LOOKING_FORWARD)
         return;
 
     const auto* const driverPad = CPad::GetPad(m_pDriver && m_pDriver->m_nPedType == PED_TYPE_PLAYER2 ? 1 : 0);

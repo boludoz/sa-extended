@@ -359,7 +359,7 @@ void CTaskSimpleJetPack::ProcessControlInput(CPlayerPed* player) {
         }
     } else { // 0x67E8D1
         player->m_fAimingRotation = TheCamera.GetActiveCam().m_vecFront.Heading();
-        if (TheCamera.GetLookDirection() != LOOKING_DIRECTION_FORWARD) {
+        if (TheCamera.GetLookDirection() != LOOKING_FORWARD) {
             player->m_fAimingRotation -= PI;
         }
         InterpolateThrustAngle();

@@ -360,6 +360,7 @@ public:
     static bool GetAnaloguePadUp();
     static bool GetAnaloguePadRight();
     static bool GetAnaloguePadDown();
+    bool CycleCameraModeUpJustDown() const noexcept;
     bool sub_540530() const noexcept;
     bool sub_5404F0() const noexcept { return Mode != 1 ? 0 : IsDPadDownPressed(); } // 0x5404F0
     bool IsPhaseEqual11() const noexcept { return Phase == 11; } // 0x53FB60
@@ -418,7 +419,7 @@ WeaponUsesTargetingButton(void)
 WillBulletHitSomething(CPed *)
 
 - bigger than one line, move to .cpp
-bool 0x5404A0() { }
+
 bool 0x53FE50() { }
 bool 0x53FD70() { }
 bool 0x541340() { }

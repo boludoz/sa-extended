@@ -86,6 +86,7 @@ void CPad::InjectHooks() {
     RH_ScopedInstall(GetWeapon, 0x540180);
     RH_ScopedInstall(AimWeaponLeftRight, 0x541040);
     RH_ScopedInstall(AimWeaponUpDown, 0x5410C0);
+    RH_ScopedInstall(CycleCameraModeUpJustDown, 0x5404A0);
     RH_ScopedInstall(NextStationJustUp, 0x5405B0);
     RH_ScopedInstall(LastStationJustUp, 0x5405E0);
     RH_ScopedInstall(GetHydraulicJump, 0x53FF70);
@@ -1737,6 +1738,20 @@ bool CPad::GetAnaloguePadDown() {
         return true;
     } else {
         oldfStickY = leftStickY;
+        return false;
+    }
+}
+
+// 0x5404A0
+bool CPad::CycleCameraModeUpJustDown() const noexcept {
+    switch (Mode) {
+    case 0:
+    case 2:
+    case 3:
+        return NewState.Select && OldState.Select == 0;
+    case 1:
+        return NewState.DPadUp && OldState.DPadUp == 0;
+    default:
         return false;
     }
 }
