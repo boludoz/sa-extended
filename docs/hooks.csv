@@ -7906,9 +7906,9 @@ CCam,LookRight,0x00520E40,1,1,0
 CCam,Process,0x00526FC0,1,1,0
 CCam,ProcessArrestCamOne,0x00518500,1,1,0
 CCam,ProcessPedsDeadBaby,0x00519250,1,1,0
-CCam,Process_1rstPersonPedOnPC,0x0050EB70,0,1,0
+CCam,Process_1rstPersonPedOnPC,0x0050EB70,1,1,0
 CCam,Process_1stPerson,0x00517EA0,1,0,0
-CCam,Process_AimWeapon,0x00521500,0,1,0
+CCam,Process_AimWeapon,0x00521500,1,1,0
 CCam,Process_AttachedCam,0x00512B10,1,0,0
 CCam,Process_Cam_TwoPlayer,0x00525E50,1,1,0
 CCam,Process_Cam_TwoPlayer_InCarAndShooting,0x00519810,1,1,0
@@ -7925,9 +7925,9 @@ CCam,Process_Editor,0x0050F3F0,1,0,0
 CCam,Process_Fixed,0x0051D470,1,0,0
 CCam,Process_FlyBy,0x005B25F0,1,1,0
 CCam,Process_FollowCar_SA,0x005245B0,0,1,0
-CCam,Process_FollowPedWithMouse,0x0050F970,0,1,0
-CCam,Process_FollowPed_SA,0x00522D40,0,1,0
-CCam,Process_M16_1stPerson,0x005105C0,0,1,0
+CCam,Process_FollowPedWithMouse,0x0050F970,1,1,0
+CCam,Process_FollowPed_SA,0x00522D40,1,1,0
+CCam,Process_M16_1stPerson,0x005105C0,1,1,0
 CCam,Process_Rocket,0x00511B50,1,0,0
 CCam,Process_SpecialFixedForSyphon,0x00517500,1,0,0
 CCam,Process_WheelCam,0x00512110,1,1,0

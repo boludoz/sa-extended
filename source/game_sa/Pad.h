@@ -208,6 +208,7 @@ public:
     [[nodiscard]] bool LastStationJustUp() const noexcept                   { return !DisablePlayerControls && IsDPadDownJustUp(); }                                         // 0x5405E0
     [[nodiscard]] bool GetLookBehindForCar() const noexcept;                                                                                                                 // 0x53FE70
     [[nodiscard]] bool GetLookBehindForPed() const noexcept                 { return !DisablePlayerControls && BUTTON_IS_DOWN(ShockButtonR); }                               // 0x53FEC0
+    [[nodiscard]] bool GetVehicleMouseLook() const noexcept                 { return !DisablePlayerControls && NewState.m_bVehicleMouseLook != 0; }
     [[nodiscard]] bool GetHydraulicJump() const noexcept                    { return !DisablePlayerControls && BUTTON_IS_DOWN(ShockButtonR); }                               // 0x53FF70
     [[nodiscard]] bool GetDuck() const noexcept                             { return !DisablePlayerControls && !bDisablePlayerDuck && BUTTON_IS_DOWN(ShockButtonL); }        // 0x540700
     [[nodiscard]] bool DuckJustDown() const noexcept                        { return !DisablePlayerControls && !bDisablePlayerDuck && IsLeftShockPressed(); }                // 0x540720
