@@ -40,17 +40,10 @@ void CTagManager::Init() {
 
 // 0x49CC60
 void CTagManager::ShutdownForRestart() {
-#if 0
-    // Doing this here breaks the game, so i'll just leave it as it was originally...
-    rng::fill(ms_tagDesc, tTagDesc{});
-    if (notsa::bugfixes::CTagManager_MissingTagCountResetOnShutdown) {
-        ms_numTags = 0;
-    }
-#else
-    for (auto& tag : ms_tagDesc) {
+    // NOTE: `ms_numTags` is deliberately not reset - the original doesn't, and doing so breaks the game
+    for (auto& tag : GetTags()) {
         tag.Alpha = 0;
     }
-#endif
     ms_numTagged = 0;
 }
 
@@ -61,19 +54,16 @@ const CVector& CTagManager::GetTagPos(int32 idx) {
 
 // 0x49CC90
 void CTagManager::AddTag(CEntity& entity) {
-    assert(IsTag(entity) && "Must be a tag entity");
-
     ms_tagDesc[ms_numTags++] = tTagDesc{ &entity, 0 };
 }
 
 // 0x49CCB0
 tTagDesc* CTagManager::FindTagDesc(const CEntity& entity) {
-    for (auto& tag : GetTags()) {
+    for (auto& tag : GetTags() | rngv::reverse) { // Original searches back-to-front, so the newest duplicate wins
         if (tag.Entity == &entity) {
             return &tag;
         }
     }
-    NOTSA_LOG_WARN("CTagManager::FindTagDesc: Couldn't find tag desc for entity %p - This shouldn't happen! Perhaps corrupted savefile?", LOG_PTR(&entity));
     return nullptr;
 }
 
@@ -102,8 +92,8 @@ int32 CTagManager::GetPercentageTaggedInArea(const CRect& area) {
         }
     }
     return numTotalTaggable != 0
-        ? (numTagged * 100) / numTotalTaggable /* Do division without converting to float at all, this isn't how it was done, but it's the same logic... */
-        : 0;
+        ? static_cast<int32>(static_cast<float>(numTagged) / static_cast<float>(numTotalTaggable) * 100.0F)
+        : 0; // notsa: original divides by zero here, `__ftol2` then hands back INT_MIN
 }
 
 // 0x49CDE0
@@ -118,8 +108,6 @@ uint8 CTagManager::GetAlpha(const RpAtomic& atomic) {
 }
 
 uint8 CTagManager::GetAlpha(const CEntity& entity) {
-    assert(IsTag(entity));
-
     if (entity.GetRpAtomic()) {
         return static_cast<uint8>(CVisibilityPlugins::GetUserValue(entity.GetRpAtomic()));
     }
@@ -140,8 +128,6 @@ void CTagManager::SetAlpha(RpAtomic& atomic, uint8 alphaToSet) {
 
 // 0x49CEC0
 void CTagManager::SetAlpha(CEntity& entity, uint8 alphaToSet) {
-    assert(IsTag(entity));
-
     if (auto* const atomicOfEntity = entity.GetRpAtomic()) {
         SetAlpha(*atomicOfEntity, alphaToSet);
     }
@@ -167,8 +153,6 @@ void CTagManager::SetAlpha(CEntity& entity, uint8 alphaToSet) {
 }
 
 void CTagManager::ResetAlpha(const CEntity& entity) {
-    assert(IsTag(entity));
-
     auto* const atomicOfEntity = entity.GetRpAtomic();
     if (!atomicOfEntity) {
         return;
@@ -185,13 +169,11 @@ void CTagManager::ResetAlpha(const CEntity& entity) {
 // 0x49CFE0
 void CTagManager::SetAlphaInArea(const CRect& area, uint8 alphaToSet) {
     for (auto& tag : GetTagsInArea(area)) {
-        auto* const atomicOfTag = tag.Entity->GetRpAtomic();
-        if (!atomicOfTag) {
-            continue;
+        if (auto* const atomicOfTag = tag.Entity->GetRpAtomic()) { // A missing atomic only skips the visual update
+            SetAlpha(*atomicOfTag, alphaToSet);
         }
-        SetAlpha(*atomicOfTag, alphaToSet);
         tag.Alpha = alphaToSet;
-    }           
+    }
     UpdateNumTagged();
 }
 
@@ -199,7 +181,7 @@ void CTagManager::SetAlphaInArea(const CRect& area, uint8 alphaToSet) {
 CEntity* CTagManager::GetNearestTag(const CVector& nearestToPoint) {
     tTagDesc* closest         = nullptr;
     float     closestDist2DSq = RwRealMAXVAL;
-    for (auto& tag : GetTags()) {
+    for (auto& tag : GetTags() | rngv::reverse) { // Original scans back-to-front, so on a tie the highest index wins
         if (const auto dist2DSq = CVector2D::DistSqr(nearestToPoint, tag.Entity->GetPosition2D()); dist2DSq < closestDist2DSq) {
             closestDist2DSq = dist2DSq;
             closest         = &tag;

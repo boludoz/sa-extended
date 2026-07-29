@@ -47,8 +47,10 @@ CTaskComplexUseSequence* CTaskComplexUseSequence::Constructor(int32 sequenceInde
 }
 
 bool CTaskComplexUseSequence::MakeAbortable(CPed* ped, eAbortPriority priority, const CEvent* event) {
-    if (!m_pSubTask) {
-        return true;
+    if (notsa::bugfixes::GenericCrashing) {
+        if (!m_pSubTask) { // Original dereferences it unconditionally
+            return true;
+        }
     }
 
     bool bMakeAbortable = m_pSubTask->MakeAbortable(ped, priority, event);
