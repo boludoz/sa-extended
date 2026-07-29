@@ -14,27 +14,26 @@ void CReferences::InjectHooks() {
 
 // 0x5719B0
 void CReferences::Init() {
-    ZoneScoped;
+    pEmptyList = &aRefs[0];
 
-    pEmptyList = aRefs;
-
-    // todo: do better
-    for (int32 i = 0; i < MAX_NUM_REFERENCES - 1; ++i) {
-        (&aRefs[i])->m_pNext = &aRefs[i + 1];
-        (&aRefs[i])->m_ppEntity = nullptr;
+    for (int32 i = 0; i < MAX_NUM_REFERENCES; ++i) {
+        aRefs[i].m_pNext = &aRefs[i + 1];
+        aRefs[i].m_ppEntity = nullptr;
     }
 
-    (&aRefs[MAX_NUM_REFERENCES - 1])->m_pNext = nullptr;
+    aRefs[MAX_NUM_REFERENCES - 1].m_pNext = nullptr;
 }
 
 uint32 CReferences::ListSize(CReference* ref) {
-    uint32 count = 0;
-    while (ref) {
-        ref = ref->m_pNext;
-        ++count;
+    CReference* pRef = ref;
+    uint32 size = 0;
+
+    while (pRef != nullptr) {
+        ++size;
+        pRef = pRef->m_pNext;
     }
 
-    return count;
+    return size;
 }
 
 void CReferences::RemoveReferencesToPlayer() {
@@ -52,7 +51,27 @@ void CReferences::RemoveReferencesToPlayer() {
 }
 
 void CReferences::PruneAllReferencesInWorld() {
-    rng::for_each(GetPedPool()->GetAllValid(), &CEntity::PruneReferences);
-    rng::for_each(GetVehiclePool()->GetAllValid(), &CEntity::PruneReferences);
-    rng::for_each(GetObjectPool()->GetAllValid(), &CEntity::PruneReferences);
+    auto* pedPool = GetPedPool();
+    for (int32 i = pedPool->GetSize() - 1; i >= 0; --i) {
+        CPed* pPed = pedPool->GetAt(i);
+        if (pPed != nullptr) {
+            pPed->PruneReferences();
+        }
+    }
+
+    auto* vehiclePool = GetVehiclePool();
+    for (int32 i = vehiclePool->GetSize() - 1; i >= 0; --i) {
+        CVehicle* pVeh = vehiclePool->GetAt(i);
+        if (pVeh != nullptr) {
+            pVeh->PruneReferences();
+        }
+    }
+
+    auto* objectPool = GetObjectPool();
+    for (int32 i = objectPool->GetSize() - 1; i >= 0; --i) {
+        CObject* pObj = objectPool->GetAt(i);
+        if (pObj != nullptr) {
+            pObj->PruneReferences();
+        }
+    }
 }

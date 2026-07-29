@@ -1609,16 +1609,20 @@ float CEntity::GetDistanceFromCentreOfMassToBaseOfModel() const {
 // in references.cpp
 // 0x571A00
 void CEntity::CleanUpOldReference(CEntity** entity) {
-    auto lastnextp = &m_pReferences;
-    for (auto ref = m_pReferences; ref; ref = ref->m_pNext) {
-        if (ref->m_ppEntity == entity) {
-            *lastnextp = ref->m_pNext;
-            ref->m_pNext = CReferences::pEmptyList;
-            CReferences::pEmptyList = ref;
-            ref->m_ppEntity = nullptr;
-            break;
+    CReference* pRef = m_pReferences;
+    CReference** ppRef = &m_pReferences;
+
+    while (pRef != nullptr) {
+        if (pRef->m_ppEntity == entity) {
+            *ppRef = pRef->m_pNext;
+            pRef->m_pNext = CReferences::pEmptyList;
+            CReferences::pEmptyList = pRef;
+            pRef->m_ppEntity = nullptr;
+            return;
         }
-        lastnextp = &ref->m_pNext;
+
+        ppRef = &pRef->m_pNext;
+        pRef = pRef->m_pNext;
     }
 }
 
@@ -1627,27 +1631,20 @@ void CEntity::CleanUpOldReference(CEntity** entity) {
 // in references.cpp
 // 0x571A40
 void CEntity::ResolveReferences() {
-    for (auto ref = m_pReferences; ref; ref = ref->m_pNext) {
-        if (ref->m_ppEntity && *ref->m_ppEntity == this) {
-            *ref->m_ppEntity = nullptr;
+    for (CReference* i = m_pReferences; i; i = i->m_pNext) {
+        if (i->m_ppEntity && *i->m_ppEntity == this) {
+            *i->m_ppEntity = nullptr;
         }
     }
 
-    if (m_pReferences) {
-        auto head = m_pReferences;
-
-        auto tail = head;
-        while (tail->m_pNext) {
-            tail = tail->m_pNext;
+    CReference* refs = m_pReferences;
+    if (refs) {
+        for (refs->m_ppEntity = nullptr; refs->m_pNext; refs->m_ppEntity = nullptr) {
+            refs = refs->m_pNext;
         }
 
-        for (auto ref = head; ref; ref = ref->m_pNext) {
-            ref->m_ppEntity = nullptr;
-        }
-
-        tail->m_pNext = CReferences::pEmptyList;
-        CReferences::pEmptyList = head;
-
+        refs->m_pNext = CReferences::pEmptyList;
+        CReferences::pEmptyList = m_pReferences;
         m_pReferences = nullptr;
     }
 }
@@ -1657,24 +1654,20 @@ void CEntity::ResolveReferences() {
 // in references.cpp
 // 0x571A90
 void CEntity::PruneReferences() {
-    if (!m_pReferences) {
-        return;
-    }
+    CReference* pRef = m_pReferences;
+    CReference** ppRef = &m_pReferences;
 
-    auto refs = m_pReferences;
-    auto ppPrev = &m_pReferences;
-
-    while (refs) {
-        if (*refs->m_ppEntity == this) {
-            ppPrev = &refs->m_pNext;
-            refs = refs->m_pNext;
+    for (; pRef != nullptr;) {
+        if (pRef->m_ppEntity && *pRef->m_ppEntity != this) {
+            CReference* pNext = pRef->m_pNext;
+            *ppRef = pNext;
+            pRef->m_pNext = CReferences::pEmptyList;
+            CReferences::pEmptyList = pRef;
+            pRef->m_ppEntity = nullptr;
+            pRef = pNext;
         } else {
-            auto refTemp = refs->m_pNext;
-            *ppPrev = refs->m_pNext;
-            refs->m_pNext = CReferences::pEmptyList;
-            CReferences::pEmptyList = refs;
-            refs->m_ppEntity = nullptr;
-            refs = refTemp;
+            ppRef = &pRef->m_pNext;
+            pRef = pRef->m_pNext;
         }
     }
 }
@@ -1688,23 +1681,20 @@ void CEntity::RegisterReference(CEntity** entity) {
         return;
     }
 
-    for (auto refs = m_pReferences; refs; refs = refs->m_pNext) {
-        if (refs->m_ppEntity == entity) {
+    CReference* pRef = m_pReferences;
+    while (pRef != nullptr) {
+        if (pRef->m_ppEntity == entity) {
             return;
         }
+        pRef = pRef->m_pNext;
     }
 
     if (!CReferences::pEmptyList) {
-        for (auto& ped : GetPedPool()->GetAllValid()) {
-            ped.PruneReferences();
-            if (CReferences::pEmptyList) {
-                break;
-            }
-        }
-
-        if (!CReferences::pEmptyList) {
-            for (auto& vehicle : GetVehiclePool()->GetAllValid()) {
-                vehicle.PruneReferences();
+        auto* pedPool = GetPedPool();
+        for (int32 i = pedPool->GetSize() - 1; i >= 0; --i) {
+            CPed* pPed = pedPool->GetAt(i);
+            if (pPed != nullptr) {
+                pPed->PruneReferences();
                 if (CReferences::pEmptyList) {
                     break;
                 }
@@ -1712,21 +1702,38 @@ void CEntity::RegisterReference(CEntity** entity) {
         }
 
         if (!CReferences::pEmptyList) {
-            for (auto& obj : GetObjectPool()->GetAllValid()) {
-                obj.PruneReferences();
-                if (CReferences::pEmptyList) {
-                    break;
+            auto* vehiclePool = GetVehiclePool();
+            for (int32 i = vehiclePool->GetSize() - 1; i >= 0; --i) {
+                CVehicle* pVeh = vehiclePool->GetAt(i);
+                if (pVeh != nullptr) {
+                    pVeh->PruneReferences();
+                    if (CReferences::pEmptyList) {
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (!CReferences::pEmptyList) {
+            auto* objectPool = GetObjectPool();
+            for (int32 i = objectPool->GetSize() - 1; i >= 0; --i) {
+                CObject* pObj = objectPool->GetAt(i);
+                if (pObj != nullptr) {
+                    pObj->PruneReferences();
+                    if (CReferences::pEmptyList) {
+                        break;
+                    }
                 }
             }
         }
     }
 
-    if (CReferences::pEmptyList) {
-        auto pEmptyRef = CReferences::pEmptyList;
-        CReferences::pEmptyList = pEmptyRef->m_pNext;
-        pEmptyRef->m_pNext = m_pReferences;
-        m_pReferences = pEmptyRef;
-        pEmptyRef->m_ppEntity = entity;
+    CReference* pNewRef = CReferences::pEmptyList;
+    if (pNewRef) {
+        CReferences::pEmptyList = pNewRef->m_pNext;
+        pNewRef->m_pNext = m_pReferences;
+        m_pReferences = pNewRef;
+        pNewRef->m_ppEntity = entity;
     }
 }
 
