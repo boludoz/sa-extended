@@ -7894,6 +7894,7 @@ Common,WriteRaster,0x005A4150,1,0,0
 CCam,CacheLastSettingsDWCineyCam,0x0050D7A0,1,0,0
 CCam,Constructor,0x00517730,1,0,0
 CCam,DoCamBump,0x0050CB30,1,0,0
+CCam,FTrunc,0x0050A0A0,1,0,0
 CCam,Finalise_DW_CineyCams,0x0050DD70,1,0,0
 CCam,GetCoreDataForDWCineyCamMode,0x00517130,1,0,0
 CCam,GetLookFromLampPostPos,0x005161A0,1,0,0
@@ -7934,6 +7935,7 @@ CCam,Process_SpecialFixedForSyphon,0x00517500,1,0,0
 CCam,Process_WheelCam,0x00512110,1,1,0
 CCam,RotCamIfInFrontCar,0x0050A4F0,1,0,0
 CCam,Using3rdPersonMouseCam,0x0050A850,1,0,0
+CCam,VecTrunc,0x0050A120,1,0,0
 CCam,WellBufferMe,0x00509AE0,1,0,0
 CPedAttractorPedPlacer,PlacePedAtEffect,0x005EA390,1,0,0
 CCarAI,AddAmbulanceOccupants,0x0041C4A0,1,0,0

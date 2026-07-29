@@ -181,6 +181,24 @@ static void WellBufferMe(float target, float& valueToChange, float& speedSoFar, 
     valueToChange += std::min(CTimer::GetTimeStep(), 10.0f) * speedSoFar;
 }
 
+// 0x50A0A0
+//! Rounds `f` to `numDecimals` decimals, halves away from zero
+static float FTrunc(float f, int32 numDecimals) {
+    const auto scaled = std::pow(10.0, (double)(numDecimals + 1)) * (double)f + (f < 0.0f ? -5.0 : 5.0);
+
+    double whole;
+    std::modf(scaled * 0.1, &whole);
+
+    return (float)(whole / std::pow(10.0, (double)numDecimals));
+}
+
+// 0x50A120
+static void VecTrunc(CVector& v, int32 numDecimals) {
+    v.x = FTrunc(v.x, numDecimals);
+    v.y = FTrunc(v.y, numDecimals);
+    v.z = FTrunc(v.z, numDecimals);
+}
+
 void CCam::InjectHooks() {
     RH_ScopedClass(CCam);
     RH_ScopedCategory("Camera");
@@ -236,6 +254,8 @@ void CCam::InjectHooks() {
     RH_ScopedInstall(Process_WheelCam, 0x512110);
 
     RH_ScopedGlobalInstall(WellBufferMe, 0x509AE0);
+    RH_ScopedGlobalInstall(FTrunc, 0x50A0A0);
+    RH_ScopedGlobalInstall(VecTrunc, 0x50A120);
 }
 
 // 0x517730
@@ -1293,6 +1313,9 @@ void CCam::Process() {
         GetVectorsReadyForRW();
         TheCamera.m_bVecTrackLinearProcessed = false;
     }
+
+    // A nan/inf here poisons `m_mCameraMatrix` and everything reading it (audio, culling, ...) - break here instead, `m_nMode` says which cam did it
+    assert(!m_vecSource.HasNanOrInf() && !m_vecFront.HasNanOrInf() && !m_vecUp.HasNanOrInf());
 }
 
 // 0x515D80
@@ -5277,7 +5300,11 @@ void CCam::Process_FollowPed_SA(const CVector& ThisCamsTarget, float TargetOrien
                 fDiffCap  *= fForceCamBetaMult;
             }
         } else {
-            fDiffMult = std::min(1.0f, pPed->m_vecMoveSpeed.Magnitude() * fDiffMult);
+            // Speed relative to whatever the ped stands on, so a moving train doesn't count as running
+            const auto speed = pPed->m_standingOnEntity
+                ? pPed->m_vecMoveSpeed - pPed->m_standingOnEntity->AsPhysical()->m_vecMoveSpeed
+                : pPed->m_vecMoveSpeed;
+            fDiffMult = std::min(1.0f, speed.Magnitude() * fDiffMult);
         }
 
         fTargetDiff = std::clamp(fDiffMult * (fHeadingBeta - fTargetBeta), -fDiffCap, fDiffCap);
@@ -5342,7 +5369,7 @@ void CCam::Process_FollowPed_SA(const CVector& ThisCamsTarget, float TargetOrien
 
     // Firing a two-handed gun from the hip: let the left stick aim, since it does nothing otherwise
     if (auto* const useGun = pPed->GetIntelligence()->GetTaskUseGun();
-        useGun && (useGun->m_IsFiringGunRightHandThisFrame || useGun->m_IsFiringGunLeftHandThisFrame)
+        useGun && notsa::contains({ eGunCommand::FIRE, eGunCommand::FIREBURST }, useGun->GetLastGunCommand())
         && useGun->m_WeaponInfo && !useGun->m_WeaponInfo->flags.bAimWithArm
     ) {
         if (std::abs((float)pPad->GetPedWalkLeftRight(pPed)) > std::abs(StickBetaOffset)) {
@@ -5355,7 +5382,7 @@ void CCam::Process_FollowPed_SA(const CVector& ThisCamsTarget, float TargetOrien
         const auto  camForward = TheCamera.GetForward();
         if (DotProduct(playerPed->GetMatrix().GetForward(), camForward) > 0.3f) {
             auto lookAtPos = playerPed->GetPosition() + 5.0f * camForward;
-            g_ikChainMan.LookAt("FollowPedSA", playerPed, nullptr, 1500, (eBoneTag)-1, &lookAtPos, false, 0.25f, 300, 0, false);
+            g_ikChainMan.LookAt("FollowPedSA", playerPed, nullptr, 1500, (eBoneTag)-1, &lookAtPos, false); // The rest are the defaults, as in the original
         }
     }
 
@@ -5428,8 +5455,8 @@ void CCam::Process_FollowPed_SA(const CVector& ThisCamsTarget, float TargetOrien
     }
 
     // Deadband so tiny jitter doesn't move the camera at all
-    static float gOldAlpha = -9999.0f; // 0x8CCE6C
-    static float gOldBeta  = -9999.0f; // 0x8CCE74
+    static auto& gOldAlpha = StaticRef<float>(0x8CCE74); // Both -9999.f until the first frame
+    static auto& gOldBeta  = StaticRef<float>(0x8CCE6C);
     if (std::abs(gOldAlpha - m_fVerticalAngle) < SPEED_TOL) {
         m_fVerticalAngle = gOldAlpha;
     }
@@ -5451,6 +5478,7 @@ void CCam::Process_FollowPed_SA(const CVector& ThisCamsTarget, float TargetOrien
     TheCamera.m_bCamDirectlyInFront = false;
 
     m_vecSource = vecTargetCoords - m_vecFront * fCamDistance;
+    VecTrunc(m_vecSource, 4); // Rounded after every move so the camera can't drift on float noise
 
     fTargetAlpha += fCamAlpha;
     const auto historyFront = CVector{
@@ -5476,18 +5504,21 @@ void CCam::Process_FollowPed_SA(const CVector& ThisCamsTarget, float TargetOrien
     TheCamera.HandleCameraMotionForDucking(pPed, &m_vecSource, &vecTargetCoords, false);
     // Must come after the ducking handling or the interpolation breaks while ducked
     m_vecTargetCoorsForFudgeInter = vecTargetCoords;
+    VecTrunc(m_vecSource, 4);
 
     CCamera::SetColVarsPed((ePedType)nType, TheCamera.m_nPedZoom);
-    if (m_nDirectionWasLooking == LOOKING_FORWARD) {
+    if (gCameraDirection == LOOKING_FORWARD) {
         TheCamera.CameraGenericModeSpecialCases(pPed);
         TheCamera.CameraPedModeSpecialCases();
         TheCamera.CameraColDetAndReact(&m_vecSource, &vecTargetCoords);
         TheCamera.ImproveNearClip(nullptr, pPed, &m_vecSource, &vecTargetCoords);
+        VecTrunc(m_vecSource, 4);
     }
 
     TheCamera.m_bCamDirectlyBehind  = false;
     TheCamera.m_bCamDirectlyInFront = false;
 
+    VecTrunc(m_vecSource, 4);
     GetVectorsReadyForRW();
 
     // The three script flags are `m_bFOVScript` / `m_bVectorMoveScript` / `m_bVectorTrackScript`
