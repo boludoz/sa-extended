@@ -1,9 +1,13 @@
-# Reversed Classes [As of Feb 11, 2026, 21:43:15 UTC]
+# Reversed Classes progress
+This file is updated automatically every time the hooks.csv file is updated (which happens every time there are changes to hooks made by a commit), and shows the current progress of reversed classes in the project.
+
+Last update was at Jul 29, 2026 at 02:59:38 UTC triggered by [46b93d4fde5dd6506835b6f862328370e5c5b91e](https://github.com/boludoz/sa-extended/commit/46b93d4fde5dd6506835b6f862328370e5c5b91e) 
+
 ## Disclaimer
 The percentages and the number of classes shown here may not be completely accurate, because not all classes and functions are documented yet.
-## Stats (7965 functions, 700 classes)
+## Stats (7970 functions, 700 classes)
 
-#### Completely reversed classes (556/700) [79%]
+#### Completely reversed classes (557/700) [80%]
 
 <details>
 <summary>See list of classes</summary>- cTransmission (4)<br />
@@ -52,6 +56,7 @@ The percentages and the number of classes shown here may not be completely accur
 - CShinyTexts (4)<br />
 - CSetPieces (5)<br />
 - CSetPiece (3)<br />
+- CRoadBlocks (8)<br />
 - CRestart (11)<br />
 - CReplay (47)<br />
 - CRenderer (33)<br />
@@ -71,7 +76,7 @@ The percentages and the number of classes shown here may not be completely accur
 - CPedIK (9)<br />
 - CPedGroups (2)<br />
 - CPedGroupMembership (18)<br />
-- CPedGroupIntelligence (26)<br />
+- CPedGroupIntelligence (27)<br />
 - CPedClothesDesc (5)<br />
 - CPedAttractorManager (14)<br />
 - CPathNode (1)<br />
@@ -565,7 +570,7 @@ The percentages and the number of classes shown here may not be completely accur
 
 </details>
 
-#### Partially reversed classes (135/700) [19%]
+#### Partially reversed classes (136/700) [19%]
 
 <details>
 <summary>See list of classes</summary>- CWorld (92/93) [99%]<br />
@@ -614,11 +619,11 @@ The percentages and the number of classes shown here may not be completely accur
 - CClothes (10/11) [91%]<br />
 - CCarEnterExit (27/32) [84%]<br />
 - CCarCtrl (21/22) [95%]<br />
-- CCamera (91/110) [83%]<br />
+- CCamera (109/112) [97%]<br />
 - CGroupEventHandler (30/32) [94%]<br />
 - CEventHandler (69/72) [96%]<br />
 - CBaseModelInfo (33/34) [97%]<br />
-- CVehicle (137/141) [97%]<br />
+- CVehicle (139/143) [97%]<br />
 - CTrain (20/40) [50%]<br />
 - CQuadBike (11/12) [92%]<br />
 - CPlane (14/23) [61%]<br />
@@ -696,27 +701,26 @@ The percentages and the number of classes shown here may not be completely accur
 - CScripted2dEffects (4/5) [80%]<br />
 - CScriptResourceManager (1/4) [25%]<br />
 - CRunningScript (24/39) [62%]<br />
+- Interior_c (42/52) [81%]<br />
 - InteriorGroup_c (2/24) [8%]<br />
 - CShadows (21/31) [68%]<br />
 - CRealTimeShadowManager (5/7) [71%]<br />
 - Light (26/27) [96%]<br />
 - CDecisionMakerTypesFileLoader (6/7) [86%]<br />
 - CConversations (10/11) [91%]<br />
-- CCam (14/44) [32%]<br />
+- CCam (43/44) [98%]<br />
 
 </details>
 
-#### Not-at-all reversed classes (9/700) [1%]
+#### Not-at-all reversed classes (7/700) [1%]
 
 <details>
 <summary>See list of classes</summary>- C_PcSave (5)<br />
-- CRoadBlocks (8)<br />
 - CLoadMonitor (6)<br />
 - CEntityScanner (2)<br />
 - CEntitySeekPosCalculatorXYOffset (1)<br />
 - CEntitySeekPosCalculatorRadiusAngleOffset (1)<br />
 - CTaskComplexGangFollower (7)<br />
-- Interior_c (52)<br />
 - FurnitureSubGroup_c (3)<br />
 
 </details>

@@ -94,7 +94,7 @@ jobs:
         shell: bash
         env:
           GITHUB_SHA: ${{ github.sha }}
-          GITHUB_REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+          GITHUB_REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
         run: |
           python contrib/hooks2md.py --input docs/hooks.csv --output docs/ReversedClasses.md
 
