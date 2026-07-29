@@ -41,9 +41,11 @@ float CAEAudioEnvironment::GetDistanceAttenuation(float fDistance) {
     if (fDistance >= ATTENUATION_TABLE_MAX_DIST) {
         return -100.0f;
     } else {
-        int idx = static_cast<int>(std::floor(fDistance * 10.0f));
-        return gSoundDistAttenuationTable[idx];
-    }}
+        // int idx = static_cast<int>(std::floor(fDistance * 10.0f));
+        // return gSoundDistAttenuationTable[idx];
+        return gSoundDistAttenuationTable[static_cast<size_t>(fDistance / ATTENUATION_TABLE_RESOLUTION)];
+    }
+}
 
 // 0x4D7F60
 float CAEAudioEnvironment::GetDirectionalMikeAttenuation(const CVector& soundDir) {

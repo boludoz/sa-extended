@@ -156,6 +156,7 @@
 #include "InterestingEvents.h"
 #include "Shadows.h"
 #include "ShadowCamera.h"
+#include "IdleCam.h"
 #include "VehicleRecording.h"
 #include "Birds.h"
 #include "Hud.h"
@@ -574,6 +575,7 @@ void InjectHooksMain() {
     CInterestingEvents::InjectHooks();
     CShadows::InjectHooks();
     CCam::InjectHooks();
+    CIdleCam::InjectHooks();
     CCarAI::InjectHooks();
     CMenuSystem::InjectHooks();
     CCarFXRenderer::InjectHooks();

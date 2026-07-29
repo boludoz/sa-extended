@@ -3,12 +3,6 @@
 #include "Vector.h"
 
 class CEntity;
-
-enum class eIdleCamZoomState {
-    UNK_2 = 2,
-    UNK_3 = 3,
-};
-
 class CIdleCam {
 public:
     static void InjectHooks();
@@ -34,8 +28,8 @@ public:
     // Inlined: ProcessSlerp, return type is NOTSA
     auto VectorToAnglesRotXRotZ(const CVector& pos) {
         return std::make_pair(
-            CGeneral::GetATanOfXY(pos.x, pos.y) + DegreesToRadians(180.0f),
-            CGeneral::GetATanOfXY(pos.Magnitude2D(), pos.z)
+            CGeneral::GetATanOfXY(pos.Magnitude2D(), pos.z),
+            CGeneral::GetATanOfXY(pos.x, pos.y) + DegreesToRadians(180.0f)
         );
     }
 
@@ -58,7 +52,15 @@ public:
     float             m_DistTooFar;
     int32             m_TargetLOSFramestoReject;
     int32             m_TargetLOSCounter;
-    eIdleCamZoomState m_ZoomState;
+
+    enum {
+        ZOOMING_IN = 0,
+        ZOOMING_OUT = 1,
+        ZOOMED_IN = 2,
+        ZOOMED_OUT = 3,
+    };
+
+    int32 m_ZoomState;
     float             m_ZoomFrom;
     float             m_ZoomTo;
     float             m_TimeZoomStarted;

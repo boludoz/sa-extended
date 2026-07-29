@@ -847,3 +847,111 @@ CVehicle* CTaskComplexEnterCar::GetCameraAvoidVehicle() {
     }
     return nullptr;
 }
+
+// 0x63B750
+void CTaskComplexEnterCar::GetCameraStickModifier(CPed* ped, float fCamDistance, float& fVerticalAngle, float& fHorizontalAngle, float& outStickAlpha, float& outStickBeta) {
+    if (!m_Car || m_Car->IsBoat()) {
+        return;
+    }
+
+    CPad* pad = CPad::GetPad(0);
+
+    CTask* subTask = GetSubTask();
+    if (!subTask) {
+        return;
+    }
+
+    auto subTaskType = subTask->GetTaskType();
+    if (subTaskType == TASK_SIMPLE_CAR_OPEN_DOOR_FROM_OUTSIDE
+        || subTaskType == TASK_SIMPLE_CAR_OPEN_LOCKED_DOOR_FROM_OUTSIDE
+        || subTaskType == TASK_SIMPLE_CAR_GET_IN
+        || subTaskType == TASK_SIMPLE_CAR_CLOSE_DOOR_FROM_INSIDE
+        || subTaskType == TASK_SIMPLE_CAR_ALIGN)
+    {
+        if (std::abs(pad->AimWeaponLeftRight(ped)) <= 20.0f && std::abs(pad->AimWeaponUpDown(ped)) <= 20.0f) {
+            if (pad->GetAccelerate()) {
+                m_CamMovementChoice = 2;
+            } else if (pad->GetBrake()) {
+                m_CamMovementChoice = 1;
+            } else {
+                if (m_CamMovementChoice == 3) {
+                    return;
+                }
+            }
+        } else {
+            m_CamMovementChoice = 3;
+        }
+
+        if (m_CamMovementChoice == 3) {
+            return;
+        }
+
+        float heading = m_Car->GetHeading();
+        float headingBeta = heading - HALF_PI;
+
+        CVector pedPos = ped->GetPosition();
+        CVector carPos = m_Car->GetPosition();
+        CVector carRight = m_Car->GetMatrix().GetRight();
+
+        float v35 = DotProduct(pedPos - carPos, carRight);
+        float v36 = std::atan2(v35, fCamDistance) * 0.7f;
+
+        float v38 = 0.0f;
+        if (m_Car->GetColModel() && -m_Car->GetColModel()->GetBoundingBox().m_vecMin.y <= fCamDistance) {
+            v38 = v36;
+        }
+
+        float v41 = (headingBeta + PI) + v38;
+        float v42 = headingBeta - v38;
+
+        if (m_CamMovementChoice == 1) {
+            v42 = v41;
+        }
+
+        if (v42 <= (fHorizontalAngle + PI)) {
+            if (v42 < (fHorizontalAngle - PI)) {
+                v42 += TWO_PI;
+            }
+        } else {
+            v42 -= TWO_PI;
+        }
+
+        float v44 = v42 - fHorizontalAngle;
+        if (v35 <= 0.0f) {
+            if (m_CamMovementChoice == 1) {
+                if (v44 >= HALF_PI) {
+                    v44 = -v44;
+                }
+            }
+        } else if (m_CamMovementChoice != 1) {
+            if (v44 >= HALF_PI) {
+                v44 = -v44;
+            }
+        } else if (v44 <= -HALF_PI) {
+            v44 = -v44;
+        }
+
+        static constexpr float MOVEMENT_RATES[3] = { 0.1f, 0.2f, 0.2f };
+        uint32 choiceIdx = std::min<uint32>((uint32)m_CamMovementChoice, 2u);
+        float rate = MOVEMENT_RATES[choiceIdx];
+
+        float v46 = rate;
+        if (v44 <= rate) {
+            v46 = v44;
+            if (v44 < -rate) {
+                v46 = -rate;
+            }
+        }
+
+        outStickBeta += v46 * rate;
+        if (fVerticalAngle > -0.17453f) {
+            outStickAlpha -= rate * rate;
+        }
+        return;
+    }
+
+    if (subTaskType == TASK_SIMPLE_CAR_SHUFFLE) {
+        (void)pad->GetAccelerate();
+        (void)pad->GetBrake();
+    }
+}

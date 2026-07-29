@@ -4,7 +4,7 @@
 #include "InterestingEvents.h"
 #include "HandShaker.h"
 
-auto& gIdleCam = StaticRef<CIdleCam>(0xB6FDA0);
+auto& gIdleCam                   = StaticRef<CIdleCam>(0xB6FDA0);
 auto& gbCineyCamProcessedOnFrame = StaticRef<uint32>(0xB6EC40);
 
 void CIdleCam::InjectHooks() {
@@ -21,11 +21,14 @@ void CIdleCam::InjectHooks() {
     RH_ScopedInstall(IsTargetValid, 0x517770);
     RH_ScopedInstall(ProcessTargetSelection, 0x517870);
     RH_ScopedInstall(ProcessSlerp, 0x5179E0);
-    RH_ScopedInstall(ProcessFOVZoom, 0x517BF0, { .reversed = false });
+    RH_ScopedInstall(ProcessFOVZoom, 0x517BF0);
     RH_ScopedInstall(Run, 0x51D3E0);
     RH_ScopedInstall(Process, 0x522C80);
     RH_ScopedInstall(IdleCamGeneralProcess, 0x50E690);
 }
+
+#define CUSTOM_LERP(t, from, to) \
+    ((from) + ((to) - (from)) * ((sinf(((270.0f - ((t) * 180.0f)) * PI) / 180.0f) * 0.5f) + 0.5f))
 
 // 0x517760
 CIdleCam::CIdleCam() {
@@ -67,7 +70,7 @@ void CIdleCam::Reset(bool resetControls) {
     m_TimeTargetEntityWasLastVisible = -1.0f;
     m_TimeLastZoomIn                 = -1.0f;
     m_Target                         = 0;
-    m_ZoomState                      = eIdleCamZoomState::UNK_3;
+    m_ZoomState                      = ZOOMED_OUT;
     m_nForceAZoomOut                 = 0;
     m_CurFOV                         = 70.0f;
     m_TargetLOSCounter               = 0;
@@ -125,8 +128,129 @@ void CIdleCam::GetLookAtPositionOnTarget(const CEntity* target, CVector& outPos)
 }
 
 // 0x517BF0
-void CIdleCam::ProcessFOVZoom(float time) {
-    NOTSA_UNREACHABLE();
+void CIdleCam::ProcessFOVZoom(float t) {
+    float time             = static_cast<float>(CTimer::GetTimeInMS());
+
+    bool bInFOVZoomRange   = false;
+
+    bool  bWeHaveAFemale   = false;
+    float localZoomNearest = m_ZoomNearest;
+
+    if (m_Target) {
+        CVector target;
+        GetLookAtPositionOnTarget(m_Target, target);
+        CVector delta = m_Cam->m_vecSource - target;
+        float   dist  = delta.Magnitude();
+
+        if (m_Target->GetIsTypePed()) {
+            CPed*      pPed    = (CPed*)m_Target;
+            const auto pedType = m_Target->AsPed()->m_nPedType;
+            if (pedType == PED_TYPE_PROSTITUTE || pedType == PED_TYPE_CIVFEMALE) { // TODO: Call func popperly.
+                bWeHaveAFemale  = true;
+                bInFOVZoomRange = true;
+                localZoomNearest *= 0.5f;
+            }
+        }
+
+        if (bWeHaveAFemale && dist < 8.0f) {
+            m_nForceAZoomOut = true;
+        }
+
+        if (dist > m_DistStartFOVZoom) {
+            bInFOVZoomRange = true;
+        }
+    }
+
+    if (t >= 1.0f) {
+        int32 origZoomState = m_ZoomState;
+        if (bInFOVZoomRange) {
+            float tDelta = time - m_TimeLastZoomIn;
+            if (tDelta > m_TimeBeforeNewZoomIn) {
+                bool bLOSClear = true;
+
+                if (m_Target) {
+                    CEntity* pOldIgnore   = CWorld::pIgnoreEntity;
+                    CWorld::pIgnoreEntity = m_Target;
+                    CVector target;
+                    GetLookAtPositionOnTarget(m_Target, target);
+                    bLOSClear             = CWorld::GetIsLineOfSightClear(m_Cam->m_vecSource, target, true, false, false, true, false, false, true);
+                    CWorld::pIgnoreEntity = pOldIgnore;
+                }
+
+                if (m_TargetLOSCounter > 10) {
+                    if (m_ZoomState == ZOOMED_IN) {
+                        m_ZoomState = ZOOMING_OUT;
+                    }
+                }
+
+                if (m_ZoomState == ZOOMED_OUT && !m_bHasZoomedIn && bLOSClear) {
+                    m_ZoomState = ZOOMING_IN;
+                    m_ZoomTo    = localZoomNearest;
+
+                    if (origZoomState != m_ZoomState) {
+                        m_TimeZoomStarted = time;
+                        m_ZoomFrom        = m_CurFOV;
+                    }
+                }
+            }
+        } else {
+            if (m_ZoomState == ZOOMED_IN) {
+                m_ZoomState = ZOOMING_OUT;
+                m_ZoomTo    = m_ZoomFarthest;
+
+                if (origZoomState != m_ZoomState) {
+                    m_TimeZoomStarted = time;
+                    m_ZoomFrom        = m_CurFOV;
+                }
+            }
+        }
+    }
+
+    if (m_ZoomState == ZOOMED_IN) {
+        m_TimeLastZoomIn = time;
+    }
+
+    if (m_nForceAZoomOut && m_ZoomState == ZOOMED_IN) {
+        m_TimeZoomStarted = time;
+        m_ZoomFrom        = m_CurFOV;
+        m_ZoomState       = ZOOMING_OUT;
+        m_ZoomTo          = m_ZoomFarthest;
+    }
+
+    m_nForceAZoomOut = false;
+
+    switch (m_ZoomState) {
+    case ZOOMING_IN:
+        if (std::abs(m_CurFOV - localZoomNearest) < 1.0f) {
+            m_ZoomState    = ZOOMED_IN;
+            m_CurFOV       = localZoomNearest;
+            m_bHasZoomedIn = true;
+        } else {
+            float t  = (time - m_TimeZoomStarted) / m_DurationFOVZoom;
+            m_CurFOV = CUSTOM_LERP(t, m_ZoomFrom, m_ZoomTo);
+        }
+        break;
+    case ZOOMING_OUT:
+        if (std::abs(m_CurFOV - m_ZoomFarthest) < 1.0f) {
+            m_ZoomState = ZOOMED_OUT;
+            m_CurFOV    = m_ZoomFarthest;
+        } else {
+            float t  = (time - m_TimeZoomStarted) / m_DurationFOVZoom;
+            m_CurFOV = CUSTOM_LERP(t, m_ZoomFrom, m_ZoomTo);
+        }
+        break;
+    case ZOOMED_IN:
+        m_CurFOV = localZoomNearest;
+        break;
+    case ZOOMED_OUT:
+        m_CurFOV = m_ZoomFarthest;
+        break;
+    default:
+        assert(false);
+        break;
+    }
+
+    m_Cam->m_fFOV = m_CurFOV;
 }
 
 // 0x517770
@@ -152,19 +276,21 @@ bool CIdleCam::IsTargetValid(CEntity* target) {
 
     const auto oldIgnore  = CWorld::pIgnoreEntity;
     CWorld::pIgnoreEntity = target;
-    notsa::ScopeGuard _([&]{ CWorld::pIgnoreEntity = oldIgnore; });
+    notsa::ScopeGuard _([&] {
+        CWorld::pIgnoreEntity = oldIgnore;
+    });
 
     if (CWorld::GetIsLineOfSightClear(
-        m_Cam->m_vecSource,
-        lookAtPos,
-        true,
-        false,
-        false,
-        true,
-        false,
-        false,
-        true
-    )) {
+            m_Cam->m_vecSource,
+            lookAtPos,
+            true,
+            false,
+            false,
+            true,
+            false,
+            false,
+            true
+        )) {
         return true;
     }
 
@@ -196,87 +322,122 @@ void CIdleCam::SetTargetPlayer() {
 
 // 0x517870
 void CIdleCam::ProcessTargetSelection() {
-    auto timeDelta = static_cast<float>(CTimer::GetTimeInMS()) - m_TimeLastTargetSelected;
-    if (m_ZoomState != eIdleCamZoomState::UNK_3 && m_TargetLOSCounter <= 0) {
-        timeDelta /= m_IncreaseMinimumTimeFactorForZoomedIn;
+    CEntity* pPlayer = (CEntity*)FindPlayerPed();
+    assert(pPlayer);
+
+    float time   = static_cast<float>(CTimer::GetTimeInMS());
+    float tDelta = time - m_TimeLastTargetSelected;
+    if (m_ZoomState != ZOOMED_OUT && m_TargetLOSCounter <= 0) {
+        tDelta /= m_IncreaseMinimumTimeFactorForZoomedIn;
     }
 
-    if (timeDelta > m_TimeMinimumToLookAtSomething) {
+    if (tDelta > m_TimeMinimumToLookAtSomething) {
         g_InterestingEvents.InvalidateNonVisibleEvents();
-        auto* event = g_InterestingEvents.GetInterestingEvent();
-
-        if (event) {
-            auto* eventEntity = event->entity;
-            if (m_Target != eventEntity) {
-                if (IsTargetValid(eventEntity)) {
-                    if (m_ZoomState == eIdleCamZoomState::UNK_3) {
-                        SetTarget(eventEntity);
+        const TInterestingEvent* pLatestEvent = g_InterestingEvents.GetInterestingEvent();
+        if (!pLatestEvent) {
+            if (!m_Target || !IsTargetValid(m_Target)) {
+                if (m_Target != pPlayer) {
+                    if (m_ZoomState == ZOOMED_OUT) {
+                        SetTargetPlayer();
                     } else {
                         m_nForceAZoomOut = true;
                     }
                 }
-            } else if (!IsTargetValid(eventEntity)) {
-                g_InterestingEvents.InvalidateEvent(event);
             }
-        } else if (!m_Target || !IsTargetValid(m_Target) && m_Target != FindPlayerPed()) {
-            if (m_ZoomState == eIdleCamZoomState::UNK_3) {
-                SetTargetPlayer();
+        } else {
+            CEntity* pEntity = pLatestEvent->entity;
+            assert(pEntity);
+            if (m_Target == pEntity) {
+                if (!IsTargetValid(pEntity)) {
+                    g_InterestingEvents.InvalidateEvent(pLatestEvent);
+                }
             } else {
-                m_nForceAZoomOut = true;
+                if (IsTargetValid(pEntity)) {
+                    if (m_ZoomState == ZOOMED_OUT) {
+                        SetTarget(pEntity);
+                    } else {
+                        m_nForceAZoomOut = true;
+                    }
+                }
             }
         }
     }
 
     if (!m_Target) {
+        m_nForceAZoomOut = true;
+        m_Target         = pPlayer;
         SetTargetPlayer();
     }
 
-    if (!IsTargetValid(m_Target) && timeDelta > m_TimeMinimumToLookAtSomething) {
-        m_nForceAZoomOut = true;
-        if (m_ZoomState == eIdleCamZoomState::UNK_3 || m_TargetLOSCounter > 0) {
+    assert(m_Target);
+    if (!IsTargetValid(m_Target) && tDelta > m_TimeMinimumToLookAtSomething) {
+        if (m_ZoomState == ZOOMED_OUT) {
+            SetTargetPlayer();
+        } else {
+            m_nForceAZoomOut = true;
+        }
+
+        if (m_TargetLOSCounter > 0) {
             SetTargetPlayer();
         }
     }
 
-    if (m_TargetLOSCounter > m_TargetLOSFramestoReject) {
+    if (m_TargetLOSCounter > m_TargetLOSFramestoReject) // we want the player cos bad evil shit is going on!
+    {
         SetTargetPlayer();
+        m_nForceAZoomOut = true;
     }
 }
 
 // 0x5179E0
 float CIdleCam::ProcessSlerp(float& outX, float& outZ) {
-    const auto beginTime = CTimer::GetTimeInMS();
+    float time = (float)CTimer::GetTimeInMS();
 
-    CVector lookAtPos{};
+    CVector targetToLookAtPos{};
+    GetLookAtPositionOnTarget(m_Target, targetToLookAtPos);
+
     if (m_TargetLOSCounter >= m_TargetLOSFramestoReject) {
-        lookAtPos = m_LastIdlePos;
-    } else {
-        GetLookAtPositionOnTarget(m_Target, lookAtPos);
+        targetToLookAtPos = m_LastIdlePos;
     }
 
-    auto [slerpAtan, slerpDistAtan]   = VectorToAnglesRotXRotZ(m_PositionToSlerpFrom - m_Cam->m_vecSource);
-    auto [lookAtAtan, lookAtDistAtan] = VectorToAnglesRotXRotZ(lookAtPos - m_Cam->m_vecSource);
+    if (!m_Cam) {
+        m_Cam = &TheCamera.GetActiveCam();
+    }
 
-    const auto ClampAngle = [](float& angle, float compare) {
-        // TODO: simplify
-        if (compare <= DegreesToRadians(180.0f)) {
-            if (compare < -DegreesToRadians(180.0f)) {
-                angle += DegreesToRadians(360.0f);
-            }
-        } else {
-            angle -= DegreesToRadians(360.0f);
-        }
-    };
+    CVector rvFrom = m_PositionToSlerpFrom - m_Cam->m_vecSource;
+    CVector rvTo = targetToLookAtPos - m_Cam->m_vecSource;
 
-    ClampAngle(lookAtDistAtan, lookAtDistAtan - slerpDistAtan);
-    ClampAngle(lookAtAtan, lookAtAtan - slerpAtan);
+    float SlerpToRotAngX{}, SlerpToRotAngZ{};
+    float SlerpFromRotAngX{}, SlerpFromRotAngZ{};
 
-    const auto slerpT = std::min((beginTime - m_TimeLastTargetSelected) / m_SlerpDuration, 1.0f);
-    const auto lerpT  = (std::sin(DegreesToRadians(270.0f - 180.0f * slerpT)) + 1.0f) / 2.0f;
+    auto [fromRotX, fromRotZ] = VectorToAnglesRotXRotZ(rvFrom);
+    SlerpFromRotAngX = fromRotX;
+    SlerpFromRotAngZ = fromRotZ;
 
-    outX = lerp(slerpDistAtan, lookAtDistAtan - slerpDistAtan, lerpT);
-    outZ = lerp(slerpAtan, lookAtAtan - slerpAtan, lerpT);
-    return slerpT;
+    auto [toRotX, toRotZ] = VectorToAnglesRotXRotZ(rvTo);
+    SlerpToRotAngX = toRotX;
+    SlerpToRotAngZ = toRotZ;
+
+    if (SlerpToRotAngX - SlerpFromRotAngX > PI)
+        SlerpToRotAngX -= TWO_PI;
+    else if (SlerpToRotAngX - SlerpFromRotAngX < -PI)
+        SlerpToRotAngX += TWO_PI;
+
+    if (SlerpToRotAngZ - SlerpFromRotAngZ > PI)
+        SlerpToRotAngZ -= TWO_PI;
+    else if (SlerpToRotAngZ - SlerpFromRotAngZ < -PI)
+        SlerpToRotAngZ += TWO_PI;
+
+    float timeDeltaSlerp = time - m_TimeLastTargetSelected;
+    float t = timeDeltaSlerp / m_SlerpDuration;
+
+    if (t > 1.0f)
+        t = 1.0f;
+
+    outX = CUSTOM_LERP(t, SlerpFromRotAngX, SlerpToRotAngX);
+    outZ = CUSTOM_LERP(t, SlerpFromRotAngZ, SlerpToRotAngZ);
+
+    return t;
 }
 
 // 0x50E760
@@ -287,13 +448,14 @@ void CIdleCam::FinaliseIdleCamera(float curAngleX, float curAngleY, float shakeD
         -(std::cos(curAngleY) * std::cos(curAngleX)),
         -(std::sin(curAngleY) * std::cos(curAngleX)),
         std::sin(curAngleX)
-    }.Normalized();
+    }
+                 .Normalized();
     m_LastIdlePos = vecFwd + m_Cam->m_vecSource;
 
-    auto& hs = gHandShaker[0];
+    auto& hs      = gHandShaker[0];
     hs.Process(shakeDegree);
     const auto angle = hs.m_ang.z * m_DegreeShakeIdleCam * shakeDegree;
-    vecFwd = hs.m_resultMat.TransformPoint(vecFwd);
+    vecFwd           = hs.m_resultMat.TransformPoint(vecFwd);
 
     vecUp.Set(std::sin(angle), 0.0f, std::cos(angle));
     auto rightDir = CrossProduct(vecFwd, vecUp).Normalized();

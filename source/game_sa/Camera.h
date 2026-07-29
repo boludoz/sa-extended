@@ -1,4 +1,4 @@
-﻿/*
+/*
     Plugin-SDK file
     Authors: GTA Community. See more here
     https://github.com/DK22Pac/plugin-sdk
@@ -74,249 +74,249 @@ VALIDATE_SIZE(CamTweak, 0x10);
 
 class CCamera : public CPlaceable {
 public:
-    bool            m_bAboveGroundTrainNodesLoaded{};
-    bool            m_bBelowGroundTrainNodesLoaded{};
-    bool            m_bCamDirectlyBehind{};
-    bool            m_bCamDirectlyInFront{};
-    bool            m_bCameraJustRestored{};
-    bool            m_bCutsceneFinished{};
-    bool            m_bCullZoneChecksOn{};
+    bool            m_bAboveGroundTrainNodesLoaded{}; // aka: m_bAboveGroundTrainNodesLoaded
+    bool            m_bBelowGroundTrainNodesLoaded{}; // aka: m_bBelowGroundTrainNodesLoaded
+    bool            m_bCamDirectlyBehind{};           // aka: m_bCamDirectlyBehind
+    bool            m_bCamDirectlyInFront{};          // aka: m_bCamDirectlyInFront
+    bool            m_bCameraJustRestored{};          // aka: m_bCameraJustRestored
+    bool            m_bCutsceneFinished{};            // aka: m_bcutsceneFinished
+    bool            m_bCullZoneChecksOn{};            // aka: m_bCullZoneChecksOn
     bool            m_bFirstPersonBeingUsed{};
     bool            m_bJustJumpedOutOf1stPersonBecauseOfTarget{};
-    bool            m_bIdleOn{};
-    bool            m_bInATunnelAndABigVehicle{};
-    bool            m_bInitialNodeFound{};
-    bool            m_bInitialNoNodeStaticsSet{};
-    bool            m_bIgnoreFadingStuffForMusic{};
-    bool            m_bPlayerIsInGarage{};
-    bool            m_bPlayerWasOnBike{};
-    bool            m_bJustCameOutOfGarage{};
-    bool            m_bJustInitialized{true};
-    bool            m_bJust_Switched{};
-    bool            m_bLookingAtPlayer{true};
-    bool            m_bLookingAtVector{};
-    bool            m_bMoveCamToAvoidGeom{};
-    bool            m_bObbeCinematicPedCamOn{};
-    bool            m_bObbeCinematicCarCamOn{};
-    bool            m_bRestoreByJumpCut{};
-    bool            m_bUseNearClipScript{};
-    bool            m_bStartInterScript{};
-    bool            m_bStartingSpline{};
-    bool            m_bTargetJustBeenOnTrain{};
-    bool            m_bTargetJustCameOffTrain{};
-    bool            m_bUseSpecialFovTrain{};
-    bool            m_bUseTransitionBeta{};
-    bool            m_bUseScriptZoomValuePed{};
-    bool            m_bUseScriptZoomValueCar{};
-    bool            m_bWaitForInterpolToFinish{};
-    bool            m_bItsOkToLookJustAtThePlayer{};
-    bool            m_bWantsToSwitchWidescreenOff{};
-    bool            m_bWideScreenOn{};
-    bool            m_b1rstPersonRunCloseToAWall{};
-    bool            m_bHeadBob{};
-    bool            m_bVehicleSuspenHigh{};
-    bool            m_bEnable1rstPersonCamCntrlsScript{};
-    bool            m_bAllow1rstPersonWeaponsCamera{};
-    bool            m_bCooperativeCamMode{};
-    bool            m_bAllowShootingWith2PlayersInCar{true};
-    bool            m_bDisableFirstPersonInCar{};
-    eCamMode        m_nModeForTwoPlayersSeparateCars{ MODE_TWOPLAYER_SEPARATE_CARS };
-    eCamMode        m_nModeForTwoPlayersSameCarShootingAllowed{ MODE_TWOPLAYER_IN_CAR_AND_SHOOTING };
-    eCamMode        m_nModeForTwoPlayersSameCarShootingNotAllowed{ MODE_BEHINDCAR };
-    eCamMode        m_nModeForTwoPlayersNotBothInCar{ MODE_TWOPLAYER };
-    bool            m_bGarageFixedCamPositionSet{};
-    bool            m_bDoingSpecialInterp{};
-    bool            m_bScriptParametersSetForInterp{};
-    bool            m_bFading{};
-    bool            m_bMusicFading{};
-    bool            m_bMusicFadedOut{};
-    bool            m_bFailedCullZoneTestPreviously{};
-    bool            m_bFadeTargetIsSplashScreen{};
-    bool            m_bWorldViewerBeingUsed{};
-    bool            m_bTransitionJUSTStarted{};
-    bool            m_bTransitionState{};
-    uint8           m_nActiveCam{};
-    uint32          m_nCamShakeStart{};
-    uint32          m_nFirstPersonCamLastInputTime{};
-    uint32          m_nLongestTimeInMill{ 5000 };
-    uint32          m_nNumberOfTrainCamNodes{};
-    uint32          m_nTimeLastChange{};
-    uint32          m_nTimeWeLeftIdle_StillNoInput{};
-    uint32          m_nTimeWeEnteredIdle{};
-    uint32          m_nTimeTransitionStart{};
-    uint32          m_nTransitionDuration{};
-    uint32          m_nTransitionDurationTargetCoors{};
-    uint32          m_nBlurBlue{};
-    uint32          m_nBlurGreen{};
-    uint32          m_nBlurRed{};
-    eMotionBlurType m_nBlurType{};
-    uint32          m_nWorkOutSpeedThisNumFrames{4};
-    uint32          m_nNumFramesSoFar{};
-    uint32          m_nCurrentTrainCamNode{};
-    uint32          m_nMotionBlur{};
-    uint32          m_nMotionBlurAddAlpha{};
-    uint32          m_nCheckCullZoneThisNumFrames{6};
-    uint32          m_nZoneCullFrameNumWereAt{};
-    uint32          m_nWhoIsInControlOfTheCamera{};
-    uint32          m_nCarZoom{2};
-    float           m_fCarZoomBase{};
-    float           m_fCarZoomTotal{};
-    float           m_fCarZoomSmoothed{};
-    float           m_fCarZoomValueScript{};
-    uint32          m_nPedZoom{2};
-    float           m_fPedZoomBase{};
-    float           m_fPedZoomTotal{};
-    float           m_fPedZoomSmoothed{};
-    float           m_fPedZoomValueScript{};
-    float           m_fCamFrontXNorm{};
-    float           m_fCamFrontYNorm{};
-    float           m_fDistanceToWater{};
-    float           m_fHeightOfNearestWater{};
-    float           m_fFOVDuringInter{};
-    float           m_fLODDistMultiplier{1.f};
-    float           m_fGenerationDistMultiplier{};
-    float           m_fAlphaSpeedAtStartInter{};
-    float           m_fAlphaWhenInterPol{};
-    float           m_fAlphaDuringInterPol{};
-    float           m_fBetaDuringInterPol{};
-    float           m_fBetaSpeedAtStartInter{};
-    float           m_fBetaWhenInterPol{};
-    float           m_fFOVWhenInterPol{};
-    float           m_fFOVSpeedAtStartInter{};
-    float           m_fStartingBetaForInterPol{};
-    float           m_fStartingAlphaForInterPol{};
-    float           m_fPedOrientForBehindOrInFront{};
-    float           m_fCameraAverageSpeed{};
-    float           m_fCameraSpeedSoFar{};
-    float           m_fCamShakeForce{};
-    float           m_fFovForTrain{70.f};
-    float           m_fFOV_Wide_Screen{};
-    float           m_fNearClipScript{ 0.9f };
-    float           m_fOldBetaDiff{};
-    float           m_fPositionAlongSpline{};
-    float           m_fScreenReductionPercentage{};
-    float           m_fScreenReductionSpeed{};
-    float           m_fAlphaForPlayerAnim1rstPerson{};
-    float           m_fOrientation{};
-    float           m_fPlayerExhaustion{1.f};
-    float           m_fSoundDistUp{};
-    float           m_fSoundDistUpAsRead{};
-    float           m_fSoundDistUpAsReadOld{};
-    float           m_fAvoidTheGeometryProbsTimer{};
-    uint16          m_nAvoidTheGeometryProbsDirn{};
-    float           m_fWideScreenReductionAmount{};
-    float           m_fStartingFOVForInterPol{};
-    CCam            m_aCams[3]{}; /* 2 = debug cam */
-    CGarage*        m_pToGarageWeAreIn{};
-    CGarage*        m_pToGarageWeAreInForHackAvoidFirstPerson{};
-    CQueuedMode     m_PlayerMode{};
-    CQueuedMode     m_PlayerWeaponMode{};
-    CVector         m_vecPreviousCameraPosition{};
-    CVector         m_vecRealPreviousCameraPosition{};
-    CVector         m_vecAimingTargetCoors{};
-    CVector         m_vecFixedModeVector{};
-    CVector         m_vecFixedModeSource{};
-    CVector         m_vecFixedModeUpOffSet{};
-    CVector         m_vecCutSceneOffset{};
-    CVector         m_vecStartingSourceForInterPol{};
-    CVector         m_vecStartingTargetForInterPol{};
-    CVector         m_vecStartingUpForInterPol{};
-    CVector         m_vecSourceSpeedAtStartInter{};
-    CVector         m_vecTargetSpeedAtStartInter{};
-    CVector         m_vecUpSpeedAtStartInter{};
-    CVector         m_vecSourceWhenInterPol{};
-    CVector         m_vecTargetWhenInterPol{};
-    CVector         m_vecUpWhenInterPol{};
-    CVector         m_vecClearGeometryVec{};
-    CVector         m_vecGameCamPos{};
-    CVector         m_vecSourceDuringInter{};
-    CVector         m_vecTargetDuringInter{};
-    CVector         m_vecUpDuringInter{};
-    CVector         m_vecAttachedCamOffset{};
-    CVector         m_vecAttachedCamLookAt{};
-    float           m_fAttachedCamAngle{};
-    RwCamera*       m_pRwCamera{};
-    CEntity*        m_pTargetEntity{};
-    CEntity*        m_pAttachedEntity{};
-    CCamPathSplines m_aPathArray[4]{};
-    bool            m_bMirrorActive{};
-    bool            m_bResetOldMatrix{};
-    CMatrix         m_mCameraMatrix{ CMatrix::Identity() };
-    CMatrix         m_mCameraMatrixOld{};
-    CMatrix         m_mViewMatrix{};
-    CMatrix         m_mMatInverse{};
-    CMatrix         m_mMatMirrorInverse{};
-    CMatrix         m_mMatMirror{};
-    CVector         m_avecFrustumNormals[4]{};
-    CVector         m_avecFrustumWorldNormals[4]{};
-    CVector         m_avecFrustumWorldNormals_Mirror[4]{};
-    float           m_fFrustumPlaneOffsets[4]{};
-    float           m_fFrustumPlaneOffsets_Mirror[4]{};
-    CVector         m_vecRightFrustumNormal{};  //!< unused?
-    CVector         m_vecBottomFrustumNormal{}; //!< unused?
-    CVector         m_vecTopFrustumNormal{};    //!< unused?
-    float           field_BF8{};                //!< unused?
-    float           m_fFadeAlpha{};
-    float           m_fEffectsFaderScalingFactor{};
-    float           m_fFadeDuration{};
-    float           m_fTimeToFadeMusic{};
-    float           m_fTimeToWaitToFadeMusic{};
-    float           m_fFractionInterToStopMoving{0.25f};
-    float           m_fFractionInterToStopCatchUp{0.75f};
-    float           m_fFractionInterToStopMovingTarget{};
-    float           m_fFractionInterToStopCatchUpTarget{};
-    float           m_fGaitSwayBuffer{0.85f};
-    float           m_fScriptPercentageInterToStopMoving{};
-    float           m_fScriptPercentageInterToCatchUp{};
-    uint32          m_nScriptTimeForInterpolation{};
-    eFadeFlag       m_nFadeInOutFlag{};
-    int32           m_nModeObbeCamIsInForCar{30};
-    eCamMode        m_nModeToGoTo{ MODE_FOLLOWPED };
-    eFadeFlag       m_nMusicFadingDirection{};
-    eSwitchType     m_nTypeOfSwitch{ eSwitchType::INTERPOLATION };
+    bool            m_bIdleOn{};                      // aka: m_bIdleOn
+    bool            m_bInATunnelAndABigVehicle{};     // aka: m_bInATunnelAndABigVehicle
+    bool            m_bInitialNodeFound{};            // aka: m_bInitialNodeFound
+    bool            m_bInitialNoNodeStaticsSet{};     // aka: m_bInitialNoNodeStaticsSet
+    bool            m_bIgnoreFadingStuffForMusic{};   // aka: m_bIgnoreFadingStuffForMusic
+    bool            m_bPlayerIsInGarage{};            // aka: m_bPlayerIsInGarage
+    bool            m_bPlayerWasOnBike{};             // aka: m_bPlayerWasOnBike
+    bool            m_bJustCameOutOfGarage{};         // aka: m_bJustCameOutOfGarage
+    bool            m_bJustInitialized{true};         // aka: m_bJustInitalised
+    bool            m_bJust_Switched{};              // aka: m_bJust_Switched
+    bool            m_bLookingAtPlayer{true};         // aka: m_bLookingAtPlayer
+    bool            m_bLookingAtVector{};             // aka: m_bLookingAtVector
+    bool            m_bMoveCamToAvoidGeom{};          // aka: m_bMoveCamToAvoidGeom
+    bool            m_bObbeCinematicPedCamOn{};       // aka: m_bObbeCinematicPedCamOn
+    bool            m_bObbeCinematicCarCamOn{};       // aka: m_bObbeCinematicCarCamOn
+    bool            m_bRestoreByJumpCut{};            // aka: m_bRestoreByJumpCut
+    bool            m_bUseNearClipScript{};           // aka: m_bUseNearClipScript
+    bool            m_bStartInterScript{};            // aka: m_bStartInterScript
+    bool            m_bStartingSpline{};             // aka: m_bStartingSpline
+    bool            m_bTargetJustBeenOnTrain{};       // aka: m_bTargetJustBeenOnTrain
+    bool            m_bTargetJustCameOffTrain{};      // aka: m_bTargetJustCameOffTrain
+    bool            m_bUseSpecialFovTrain{};          // aka: m_bUseSpecialFovTrain
+    bool            m_bUseTransitionBeta{};           // aka: m_bUseTransitionBeta
+    bool            m_bUseScriptZoomValuePed{};       // aka: m_bUseScriptZoomValuePed
+    bool            m_bUseScriptZoomValueCar{};       // aka: m_bUseScriptZoomValueCar
+    bool            m_bWaitForInterpolToFinish{};     // aka: m_bWaitForInterpolToFinish
+    bool            m_bItsOkToLookJustAtThePlayer{};  // aka: m_bItsOkToLookJustAtThePlayer
+    bool            m_bWantsToSwitchWidescreenOff{};  // aka: m_bWantsToSwitchWidescreenOff
+    bool            m_bWideScreenOn{};                // aka: m_WideScreenOn
+    bool            m_b1rstPersonRunCloseToAWall{};   // aka: m_1rstPersonRunCloseToAWall
+    bool            m_bHeadBob{};                     // aka: m_bHeadBob
+    bool            m_bVehicleSuspenHigh{};           // aka: m_bVehicleSuspenHigh
+    bool            m_bEnable1rstPersonCamCntrlsScript{}; // aka: m_bEnable1rstPersonCamCntrlsScript
+    bool            m_bAllow1rstPersonWeaponsCamera{}; // aka: m_bAllow1rstPersonWeaponsCamera
+    bool            m_bCooperativeCamMode{};          // aka: m_bCooperativeCamMode
+    bool            m_bAllowShootingWith2PlayersInCar{true}; // aka: m_bAllowShootingWith2PlayersInCar
+    bool            m_bDisableFirstPersonInCar{};     // aka: m_bDisableFirstPersonInCar
+    eCamMode        m_nModeForTwoPlayersSeparateCars{ MODE_TWOPLAYER_SEPARATE_CARS }; // aka: m_ModeForTwoPlayersSeparateCars
+    eCamMode        m_nModeForTwoPlayersSameCarShootingAllowed{ MODE_TWOPLAYER_IN_CAR_AND_SHOOTING }; // aka: m_ModeForTwoPlayersSameCarShootingAllowed
+    eCamMode        m_nModeForTwoPlayersSameCarShootingNotAllowed{ MODE_BEHINDCAR }; // aka: m_ModeForTwoPlayersSameCarShootingNotAllowed
+    eCamMode        m_nModeForTwoPlayersNotBothInCar{ MODE_TWOPLAYER }; // aka: m_ModeForTwoPlayersNotBothInCar
+    bool            m_bGarageFixedCamPositionSet{};   // aka: m_bGarageFixedCamPositionSet
+    bool            m_bDoingSpecialInterp{};          // aka: m_vecDoingSpecialInterPolation
+    bool            m_bScriptParametersSetForInterp{}; // aka: m_bScriptParametersSetForInterPol
+    bool            m_bFading{};                      // aka: m_bFading
+    bool            m_bMusicFading{};                 // aka: m_bMusicFading
+    bool            m_bMusicFadedOut{};               // aka: m_bMusicFadedOut
+    bool            m_bFailedCullZoneTestPreviously{};// aka: m_bFailedCullZoneTestPreviously
+    bool            m_bFadeTargetIsSplashScreen{};   // aka: m_FadeTargetIsSplashScreen
+    bool            m_bWorldViewerBeingUsed{};        // aka: WorldViewerBeingUsed
+    bool            m_bTransitionJUSTStarted{};       // aka: m_uiTransitionJUSTStarted
+    bool            m_bTransitionState{};             // aka: m_uiTransitionState
+    uint8           m_nActiveCam{};                   // aka: ActiveCam
+    uint32          m_nCamShakeStart{};               // aka: m_uiCamShakeStart
+    uint32          m_nFirstPersonCamLastInputTime{}; // aka: m_uiFirstPersonCamLastInputTime
+    uint32          m_nLongestTimeInMill{ 5000 };     // aka: m_uiLongestTimeInMill
+    uint32          m_nNumberOfTrainCamNodes{};       // aka: m_uiNumberOfTrainCamNodes
+    uint32          m_nTimeLastChange{};              // aka: m_uiTimeLastChange
+    uint32          m_nTimeWeLeftIdle_StillNoInput{}; // aka: m_uiTimeWeLeftIdle_StillNoInput
+    uint32          m_nTimeWeEnteredIdle{};           // aka: m_uiTimeWeEnteredIdle
+    uint32          m_nTimeTransitionStart{};         // aka: m_uiTimeTransitionStart
+    uint32          m_nTransitionDuration{};          // aka: m_uiTransitionDuration
+    uint32          m_nTransitionDurationTargetCoors{}; // aka: m_uiTransitionDurationTargetCoors
+    uint32          m_nBlurBlue{};                    // aka: m_BlurBlue
+    uint32          m_nBlurGreen{};                   // aka: m_BlurGreen
+    uint32          m_nBlurRed{};                     // aka: m_BlurRed
+    eMotionBlurType m_nBlurType{};                    // aka: m_BlurType
+    uint32          m_nWorkOutSpeedThisNumFrames{4};  // aka: m_iWorkOutSpeedThisNumFrames
+    uint32          m_nNumFramesSoFar{};              // aka: m_iNumFramesSoFar
+    uint32          m_nCurrentTrainCamNode{};         // aka: m_iCurrentTrainCamNode
+    uint32          m_nMotionBlur{};                  // aka: m_motionBlur
+    uint32          m_nMotionBlurAddAlpha{};          // aka: m_imotionBlurAddAlpha
+    uint32          m_nCheckCullZoneThisNumFrames{6}; // aka: m_iCheckCullZoneThisNumFrames
+    uint32          m_nZoneCullFrameNumWereAt{};      // aka: m_iZoneCullFrameNumWereAt
+    uint32          m_nWhoIsInControlOfTheCamera{};   // aka: WhoIsInControlOfTheCamera
+    uint32          m_nCarZoom{2};                    // aka: m_nCarZoom
+    float           m_fCarZoomBase{};                 // aka: m_fCarZoomBase
+    float           m_fCarZoomTotal{};                // aka: m_fCarZoomTotal
+    float           m_fCarZoomSmoothed{};             // aka: m_fCarZoomSmoothed
+    float           m_fCarZoomValueScript{};          // aka: m_fCarZoomValueScript
+    uint32          m_nPedZoom{2};                    // aka: m_nPedZoom
+    float           m_fPedZoomBase{};                 // aka: m_fPedZoomBase
+    float           m_fPedZoomTotal{};                // aka: m_fPedZoomTotal
+    float           m_fPedZoomSmoothed{};             // aka: m_fPedZoomSmoothed
+    float           m_fPedZoomValueScript{};          // aka: m_fPedZoomValueScript
+    float           m_fCamFrontXNorm{};               // aka: CamFrontXNorm
+    float           m_fCamFrontYNorm{};               // aka: CamFrontYNorm
+    float           m_fDistanceToWater{};             // aka: DistanceToWater
+    float           m_fHeightOfNearestWater{};        // aka: HeightOfNearestWater
+    float           m_fFOVDuringInter{};              // aka: FOVDuringInter
+    float           m_fLODDistMultiplier{1.f};        // aka: LODDistMultiplier
+    float           m_fGenerationDistMultiplier{};    // aka: GenerationDistMultiplier
+    float           m_fAlphaSpeedAtStartInter{};      // aka: m_fAlphaSpeedAtStartInter
+    float           m_fAlphaWhenInterPol{};           // aka: m_fAlphaWhenInterPol
+    float           m_fAlphaDuringInterPol{};         // aka: m_fAlphaDuringInterPol
+    float           m_fBetaDuringInterPol{};          // aka: m_fBetaDuringInterPol
+    float           m_fBetaSpeedAtStartInter{};       // aka: m_fBetaSpeedAtStartInter
+    float           m_fBetaWhenInterPol{};            // aka: m_fBetaWhenInterPol
+    float           m_fFOVWhenInterPol{};             // aka: m_fFOVWhenInterPol
+    float           m_fFOVSpeedAtStartInter{};        // aka: m_fFOVSpeedAtStartInter
+    float           m_fStartingBetaForInterPol{};     // aka: m_fStartingBetaForInterPol
+    float           m_fStartingAlphaForInterPol{};    // aka: m_fStartingAlphaForInterPol
+    float           m_fPedOrientForBehindOrInFront{}; // aka: m_PedOrientForBehindOrInFront
+    float           m_fCameraAverageSpeed{};          // aka: m_CameraAverageSpeed
+    float           m_fCameraSpeedSoFar{};            // aka: m_CameraSpeedSoFar
+    float           m_fCamShakeForce{};              // aka: m_fCamShakeForce
+    float           m_fFovForTrain{70.f};             // aka: m_fFovForTrain
+    float           m_fFOV_Wide_Screen{};             // aka: m_fFOV_Wide_Screen
+    float           m_fNearClipScript{ 0.9f };        // aka: m_fNearClipScript
+    float           m_fOldBetaDiff{};                 // aka: m_fOldBetaDiff
+    float           m_fPositionAlongSpline{};        // aka: m_fPositionAlongSpline
+    float           m_fScreenReductionPercentage{};   // aka: m_ScreenReductionPercentage
+    float           m_fScreenReductionSpeed{};        // aka: m_ScreenReductionSpeed
+    float           m_fAlphaForPlayerAnim1rstPerson{};// aka: m_AlphaForPlayerAnim1rstPerson
+    float           m_fOrientation{};                 // aka: Orientation
+    float           m_fPlayerExhaustion{1.f};         // aka: PlayerExhaustion
+    float           m_fSoundDistUp{};                 // aka: SoundDistUp
+    float           m_fSoundDistUpAsRead{};           // aka: SoundDistUpAsRead
+    float           m_fSoundDistUpAsReadOld{};        // aka: SoundDistUpAsReadOld
+    float           m_fAvoidTheGeometryProbsTimer{};  // aka: m_fAvoidTheGeometryProbsTimer
+    uint16          m_nAvoidTheGeometryProbsDirn{};   // aka: m_nAvoidTheGeometryProbsDirn
+    float           m_fWideScreenReductionAmount{};   // aka: m_fWideScreenReductionAmount
+    float           m_fStartingFOVForInterPol{};      // aka: m_fStartingFOVForInterPol
+    CCam            m_aCams[3]{};                     // aka: Cams[3]
+    CGarage*        m_pToGarageWeAreIn{};             // aka: pToGarageWeAreIn
+    CGarage*        m_pToGarageWeAreInForHackAvoidFirstPerson{}; // aka: pToGarageWeAreInForHackAvoidFirstPerson
+    CQueuedMode     m_PlayerMode{};                   // aka: m_PlayerMode
+    CQueuedMode     m_PlayerWeaponMode{};             // aka: PlayerWeaponMode
+    CVector         m_vecPreviousCameraPosition{};    // aka: m_PreviousCameraPosition
+    CVector         m_vecRealPreviousCameraPosition{};// aka: m_RealPreviousCameraPosition
+    CVector         m_vecAimingTargetCoors{};         // aka: m_cvecAimingTargetCoors
+    CVector         m_vecFixedModeVector{};           // aka: m_vecFixedModeVector
+    CVector         m_vecFixedModeSource{};           // aka: m_vecFixedModeSource
+    CVector         m_vecFixedModeUpOffSet{};         // aka: m_vecFixedModeUpOffSet
+    CVector         m_vecCutSceneOffset{};            // aka: m_vecCutSceneOffset
+    CVector         m_vecStartingSourceForInterPol{}; // aka: m_cvecStartingSourceForInterPol
+    CVector         m_vecStartingTargetForInterPol{}; // aka: m_cvecStartingTargetForInterPol
+    CVector         m_vecStartingUpForInterPol{};     // aka: m_cvecStartingUpForInterPol
+    CVector         m_vecSourceSpeedAtStartInter{};   // aka: m_cvecSourceSpeedAtStartInter
+    CVector         m_vecTargetSpeedAtStartInter{};   // aka: m_cvecTargetSpeedAtStartInter
+    CVector         m_vecUpSpeedAtStartInter{};       // aka: m_cvecUpSpeedAtStartInter
+    CVector         m_vecSourceWhenInterPol{};        // aka: m_vecSourceWhenInterPol
+    CVector         m_vecTargetWhenInterPol{};        // aka: m_vecTargetWhenInterPol
+    CVector         m_vecUpWhenInterPol{};            // aka: m_vecUpWhenInterPol
+    CVector         m_vecClearGeometryVec{};          // aka: m_vecClearGeometryVec
+    CVector         m_vecGameCamPos{};                // aka: m_vecGameCamPos
+    CVector         m_vecSourceDuringInter{};         // aka: SourceDuringInter
+    CVector         m_vecTargetDuringInter{};         // aka: TargetDuringInter
+    CVector         m_vecUpDuringInter{};             // aka: UpDuringInter
+    CVector         m_vecAttachedCamOffset{};         // aka: m_vecAttachedCamOffset
+    CVector         m_vecAttachedCamLookAt{};         // aka: m_vecAttachedCamLookAt
+    float           m_fAttachedCamAngle{};            // aka: m_fAttachedCamAngle
+    RwCamera*       m_pRwCamera{};                    // aka: m_pRwCamera
+    CEntity*        m_pTargetEntity{};                // aka: pTargetEntity
+    CEntity*        m_pAttachedEntity{};              // aka: pAttachedEntity
+    CCamPathSplines m_aPathArray[4]{};               // aka: m_arrPathArray[4]
+    bool            m_bMirrorActive{};                // aka: m_bMirrorActive
+    bool            m_bResetOldMatrix{};              // aka: m_bResetOldMatrix
+    CMatrix         m_mCameraMatrix{ CMatrix::Identity() }; // aka: m_cameraMatrix
+    CMatrix         m_mCameraMatrixOld{};             // aka: m_cameraMatrixOld
+    CMatrix         m_mViewMatrix{};                  // aka: m_viewMatrix
+    CMatrix         m_mMatInverse{};                  // aka: m_matInverse
+    CMatrix         m_mMatMirrorInverse{};            // aka: m_matMirrorInverse
+    CMatrix         m_mMatMirror{};                   // aka: m_matMirror
+    CVector         m_avecFrustumNormals[4]{};        // aka: m_vecFrustumNormals[4]
+    CVector         m_avecFrustumWorldNormals[4]{};   // aka: m_vecFrustumWorldNormals[4]
+    CVector         m_avecFrustumWorldNormals_Mirror[4]{}; // aka: m_vecFrustumWorldNormals_Mirror[4]
+    float           m_fFrustumPlaneOffsets[4]{};      // aka: m_fFrustumPlaneOffsets[4]
+    float           m_fFrustumPlaneOffsets_Mirror[4]{}; // aka: m_fFrustumPlaneOffsets_Mirror[4]
+    CVector         m_vecRightFrustumNormal{};
+    CVector         m_vecBottomFrustumNormal{};
+    CVector         m_vecTopFrustumNormal{};
+    float           field_BF8{};
+    float           m_fFadeAlpha{};                   // aka: m_fFloatingFade
+    float           m_fEffectsFaderScalingFactor{};   // aka: m_fFloatingFadeMusic
+    float           m_fFadeDuration{};                // aka: m_fTimeToFadeOut
+    float           m_fTimeToFadeMusic{};             // aka: m_fTimeToFadeMusic
+    float           m_fTimeToWaitToFadeMusic{};       // aka: m_fTimeToWaitToFadeMusic
+    float           m_fFractionInterToStopMoving{0.25f}; // aka: m_fFractionInterToStopMoving
+    float           m_fFractionInterToStopCatchUp{0.75f}; // aka: m_fFractionInterToStopCatchUp
+    float           m_fFractionInterToStopMovingTarget{}; // aka: m_fFractionInterToStopMovingTarget
+    float           m_fFractionInterToStopCatchUpTarget{}; // aka: m_fFractionInterToStopCatchUpTarget
+    float           m_fGaitSwayBuffer{0.85f};         // aka: m_fGaitSwayBuffer
+    float           m_fScriptPercentageInterToStopMoving{}; // aka: m_fScriptPercentageInterToStopMoving
+    float           m_fScriptPercentageInterToCatchUp{}; // aka: m_fScriptPercentageInterToCatchUp
+    uint32          m_nScriptTimeForInterpolation{};  // aka: m_fScriptTimeForInterPolation
+    eFadeFlag       m_nFadeInOutFlag{};               // aka: m_iFadingDirection
+    int32           m_nModeObbeCamIsInForCar{30};     // aka: m_iModeObbeCamIsInForCar
+    eCamMode        m_nModeToGoTo{ MODE_FOLLOWPED };  // aka: m_iModeToGoTo
+    eFadeFlag       m_nMusicFadingDirection{};        // aka: m_iMusicFadingDirection
+    eSwitchType     m_nTypeOfSwitch{ eSwitchType::INTERPOLATION }; // aka: m_iTypeOfSwitch
     char            _alignC40[2]{};
-    uint32          m_nFadeStartTime{};
-    uint32          m_nFadeTimeStartedMusic{};
-    int32           m_nExtraEntitiesCount{};
-    CEntity*        m_pExtraEntity[2]{};
-    float           m_fDuckCamMotionFactor{};
-    float           m_fDuckAimCamMotionFactor{};
-    float           m_fTrackLinearStartTime{};
-    float           m_fTrackLinearEndTime{};
-    CVector         m_vecTrackLinearEndPoint{};
-    CVector         m_vecTrackLinearStartPoint{};
-    bool            m_bTrackLinearWithEase{};
-    CVector         m_vecTrackLinear{};
-    bool            m_bVecTrackLinearProcessed{};
-    float           m_fShakeIntensity{};
-    float           m_fStartShakeTime{}; ///< In MS [Obtained from `CTimer::GetTimeInMS()`]
-    float           m_fEndShakeTime{};
-    int32           field_C9C{};
-    int32           m_nShakeType{};
-    float           m_fStartZoomTime{};
-    float           m_fEndZoomTime{};
-    float           m_fZoomInFactor{};
-    float           m_fZoomOutFactor{};
-    uint8           m_nZoomMode{};
-    bool            m_bFOVLerpProcessed{};
-    float           m_fFOVNew{};
-    float           m_fMoveLinearStartTime{};
-    float           m_fMoveLinearEndTime{};
-    CVector         m_vecMoveLinearPosnStart{};
-    CVector         m_vecMoveLinearPosnEnd{};
-    bool            m_bMoveLinearWithEase{};
-    CVector         m_vecMoveLinear{};
-    bool            m_bVecMoveLinearProcessed{};
-    bool            m_bBlockZoom{};
-    bool            m_bCameraPersistPosition{};
-    bool            m_bCameraPersistTrack{};
-    bool            m_bCinemaCamera{};
-    CamTweak        m_aCamTweak[5]{};
-    bool            m_bCameraVehicleTweaksInitialized{};
-    float           m_fCurrentTweakDistance{};
-    float           m_fCurrentTweakAltitude{};
-    float           m_fCurrentTweakAngle{};
-    int32           m_nCurrentTweakModelIndex{};
+    uint32          m_nFadeStartTime{};               // aka: m_uiFadeTimeStarted
+    uint32          m_nFadeTimeStartedMusic{};        // aka: m_uiFadeTimeStartedMusic
+    int32           m_nExtraEntitiesCount{};          // aka: m_numExtrasEntitysToIgnore
+    CEntity*        m_pExtraEntity[2]{};              // aka: m_pExtrasEntitysToIgnore[2]
+    float           m_fDuckCamMotionFactor{};         // aka: m_duckZMod
+    float           m_fDuckAimCamMotionFactor{};      // aka: m_duckZMod_Aim
+    float           m_fTrackLinearStartTime{};        // aka: m_vectorTrackStartTime
+    float           m_fTrackLinearEndTime{};          // aka: m_vectorTrackEndTime
+    CVector         m_vecTrackLinearEndPoint{};       // aka: m_vectorTrackTo
+    CVector         m_vecTrackLinearStartPoint{};     // aka: m_vectorTrackFrom
+    bool            m_bTrackLinearWithEase{};         // aka: m_bVectorTrackSmoothEnds
+    CVector         m_vecTrackLinear{};               // aka: m_VectorTrackScript
+    bool            m_bVecTrackLinearProcessed{};     // aka: m_bVectorTrackScript
+    float           m_fShakeIntensity{};              // aka: m_DegreeHandShake
+    float           m_fStartShakeTime{};              // aka: m_shakeStartTime
+    float           m_fEndShakeTime{};                // aka: m_shakeEndTime
+    int32           field_C9C{};                      // aka: m_bShakeScript
+    int32           m_nShakeType{};                   // aka: m_CurShakeCam
+    float           m_fStartZoomTime{};               // aka: m_FOVLerpStartTime
+    float           m_fEndZoomTime{};                 // aka: m_FOVLerpEndTime
+    float           m_fZoomInFactor{};                // aka: m_FOVLerpStart
+    float           m_fZoomOutFactor{};               // aka: m_FOVLerpEnd
+    uint8           m_nZoomMode{};                    // aka: m_bFOVLerpSmoothEnds
+    bool            m_bFOVLerpProcessed{};            // aka: m_bFOVScript
+    float           m_fFOVNew{};                      // aka: m_MyFOV
+    float           m_fMoveLinearStartTime{};         // aka: m_vectorMoveStartTime
+    float           m_fMoveLinearEndTime{};           // aka: m_vectorMoveEndTime
+    CVector         m_vecMoveLinearPosnStart{};       // aka: m_vectorMoveFrom
+    CVector         m_vecMoveLinearPosnEnd{};         // aka: m_vectorMoveTo
+    bool            m_bMoveLinearWithEase{};          // aka: m_bVectorMoveSmoothEnds
+    CVector         m_vecMoveLinear{};                // aka: m_VectorMoveScript
+    bool            m_bVecMoveLinearProcessed{};      // aka: m_bVectorMoveScript
+    bool            m_bBlockZoom{};                   // aka: m_bPersistFOV
+    bool            m_bCameraPersistPosition{};       // aka: m_bPersistCamPos
+    bool            m_bCameraPersistTrack{};          // aka: m_bPersistCamLookAt
+    bool            m_bCinemaCamera{};                // aka: m_bForceCinemaCam
+    CamTweak        m_aCamTweak[5]{};                 // aka: m_VehicleTweaks[5]
+    bool            m_bCameraVehicleTweaksInitialized{}; // aka: m_bInitedVehicleCamTweaks
+    float           m_fCurrentTweakDistance{};        // aka: m_VehicleTweakLenMod
+    float           m_fCurrentTweakAltitude{};        // aka: m_VehicleTweakTargetZMod
+    float           m_fCurrentTweakAngle{};           // aka: m_VehicleTweakPitchMod
+    int32           m_nCurrentTweakModelIndex{};      // aka: m_VehicleTweakLastModelId
     // the following are unused?
     int32           field_D58{};
     int32           field_D5C{};
