@@ -20,6 +20,14 @@ auto GenerateRandomInt(int32& var) {
     var = CGeneral::GetRandomNumber();
 }
 
+auto GenerateRandomFloat(float& var) {
+    // The original throws the first three draws away
+    CGeneral::GetRandomNumber();
+    CGeneral::GetRandomNumber();
+    CGeneral::GetRandomNumber();
+    var = (float)CGeneral::GetRandomNumber() / 65536.0f;
+}
+
 auto GenerateRandomIntInRange(int32 a, int32 b) {
     return CGeneral::GetRandomNumberInRange(a, b);
 }
@@ -43,6 +51,7 @@ void notsa::script::commands::math::RegisterHandlers() {
     REGISTER_COMMAND_HANDLER(COMMAND_GET_DISTANCE_BETWEEN_COORDS_2D, GetDistanceBetweenCoords2d);
     REGISTER_COMMAND_HANDLER(COMMAND_GET_DISTANCE_BETWEEN_COORDS_3D, GetDistanceBetweenCoords3d);
     REGISTER_COMMAND_HANDLER(COMMAND_GENERATE_RANDOM_INT, GenerateRandomInt);
+    REGISTER_COMMAND_HANDLER(COMMAND_GENERATE_RANDOM_FLOAT, GenerateRandomFloat);
     REGISTER_COMMAND_HANDLER(COMMAND_GENERATE_RANDOM_INT_IN_RANGE, GenerateRandomIntInRange);
     REGISTER_COMMAND_HANDLER(COMMAND_GENERATE_RANDOM_FLOAT_IN_RANGE, GenerateRandomFloatInRange);
     REGISTER_COMMAND_HANDLER(COMMAND_SIN, Sin);

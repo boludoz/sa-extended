@@ -73,6 +73,13 @@ int32 StartScriptFire(CVector pos, int8 propagation, int32 size) {
 void LaunchMission(uint32 label) {
     CTheScripts::StartNewScript(&CTheScripts::ScriptSpace[label]);
 }
+
+/// MISSION_HAS_FINISHED(00D8)
+void MissionHasFinished(CRunningScript& S) {
+    if (S.m_UsesMissionCleanup) {
+        CTheScripts::MissionCleanUp.Process();
+    }
+}
 };
 
 void notsa::script::commands::mission::RegisterHandlers() {
@@ -82,6 +89,7 @@ void notsa::script::commands::mission::RegisterHandlers() {
     REGISTER_COMMAND_HANDLER(COMMAND_SCRIPT_NAME, ScriptName);
     REGISTER_COMMAND_HANDLER(COMMAND_START_SCRIPT_FIRE, StartScriptFire);
     REGISTER_COMMAND_HANDLER(COMMAND_LAUNCH_MISSION, LaunchMission);
+    REGISTER_COMMAND_HANDLER(COMMAND_MISSION_HAS_FINISHED, MissionHasFinished);
 
     REGISTER_COMMAND_UNIMPLEMENTED(COMMAND_CREATE_CUTSCENE_OBJECT);
     REGISTER_COMMAND_UNIMPLEMENTED(COMMAND_SET_CUTSCENE_ANIM);

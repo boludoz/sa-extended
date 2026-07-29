@@ -125,6 +125,14 @@ public:
 
     void SetCarMission(eCarMission carMission, uint32 timeOffsetMs);
 
+    //! 0x463490, listed as `CCarCtrl::SetCarMission` but `this` is the auto pilot.
+    //! A vehicle already crashing down keeps that mission. Only script commands use it.
+    void SetCarMissionUnlessCrashing(eCarMission carMission) {
+        if (m_nCarMission != MISSION_PLANE_CRASH_AND_BURN && m_nCarMission != MISSION_HELI_CRASH_AND_BURN) {
+            m_nCarMission = carMission;
+        }
+    }
+
     void ClearCarMission() { m_nCarMission = MISSION_NONE; }
 
     void SetCruiseSpeed(uint32 s) { assert(s <= UINT8_MAX); m_nCruiseSpeed = (uint8)s; }

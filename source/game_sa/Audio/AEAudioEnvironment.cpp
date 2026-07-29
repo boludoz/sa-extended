@@ -37,12 +37,13 @@ float CAEAudioEnvironment::GetDopplerRelativeFrequency(float prevDist, float cur
 }
 
 // 0x4D7F20
-float CAEAudioEnvironment::GetDistanceAttenuation(float dist) {
-    assert(dist >= 0.f);
-    return dist < ATTENUATION_TABLE_MAX_DIST
-        ? gSoundDistAttenuationTable[(uint32)std::floor(dist / ATTENUATION_TABLE_RESOLUTION)]
-        : -100.f;
-}
+float CAEAudioEnvironment::GetDistanceAttenuation(float fDistance) {
+    if (fDistance >= ATTENUATION_TABLE_MAX_DIST) {
+        return -100.0f;
+    } else {
+        int idx = static_cast<int>(std::floor(fDistance * 10.0f));
+        return gSoundDistAttenuationTable[idx];
+    }}
 
 // 0x4D7F60
 float CAEAudioEnvironment::GetDirectionalMikeAttenuation(const CVector& soundDir) {

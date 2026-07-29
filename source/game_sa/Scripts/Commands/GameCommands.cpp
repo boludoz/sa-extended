@@ -90,6 +90,40 @@ void SetNoResprays(bool enabled) {
     CGarages::AllRespraysCloseOrOpen(enabled);
 }
 
+/// ACTIVATE_GARAGE(0299)
+void ActivateGarage(const char* name) {
+    if (const auto idx = CGarages::FindGarageIndex(name); idx >= 0) {
+        CGarages::ActivateGarage(idx);
+    }
+}
+
+/// DEACTIVATE_GARAGE(02B9)
+void DeactivateGarage(const char* name) {
+    if (const auto idx = CGarages::FindGarageIndex(name); idx >= 0) {
+        CGarages::DeActivateGarage(idx);
+    }
+}
+
+/// ADD_SPRITE_BLIP_FOR_CONTACT_POINT(02A7)
+tBlipHandle AddSpriteBlipForContactPoint(CRunningScript& S, CVector posn, eRadarSprite sprite) {
+    if (posn.z <= MAP_Z_LOW_LIMIT) {
+        posn.z = CWorld::FindGroundZForCoord(posn.x, posn.y);
+    }
+    const auto blip = CRadar::SetCoordBlip(BLIP_CONTACT_POINT, posn, BLIP_COLOUR_BLUE, BLIP_DISPLAY_BOTH, S.m_szName);
+    CRadar::SetBlipSprite(blip, sprite);
+    return blip;
+}
+
+/// ADD_SPRITE_BLIP_FOR_COORD(02A8)
+tBlipHandle AddSpriteBlipForCoord(CRunningScript& S, CVector posn, eRadarSprite sprite) {
+    if (posn.z <= MAP_Z_LOW_LIMIT) {
+        posn.z = CWorld::FindGroundZForCoord(posn.x, posn.y);
+    }
+    const auto blip = CRadar::SetCoordBlip(BLIP_COORD, posn, BLIP_COLOUR_REDCOPY, BLIP_DISPLAY_BOTH, S.m_szName);
+    CRadar::SetBlipSprite(blip, sprite);
+    return blip;
+}
+
 void SetRespawnPointForDurationOfMission(CVector point) {
     CRestart::SetRespawnPointForDurationOfMission(point);
 }
@@ -208,6 +242,10 @@ void notsa::script::commands::game::RegisterHandlers() {
     REGISTER_COMMAND_HANDLER(COMMAND_INCREMENT_INT_STAT_NO_MESSAGE, IncrementFloatStatNoMessage);
     REGISTER_COMMAND_HANDLER(COMMAND_TAKE_PHOTO, TakePhoto);
     REGISTER_COMMAND_HANDLER(COMMAND_SET_NO_RESPRAYS, SetNoResprays);
+    REGISTER_COMMAND_HANDLER(COMMAND_ACTIVATE_GARAGE, ActivateGarage);
+    REGISTER_COMMAND_HANDLER(COMMAND_DEACTIVATE_GARAGE, DeactivateGarage);
+    REGISTER_COMMAND_HANDLER(COMMAND_ADD_SPRITE_BLIP_FOR_CONTACT_POINT, AddSpriteBlipForContactPoint);
+    REGISTER_COMMAND_HANDLER(COMMAND_ADD_SPRITE_BLIP_FOR_COORD, AddSpriteBlipForCoord);
     REGISTER_COMMAND_HANDLER(COMMAND_SET_RESPAWN_POINT_FOR_DURATION_OF_MISSION, SetRespawnPointForDurationOfMission);
     REGISTER_COMMAND_HANDLER(COMMAND_GET_CURRENT_LANGUAGE, GetCurrentLanguage);
     REGISTER_COMMAND_HANDLER(COMMAND_DO_WEAPON_STUFF_AT_START_OF_2P_GAME, DoWeaponStuffAtStartOf2PlayerGame);

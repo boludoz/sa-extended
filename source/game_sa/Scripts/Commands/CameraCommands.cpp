@@ -20,6 +20,15 @@ void ShakeCam(float strength) {
     CamShakeNoPos(&TheCamera, strength / 1000.0f);
 }
 
+/// SWITCH_WIDESCREEN(02A3)
+void SwitchWidescreen(bool on) {
+    if (on) {
+        TheCamera.SetWideScreenOn();
+    } else {
+        TheCamera.SetWideScreenOff();
+    }
+}
+
 void AttachCameraToVehicleLookAtVehicle(CVehicle& attachTo, CVector offset, CVehicle& lookAt, float tilt, eSwitchType switchType) {
     CVector zero{};
     TheCamera.TakeControlAttachToEntity(
@@ -310,6 +319,7 @@ void notsa::script::commands::camera::RegisterHandlers() {
 
     REGISTER_COMMAND_HANDLER(COMMAND_IS_POINT_ON_SCREEN, IsPointOnScreen);
     REGISTER_COMMAND_HANDLER(COMMAND_SHAKE_CAM, ShakeCam);
+    REGISTER_COMMAND_HANDLER(COMMAND_SWITCH_WIDESCREEN, SwitchWidescreen);
     REGISTER_COMMAND_HANDLER(COMMAND_ATTACH_CAMERA_TO_VEHICLE_LOOK_AT_VEHICLE, AttachCameraToVehicleLookAtVehicle);
     REGISTER_COMMAND_HANDLER(COMMAND_DO_CAMERA_BUMP, DoCameraBump);
     REGISTER_COMMAND_HANDLER(COMMAND_DO_FADE, DoCamFade);

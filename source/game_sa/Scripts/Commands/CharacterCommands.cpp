@@ -3510,9 +3510,44 @@ void ClearCharTasksImmediately(CPed& ped) {
  * 
  * @returns {Char} handle
  */
-//auto CreateChar(ePedType pedType, eModelID modelId, CVector& ) {
-    //NOTSA_UNREACHABLE("Not implemented");
-//}
+CPed& CreateChar(CRunningScript& S, ePedType pedType, uint32 modelId, CVector posn) {
+    S.GetCorrectPedModelIndexForEmergencyServiceType(pedType, &modelId);
+
+    auto* const ped = [&]() -> CPed* {
+        switch (pedType) {
+        case PED_TYPE_COP:
+            return new CCopPed{ modelId };
+        case PED_TYPE_MEDIC:
+        case PED_TYPE_FIREMAN:
+            return new CEmergencyPed{ pedType, modelId };
+        default:
+            return new CCivilianPed{ pedType, modelId };
+        }
+    }();
+
+    ped->GetTaskManager().SetTask(new CTaskSimpleStandStill{ 999'999, true, false, 8.0f }, TASK_PRIMARY_DEFAULT);
+    ped->SetCharCreatedBy(PED_MISSION);
+    ped->bAllowMedicsToReviveMe = false;
+
+    if (posn.z <= MAP_Z_LOW_LIMIT) {
+        posn.z = CWorld::FindGroundZForCoord(posn.x, posn.y);
+    }
+    posn.z += 1.0f;
+    ped->SetPosn(posn);
+    ped->SetOrientation(0.0f, 0.0f, 0.0f);
+    CTheScripts::ClearSpaceForMissionEntity(posn, ped);
+
+    if (S.m_UsesMissionCleanup) {
+        ped->m_bIsStaticWaitingForCollision = true;
+    }
+    CWorld::Add(ped);
+    CPopulation::ms_nTotalMissionPeds++;
+
+    if (S.m_UsesMissionCleanup) {
+        CTheScripts::MissionCleanUp.AddEntityToList(*ped);
+    }
+    return *ped;
+}
 
 /*
  * @opcode 01B2
@@ -3730,9 +3765,12 @@ void ClearCharTasksImmediately(CPed& ped) {
  * 
  * @param {Char} self
  */
-//void DeleteChar(CPed& self) {
-    //NOTSA_UNREACHABLE("Not implemented");
-//}
+void DeleteChar(CRunningScript& S, ScriptEntity<CPed> self) {
+    CTheScripts::RemoveThisPed(self.e);
+    if (S.m_UsesMissionCleanup) {
+        CTheScripts::MissionCleanUp.RemoveEntityFromList(self.h, MISSION_CLEANUP_ENTITY_TYPE_PED);
+    }
+}
 
 /*
  * @opcode 06EE
@@ -3852,9 +3890,9 @@ void ClearCharTasksImmediately(CPed& ped) {
  * @param {WeaponType} weaponType
  * @param {int} ammo
  */
-//void AddAmmoToChar(CPed& self, eWeaponType weaponType, int32 ammo) {
-    //NOTSA_UNREACHABLE("Not implemented");
-//}
+void AddAmmoToChar(CPed& self, eWeaponType weaponType, uint32 ammo) {
+    self.GrantAmmo(weaponType, ammo);
+}
 
 /*
  * @opcode 09F6
@@ -4045,16 +4083,16 @@ void ClearCharTasksImmediately(CPed& ped) {
 
 void notsa::script::commands::character::RegisterHandlers() {
     REGISTER_COMMAND_HANDLER_BEGIN("Char");
-    //REGISTER_COMMAND_HANDLER(COMMAND_ADD_AMMO_TO_CHAR, AddAmmoToChar);
+    REGISTER_COMMAND_HANDLER(COMMAND_ADD_AMMO_TO_CHAR, AddAmmoToChar);
     //REGISTER_COMMAND_HANDLER(COMMAND_ADD_ARMOUR_TO_CHAR, AddArmourToChar);
     //REGISTER_COMMAND_HANDLER(COMMAND_ARE_ANY_CHARS_NEAR_CHAR, AreAnyCharsNearChar);
     //REGISTER_COMMAND_HANDLER(COMMAND_CLEAR_LOOK_AT, ClearLookAt);
-    //REGISTER_COMMAND_HANDLER(COMMAND_CREATE_CHAR, CreateChar);
+    REGISTER_COMMAND_HANDLER(COMMAND_CREATE_CHAR, CreateChar);
     //REGISTER_COMMAND_HANDLER(COMMAND_CREATE_CHAR_AS_PASSENGER, CreateCharAsPassenger);
     //REGISTER_COMMAND_HANDLER(COMMAND_CREATE_RANDOM_CHAR, CreateRandomChar);
     //REGISTER_COMMAND_HANDLER(COMMAND_CREATE_SWAT_ROPE, CreateSwatRope);
     //REGISTER_COMMAND_HANDLER(COMMAND_DAMAGE_CHAR, DamageChar);
-    //REGISTER_COMMAND_HANDLER(COMMAND_DELETE_CHAR, DeleteChar);
+    REGISTER_COMMAND_HANDLER(COMMAND_DELETE_CHAR, DeleteChar);
     //REGISTER_COMMAND_HANDLER(COMMAND_DONT_REMOVE_CHAR, DontRemoveChar);
     //REGISTER_COMMAND_HANDLER(COMMAND_DROP_OBJECT, DropObject);
     //REGISTER_COMMAND_HANDLER(COMMAND_DROP_SECOND_OBJECT, DropSecondObject);

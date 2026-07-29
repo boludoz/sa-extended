@@ -182,6 +182,7 @@ void CVehicle::InjectHooks() {
     RH_ScopedInstall(GetVehicleLightsStatus, 0x6D55C0);
     RH_ScopedInstall(CanPedLeanOut, 0x6D5CF0);
     RH_ScopedInstall(SetVehicleCreatedBy, 0x6D5D70);
+    RH_ScopedInstall(SetEngineOn, 0x41BDD0);
     RH_ScopedInstall(SetupRender, 0x6D64F0);
     // RH_ScopedInstall(ProcessBikeWheel, 0x6D73B0);
     RH_ScopedInstall(FindTyreNearestPoint, 0x6D7BC0);
@@ -3109,6 +3110,11 @@ bool CVehicle::CanPedLeanOut(CPed* ped) {
         }
     }
     }
+}
+
+// 0x41BDD0
+void CVehicle::SetEngineOn(bool on) {
+    vehicleFlags.bEngineOn = vehicleFlags.bEngineBroken ? false : on;
 }
 
 // 0x6D5D70

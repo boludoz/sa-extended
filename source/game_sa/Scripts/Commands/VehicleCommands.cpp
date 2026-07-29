@@ -2,10 +2,12 @@
 
 #include "Commands.hpp"
 #include <CommandParser/Parser.hpp>
+#include <reversiblebugfixes/Bugs.hpp>
 #include <cassert>
 
 #include "PlayerInfo.h"
 #include "World.h"
+#include "CarCtrl.h"
 #include "CarGenerator.h"
 #include "TheCarGenerators.h"
 #include "CommandParser/Parser.hpp"
@@ -115,15 +117,126 @@ void AddStuckCarCheckWithWarp(CVehicle& vehicle, float stuckRadius, uint32 time,
 }
 
 void PlaneAttackPlayerUsingDogFight(CPlane& plane, CPlayerPed& player, float altitude) {
-    if (plane.m_autoPilot.m_nCarMission != eCarMission::MISSION_PLANE_CRASH_AND_BURN && plane.m_autoPilot.m_nCarMission != eCarMission::MISSION_HELI_CRASH_AND_BURN) {
-        plane.m_autoPilot.SetCarMission(eCarMission::MISSION_PLANE_DOG_FIGHT_PLAYER);
-    }
+    plane.m_autoPilot.SetCarMissionUnlessCrashing(eCarMission::MISSION_PLANE_DOG_FIGHT_PLAYER);
     plane.m_minAltitude = altitude;
 }
 
 /// SET_CAR_ALWAYS_CREATE_SKIDS(07EE)
 void SetCarAlwaysCreateSkids(CVehicle& vehicle, bool enable) {
     vehicle.vehicleFlags.bAlwaysSkidMarks = enable;
+}
+
+/// CREATE_CAR(00A5)
+CVehicle& CreateCar(CRunningScript& S, int32 modelId, CVector posn) {
+    return *CCarCtrl::CreateCarForScript(modelId, posn, S.m_UsesMissionCleanup);
+}
+
+/// DELETE_CAR(00A6)
+void DeleteCar(CRunningScript& S, ScriptEntity<CVehicle> veh) {
+    if (veh.e) {
+        CWorld::Remove(veh.e);
+        CWorld::RemoveReferencesToDeletedObject(veh.e);
+        delete veh.e;
+    }
+    if (S.m_UsesMissionCleanup) {
+        CTheScripts::MissionCleanUp.RemoveEntityFromList(veh.h, MISSION_CLEANUP_ENTITY_TYPE_VEHICLE);
+    }
+}
+
+/// CAR_GOTO_COORDINATES(00A7)
+void CarGotoCoordinates(CVehicle& veh, CVector posn) {
+    if (posn.z <= MAP_Z_LOW_LIMIT) {
+        posn.z = CWorld::FindGroundZForCoord(posn.x, posn.y);
+    }
+    posn.z += veh.GetDistanceFromCentreOfMassToBaseOfModel();
+
+    veh.m_autoPilot.SetCarMissionUnlessCrashing(
+        CCarCtrl::JoinCarWithRoadSystemGotoCoors(&veh, posn, false, false)
+            ? MISSION_GOTOCOORDINATES_STRAIGHTLINE
+            : MISSION_GOTOCOORDINATES
+    );
+
+    veh.SetStatus(STATUS_PHYSICS);
+    veh.SetEngineOn(true);
+    veh.m_autoPilot.SetCruiseSpeed(std::max<uint8>(1, veh.m_autoPilot.m_nCruiseSpeed));
+    veh.m_autoPilot.m_nTimeToStartMission = CTimer::GetTimeInMS();
+}
+
+/// CAR_WANDER_RANDOMLY(00A8)
+void CarWanderRandomly(CVehicle& veh) {
+    CCarCtrl::JoinCarWithRoadSystem(&veh);
+    veh.m_autoPilot.SetCarMissionUnlessCrashing(MISSION_CRUISE);
+    veh.SetEngineOn(true);
+    veh.m_autoPilot.SetCruiseSpeed(std::max<uint8>(1, veh.m_autoPilot.m_nCruiseSpeed));
+    veh.m_autoPilot.m_nTimeToStartMission = CTimer::GetTimeInMS();
+}
+
+/// CAR_SET_IDLE(00A9)
+void CarSetIdle(CVehicle& veh) {
+    veh.m_autoPilot.SetCarMissionUnlessCrashing(MISSION_NONE);
+}
+
+/// GET_CAR_COORDINATES(00AA)
+CVector GetCarCoordinates(CVehicle& veh) {
+    return veh.GetPosition();
+}
+
+/// SET_CAR_COORDINATES(00AB)
+void SetCarCoordinates(CVehicle& veh, CVector posn) {
+    CCarCtrl::SetCoordsOfScriptCar(&veh, posn.x, posn.y, posn.z, false, true);
+}
+
+/// SET_CAR_CRUISE_SPEED(00AD)
+void SetCarCruiseSpeed(CVehicle& veh, float speed) {
+    auto&      ap  = veh.m_autoPilot;
+    const auto max = veh.m_pHandlingData->m_transmissionData.m_MaxFlatVelocity * 60.0f;
+
+    if (notsa::bugfixes::Script_00AD_SetCarCruiseSpeed_TruncatedBeforeClamp) {
+        ap.m_nCruiseSpeed = (uint8)(int32)std::min(speed, max);
+    } else {
+        ap.m_nCruiseSpeed = (uint8)(int32)speed;
+        ap.m_nCruiseSpeed = (uint8)(int32)std::min((float)ap.m_nCruiseSpeed, max);
+    }
+}
+
+/// SET_CAR_MISSION(00AF)
+void SetCarMission(CVehicle& veh, eCarMission mission) {
+    veh.m_autoPilot.SetCarMissionUnlessCrashing(mission);
+    veh.m_autoPilot.m_nTimeToStartMission = CTimer::GetTimeInMS();
+    veh.SetEngineOn(true);
+}
+
+/// IS_CAR_IN_AREA_2D(00B0)
+bool IsCarInArea2D(CRunningScript& S, CVehicle& veh, CVector2D a, CVector2D b, bool highlightArea) {
+    if (highlightArea) {
+        S.HighlightImportantArea(a, b);
+    }
+    return veh.IsWithinArea(a.x, a.y, b.x, b.y);
+}
+
+/// IS_CAR_IN_AREA_3D(00B1)
+bool IsCarInArea3D(CRunningScript& S, CVehicle& veh, CVector a, CVector b, bool highlightArea) {
+    if (highlightArea) {
+        S.HighlightImportantArea(a, b);
+    }
+    return veh.IsWithinArea(a.x, a.y, a.z, b.x, b.y, b.z);
+}
+
+/// SET_CAN_RESPRAY_CAR(0294)
+void SetCanResprayCar(CVehicle& veh, bool can) {
+    // The original doesn't check the vehicle type either. Harmless: `autoFlags` (0x868) is past a boat/bike/train,
+    // but still inside the pool slot, which is `sizeof(CHeli)` wide for every vehicle.
+    veh.AsAutomobile()->autoFlags.bShouldNotChangeColour = !can;
+}
+
+/// SET_CAR_ONLY_DAMAGED_BY_PLAYER(02AA)
+void SetCarOnlyDamagedByPlayer(CVehicle& veh, bool enable) {
+    veh.physicalFlags.bInvulnerable = enable;
+}
+
+/// IS_CAR_DEAD(0119)
+bool IsCarDead(CVehicle* veh) {
+    return !veh || veh->GetStatus() == STATUS_WRECKED || veh->vehicleFlags.bIsDrowning;
 }
 
 /// SET_CAR_AS_MISSION_CAR(0763)
@@ -161,6 +274,21 @@ void notsa::script::commands::vehicle::RegisterHandlers() {
     REGISTER_COMMAND_HANDLER(COMMAND_PLANE_ATTACK_PLAYER_USING_DOG_FIGHT, PlaneAttackPlayerUsingDogFight);
 
     REGISTER_COMMAND_HANDLER(COMMAND_SET_CAR_ALWAYS_CREATE_SKIDS, SetCarAlwaysCreateSkids);
+
+    REGISTER_COMMAND_HANDLER(COMMAND_CREATE_CAR, CreateCar);
+    REGISTER_COMMAND_HANDLER(COMMAND_DELETE_CAR, DeleteCar);
+    REGISTER_COMMAND_HANDLER(COMMAND_CAR_GOTO_COORDINATES, CarGotoCoordinates);
+    REGISTER_COMMAND_HANDLER(COMMAND_CAR_WANDER_RANDOMLY, CarWanderRandomly);
+    REGISTER_COMMAND_HANDLER(COMMAND_CAR_SET_IDLE, CarSetIdle);
+    REGISTER_COMMAND_HANDLER(COMMAND_GET_CAR_COORDINATES, GetCarCoordinates);
+    REGISTER_COMMAND_HANDLER(COMMAND_SET_CAR_COORDINATES, SetCarCoordinates);
+    REGISTER_COMMAND_HANDLER(COMMAND_SET_CAR_CRUISE_SPEED, SetCarCruiseSpeed);
+    REGISTER_COMMAND_HANDLER(COMMAND_SET_CAR_MISSION, SetCarMission);
+    REGISTER_COMMAND_HANDLER(COMMAND_IS_CAR_IN_AREA_2D, IsCarInArea2D);
+    REGISTER_COMMAND_HANDLER(COMMAND_IS_CAR_IN_AREA_3D, IsCarInArea3D);
+    REGISTER_COMMAND_HANDLER(COMMAND_IS_CAR_DEAD, IsCarDead);
+    REGISTER_COMMAND_HANDLER(COMMAND_SET_CAN_RESPRAY_CAR, SetCanResprayCar);
+    REGISTER_COMMAND_HANDLER(COMMAND_SET_CAR_ONLY_DAMAGED_BY_PLAYER, SetCarOnlyDamagedByPlayer);
 
 
     REGISTER_COMMAND_UNIMPLEMENTED(COMMAND_IS_TAXI);

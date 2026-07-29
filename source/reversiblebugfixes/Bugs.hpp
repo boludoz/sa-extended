@@ -37,6 +37,19 @@ inline const ReversibleBugFix GenericFrameRate{
 };
 
 //
+// Script command bugs
+// Bugs in the vanilla `CRunningScript::ProcessCommands*` handlers. Keep the opcode in the name.
+//
+inline const ReversibleBugFix Script_00AD_SetCarCruiseSpeed_TruncatedBeforeClamp{
+    .Name        = "SET_CAR_CRUISE_SPEED (00AD) - Speed truncated before it is clamped",
+    .Description = "The original stores the requested speed into the `uint8` cruise speed field first and only "
+                   "then clamps the (already truncated) byte against the handling's max flat velocity. A script "
+                   "asking for 300 gets 44 instead of the vehicle's top speed, and the idiomatic 'go as fast as "
+                   "you can' values above 255 all wrap around. Clamp before narrowing.",
+    .Credit      = "Contributors"
+};
+
+//
 // Other bugs
 //
 inline const ReversibleBugFix PS2CoronaRendering{

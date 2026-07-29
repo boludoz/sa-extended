@@ -3712,6 +3712,7 @@ CVehicle,SetUpDriver,0x006D1A50,1,0,0
 CVehicle,SetVehicleAtomicVisibilityCB-Frame,0x006D26D0,1,0,0
 CVehicle,SetVehicleAtomicVisibilityCB-Object,0x006D2690,0,1,0
 CVehicle,SetVehicleCreatedBy,0x006D5D70,1,0,0
+CVehicle,SetEngineOn,0x0041BDD0,1,0,0
 CVehicle,SetVehicleUpgradeFlags,0x006D30E0,1,0,0
 CVehicle,SetWindowOpenFlag,0x006D3080,1,0,0
 CVehicle,SetupLighting,0x00553F20,1,0,1

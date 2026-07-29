@@ -32,6 +32,16 @@ void RemoveAllScriptFires() {
     gFireManager.RemoveAllScriptFires();
 }
 
+/// SET_DEATHARREST_STATE(0111)
+void SetDeatharrestState(CRunningScript& S, int32 state) {
+    S.m_IsDeathArrestCheckEnabled = state == 1;
+}
+
+/// HAS_DEATHARREST_BEEN_EXECUTED(0112)
+bool HasDeatharrestBeenExecuted(CRunningScript& S) {
+    return S.m_DoneDeathArrest;
+}
+
 void LoadScene(CVector point) {
     CTimer::Stop();
     CStreaming::LoadScene(point);
@@ -88,6 +98,8 @@ void notsa::script::commands::script::RegisterHandlers() {
 
     REGISTER_COMMAND_HANDLER(COMMAND_TERMINATE_ALL_SCRIPTS_WITH_THIS_NAME, TerminateAllScriptsWithThisName);
     REGISTER_COMMAND_HANDLER(COMMAND_REMOVE_ALL_SCRIPT_FIRES, RemoveAllScriptFires);
+    REGISTER_COMMAND_HANDLER(COMMAND_SET_DEATHARREST_STATE, SetDeatharrestState);
+    REGISTER_COMMAND_HANDLER(COMMAND_HAS_DEATHARREST_BEEN_EXECUTED, HasDeatharrestBeenExecuted);
     REGISTER_COMMAND_HANDLER(COMMAND_LOAD_SCENE, LoadScene);
     REGISTER_COMMAND_HANDLER(COMMAND_LOAD_SCENE_IN_DIRECTION, LoadSceneInDirection);
     REGISTER_COMMAND_HANDLER(COMMAND_LOAD_MISSION_AUDIO, LoadMissionAudio);

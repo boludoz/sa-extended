@@ -1,3 +1,5 @@
 Almost the cops shot at ground instead to CJ.
-CJ sometimes run away the cops.
+CJ sometimes run away the cops: fixed.
 The radio is shut down every time i press ESC.
+CJ Tatoos are not visible.
+Blackscreen at Barber.

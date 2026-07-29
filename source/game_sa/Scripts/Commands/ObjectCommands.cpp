@@ -42,15 +42,43 @@ CObject& CreateObject(CRunningScript& S, script::Model model, CVector posn) {
     return *object;
 }
 
-void RemoveObject(CRunningScript& S, CObject* object) {
-    if (object) {
-        CWorld::Remove(object);
-        CWorld::RemoveReferencesToDeletedObject(object);
-        delete object;
+/// CREATE_OBJECT_NO_OFFSET(029B) - Same as CREATE_OBJECT, except the object isn't lifted onto its base
+CObject& CreateObjectNoOffset(CRunningScript& S, script::Model model, CVector posn) {
+    const auto mi = CModelInfo::GetModelInfo(model);
+    mi->m_nAlpha  = 255u;
+
+    auto* object = CObject::Create(model, false);
+    object->m_nObjectType = (S.m_IsExternal || S.m_ExternalType != -1) ? OBJECT_MISSION2 : OBJECT_MISSION;
+
+    if (posn.z <= MAP_Z_LOW_LIMIT) {
+        posn.z = CWorld::FindGroundZForCoord(posn.x, posn.y);
+    }
+    object->SetPosn(posn);
+    object->SetOrientation(CVector{0.0f});
+    object->UpdateRwMatrix();
+    object->UpdateRwFrame();
+    if (mi->AsLodAtomicModelInfoPtr()) {
+        object->SetupBigBuilding();
+    }
+
+    CTheScripts::ClearSpaceForMissionEntity(posn, object);
+    CWorld::Add(object);
+
+    if (S.m_UsesMissionCleanup) {
+        CTheScripts::MissionCleanUp.AddEntityToList(*object);
+    }
+    return *object;
+}
+
+void RemoveObject(CRunningScript& S, ScriptEntity<CObject> object) {
+    if (object.e) {
+        CWorld::Remove(object.e);
+        CWorld::RemoveReferencesToDeletedObject(object.e);
+        delete object.e;
     }
 
     if (S.m_UsesMissionCleanup) {
-        CTheScripts::MissionCleanUp.RemoveEntityFromList(std::bit_cast<int32>(object), MISSION_CLEANUP_ENTITY_TYPE_OBJECT);
+        CTheScripts::MissionCleanUp.RemoveEntityFromList(object.h, MISSION_CLEANUP_ENTITY_TYPE_OBJECT);
     }
 }
 
@@ -120,6 +148,14 @@ bool HasModelLoaded(script::Model model) {
 void MarkModelNotNeeded(CRunningScript* S, script::Model model) {
     if (CTheScripts::ScriptResourceManager.RemoveFromResourceManager(model, RESOURCE_TYPE_MODEL_OR_SPECIAL_CHAR, S)) {
         CStreaming::SetMissionDoesntRequireModel(model);
+    }
+}
+
+/// UNLOAD_SPECIAL_CHARACTER(0296)
+void UnloadSpecialCharacter(CRunningScript* S, int32 slot) {
+    slot--;
+    if (CTheScripts::ScriptResourceManager.RemoveFromResourceManager(MODEL_SPECIAL01 + slot, RESOURCE_TYPE_MODEL_OR_SPECIAL_CHAR, S)) {
+        CStreaming::SetMissionDoesntRequireSpecialChar(slot);
     }
 }
 
@@ -193,6 +229,7 @@ void notsa::script::commands::object::RegisterHandlers() {
     using namespace Animation;
 
     REGISTER_COMMAND_HANDLER(COMMAND_CREATE_OBJECT, CreateObject);
+    REGISTER_COMMAND_HANDLER(COMMAND_CREATE_OBJECT_NO_OFFSET, CreateObjectNoOffset);
     REGISTER_COMMAND_HANDLER(COMMAND_DELETE_OBJECT, RemoveObject);
     REGISTER_COMMAND_HANDLER(COMMAND_DOES_OBJECT_EXIST, DoesObjectExists);
     REGISTER_COMMAND_HANDLER(COMMAND_MARK_OBJECT_AS_NO_LONGER_NEEDED, MarkObjectNoLongerNeeded);
@@ -210,6 +247,7 @@ void notsa::script::commands::object::RegisterHandlers() {
     REGISTER_COMMAND_HANDLER(COMMAND_REQUEST_MODEL, LoadModel);
     REGISTER_COMMAND_HANDLER(COMMAND_HAS_MODEL_LOADED, HasModelLoaded);
     REGISTER_COMMAND_HANDLER(COMMAND_MARK_MODEL_AS_NO_LONGER_NEEDED, MarkModelNotNeeded);
+    REGISTER_COMMAND_HANDLER(COMMAND_UNLOAD_SPECIAL_CHARACTER, UnloadSpecialCharacter);
     REGISTER_COMMAND_HANDLER(COMMAND_LOAD_ALL_MODELS_NOW, LoadAllModelsNow);
     REGISTER_COMMAND_HANDLER(COMMAND_IS_MODEL_AVAILABLE, IsModelAvailable);
 
