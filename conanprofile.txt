@@ -1,10 +1,14 @@
+# compiler.version comes from the detected `default` profile on purpose:
+# VS 2022 is 194, VS 2026 is 195, and pinning either one breaks the other.
+# Run `conan profile detect` once if you don't have a default profile yet.
+include(default)
+
 [settings]
 arch=x86
 build_type=Debug
 compiler=msvc
 compiler.cppstd=23
 compiler.runtime=static
-compiler.version=194
 os=Windows
 
 [replace_tool_requires]
