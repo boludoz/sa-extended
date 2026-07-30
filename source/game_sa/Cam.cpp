@@ -28,6 +28,7 @@
 #include "IKChainManager_c.h"
 #include "IdleCam.h"
 #include "Tasks/TaskTypes/TaskSimpleUseGun.h"
+#include "Tasks/TaskTypes/TaskComplexProstituteSolicit.h"
 
 auto& gbFirstPersonRunThisFrame = StaticRef<bool>(0xB6EC20);
 auto& gLastFrameProcessedDWCineyCam = StaticRef<uint32>(0x8CCB9C);
@@ -46,8 +47,20 @@ static inline auto& DWCineyCamLastUp = StaticRef<CVector>(0xB6FE98);
 static inline auto& DWCineyCamLastRight = StaticRef<CVector>(0xB6FEA4);
 static inline auto& DWCineyCamLastFwd = StaticRef<CVector>(0xB6FEB0);
 
-//! Where `CCamera::CamControl` decided the look-behind camera should aim this frame
-static inline auto& gTargetCoordsForLookingBehind = StaticRef<CVector>(0xB6F018);
+//! Where `Process_FollowCar_SA` decided the look-behind camera should aim this frame. `gTargetCoordsForLookingBehind` @ 0xB6F018
+static CVector gTargetCoordsForLookingBehind{};
+
+//! Per-zoom pitch offset, indexed by `CCamera::GetArrPosForVehicleType`. @ 0x8CC41C, 0x8CC430, 0x8CC444
+static constexpr float ZmOneAlphaOffset[5]   = { 0.08f,  0.08f, 0.15f, 0.08f, 0.08f };
+static constexpr float ZmTwoAlphaOffset[5]   = { 0.07f,  0.08f, 0.30f, 0.08f, 0.08f };
+static constexpr float ZmThreeAlphaOffset[5] = { 0.055f, 0.05f, 0.15f, 0.06f, 0.08f };
+
+// `Process_FollowCar_SA` statics
+static float sBlendExtraPos      = 0.0f;     // 0xB7011C
+static float MOUSE_INPUT_COUNTER = 0.0f;     // 0xB70118
+static bool  gAcquiredAlpha      = false;    // 0xB70114
+static float gOldAlpha           = -9999.0f; // 0x8CCEB0
+static float gOldBeta            = -9999.0f; // 0x8CCEA8
 
 //! How far above the ground the arrest cameras sit. `ARRESTDIST_ABOVE_GROUND` @ 0x8CC7F8
 static constexpr auto ARRESTDIST_ABOVE_GROUND = 0.7f;
@@ -4411,25 +4424,7 @@ void CCam::Process_FlyBy(const CVector& target, float orientation, float speedVa
 
 // 0x5245B0
 void CCam::Process_FollowCar_SA(const CVector& ThisCamsTarget, float TargetOrientation, float SpeedVar, float SpeedVarDesired, bool bScriptSetAngles) {
-    // Same 15-float layout as `PEDCAM_SET`. `CARCAM_SET` @ 0x8CC600, `tVehicleCamParametersSet[7]`.
-    // Field offsets bound from the `CARCAM_SET.field_N` references in the asm.
-    struct tVehicleCamParametersSet {
-        float TargetOffsetZ, BaseCamDist, BaseCamZ, MinDist, MinFollowDist;
-        float DiffAlphaRate, DiffAlphaCap, _colVars1C;
-        float DiffBetaRate, DiffBetaCap, DiffBetaSwing, DiffBetaSwingCap, StickMult;
-        float UpLimit, DownLimit;
-    };
-    static auto& CARCAM_SET = StaticRef<std::array<tVehicleCamParametersSet, 7>>(0x8CC600);
-    enum {
-        FOLLOW_CAR_INCAR = 0, FOLLOW_CAR_ONBIKE, FOLLOW_CAR_INHELI,
-        FOLLOW_CAR_INPLANE, FOLLOW_CAR_INBOAT, FOLLOW_CAR_RCCAR, FOLLOW_CAR_RCHELI
-    };
     enum { ZOOM_ONE = 1, ZOOM_TWO = 2, ZOOM_THREE = 3 };
-
-    static auto& ZmOneAlphaOffset   = StaticRef<std::array<float, 5>>(0x8CC41C);
-    static auto& ZmTwoAlphaOffset   = StaticRef<std::array<float, 5>>(0x8CC430);
-    static auto& ZmThreeAlphaOffset = StaticRef<std::array<float, 5>>(0x8CC444);
-    static auto& gTargetCoordsForLookingBehind = StaticRef<CVector>(0xB6F018);
 
     constexpr auto AIMWEAPON_STICK_SENS      = 0.007f;
     constexpr auto CAR_FOV_START_SPEED       = 0.9f;
@@ -4444,6 +4439,11 @@ void CCam::Process_FollowCar_SA(const CVector& ThisCamsTarget, float TargetOrien
     constexpr auto STICK_DOWN_DIST_LIMIT_MULT = 1.2f;
     constexpr auto CREST_HILL_STICK_MULT     = 0.075f;
     constexpr auto SPEED_TOL                 = 0.0001f;
+    constexpr auto MOUSE_INPUT_BUFFER_TIME   = 1.0f;
+    constexpr auto FRAMES_PER_SECOND         = 50.0f;
+    constexpr auto PROSTITUTE_CAM_ALPHA_ANGLE = 0.1f;
+    constexpr auto PROSTITUTE_CAM_ALPHA_RATE  = 0.0035f;
+    constexpr auto gStickAlphaFix            = 0.05f;
 
     if (!m_pCamTargetEntity->GetIsTypeVehicle()) {
         return;
@@ -4475,7 +4475,7 @@ void CCam::Process_FollowCar_SA(const CVector& ThisCamsTarget, float TargetOrien
     }
     const auto& set = CARCAM_SET[nType];
 
-    auto fCamDistance = TheCamera.m_fCarZoomSmoothed + set.BaseCamDist;
+    auto fCamDistance = TheCamera.m_fCarZoomSmoothed + set.fBaseCamDist;
 
     int32 PositionInArray = 0;
     TheCamera.GetArrPosForVehicleType(static_cast<eVehicleType>(pVehicle->GetVehicleAppearance()), PositionInArray);
@@ -4494,7 +4494,6 @@ void CCam::Process_FollowCar_SA(const CVector& ThisCamsTarget, float TargetOrien
     auto CarLength  = 2.0f * std::abs(col->m_boundBox.m_vecMin.y);
 
     // Add the trailer's length when towing
-    static float sBlendExtraPos = 0.0f;
     if (auto* const towed = pVehicle->m_pVehicleBeingTowed) {
         if (sBlendExtraPos < 1.0f) {
             sBlendExtraPos = std::min(1.0f, sBlendExtraPos + BLEND_EXTRA_POS_RATE * CTimer::GetTimeStep());
@@ -4504,7 +4503,7 @@ void CCam::Process_FollowCar_SA(const CVector& ThisCamsTarget, float TargetOrien
         CarHeight += sBlendExtraPos * (std::max(CarHeight, towedCol->m_boundBox.m_vecMax.z) - CarHeight);
 
         vecTargetCoords = (1.0f - 0.5f * sBlendExtraPos) * vecTargetCoords + 0.5f * sBlendExtraPos * towed->GetPosition();
-    } else if (pVehicle->IsBike() || pVehicle->IsSubQuad()) {
+    } else if (pVehicle->IsSubBike() || pVehicle->IsSubQuad()) {
         if (pVehicle->m_apPassengers[0]) {
             if (sBlendExtraPos < 1.0f) {
                 sBlendExtraPos = std::min(1.0f, sBlendExtraPos + BLEND_EXTRA_POS_RATE * CTimer::GetTimeStep());
@@ -4520,12 +4519,12 @@ void CCam::Process_FollowCar_SA(const CVector& ThisCamsTarget, float TargetOrien
     CarLength *= TheCamera.m_fCurrentTweakDistance; // Per-vehicle tweak, see `ApplyVehicleCameraTweaks`
 
     fCamDistance += CarLength;
-    const auto fMinDistance = set.MinDist * CarLength;
+    const auto fMinDistance = set.fMinDist * CarLength;
 
     // Full-size helis (not R/C ones) use a different offset
     if (pVehicle->GetVehicleAppearance() == VEHICLE_APPEARANCE_HELI && pVehicle->GetStatus() != STATUS_REMOTE_CONTROLLED) {
         vecTargetCoords += pVehicle->GetMatrix().GetUp() * fTestShiftHeliCamTarget * CarHeight;
-    } else if (const auto fTargetZMod = CarHeight * set.TargetOffsetZ - set.BaseCamZ; fTargetZMod > 0.0f) {
+    } else if (const auto fTargetZMod = CarHeight * set.fTargetOffsetZ - set.fBaseCamZ; fTargetZMod > 0.0f) {
         vecTargetCoords.z += fTargetZMod;
         fCamDistance      += fTargetZMod;
         fCamAlpha         += TEST_CAM_ALPHA_RAISE_MULT * fTargetZMod / fCamDistance;
@@ -4534,17 +4533,21 @@ void CCam::Process_FollowCar_SA(const CVector& ThisCamsTarget, float TargetOrien
     vecTargetCoords.z *= TheCamera.m_fCurrentTweakAltitude;
     fCamAlpha         += TheCamera.m_fCurrentTweakAngle;
 
-    auto fTempMinFollowDist = set.MinFollowDist;
+    auto fTempMinFollowDist = set.fMinFollowDist;
     if (TheCamera.m_nCarZoom == ZOOM_ONE && (nType == FOLLOW_CAR_INCAR || nType == FOLLOW_CAR_ONBIKE)) {
         fTempMinFollowDist *= 0.65f;
     }
     const auto fFollowDist = std::max(fCamDistance, fTempMinFollowDist);
 
+    // Damn globals passed between functions!
+    m_fCaMaxDistance = fCamDistance;
+    m_fCaMinDistance = 3.5f;
+
     if (m_bResetStatics) {
         m_fFOV = 70.0f;
     } else {
         const auto fwdSpeed = DotProduct(pVehicle->m_vecMoveSpeed, pVehicle->GetMatrix().GetForward());
-        if ((pVehicle->IsAutomobile() || pVehicle->IsBike()) && fwdSpeed > CAR_FOV_START_SPEED) {
+        if ((pVehicle->IsSubAutomobile() || pVehicle->IsSubBike()) && fwdSpeed > CAR_FOV_START_SPEED) {
             m_fFOV += (fwdSpeed - CAR_FOV_START_SPEED) * CTimer::GetTimeStep();
         }
         if (m_fFOV > 70.0f) {
@@ -4605,8 +4608,8 @@ void CCam::Process_FollowCar_SA(const CVector& ThisCamsTarget, float TargetOrien
     }
 
     // Swing the camera based on the vehicle's movement speed
-    auto fDiffMult = set.DiffBetaSwing * CTimer::GetTimeStep();
-    auto fDiffCap  = set.DiffBetaSwingCap * CTimer::GetTimeStep();
+    auto fDiffMult = set.fDiffBetaSwing * CTimer::GetTimeStep();
+    auto fDiffCap  = set.fDiffBetaSwingCap * CTimer::GetTimeStep();
     {
         const auto alongFront = DotProduct(m_vecFront, pVehicle->m_vecMoveSpeed);
         const auto fAltSpeed  = (pVehicle->m_vecMoveSpeed - alongFront * m_vecFront).Magnitude();
@@ -4628,7 +4631,7 @@ void CCam::Process_FollowCar_SA(const CVector& ThisCamsTarget, float TargetOrien
     }
 
     // Stop the player pushing the camera down into the vehicle they're driving
-    auto fAlphaUpLimit = set.UpLimit;
+    auto fAlphaUpLimit = set.fUpLimit;
     if (pVehicle->m_vecMoveSpeed.SquaredMagnitude() < sq(0.2f)
         && !(pVehicle->IsBike() && pVehicle->AsBike()->GetNumContactWheels() < 4)
         && !pVehicle->IsSubHeli()
@@ -4640,7 +4643,7 @@ void CCam::Process_FollowCar_SA(const CVector& ThisCamsTarget, float TargetOrien
         if (DotProduct(m_vecFront, tempUp) > 0.0f) {
             const auto& bb = pVehicle->GetColModel()->m_boundBox;
 
-            auto fVehicleHeight = pVehicle->AsAutomobile()->GetHeightAboveRoad();
+            auto fVehicleHeight = pVehicle->GetHeightAboveRoad();
             fVehicleHeight += vecTargetCoords.z - pVehicle->GetPosition().z;
 
             const auto fCornerAngle = std::atan2(bb.m_vecMax.x, -bb.m_vecMin.y);
@@ -4671,10 +4674,14 @@ void CCam::Process_FollowCar_SA(const CVector& ThisCamsTarget, float TargetOrien
     }
 
     fTargetAlpha -= fCamAlpha;
-    fTargetAlpha = std::clamp(fTargetAlpha, -set.DownLimit, fAlphaUpLimit);
+    if (fTargetAlpha > fAlphaUpLimit) {
+        fTargetAlpha = fAlphaUpLimit;
+    } else if (fTargetAlpha < -set.fDownLimit) {
+        fTargetAlpha = -set.fDownLimit;
+    }
 
-    fDiffMult = std::pow(set.DiffAlphaRate, CTimer::GetTimeStep());
-    fDiffCap  = set.DiffAlphaCap * CTimer::GetTimeStep();
+    fDiffMult = std::pow(set.fDiffAlphaRate, CTimer::GetTimeStep());
+    fDiffCap  = set.fDiffAlphaCap * CTimer::GetTimeStep();
     const auto fTargetDiff = std::clamp((1.0f - fDiffMult) * (fTargetAlpha - m_fVerticalAngle), -fDiffCap, fDiffCap);
 
     auto StickBetaOffset  = -(float)pPad->AimWeaponLeftRight(nullptr);
@@ -4699,7 +4706,7 @@ void CCam::Process_FollowCar_SA(const CVector& ThisCamsTarget, float TargetOrien
     }
 
     // Stops weirdness on the radar
-    if (m_nDirectionWasLooking != LOOKING_FORWARD) {
+    if (gCameraDirection != LOOKING_FORWARD) {
         StickAlphaOffset = 0.0f;
         StickBetaOffset  = 0.0f;
     }
@@ -4719,11 +4726,9 @@ void CCam::Process_FollowCar_SA(const CVector& ThisCamsTarget, float TargetOrien
 
     auto bUsingMouse = false;
     if (TheCamera.m_bUseMouse3rdPerson && !pPad->DisablePlayerControls) {
-        const auto mouse   = CPad::GetPad(0)->NewMouseControllerState.GetAmountMouseMoved();
+        const auto mouse   = CPad::NewMouseControllerState.GetAmountMouseMoved();
         const auto fStickY = mouse.y * 2.0f;
         const auto fStickX = -mouse.x * 2.0f;
-
-        static float MOUSE_INPUT_COUNTER = 0.0f;
 
         const auto mouseSteeringOn = pVehicle->IsSubPlane() || pVehicle->IsSubHeli()
             ? CVehicle::m_bEnableMouseFlying
@@ -4735,7 +4740,8 @@ void CCam::Process_FollowCar_SA(const CVector& ThisCamsTarget, float TargetOrien
             m_fAlphaSpeed = m_fBetaSpeed = 0.0f;
             fTargetAlpha  = m_fVerticalAngle;
 
-            MOUSE_INPUT_COUNTER = 30.0f; // FRAMES_PER_SECOND * MOUSE_INPUT_BUFFER_TIME
+            // How long after mouse input before the camera returns to normal motion
+            MOUSE_INPUT_COUNTER = FRAMES_PER_SECOND * MOUSE_INPUT_BUFFER_TIME;
             bUsingMouse = true;
         } else if (MOUSE_INPUT_COUNTER > 0.0f) {
             StickAlphaOffset = 0.0f;
@@ -4748,10 +4754,22 @@ void CCam::Process_FollowCar_SA(const CVector& ThisCamsTarget, float TargetOrien
         }
     }
 
+    if (auto* const passenger = pVehicle->m_apPassengers[0]) {
+        auto* const task = passenger->GetIntelligence()->GetTaskManager().GetActiveTask();
+        if (task && task->GetTaskType() == TASK_COMPLEX_PROSTITUTE_SOLICIT
+            && static_cast<CTaskComplexProstituteSolicit*>(task)->bMoveCameraDown
+        ) {
+            StickAlphaOffset = m_fVerticalAngle < fAlphaUpLimit - PROSTITUTE_CAM_ALPHA_ANGLE
+                ? PROSTITUTE_CAM_ALPHA_RATE * CTimer::GetTimeStep()
+                : 0.0f;
+        }
+    }
+
     if (bFixAlphaAngle) {
         // Ease to `-fCamAlpha` once, on first getting into the vehicle
-        constexpr auto gStickAlphaFix = 0.05f;
-        static bool    gAcquiredAlpha = false;
+        if (gCameraMode != MODE_CAM_ON_A_STRING) {
+            gAcquiredAlpha = false;
+        }
 
         if (!gAcquiredAlpha && std::abs(m_fVerticalAngle + fCamAlpha) > 0.05f) {
             StickAlphaOffset = (-fCamAlpha - m_fVerticalAngle) * gStickAlphaFix;
@@ -4760,11 +4778,11 @@ void CCam::Process_FollowCar_SA(const CVector& ThisCamsTarget, float TargetOrien
         }
     }
 
-    StickAlphaOffset *= set.StickMult;
-    StickBetaOffset  *= set.StickMult;
+    StickAlphaOffset *= set.fStickMult;
+    StickBetaOffset  *= set.fStickMult;
 
-    fDiffMult = std::pow(set.DiffBetaRate, CTimer::GetTimeStep());
-    fDiffCap  = set.DiffBetaCap;
+    fDiffMult = std::pow(set.fDiffBetaRate, CTimer::GetTimeStep());
+    fDiffCap  = set.fDiffBetaCap;
 
     fCamControlBetaSpeed = std::clamp(fCamControlBetaSpeed + StickBetaOffset, -fDiffCap, fDiffCap);
     m_fBetaSpeed = fDiffMult * m_fBetaSpeed + (1.0f - fDiffMult) * fCamControlBetaSpeed;
@@ -4817,14 +4835,12 @@ void CCam::Process_FollowCar_SA(const CVector& ThisCamsTarget, float TargetOrien
     if (m_fVerticalAngle > fAlphaUpLimit) {
         m_fVerticalAngle = fAlphaUpLimit;
         m_fAlphaSpeed    = 0.0f;
-    } else if (m_fVerticalAngle < -set.DownLimit) {
-        m_fVerticalAngle = -set.DownLimit;
+    } else if (m_fVerticalAngle < -set.fDownLimit) {
+        m_fVerticalAngle = -set.fDownLimit;
         m_fAlphaSpeed    = 0.0f;
     }
 
     // Deadband so tiny jitter doesn't move the camera at all
-    static float gOldAlpha = -9999.0f;
-    static float gOldBeta  = -9999.0f;
     if (std::abs(gOldAlpha - m_fVerticalAngle) < SPEED_TOL) {
         m_fVerticalAngle = gOldAlpha;
     }
@@ -4839,6 +4855,8 @@ void CCam::Process_FollowCar_SA(const CVector& ThisCamsTarget, float TargetOrien
         -std::sin(m_fHorizontalAngle) * std::cos(m_fVerticalAngle),
         std::sin(m_fVerticalAngle)
     };
+
+    VecTrunc(m_vecSource);
     GetVectorsReadyForRW();
 
     TheCamera.m_bCamDirectlyBehind  = false;
@@ -4858,26 +4876,29 @@ void CCam::Process_FollowCar_SA(const CVector& ThisCamsTarget, float TargetOrien
     m_avecTargetHistoryPos[1] = vecTargetCoords - fCamDistance * historyFront;
 
     CCamera::SetColVarsVehicle((eVehicleType)nType, TheCamera.m_nCarZoom);
-    if (m_nDirectionWasLooking == LOOKING_FORWARD) {
+    if (gCameraDirection == LOOKING_FORWARD) {
         CWorld::pIgnoreEntity = pVehicle;
 
         TheCamera.CameraGenericModeSpecialCases(nullptr);
         TheCamera.CameraVehicleModeSpecialCases(pVehicle);
-        // NOTE: the original forces `gTopSphereCastTest` on for `bIsBig` vehicles around this call
-        // if ( (targetVeh->m_nVehFlags2 & 4) != 0 ) // despreciable
-        // {
-        //     // Force gTopSphereCastTest on for bIsBig vehicles
-        //     byte_9655E5 = 1;
-        // }
+
+        if (pVehicle->vehicleFlags.bIsBig) { // Never restored, same as the original
+            gTopSphereCastTest = true;
+        }
+
         TheCamera.CameraColDetAndReact(&m_vecSource, &vecTargetCoords);
+        // Collision may have set the clip distance; override it to improve Z-fighting in some cases
         TheCamera.ImproveNearClip(pVehicle, nullptr, &m_vecSource, &vecTargetCoords);
 
         CWorld::pIgnoreEntity = nullptr;
+
+        VecTrunc(m_vecSource);
     }
 
     TheCamera.m_bCamDirectlyBehind  = false;
     TheCamera.m_bCamDirectlyInFront = false;
 
+    VecTrunc(m_vecSource);
     GetVectorsReadyForRW();
 
     gTargetCoordsForLookingBehind = vecTargetCoords;

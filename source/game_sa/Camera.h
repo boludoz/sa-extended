@@ -524,6 +524,7 @@ extern uint8& gCurCamColVars;
 extern float& gCurDistForCam;
 extern int32& gCameraDirection;
 extern eCamMode& gCameraMode;
+extern bool gTopSphereCastTest;
 extern uint32& gLastTime2PlayerCameraWasOK;
 extern uint32& gLastTime2PlayerCameraCollided;
 extern float*& gpCamColVars;

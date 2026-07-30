@@ -20,6 +20,7 @@ bool& gbModelViewer = *reinterpret_cast<bool*>(0xBA6728);
 int8& gbCineyCamMessageDisplayed = *(int8*)0x8CC381; // 2
 int32& gCameraDirection = *(int32*)0x8CC384;         // 3
 eCamMode& gCameraMode = *(eCamMode*)0x8CC388;        // -1
+bool gTopSphereCastTest = false; // 0x9655E5
 uint32& gLastTime2PlayerCameraWasOK = *(uint32*)0xB6EC24;    // 0
 uint32& gLastTime2PlayerCameraCollided = *(uint32*)0xB6EC28; // 0
 bool& gPlayerPedVisible = *(bool*)0x8CC380; // true
