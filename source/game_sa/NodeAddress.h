@@ -17,6 +17,10 @@ public:
     bool operator==(CNodeAddress const&) const = default;
     bool operator!=(CNodeAddress const&) const = default;
 
+    //! 0x420980 - Ordering by area first, then node. Used to give a link between two nodes a
+    //! canonical direction, independent of which end you look at it from.
+    auto operator<=>(CNodeAddress const&) const = default;
+
     void ResetAreaId() { m_wAreaId = UINT16_MAX; }
     void ResetNodeId() { m_wNodeId = UINT16_MAX; }
 

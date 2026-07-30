@@ -61,6 +61,9 @@ public:
 
     operator CNodeAddress() const { return CNodeAddress{ m_wAreaId, m_wCarPathLinkId }; }
 
+    bool operator==(const CCarPathLinkAddress&) const = default;
+    bool operator!=(const CCarPathLinkAddress&) const = default;
+
 public:
     uint16 m_wCarPathLinkId : 10;
     uint16 m_wAreaId : 6;

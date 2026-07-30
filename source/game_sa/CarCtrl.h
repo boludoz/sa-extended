@@ -11,6 +11,7 @@
 
 class CPhysical;
 class CVehicle;
+enum eVehicleCreatedBy : unsigned char;
 class CAutomobile;
 class CHeli;
 class CPlane;
@@ -76,7 +77,12 @@ public:
     static void FlyAIHeliInCertainDirection(CHeli* heli, float arg2, float arg3, bool arg4);
     static void FlyAIHeliToTarget_FixedOrientation(CHeli* heli, float fOrientation, CVector posn);
     static void FlyAIPlaneInCertainDirection(CPlane* pPlane);
-    static bool GenerateCarCreationCoors2(CVector posn, float radius, float arg3, float arg4, bool arg5, float arg6, float arg7, CVector* origin, CNodeAddress* nodeAddress1, CNodeAddress* nodeAddress2, float* arg11, bool arg12, bool arg13);
+    //! @param dir            Direction the spawn point is tested against (normalized 2D)
+    //! @param cosLimit       Minimum `dot(dirToSpawnPoint, dir)`; `invertTest` flips the comparison
+    //! @param preferredDist  Distance from `posn` the picked link should straddle (160 * generation dist. multiplier)
+    //! @param fallbackDist   Second distance tried when `preferredDist` finds nothing on screen
+    //! @param outFraction    How far along the picked link the spawn point sits, in `[0; 1]`
+    static bool GenerateCarCreationCoors2(CVector posn, float dirX, float dirY, float cosLimit, bool invertTest, float preferredDist, float fallbackDist, CVector* origin, CNodeAddress* nodeAddress1, CNodeAddress* nodeAddress2, float* outFraction, bool arg12, bool arg13);
     static void GenerateEmergencyServicesCar();
     static CAutomobile* GenerateOneEmergencyServicesCar(uint32 modelID, CVector posn);
     static void GenerateOneRandomCar();
@@ -86,7 +92,7 @@ public:
     static void GetAIPlaneToAttackPlayer(CAutomobile* automobile);
     static void GetAIPlaneToDoDogFight(CAutomobile* automobile);
     static void GetAIPlaneToDoDogFightAgainstPlayer(CAutomobile* automobile);
-    static CVehicle* GetNewVehicleDependingOnCarModel(int32 modelID, uint8 createdBy);
+    static CVehicle* GetNewVehicleDependingOnCarModel(int32 modelID, eVehicleCreatedBy createdBy);
     static bool IsAnyoneParking();
     static bool IsThisAnAppropriateNode(CVehicle* vehicle, CNodeAddress nodeAddress1, CNodeAddress nodeAddress2, CNodeAddress nodeAddress3, bool arg5);
     static bool IsThisVehicleInteresting(CVehicle* vehicle);
