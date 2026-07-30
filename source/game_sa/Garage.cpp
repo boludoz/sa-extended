@@ -47,6 +47,11 @@ void CGarage::TidyUpGarage() {
     plugin::CallMethod<0x449C50, CGarage*>(this);
 }
 
+// 0x449FF0
+void CGarage::FindDoorsWithGarage(CObject** ppFirstDoor, CObject** ppSecondDoor) {
+    plugin::CallMethod<0x449FF0, CGarage*, CObject**, CObject**>(this, ppFirstDoor, ppSecondDoor);
+}
+
 // 0x449900
 void CGarage::StoreAndRemoveCarsForThisHideOut(CStoredCar* storedCars, int32 maxSlot) {
     maxSlot = std::min<int32>(maxSlot, NUM_GARAGE_STORED_CARS);

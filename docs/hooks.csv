@@ -2875,6 +2875,13 @@ CCamera,CalculateMirroredMatrix,0x0050B380,1,0,0
 CCamera,CamControl,0x00527FA0,0,1,0
 CCamera,CamShake,0x0050A9F0,1,0,0
 CCamera,CamShakeNoPos,0x0050A970,1,0,0
+CCamera,CameraObscuredByWaterLevel,0x0050B830,1,0,0
+CCamera,IsItTimeForNewCamera,0x0051D770,1,0,0
+CCamera,ProcessObbeCinemaCameraCar,0x005267C0,0,0,0
+CCamera,ProcessObbeCinemaCameraTrain,0x00526950,0,0,0
+CCamera,ProcessObbeCinemaCameraHeli,0x00526AE0,0,0,0
+CCamera,ProcessObbeCinemaCameraPlane,0x00526C80,0,0,0
+CCamera,ProcessObbeCinemaCameraBoat,0x00526E20,0,0,0
 CCamera,CameraColDetAndReact,0x00520190,1,0,0
 CCamera,CameraGenericModeSpecialCases,0x0050CD30,1,0,0
 CCamera,CameraPedAimModeSpecialCases,0x0050CDA0,1,0,0
@@ -2919,7 +2926,7 @@ CCamera,InitialiseScriptableComponents,0x0050D2D0,1,0,0
 CCamera,IsExtraEntityToIgnore,0x0050CE80,1,0,0
 CCamera,LerpFOV,0x0050D280,1,0,0
 CCamera,LoadPathSplines,0x005B24D0,1,0,0
-CCamera,Process,0x0052B730,0,1,0
+CCamera,Process,0x0052B730,1,0,0
 CCamera,ProcessFOVLerp-0,0x0050D510,1,0,0
 CCamera,ProcessFOVLerp-1,0x00516500,1,0,0
 CCamera,ProcessFade,0x0050B5D0,1,0,0
@@ -2971,7 +2978,7 @@ CCamera,TakeControl,0x0050C7C0,1,0,0
 CCamera,TakeControlAttachToEntity,0x0050C910,1,0,0
 CCamera,TakeControlNoEntity,0x0050C8B0,1,0,0
 CCamera,TakeControlWithSpline,0x0050CAE0,1,0,0
-CCamera,TryToStartNewCamMode,0x0051E560,0,1,0
+CCamera,TryToStartNewCamMode,0x0051E560,1,0,0
 CCamera,UpdateAimingCoors,0x0050CB10,1,0,0
 CCamera,UpdateTargetEntity,0x0050C360,1,0,0
 CCamera,Using1stPersonWeaponMode,0x0050BFF0,1,0,0

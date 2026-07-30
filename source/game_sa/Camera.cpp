@@ -1,4 +1,4 @@
-﻿#include "StdInc.h"
+#include "StdInc.h"
 
 #include "Camera.h"
 
@@ -7,6 +7,8 @@
 #include "TaskSimpleDuck.h"
 #include "TaskSimpleSwim.h"
 #include "Hud.h"
+#include "MBlur.h"
+#include "Garages.h"
 
 float& CCamera::m_f3rdPersonCHairMultY = *reinterpret_cast<float*>(0xB6EC10); ///< Where the player will be on the screen in relative coords when quick aiming
 float& CCamera::m_f3rdPersonCHairMultX = *reinterpret_cast<float*>(0xB6EC14);
@@ -21,6 +23,29 @@ int8& gbCineyCamMessageDisplayed = *(int8*)0x8CC381; // 2
 int32& gCameraDirection = *(int32*)0x8CC384;         // 3
 eCamMode& gCameraMode = *(eCamMode*)0x8CC388;        // -1
 bool gTopSphereCastTest = false; // 0x9655E5
+//! Per-zoom camera distance, indexed by `CCamera::GetArrPosForVehicleType` {car, bike, heli, plane, boat}
+static float ZOOM_ONE_DISTANCE[5]   = { -1.0f, -0.2f, -3.2f, 0.05f, -2.41f };
+static float ZOOM_TWO_DISTANCE[5]   = {  1.0f,  1.4f,  0.65f, 1.9f,   6.49f };
+static float ZOOM_THREE_DISTANCE[5] = {  6.0f,  6.0f, 15.9f, 15.9f,  15.0f  };
+
+//! Beyond this swing the aim camera jump-cuts instead of rotating, in degrees
+static float MAX_ANGLE_BEFORE_AIMWEAPON_JUMPCUT = 90.0f;
+//! How long first person stays put with no input before it gives up, in ms
+static uint32 MAX_TIME_IN_FIRST_PERSON_NO_INPUT = 2000;
+
+//! `m_nWhoIsInControlOfTheCamera` values: 0 game, 1 script, 2 obbe cinematic
+static constexpr int32 SCRIPT_CAM_CONTROL = 1;
+
+//! `FrontEndMenuManager.m_ControlMethod`: mouse + keyboard
+static constexpr auto STANDARD_CONTROLLER_SCREEN = (eController)0;
+
+//! Mode we owe a revert to after the tunnel handling forced a change; -1 when there is none
+static int32 CamModeToRestore = -1;
+static bool  JustGoneIntoObbeCamera = false;
+static float PedTargetCloseHeightOffset = 0.0f;
+
+static bool bSwitchedToObbeCam      = false; // 0xB6EC34
+static int8 gCinematicModeSwitchDir = 1;     // 0x8CC471
 uint32& gLastTime2PlayerCameraWasOK = *(uint32*)0xB6EC24;    // 0
 uint32& gLastTime2PlayerCameraCollided = *(uint32*)0xB6EC28; // 0
 bool& gPlayerPedVisible = *(bool*)0x8CC380; // true
@@ -152,7 +177,13 @@ void CCamera::InjectHooks() {
     RH_ScopedInstall(GetPositionAlongSpline, 0x50AF80);
     RH_ScopedInstall(GetRoughDistanceToGround, 0x516B00);
     RH_ScopedInstall(InitialiseCameraForDebugMode, 0x50AF90);
+    RH_ScopedInstall(IsItTimeForNewCamera, 0x51D770);
     RH_ScopedInstall(ProcessObbeCinemaCameraPed, 0x50B880);
+    RH_ScopedInstall(ProcessObbeCinemaCameraCar, 0x5267C0);
+    RH_ScopedInstall(ProcessObbeCinemaCameraTrain, 0x526950);
+    RH_ScopedInstall(ProcessObbeCinemaCameraHeli, 0x526AE0);
+    RH_ScopedInstall(ProcessObbeCinemaCameraPlane, 0x526C80);
+    RH_ScopedInstall(ProcessObbeCinemaCameraBoat, 0x526E20);
     RH_ScopedInstall(ProcessWideScreenOn, 0x50B890);
     RH_ScopedInstall(RenderMotionBlur, 0x50B8F0);
     RH_ScopedInstall(SetCameraDirectlyBehindForFollowPed_CamOnAString, 0x50BD40);
@@ -240,7 +271,7 @@ void CCamera::InjectHooks() {
     RH_ScopedInstall(InitialiseScriptableComponents, 0x50D2D0);
     RH_ScopedInstall(DrawBordersForWideScreen, 0x514860);
     RH_ScopedInstall(Find3rdPersonCamTargetVector, 0x514970);
-    RH_ScopedInstall(AvoidTheGeometry, 0x514030, { .reversed = false });
+    RH_ScopedInstall(AvoidTheGeometry, 0x514030);
     RH_ScopedInstall(CalculateGroundHeight, 0x514B80);
     RH_ScopedInstall(CalculateFrustumPlanes, 0x514D60);
     RH_ScopedInstall(CalculateDerivedValues, 0x5150E0);
@@ -248,10 +279,10 @@ void CCamera::InjectHooks() {
     RH_ScopedInstall(SetCameraUpForMirror, 0x51A560);
     RH_ScopedInstall(RestoreCameraAfterMirror, 0x51A5A0);
     RH_ScopedInstall(ConeCastCollisionResolve, 0x51A5D0);
-    RH_ScopedInstall(TryToStartNewCamMode, 0x51E560, { .reversed = false });
+    RH_ScopedInstall(TryToStartNewCamMode, 0x51E560);
     RH_ScopedInstall(CameraColDetAndReact, 0x520190);
-    RH_ScopedInstall(CamControl, 0x527FA0, { .reversed = false });
-    RH_ScopedInstall(Process, 0x52B730, { .reversed = false });
+    RH_ScopedInstall(CamControl, 0x527FA0);
+    RH_ScopedInstall(Process, 0x52B730);
     RH_ScopedInstall(DeleteCutSceneCamDataMemory, 0x5B24A0);
     RH_ScopedInstall(LoadPathSplines, 0x5B24D0);
     RH_ScopedInstall(Init, 0x5BC520);
@@ -266,6 +297,7 @@ void CCamera::InjectHooks() {
     RH_ScopedOverloadedInstall(ProcessShake, "1", 0x516560, void(CCamera::*)(float));
 
     RH_ScopedGlobalInstall(CamShakeNoPos, 0x50A970);
+    RH_ScopedGlobalInstall(CameraObscuredByWaterLevel, 0x50B830);
     RH_ScopedGlobalInstall(FindSplinePathPositionVector, 0x5B2090);
     RH_ScopedGlobalInstall(FindSplinePathPositionFloat, 0x5B2330);
 }
@@ -453,6 +485,248 @@ void CamShakeNoPos(CCamera* camera, float strength) {
         camera->m_fCamShakeForce = strength;
         camera->m_nCamShakeStart = CTimer::GetTimeInMS();
     }
+}
+
+// 0x51D770
+bool CCamera::IsItTimeForNewCamera(int32 camSequence, int32 startTime) {
+    constexpr auto MAX_TIME_ON_ANY_CAM  = 20000.0f; // 0x8CCDF8
+    constexpr auto MAX_TIME_ON_THIS_CAM = 15000.0f; // 0x8CCDF0
+
+    //! Cleared once the stick has been pushed far enough, so one push only switches once
+    static bool bStickReadyForNewCam = true; // 0x8CCDF4
+
+    if (camSequence < 0) {
+        return true;
+    }
+
+    const auto timeOnThisCam = (float)(CTimer::GetTimeInMS() - startTime);
+    if (timeOnThisCam > MAX_TIME_ON_ANY_CAM) {
+        return true;
+    }
+
+    // Pushing the right stick far enough switches camera, and picks which way we cycle
+    const auto stickX = (float)CPad::GetPad(0)->NewState.RightStickX;
+    if (std::abs(stickX) <= 32.0f) {
+        bStickReadyForNewCam = true;
+    } else if (std::abs(stickX) > 96.0f && bStickReadyForNewCam) {
+        gCinematicModeSwitchDir = stickX > 0.0f ? 1 : -1;
+        bStickReadyForNewCam = false;
+        return true;
+    }
+
+    //! Seaplane is classed as a boat, but the camera treats it like a car
+    const auto PlayerInBoat = [&] {
+        const auto* veh = FindPlayerVehicle();
+        return veh && veh->m_nVehicleType == VEHICLE_TYPE_BOAT && m_pTargetEntity->m_nModelIndex != MODEL_SKIMMER;
+    };
+    const auto LineOfSightClear = [](const CVector& from, const CVector& to) {
+        return CWorld::GetIsLineOfSightClear(from, to, true, false, false, false, false, false, false);
+    };
+    //! Flat offset from the fixed camera spot to the player
+    const auto FlatDistToFixed = [&] {
+        auto diff = FindPlayerCoors() - m_vecFixedModeSource;
+        diff.z = 0.0f;
+        return diff;
+    };
+    const auto MovingAwayFrom = [](const CVector& diff) {
+        return DotProduct(FindPlayerSpeed(), diff) > 0.0f;
+    };
+
+    switch (camSequence) {
+    case MOVIECAM0: {
+        if (auto* const veh = FindPlayerVehicle()) {
+            if (PlayerInBoat() || veh->m_nModelIndex == MODEL_RHINO) {
+                return true;
+            }
+            if (!LineOfSightClear(veh->GetPosition(), m_aCams[m_nActiveCam].m_vecSource)) {
+                return true;
+            }
+        }
+        if (CTimer::GetTimeInMS() > (uint32)(startTime + 5000)) {
+            return true;
+        }
+        RwCameraSetNearClipPlane(Scene.m_pRwCamera, 0.15f);
+        return false;
+    }
+    case MOVIECAM1: {
+        if (timeOnThisCam > MAX_TIME_ON_THIS_CAM || PlayerInBoat()) {
+            return true;
+        }
+        if (!LineOfSightClear(FindPlayerCoors(), m_vecFixedModeSource)) {
+            return true;
+        }
+        const auto diff = FlatDistToFixed();
+        if (diff.Magnitude() > 40.0f && MovingAwayFrom(diff)) {
+            return true;
+        }
+        return diff.Magnitude() < 4.5f;
+    }
+    case MOVIECAM2: {
+        if (timeOnThisCam > MAX_TIME_ON_THIS_CAM || PlayerInBoat()) {
+            return true;
+        }
+        if (!LineOfSightClear(FindPlayerCoors(), m_vecFixedModeSource)) {
+            return true;
+        }
+        const auto diff = FlatDistToFixed();
+        if (diff.Magnitude() < 2.0f) { // Player is right on top of the camera, pull the near clip in
+            m_fNearClipScript = std::max(0.05f, diff.Magnitude() * 0.5f);
+            m_bUseNearClipScript = true;
+        }
+        if (diff.Magnitude() > 29.0f && MovingAwayFrom(diff)) {
+            return true;
+        }
+        if (diff.Magnitude() < 2.0f) {
+            return true;
+        }
+        RwCameraSetNearClipPlane(Scene.m_pRwCamera, 0.15f);
+        return false;
+    }
+    case MOVIECAM3: {
+        if (timeOnThisCam > MAX_TIME_ON_THIS_CAM) {
+            return true;
+        }
+        if (!LineOfSightClear(FindPlayerCoors(), m_vecFixedModeSource)) {
+            return true;
+        }
+        const auto diff = FlatDistToFixed();
+        if (diff.Magnitude() > 48.0f && MovingAwayFrom(diff)) {
+            return true;
+        }
+        RwCameraSetNearClipPlane(Scene.m_pRwCamera, 0.15f);
+        return false;
+    }
+    case 4:
+        return CTimer::GetTimeInMS() > (uint32)(startTime + 3000);
+    case MOVIECAM5: {
+        if (timeOnThisCam > MAX_TIME_ON_THIS_CAM || PlayerInBoat()) {
+            return true;
+        }
+        if (!LineOfSightClear(FindPlayerCoors(), m_vecFixedModeSource)) {
+            return true;
+        }
+        const auto diff = FlatDistToFixed();
+        return diff.Magnitude() > 38.0f && MovingAwayFrom(diff);
+    }
+    case MOVIECAM6:
+        return CTimer::GetTimeInMS() > (uint32)(startTime + 3000);
+    case MOVIECAM7:
+        if (CTimer::GetTimeInMS() <= (uint32)(startTime + 2000)) {
+            return false;
+        }
+        return !m_aCams[m_nActiveCam].m_pCamTargetEntity->GetIsOnScreen();
+    case MOVIECAM8: {
+        if (timeOnThisCam > MAX_TIME_ON_THIS_CAM || PlayerInBoat()) {
+            return true;
+        }
+        if (!LineOfSightClear(FindPlayerCoors(), m_aCams[m_nActiveCam].m_vecSource)
+            || CTimer::GetTimeInMS() > (uint32)(startTime + 1000)
+        ) {
+            return true;
+        }
+        m_fNearClipScript = 0.6f;
+        m_bUseNearClipScript = true;
+        return false;
+    }
+    case MOVIECAM15: {
+        if (timeOnThisCam > MAX_TIME_ON_THIS_CAM) {
+            return true;
+        }
+        if (!FindPlayerVehicle()) {
+            return false;
+        }
+        if (!LineOfSightClear(FindPlayerCoors(), m_vecFixedModeSource)) {
+            return true;
+        }
+        const auto diff = FlatDistToFixed();
+        if (diff.Magnitude() > 44.0f && MovingAwayFrom(diff)) {
+            return true;
+        }
+        return diff.Magnitude() < 3.0f;
+    }
+    case MOVIECAM16: {
+        if (timeOnThisCam > MAX_TIME_ON_THIS_CAM) {
+            return true;
+        }
+        if (!FindPlayerVehicle()) {
+            return false;
+        }
+        if (!LineOfSightClear(FindPlayerCoors(), m_vecFixedModeSource)) {
+            return true;
+        }
+        const auto diff = FlatDistToFixed();
+        if (diff.Magnitude() > 50.0f) {
+            return true;
+        }
+        return diff.Magnitude() < 3.0f;
+    }
+    case MOVIECAM17: {
+        if (timeOnThisCam > MAX_TIME_ON_THIS_CAM) {
+            return true;
+        }
+        if (!FindPlayerVehicle()) {
+            return false;
+        }
+        if (!LineOfSightClear(FindPlayerCoors(), m_vecFixedModeSource)) {
+            return true;
+        }
+        const auto diff = FlatDistToFixed();
+        if (diff.Magnitude() > 50.0f && MovingAwayFrom(diff)) {
+            return true;
+        }
+        return diff.Magnitude() < 2.0f;
+    }
+    case MOVIECAM18: {
+        if (timeOnThisCam > MAX_TIME_ON_THIS_CAM) {
+            return true;
+        }
+        if (!LineOfSightClear(FindPlayerCoors(), m_vecFixedModeSource)) {
+            return true;
+        }
+        const auto diff = FindPlayerCoors() - m_vecFixedModeSource; // Not flattened here
+        if (diff.Magnitude() > 57.0f) {
+            return true;
+        }
+        return diff.Magnitude() < 1.0f;
+    }
+    case MOVIECAM19: {
+        if (timeOnThisCam > MAX_TIME_ON_THIS_CAM) {
+            return true;
+        }
+        if (!LineOfSightClear(FindPlayerCoors(), m_vecFixedModeSource)) {
+            return true;
+        }
+        const auto diff = FlatDistToFixed();
+        if (diff.Magnitude() > 36.0f) {
+            return true;
+        }
+        return diff.Magnitude() < 2.0f;
+    }
+    case MOVIECAM20: return !m_aCams[m_nActiveCam].Process_DW_HeliChaseCam(true);
+    case MOVIECAM21: return !m_aCams[m_nActiveCam].Process_DW_CamManCam(true);
+    case MOVIECAM22: return !m_aCams[m_nActiveCam].Process_DW_BirdyCam(true);
+    case MOVIECAM23: return !m_aCams[m_nActiveCam].Process_DW_PlaneSpotterCam(true);
+    case MOVIECAM24:
+    case MOVIECAM25:
+        TheCamera.m_bUseNearClipScript = false;
+        return true;
+    case MOVIECAMPLANE1: return !m_aCams[m_nActiveCam].Process_DW_PlaneCam1(true);
+    case MOVIECAMPLANE2: return !m_aCams[m_nActiveCam].Process_DW_PlaneCam2(true);
+    case MOVIECAMPLANE3: return !m_aCams[m_nActiveCam].Process_DW_PlaneCam3(true);
+    case CAM_ON_A_STRING_LAST_RESORT:
+        return CTimer::GetTimeInMS() > (uint32)(startTime + 5000);
+    default:
+        return false;
+    }
+}
+
+// 0x50B830
+bool CameraObscuredByWaterLevel() {
+    const auto& source = TheCamera.m_aCams[TheCamera.m_nActiveCam].m_vecSource;
+
+    float level;
+    return CWaterLevel::GetWaterLevel(source.x, source.y, source.z, level, true, nullptr)
+        && level >= source.z;
 }
 
 // 0x50AB10
@@ -1244,10 +1518,9 @@ void CCamera::UpdateTargetEntity() {
 
     auto something{ true };
     if (m_nWhoIsInControlOfTheCamera == 2) {
-        m_nModeObbeCamIsInForCar = m_nModeObbeCamIsInForCar;
         switch (m_nModeObbeCamIsInForCar) {
-        case 8:
-        case 7: {
+        case MOVIECAM8:
+        case MOVIECAM7: {
             if (player->m_nPedState != PEDSTATE_ARRESTED) {
                 something = false;
             }
@@ -1829,15 +2102,124 @@ void CCamera::ProcessObbeCinemaCameraPed() {
     // NOP
 }
 
-//
+// 0x526C80
 void CCamera::ProcessObbeCinemaCameraPlane() {
-    assert(0);
+    static int32 OldMode     = -1;   // 0x8CCEF8
+    static int32 TimeForNext = 0;    // 0xB7012C
+    // 0x8CC894. One extra entry that is 'safe' in case all the others fail
+    static constexpr int32 SequenceOfPlaneCams[7]{ MOVIECAMPLANE1, MOVIECAMPLANE2, MOVIECAM20, MOVIECAM22, MOVIECAMPLANE3, MOVIECAM23, MOVIECAM0 };
+
+    auto i = 0;
+    if (!bDidWeProcessAnyCinemaCam) {
+        OldMode = -1;
+        if (gbCineyCamMessageDisplayed > 0 && !m_bCinemaCamera) {
+            gbCineyCamMessageDisplayed--;
+            CHud::SetHelpMessage(TheText.Get("CINCAM"), true, false, false);
+        }
+        bSwitchedToObbeCam = true;
+    } else if (CameraObscuredByWaterLevel() || !IsItTimeForNewCamera(SequenceOfPlaneCams[OldMode], TimeForNext)) {
+        m_nModeObbeCamIsInForCar = OldMode;
+        bDidWeProcessAnyCinemaCam = true;
+        return;
+    }
+
+    OldMode = (OldMode + gCinematicModeSwitchDir) % 6;
+    if (OldMode < 0) {
+        OldMode = 5;
+    } else if (OldMode > 5) {
+        OldMode = 0;
+    }
+    if (TryToStartNewCamMode(SequenceOfPlaneCams[OldMode])) {
+        TimeForNext = CTimer::GetTimeInMS();
+        m_nModeObbeCamIsInForCar = OldMode;
+        bDidWeProcessAnyCinemaCam = true;
+        return;
+    }
+
+    while (i <= 6) {
+            OldMode = (OldMode + gCinematicModeSwitchDir) % 6;
+            if (OldMode < 0) {
+                OldMode = 5;
+            } else if (OldMode > 5) {
+                OldMode = 0;
+            }
+        ++i;
+        if (TryToStartNewCamMode(SequenceOfPlaneCams[OldMode])) {
+            if (i < 6) {
+        TimeForNext = CTimer::GetTimeInMS();
+            m_nModeObbeCamIsInForCar = OldMode;
+            bDidWeProcessAnyCinemaCam = true;
+            return;
+            }
+            break;
+        }
+    }
+
+    // Everything failed, drop back to the on-a-string camera
+    const auto alreadyOnString = m_aCams[m_nActiveCam].m_nMode == MODE_CAM_ON_A_STRING;
+    OldMode = 6;
+    if (!alreadyOnString) {
+        TryToStartNewCamMode(CAM_ON_A_STRING_LAST_RESORT);
+        TimeForNext = CTimer::GetTimeInMS();
+    }
+
+    m_nModeObbeCamIsInForCar = OldMode;
+    bDidWeProcessAnyCinemaCam = true;
 }
 
-//
+
+// 0x526950
 void CCamera::ProcessObbeCinemaCameraTrain() {
-    assert(0);
+    static int32 OldMode     = -1;   // 0x8CCEF0
+    static int32 TimeForNext = 0;    // 0xB70124
+    // 0x8CC858. One extra entry that is 'safe' in case all the others fail
+    static constexpr int32 SequenceOfTrainCams[7]{ MOVIECAM20, MOVIECAM22, MOVIECAM2, MOVIECAM21, MOVIECAM3, MOVIECAM0, MOVIECAM0 };
+
+    auto i = 0;
+    if (!bDidWeProcessAnyCinemaCam) {
+        OldMode = -1;
+        if (gbCineyCamMessageDisplayed > 0 && !m_bCinemaCamera) {
+            gbCineyCamMessageDisplayed--;
+            CHud::SetHelpMessage(TheText.Get("CINCAM"), true, false, false);
+        }
+        bSwitchedToObbeCam = true;
+    } else if (!IsItTimeForNewCamera(SequenceOfTrainCams[OldMode], TimeForNext)) {
+        m_nModeObbeCamIsInForCar = OldMode;
+        bDidWeProcessAnyCinemaCam = true;
+        return;
+    }
+
+    OldMode = (OldMode + gCinematicModeSwitchDir) % 6;
+    if (OldMode < 0) {
+        OldMode = 5;
+    } else if (OldMode > 5) {
+        OldMode = 0;
+    }
+    if (!TryToStartNewCamMode(SequenceOfTrainCams[OldMode])) {
+        while (i <= 6) {
+            OldMode = (OldMode + gCinematicModeSwitchDir) % 6;
+            if (OldMode < 0) {
+                OldMode = 5;
+            } else if (OldMode > 5) {
+                OldMode = 0;
+            }
+            ++i;
+            if (TryToStartNewCamMode(SequenceOfTrainCams[OldMode])) {
+                break;
+            }
+        }
+    }
+
+    TimeForNext = CTimer::GetTimeInMS();
+    if (i >= 6) { // Everything failed, fall back to the one mode that is always safe
+        OldMode = 6;
+        TryToStartNewCamMode(SequenceOfTrainCams[6]);
+    }
+
+    m_nModeObbeCamIsInForCar = OldMode;
+    bDidWeProcessAnyCinemaCam = true;
 }
+
 
 // 0x50B890
 void CCamera::ProcessWideScreenOn() {
@@ -1882,20 +2264,192 @@ void CCamera::ProcessVectorTrackLinear(float ratio) {
     }
 }
 
-//
+// 0x526E20
 void CCamera::ProcessObbeCinemaCameraBoat() {
-    assert(0);
+    static int32 OldMode     = -1;   // 0x8CCEFC
+    static int32 TimeForNext = 0;    // 0xB70130
+    // 0x8CC8B0. One extra entry that is 'safe' in case all the others fail
+    static constexpr int32 SequenceOfBoatCams[4]{ MOVIECAM20, MOVIECAM3, MOVIECAM18, MOVIECAM0 };
+
+    auto i = 0;
+    if (!bDidWeProcessAnyCinemaCam) {
+        OldMode = -1;
+        if (gbCineyCamMessageDisplayed > 0 && !m_bCinemaCamera) {
+            gbCineyCamMessageDisplayed--;
+            CHud::SetHelpMessage(TheText.Get("CINCAM"), true, false, false);
+        }
+        bSwitchedToObbeCam = true;
+    } else if (!IsItTimeForNewCamera(SequenceOfBoatCams[OldMode], TimeForNext)) {
+        m_nModeObbeCamIsInForCar = OldMode;
+        bDidWeProcessAnyCinemaCam = true;
+        return;
+    }
+
+    OldMode = (OldMode + gCinematicModeSwitchDir) % 3;
+    if (OldMode < 0) {
+        OldMode = 2;
+    } else if (OldMode > 2) {
+        OldMode = 0;
+    }
+    if (TryToStartNewCamMode(SequenceOfBoatCams[OldMode])) {
+        TimeForNext = CTimer::GetTimeInMS();
+        m_nModeObbeCamIsInForCar = OldMode;
+        bDidWeProcessAnyCinemaCam = true;
+        return;
+    }
+
+    while (i <= 3) {
+            OldMode = (OldMode + gCinematicModeSwitchDir) % 3;
+            if (OldMode < 0) {
+                OldMode = 2;
+            } else if (OldMode > 2) {
+                OldMode = 0;
+            }
+        ++i;
+        if (TryToStartNewCamMode(SequenceOfBoatCams[OldMode])) {
+            if (i < 3) {
+        TimeForNext = CTimer::GetTimeInMS();
+            m_nModeObbeCamIsInForCar = OldMode;
+            bDidWeProcessAnyCinemaCam = true;
+            return;
+            }
+            break;
+        }
+    }
+
+    // Everything failed, drop back to the on-a-string camera
+    const auto alreadyOnString = m_aCams[m_nActiveCam].m_nMode == MODE_CAM_ON_A_STRING;
+    OldMode = 3;
+    if (!alreadyOnString) {
+        TryToStartNewCamMode(CAM_ON_A_STRING_LAST_RESORT);
+        TimeForNext = CTimer::GetTimeInMS();
+    }
+
+    m_nModeObbeCamIsInForCar = OldMode;
+    bDidWeProcessAnyCinemaCam = true;
 }
 
-//
+
+// 0x5267C0
 void CCamera::ProcessObbeCinemaCameraCar() {
-    assert(0);
+    static int32 OldMode     = -1;   // 0x8CCEEC
+    static int32 TimeForNext = 0;    // 0xB70120
+    // 0x8CC828. One extra entry that is 'safe' in case all the others fail
+    static constexpr int32 SequenceOfCarCams[12]{ MOVIECAM20, MOVIECAM22, MOVIECAM7, MOVIECAM3, MOVIECAM22, MOVIECAM1,
+                                              MOVIECAM21, MOVIECAM8, MOVIECAM2, MOVIECAM22, MOVIECAM5, MOVIECAM6 };
+
+    auto i = 0;
+    if (!bDidWeProcessAnyCinemaCam) {
+        OldMode = -1;
+        if (gbCineyCamMessageDisplayed > 0 && !m_bCinemaCamera) {
+            gbCineyCamMessageDisplayed--;
+            CHud::SetHelpMessage(TheText.Get("CINCAM"), true, false, false);
+        }
+        bSwitchedToObbeCam = true;
+    } else if (!IsItTimeForNewCamera(SequenceOfCarCams[OldMode], TimeForNext)) {
+        m_nModeObbeCamIsInForCar = OldMode;
+        bDidWeProcessAnyCinemaCam = true;
+        return;
+    }
+
+    OldMode = (OldMode + gCinematicModeSwitchDir) % 11;
+    if (OldMode < 0) {
+        OldMode = 10;
+    } else if (OldMode > 10) {
+        OldMode = 0;
+    }
+    if (!TryToStartNewCamMode(SequenceOfCarCams[OldMode])) {
+        while (i <= 11) {
+            OldMode = (OldMode + gCinematicModeSwitchDir) % 11;
+            if (OldMode < 0) {
+                OldMode = 10;
+            } else if (OldMode > 10) {
+                OldMode = 0;
+            }
+            ++i;
+            if (TryToStartNewCamMode(SequenceOfCarCams[OldMode])) {
+                break;
+            }
+        }
+    }
+
+    TimeForNext = CTimer::GetTimeInMS();
+    if (i >= 11) { // Everything failed, fall back to the one mode that is always safe
+        OldMode = 11;
+        TryToStartNewCamMode(SequenceOfCarCams[11]);
+    }
+
+    m_nModeObbeCamIsInForCar = OldMode;
+    bDidWeProcessAnyCinemaCam = true;
 }
 
-//
+
+// 0x526AE0
 void CCamera::ProcessObbeCinemaCameraHeli() {
-    assert(0);
+    static int32 OldMode     = -1;   // 0x8CCEF4
+    static int32 TimeForNext = 0;    // 0xB70128
+    // 0x8CC874. One extra entry that is 'safe' in case all the others fail
+    static constexpr int32 SequenceOfHeliCams[8]{ MOVIECAMPLANE1, MOVIECAMPLANE2, MOVIECAM23, MOVIECAM20,
+                                               MOVIECAM22, MOVIECAMPLANE3, MOVIECAM23, MOVIECAM0 };
+
+    auto i = 0;
+    if (!bDidWeProcessAnyCinemaCam) {
+        OldMode = -1;
+        if (gbCineyCamMessageDisplayed > 0 && !m_bCinemaCamera) {
+            gbCineyCamMessageDisplayed--;
+            CHud::SetHelpMessage(TheText.Get("CINCAM"), true, false, false);
+        }
+        bSwitchedToObbeCam = true;
+    } else if (CameraObscuredByWaterLevel() || !IsItTimeForNewCamera(SequenceOfHeliCams[OldMode], TimeForNext)) {
+        m_nModeObbeCamIsInForCar = OldMode;
+        bDidWeProcessAnyCinemaCam = true;
+        return;
+    }
+
+    OldMode = (OldMode + gCinematicModeSwitchDir) % 7;
+    if (OldMode < 0) {
+        OldMode = 6;
+    } else if (OldMode > 6) {
+        OldMode = 0;
+    }
+    if (TryToStartNewCamMode(SequenceOfHeliCams[OldMode])) {
+        TimeForNext = CTimer::GetTimeInMS();
+        m_nModeObbeCamIsInForCar = OldMode;
+        bDidWeProcessAnyCinemaCam = true;
+        return;
+    }
+
+    while (i <= 7) {
+            OldMode = (OldMode + gCinematicModeSwitchDir) % 7;
+            if (OldMode < 0) {
+                OldMode = 6;
+            } else if (OldMode > 6) {
+                OldMode = 0;
+            }
+        ++i;
+        if (TryToStartNewCamMode(SequenceOfHeliCams[OldMode])) {
+            if (i < 7) {
+        TimeForNext = CTimer::GetTimeInMS();
+            m_nModeObbeCamIsInForCar = OldMode;
+            bDidWeProcessAnyCinemaCam = true;
+            return;
+            }
+            break;
+        }
+    }
+
+    // Everything failed, drop back to the on-a-string camera
+    const auto alreadyOnString = m_aCams[m_nActiveCam].m_nMode == MODE_CAM_ON_A_STRING;
+    OldMode = 7;
+    if (!alreadyOnString) {
+        TryToStartNewCamMode(CAM_ON_A_STRING_LAST_RESORT);
+        TimeForNext = CTimer::GetTimeInMS();
+    }
+
+    m_nModeObbeCamIsInForCar = OldMode;
+    bDidWeProcessAnyCinemaCam = true;
 }
+
 
 // 0x50D430
 void CCamera::ProcessVectorMoveLinear(float ratio) {
@@ -2028,7 +2582,357 @@ void CCamera::ProcessScriptedCommands() {
 void CCamera::Process() {
     ZoneScoped;
 
-    plugin::CallMethod<0x52B730, CCamera*>(this);
+    constexpr auto NORMAL_NEAR_CLIP              = 0.3f;  // 0x858C24
+    constexpr auto NEAR_CLIP_PED_VIEW_OBSCURED   = 0.05f;
+    constexpr auto BETA_DIFF_FOR_CUT_OFF_DOPPLER = 0.3f;  // 0x858C24
+    constexpr auto ABOVEBELOWWATER               = 0.6f;  // 0x858CC8
+    constexpr auto DRUNK_ROTATION_STEP           = 5.0f;  // 0x858C80
+    constexpr auto SHAKE_FORCE_DECAY             = 0.00028f; // 0x863280
+
+    //! So the player cannot run into the camera
+    static float MinDistCamAwayFromPlayWhenInter = 1.3f;  // 0x8CCF20
+    static float DrunkRotation                   = 0.0f;  // 0xB6EC30
+    static bool  bBlurSet                        = false; // 0xB70142
+    static bool  WasPreviouslyInterSyhonFollowPed = false; // 0xB70143
+
+    ResetMadeInvisibleObjects();
+
+    m_bJust_Switched = false;
+    m_vecRealPreviousCameraPosition = GetPosition();
+
+    // The train cam takes control of all the modes as if it were a script camera, but the target entity is the player
+    if (m_bLookingAtPlayer || m_bTargetJustBeenOnTrain || m_nWhoIsInControlOfTheCamera == 2) {
+        UpdateTargetEntity();
+    }
+
+    if (!m_pTargetEntity) {
+        m_pTargetEntity = FindPlayerPed();
+        m_pTargetEntity->RegisterReference(&m_pTargetEntity);
+    }
+
+    auto& activeCam = m_aCams[m_nActiveCam];
+    auto& otherCam  = m_aCams[(m_nActiveCam + 1) % 2];
+    for (auto* cam : { &activeCam, &otherCam }) {
+        if (!cam->m_pCamTargetEntity) {
+            cam->m_pCamTargetEntity = m_pTargetEntity;
+            cam->m_pCamTargetEntity->RegisterReference(&cam->m_pCamTargetEntity);
+        }
+    }
+
+    CamControl();
+    ProcessScriptedCommands();
+
+    if (m_bFading) {
+        ProcessFade();
+    }
+    if (m_bMusicFading) {
+        ProcessMusicFade();
+    }
+    if (m_bWideScreenOn) {
+        ProcessWideScreenOn();
+    }
+
+    // First person uses a small clipping plane, so reset it for interpolation to work
+    RwCameraSetNearClipPlane(Scene.m_pRwCamera, NORMAL_NEAR_CLIP);
+
+    const auto FrontBeta = [](const CVector& front) {
+        return front.x == 0.0f && front.y == 0.0f ? 0.0f : CGeneral::GetATanOfXY(front.x, front.y);
+    };
+    const auto BetaBefore = FrontBeta(activeCam.m_vecFront);
+    activeCam.Process();
+    const auto BetaAfter = FrontBeta(activeCam.m_vecFront);
+
+    if (m_bTransitionState && CTimer::GetTimeInMS() > m_nTimeTransitionStart + m_nTransitionDuration) {
+        m_bTransitionState         = false;
+        m_bDoingSpecialInterp      = false;
+        m_bWaitForInterpolToFinish = false;
+    }
+
+    if (m_bUseNearClipScript) {
+        RwCameraSetNearClipPlane(Scene.m_pRwCamera, m_fNearClipScript);
+    }
+
+    auto BetaDiff = BetaAfter - BetaBefore;
+    while (BetaDiff >= PI) {
+        BetaDiff -= TWO_PI;
+    }
+    while (BetaDiff < -PI) {
+        BetaDiff += TWO_PI;
+    }
+    if (std::abs(BetaDiff) > BETA_DIFF_FOR_CUT_OFF_DOPPLER) { // Sound thingy for Raymond
+        m_bJust_Switched = true;
+    }
+
+    // Don't interpolate if we're looking at a car and have just gone into look behind etc.
+    const auto WasDoingACarLookThingy = activeCam.m_nDirectionWasLooking != LOOKING_FORWARD
+        && m_pTargetEntity->GetIsTypeVehicle();
+
+    const auto now = (float)CTimer::GetTimeInMS();
+    if (now <= m_fEndShakeTime) {
+        ProcessShake((now - m_fStartShakeTime) / (m_fEndShakeTime - m_fStartShakeTime));
+    }
+
+    CVector FinalSource{}, FinalFront{}, FinalUp{}, TempTargetWhenInterPol{};
+    auto    FinalFOV = 0.0f;
+
+    if (!m_bTransitionState || WasDoingACarLookThingy) {
+        FinalSource = activeCam.m_vecSource;
+        FinalUp     = activeCam.m_vecUp;
+        if (m_bMoveCamToAvoidGeom) {
+            FinalSource += m_vecClearGeometryVec;
+            FinalFront = (activeCam.m_vecTargetCoorsForFudgeInter - FinalSource).Normalized();
+            FinalUp    = CrossProduct(CrossProduct(FinalFront, FinalUp).Normalized(), FinalFront).Normalized();
+        } else {
+            FinalFront = activeCam.m_vecFront;
+            FinalUp    = activeCam.m_vecUp;
+        }
+        FinalFOV = activeCam.m_fFOV;
+        WasPreviouslyInterSyhonFollowPed = false;
+    } else { // We're doing a transition
+        const auto TimeInInterpolation = std::min(CTimer::GetTimeInMS() - m_nTimeTransitionStart, m_nTransitionDuration);
+        const auto InterValue          = (float)TimeInInterpolation / (float)m_nTransitionDuration;
+
+        // Rather than a linear value for the interpolation we use a cosine, so it accelerates and decelerates smoothly
+        const auto Smooth = [](float t) { return 0.5f - 0.5f * std::cos(t * PI); };
+
+        // Work out the target coords first, and quickly, so the player can't run off the screen
+        const auto TempInterValue = std::clamp((float)TimeInInterpolation / (float)m_nTransitionDurationTargetCoors, 0.0f, 1.0f);
+
+        if (TempInterValue <= m_fFractionInterToStopMovingTarget) {
+            const auto f = Smooth(m_fFractionInterToStopMovingTarget == 0.0f
+                ? 0.0f
+                : (m_fFractionInterToStopMovingTarget - TempInterValue) / m_fFractionInterToStopMovingTarget);
+            m_vecTargetWhenInterPol = m_vecStartingTargetForInterPol + m_vecTargetSpeedAtStartInter * f;
+            TempTargetWhenInterPol  = m_vecTargetWhenInterPol;
+        } else if (TempInterValue > m_fFractionInterToStopMovingTarget) {
+            // Camera now stopped, want to catch up to where it should be
+            const auto f = Smooth(m_fFractionInterToStopCatchUpTarget == 0.0f
+                ? 1.0f
+                : (TempInterValue - m_fFractionInterToStopMovingTarget) / m_fFractionInterToStopCatchUpTarget);
+            if (m_fFractionInterToStopMovingTarget == 0.0f) { // Make sure we still have a valid value
+                m_vecTargetWhenInterPol = m_vecStartingTargetForInterPol;
+            }
+            TempTargetWhenInterPol = m_vecTargetWhenInterPol
+                + (activeCam.m_vecTargetCoorsForFudgeInter - m_vecTargetWhenInterPol) * f;
+        }
+
+        // Pull the camera back if the player got too close to it
+        const auto KeepPlayerAway = [&](CVector& source) {
+            if (!m_bLookingAtPlayer) {
+                return;
+            }
+            const auto diff = source - TempTargetWhenInterPol;
+            if (diff.Magnitude2D() < MinDistCamAwayFromPlayWhenInter) {
+                const auto angle = CGeneral::GetATanOfXY(diff.x, diff.y);
+                source.x = TempTargetWhenInterPol.x + MinDistCamAwayFromPlayWhenInter * std::cos(angle);
+                source.y = TempTargetWhenInterPol.y + MinDistCamAwayFromPlayWhenInter * std::sin(angle);
+            }
+        };
+
+        // Re-orthogonalise `FinalUp` against `FinalFront`
+        const auto Reorthogonalise = [&] {
+            FinalFront.Normalise();
+            if (activeCam.m_nMode != MODE_TOPDOWN && activeCam.m_nMode != MODE_TOP_DOWN_PED) {
+                FinalUp.Normalise();
+                FinalUp = CrossProduct(CrossProduct(FinalFront, FinalUp).Normalized(), FinalFront).Normalized();
+            } else {
+                FinalUp = CrossProduct(FinalFront, CVector{ -1.0f, 0.0f, 0.0f }).Normalized();
+            }
+        };
+
+        if (InterValue <= m_fFractionInterToStopMoving) {
+            // If the point is moving we want to slow it to a stop
+            const auto f = Smooth(m_fFractionInterToStopMoving == 0.0f
+                ? 0.0f
+                : (m_fFractionInterToStopMoving - InterValue) / m_fFractionInterToStopMoving);
+
+            m_vecSourceWhenInterPol = m_vecStartingSourceForInterPol + m_vecSourceSpeedAtStartInter * f;
+            KeepPlayerAway(m_vecSourceWhenInterPol);
+
+            m_vecUpWhenInterPol = m_vecStartingUpForInterPol + m_vecUpSpeedAtStartInter * f;
+            m_fFOVWhenInterPol  = m_fStartingFOVForInterPol + m_fFOVSpeedAtStartInter * f;
+
+            FinalSource = m_vecSourceWhenInterPol;
+            FinalFront  = TempTargetWhenInterPol - FinalSource;
+            StoreValuesDuringInterPol(&FinalSource, &m_vecTargetWhenInterPol, &m_vecUpWhenInterPol, &m_fFOVWhenInterPol);
+            FinalFront.Normalise();
+
+            // Hack to get rid of the roll that interpolation introduces
+            FinalUp = m_bLookingAtPlayer ? CVector{ 0.0f, 0.0f, 1.0f } : m_vecUpWhenInterPol;
+            FinalUp.Normalise();
+
+            Reorthogonalise();
+            FinalFOV = m_fFOVWhenInterPol;
+        } else if (InterValue > m_fFractionInterToStopMoving && InterValue <= 1.0f) {
+            // Camera now stopped, want to catch up to where it should be
+            const auto f = Smooth(m_fFractionInterToStopCatchUp == 0.0f
+                ? 1.0f
+                : (InterValue - m_fFractionInterToStopMoving) / m_fFractionInterToStopCatchUp);
+
+            FinalSource = m_vecSourceWhenInterPol + (activeCam.m_vecSource - m_vecSourceWhenInterPol) * f;
+            KeepPlayerAway(FinalSource);
+
+            FinalFOV = m_fFOVWhenInterPol + (activeCam.m_fFOV - m_fFOVWhenInterPol) * f;
+            FinalUp  = m_vecUpWhenInterPol + (activeCam.m_vecUp - m_vecUpWhenInterPol) * f;
+
+            FinalFront = TempTargetWhenInterPol - FinalSource;
+            StoreValuesDuringInterPol(&FinalSource, &TempTargetWhenInterPol, &FinalUp, &FinalFOV);
+            FinalFront.Normalise();
+
+            if (m_bLookingAtPlayer) {
+                FinalUp = CVector{ 0.0f, 0.0f, 1.0f };
+            }
+
+            Reorthogonalise();
+            FinalFOV = m_fFOVWhenInterPol;
+        }
+
+        const auto forBetaAlpha = FinalSource - TempTargetWhenInterPol;
+        activeCam.KeepTrackOfTheSpeed(
+            FinalSource,
+            TempTargetWhenInterPol,
+            FinalUp,
+            CGeneral::GetATanOfXY(forBetaAlpha.Magnitude2D(), forBetaAlpha.z),
+            CGeneral::GetATanOfXY(forBetaAlpha.x, forBetaAlpha.y),
+            FinalFOV
+        );
+    }
+
+    // Check that we're not in an obscured position
+    if (m_bTransitionState && !m_bLookingAtVector && m_bLookingAtPlayer
+        && !CCullZones::CamStairsForPlayer() && !m_bPlayerIsInGarage
+    ) {
+        CColPoint colPoint{};
+        CEntity*  hitEntity = nullptr;
+        if (CWorld::ProcessLineOfSight(m_pTargetEntity->GetPosition(), FinalSource, colPoint, hitEntity,
+                                       true, false, true, false, false, true, true, false)) {
+            FinalSource = colPoint.m_vecPoint;
+            // For occasions when the spaz user is right up against a wall
+            RwCameraSetNearClipPlane(Scene.m_pRwCamera, NEAR_CLIP_PED_VIEW_OBSCURED);
+        }
+    }
+
+    if (CMBlur::Drunkness > 0.0f) {
+        const auto angle = DegreesToRadians(DrunkRotation);
+        const auto c = std::cos(angle), s = std::sin(angle);
+
+        FinalSource.x += c * (CMBlur::Drunkness * -0.020f);
+        FinalSource.z += s * (CMBlur::Drunkness * -0.020f);
+
+        FinalUp.Normalise();
+        FinalUp.x += c * (CMBlur::Drunkness * 0.05f);
+        FinalUp.y += s * (CMBlur::Drunkness * 0.05f);
+        FinalUp.Normalise();
+
+        FinalFront.Normalise();
+        FinalFront.x += c * (CMBlur::Drunkness * -0.1f);
+        FinalFront.y += s * (CMBlur::Drunkness * -0.1f);
+        FinalFront.Normalise();
+
+        // Re-orthogonalise the camera matrix to avoid glitches
+        FinalUp = CrossProduct(CrossProduct(FinalFront, FinalUp).Normalized(), FinalFront).Normalized();
+
+        DrunkRotation += DRUNK_ROTATION_STEP;
+    }
+
+    m_mCameraMatrix.GetRight()   = CrossProduct(FinalUp, FinalFront);
+    m_mCameraMatrix.GetForward() = FinalFront;
+    m_mCameraMatrix.GetUp()      = FinalUp;
+    m_mCameraMatrix.GetPosition() = FinalSource;
+
+    // Camera shaking
+    auto CurrentShakeForce = m_fCamShakeForce - (float)(CTimer::GetTimeInMS() - m_nCamShakeStart) * SHAKE_FORCE_DECAY;
+    CurrentShakeForce = std::clamp(CurrentShakeForce, 0.0f, 2.0f);
+
+    const auto blurDelta = CurrentShakeForce;
+    const auto random    = CGeneral::GetRandomNumber();
+    CurrentShakeForce *= 0.1f;
+
+    m_mCameraMatrix.GetPosition().x += (float)((random & 0x000F) - 7) * CurrentShakeForce;
+    m_mCameraMatrix.GetPosition().y += (float)(((random & 0x00F0) >> 4) - 7) * CurrentShakeForce;
+    m_mCameraMatrix.GetPosition().z += (float)(((random & 0x0F00) >> 8) - 7) * CurrentShakeForce;
+
+    // Motion-blurred camera shaking
+    if (CurrentShakeForce > 0.0f && m_nBlurType != eMotionBlurType::SNIPER) {
+        SetMotionBlurAlpha(std::min(25 + (int32)(blurDelta * 255.0f), 150));
+    }
+
+    // Big fudge: if the player is in a car in 1st person and the car is upside down, throw in some
+    // motion blur to disguise the fact that the bitmap in the background is fucked up
+    if (activeCam.m_nMode == MODE_1STPERSON && FindPlayerVehicle() && FindPlayerVehicle()->GetMatrix().GetUp().z < 0.2f) {
+        SetMotionBlur(255, 255, 255, 240, eMotionBlurType::SNIPER);
+        bBlurSet = true;
+    } else if (bBlurSet) {
+        bBlurSet = false;
+    }
+
+    CDraw::SetFOV(FinalFOV); // `CalculateDerivedValues` needs it for the frustum planes
+    CalculateDerivedValues(false, true);
+
+    CopyCameraMatrixToRWCam(false);
+    m_vecGameCamPos = m_mCameraMatrix.GetPosition();
+
+    UpdateSoundDistances(); // Works out some sound values the sound boys are interested in
+
+    // Takes the FOV into account: a smaller aperture means bigger LOD multipliers, 70 is the default angle
+    m_fLODDistMultiplier = CCutsceneMgr::ms_running && !CCutsceneMgr::ms_useLodMultiplier
+        ? 1.0f
+        : 70.0f / CDraw::GetFOV();
+    m_fGenerationDistMultiplier = m_fLODDistMultiplier;
+    m_fLODDistMultiplier *= CRenderer::ms_lodDistScale;
+
+    RwCameraSetFarClipPlane(Scene.m_pRwCamera, (float)(int32)(RwCameraGetFarClipPlane(Scene.m_pRwCamera) * 100.0f) / 100.0f);
+
+    CDraw::SetNearClipZ(RwCameraGetNearClipPlane(m_pRwCamera));
+    CDraw::SetFarClipZ(RwCameraGetFarClipPlane(m_pRwCamera));
+
+    // Speed thing for Raymond
+    if (m_bJustInitialized || m_bJust_Switched) {
+        m_vecPreviousCameraPosition = m_mCameraMatrix.GetPosition();
+        m_bJustInitialized = false; // So the speed thingy doesn't go mad right at the start
+    }
+
+    m_fCameraSpeedSoFar += (m_mCameraMatrix.GetPosition() - m_vecPreviousCameraPosition).Magnitude();
+    if (++m_nNumFramesSoFar == m_nWorkOutSpeedThisNumFrames) {
+        m_fCameraAverageSpeed = m_fCameraSpeedSoFar / (float)m_nWorkOutSpeedThisNumFrames;
+        m_fCameraSpeedSoFar   = 0.0f;
+        m_nNumFramesSoFar     = 0;
+    }
+    m_vecPreviousCameraPosition = m_mCameraMatrix.GetPosition();
+
+    // If we did any look left/right/behind, swap things back. This is a right pain in the fanny,
+    // done so that the Zelda player control will work.
+    const auto OrientPlusPi = m_fOrientation + PI;
+    if (activeCam.m_nDirectionWasLooking != LOOKING_FORWARD && activeCam.m_nMode != MODE_TOP_DOWN_PED) {
+        activeCam.m_vecSource = activeCam.m_vecSourceBeforeLookBehind;
+        m_fOrientation = OrientPlusPi;
+    }
+
+    if (m_bTransitionState && otherCam.m_pCamTargetEntity && m_pTargetEntity
+        && m_pTargetEntity->GetIsTypePed() && !otherCam.m_pCamTargetEntity->GetIsTypeVehicle()
+        && activeCam.m_nMode != MODE_TOP_DOWN_PED
+        && otherCam.m_nDirectionWasLooking != LOOKING_FORWARD
+    ) {
+        otherCam.m_vecSource = m_aCams[m_nActiveCam % 2].m_vecSourceBeforeLookBehind;
+        m_fOrientation = OrientPlusPi;
+    }
+
+    m_bCameraJustRestored = false;
+    m_bMoveCamToAvoidGeom = false; // Gets reset every frame; set again if we need to move the cam
+
+    // Deal with the camera being above or below the water level
+    const auto TestPos = GetPosition() + 0.4f * GetForward();
+    float LocalWaterHeight;
+    if (!CWaterLevel::GetWaterLevel(TestPos.x, TestPos.y, TestPos.z, LocalWaterHeight, true, nullptr)
+        || LocalWaterHeight < TestPos.z - ABOVEBELOWWATER
+    ) {
+        CWeather::UnderWaterness = 0.0f;
+    } else {
+        CWeather::WaterDepth = std::max(0.0f, LocalWaterHeight - TestPos.z);
+        CWeather::UnderWaterness = LocalWaterHeight > TestPos.z + ABOVEBELOWWATER
+            ? 1.0f // Fully submerged
+            : 1.0f - (TestPos.z - (LocalWaterHeight - ABOVEBELOWWATER)) / (ABOVEBELOWWATER + ABOVEBELOWWATER);
+    }
 }
 
 // 0x514860
@@ -2263,15 +3167,17 @@ void CCamera::ImproveNearClip(CVehicle* vehicle, CPed* ped, CVector* source, CVe
 
             auto nearest = 1000000.0f;
             // Fixed at 12: the original unrolls 2 x 6 spheres and never looks at `m_nNumSpheres`
-            const auto* const spheres = mi->m_pColModel->m_pColData->m_pSpheres;
-            for (auto i = 0; i < 12; i++) {
-                const auto& sphere = spheres[i];
+            if (mi->m_pColModel && mi->m_pColModel->m_pColData && mi->m_pColModel->m_pColData->m_pSpheres) {
+                const auto* const spheres = mi->m_pColModel->m_pColData->m_pSpheres;
+                for (auto i = 0; i < 12; i++) {
+                    const auto& sphere = spheres[i];
 
-                auto d = DotProduct(sphere.m_vecCenter, cam.m_vecFront) - dotFrontSource - sphere.m_fRadius;
-                if (sphere.m_Surface.m_nPiece == ePedPieceTypes::PED_PIECE_HEAD) {
-                    d -= 1.0f * sphere.m_fRadius;
+                    auto d = DotProduct(sphere.m_vecCenter, cam.m_vecFront) - dotFrontSource - sphere.m_fRadius;
+                    if (sphere.m_Surface.m_nPiece == ePedPieceTypes::PED_PIECE_HEAD) {
+                        d -= 1.0f * sphere.m_fRadius;
+                    }
+                    nearest = std::min(nearest, d);
                 }
-                nearest = std::min(nearest, d);
             }
 
             auto nearClip = std::clamp(std::min(nearest, radiusTerm), 0.02f, 0.3f);
@@ -2320,7 +3226,391 @@ bool CCamera::ConeCastCollisionResolve(const CVector& pos, const CVector& lookAt
 
 // 0x51E560
 bool CCamera::TryToStartNewCamMode(int32 camSequence) {
-    return plugin::CallMethodAndReturn<bool, 0x51E560, CCamera*, int32>(this, camSequence);
+    constexpr auto DISTCAM1 = 20.0f, DISTCAM1_RELEASE = 40.0f, DISTCAM1_RELEASE_TOO_CLOSE = 4.5f;
+    constexpr auto DISTCAM2 = 16.0f, DISTCAM2_RELEASE = 29.0f, DISTCAM2_RELEASE_TOO_CLOSE = 2.0f;
+    constexpr auto DISTCAM3 = 30.0f;
+    constexpr auto DISTCAM5 = 30.0f;
+    constexpr auto HELI_CAM_DIST_AWAY_ONE   = 34.0f, HELI_CAM_MAX_DIST_AWAY_ONE   = 44.0f, HELI_CAM_DIST_TOO_CLOSE_ONE   = 3.0f;
+    constexpr auto HELI_CAM_DIST_AWAY_TWO   = 30.0f, HELI_CAM_MAX_DIST_AWAY_TWO   = 50.0f, HELI_CAM_DIST_TOO_CLOSE_TWO   = 3.0f;
+    constexpr auto HELI_CAM_DIST_AWAY_THREE = 25.0f, HELI_CAM_MAX_DIST_AWAY_THREE = 50.0f, HELI_CAM_DIST_TOO_CLOSE_THREE = 2.0f;
+    constexpr auto HELI_CAM_DIST_AWAY_FOUR  = 23.0f, HELI_CAM_MAX_DIST_AWAY_FOUR  = 57.0f, HELI_CAM_DIST_TOO_CLOSE_FOUR  = 1.0f;
+    constexpr auto HELI_CAM_MAX_DIST_AWAY_FIVE = 36.0f, HELI_CAM_DIST_TOO_CLOSE_FIVE = 2.0f;
+    constexpr auto NORMAL_NEAR_CLIP = 0.3f;
+
+    static auto& fHeliMinHeightAboveWater     = StaticRef<float>(0x8CC8C0); // 1.0
+    static auto& fSeaplaneMinHeightAboveWater = StaticRef<float>(0x8CC8C4); // -2.0
+
+    //! Seaplane is classed as a boat, but the camera treats it like a car
+    const auto PlayerInBoat = [&] {
+        const auto* veh = FindPlayerVehicle();
+        return veh && veh->m_nVehicleType == VEHICLE_TYPE_BOAT && m_pTargetEntity->m_nModelIndex != MODEL_SKIMMER;
+    };
+    const auto LineOfSightClear = [](const CVector& from, const CVector& to) {
+        return CWorld::GetIsLineOfSightClear(from, to, true, false, false, false, false, false, false);
+    };
+    const auto FlatSpeedDir = [] {
+        auto dir = FindPlayerSpeed();
+        dir.z = 0.0f;
+        dir.Normalise();
+        return dir;
+    };
+    //! Keep the camera clear of the water, further up for a seaplane
+    const auto ClampAboveWater = [&](CVector& coors, float surfaceZ) {
+        const auto* veh = FindPlayerVehicle();
+        const auto  minHeight = veh && veh->m_nVehicleType == VEHICLE_TYPE_BOAT
+            ? fSeaplaneMinHeightAboveWater
+            : fHeliMinHeightAboveWater;
+        coors.z = std::max(coors.z, surfaceZ + minHeight);
+    };
+    const auto StartFixedCam = [&](const CVector& coors) {
+        SetCamPositionForFixedMode(coors, CVector{});
+        TakeControl(FindPlayerEntity(), MODE_FIXED, eSwitchType::JUMPCUT, 2);
+        return !CameraObscuredByWaterLevel();
+    };
+    const auto StartDWCam = [&](bool ok, eCamMode mode) {
+        if (!ok) {
+            return false;
+        }
+        TakeControl(FindPlayerEntity(), mode, eSwitchType::JUMPCUT, 2);
+        return !CameraObscuredByWaterLevel();
+    };
+
+    // A wheel cam on `veh` is only worth starting if the camera's spot is actually clear
+    const auto TryWheelCam = [&](CVehicle* veh) {
+        auto camPos = veh->GetMatrix().TransformVector(CVector{ -1.4f, -2.3f, 0.3f }) + veh->GetPosition();
+        if (!LineOfSightClear(veh->GetPosition(), camPos)) {
+            return false;
+        }
+        TakeControl(veh, MODE_WHEELCAM, eSwitchType::JUMPCUT, 2);
+        return true;
+    };
+
+    //! Cop car behind us, roughly pointing the same way
+    const auto FindChasingCop = [&](bool requirePhysics) -> CVehicle* {
+        for (auto& veh : GetVehiclePool()->GetAllValid()) {
+            if (!veh.IsAutomobile() || &veh == FindPlayerVehicle() || !veh.vehicleFlags.bIsLawEnforcer) {
+                continue;
+            }
+            if (requirePhysics && veh.GetStatus() != STATUS_PHYSICS) {
+                continue;
+            }
+            const auto diff = veh.GetPosition() - FindPlayerCoors();
+            if ((FindPlayerCoors() - veh.GetPosition()).Magnitude() >= 30.0f) {
+                continue;
+            }
+            const auto& playerFwd = FindPlayerVehicle()->GetMatrix().GetForward();
+            if (diff.x * playerFwd.x + diff.y * playerFwd.y >= 0.0f) {
+                continue;
+            }
+            const auto& copFwd = veh.GetMatrix().GetForward();
+            if (copFwd.x * playerFwd.x + copFwd.y * playerFwd.y > 0.8f) {
+                return &veh;
+            }
+        }
+        return nullptr;
+    };
+
+    switch (camSequence) {
+    case MOVIECAM0: { // Wheel cam on the player
+        auto* const veh = FindPlayerVehicle();
+        if (!veh || PlayerInBoat() || veh->m_nModelIndex == MODEL_RHINO) {
+            return false;
+        }
+        return TryWheelCam(veh);
+    }
+    case MOVIECAM1: { // Fixed cam just above the road, quite far away
+        auto coors = FindPlayerCoors();
+        const auto dir = FlatSpeedDir();
+        coors += dir * DISTCAM1 + CVector{ dir.y * 3.0f, -dir.x * 3.0f, 0.0f };
+
+        if (PlayerInBoat()) {
+            return false;
+        }
+
+        bool found;
+        if (auto z = CWorld::FindGroundZFor3DCoord({ coors.x, coors.y, coors.z + 5.0f }, &found); found) {
+            coors.z = z + 1.5f;
+        } else if (z = CWorld::FindRoofZFor3DCoord(coors.x, coors.y, coors.z - 5.0f, &found); found) {
+            coors.z = z + 1.5f;
+        }
+
+        if (!LineOfSightClear(FindPlayerCoors(), coors)) {
+            return false;
+        }
+
+        auto diff = FindPlayerCoors() - coors;
+        diff.z = 0.0f;
+        if (diff.Magnitude() > DISTCAM1_RELEASE && DotProduct(FindPlayerSpeed(), diff) > 0.0f) {
+            return false;
+        }
+        if (diff.Magnitude() < DISTCAM1_RELEASE_TOO_CLOSE) {
+            return false;
+        }
+        return StartFixedCam(coors);
+    }
+    case MOVIECAM2: { // Fixed right in front, just above the road
+        if (PlayerInBoat()) {
+            return false;
+        }
+
+        auto coors = FindPlayerCoors();
+        const auto dir = FlatSpeedDir();
+        coors += dir * DISTCAM2 + CVector{ dir.y * 2.5f, -dir.x * 2.5f, 0.0f };
+
+        bool found;
+        if (auto z = CWorld::FindGroundZFor3DCoord({ coors.x, coors.y, coors.z + 5.0f }, &found); found) {
+            coors.z = z + 0.5f;
+        } else if (z = CWorld::FindRoofZFor3DCoord(coors.x, coors.y, coors.z - 5.0f, &found); found) {
+            coors.z = z + 0.5f;
+        }
+
+        if (!LineOfSightClear(FindPlayerCoors(), coors)) {
+            return false;
+        }
+
+        auto diff = FindPlayerCoors() - coors;
+        diff.z = 0.0f;
+        if (diff.Magnitude() > DISTCAM2_RELEASE && DotProduct(FindPlayerSpeed(), diff) > 0.0f) {
+            return false;
+        }
+        if (diff.Magnitude() < DISTCAM2_RELEASE_TOO_CLOSE) {
+            return false;
+        }
+
+        SetCamPositionForFixedMode(coors, CVector{});
+        TakeControl(FindPlayerEntity(), MODE_FIXED, eSwitchType::JUMPCUT, 2);
+        RwCameraSetNearClipPlane(Scene.m_pRwCamera, NORMAL_NEAR_CLIP * 0.5f);
+        return !CameraObscuredByWaterLevel();
+    }
+    case MOVIECAM3: { // Fixed cam quite high up
+        auto coors = FindPlayerCoors();
+        const auto dir = FlatSpeedDir();
+        coors += dir * DISTCAM3 + CVector{ dir.y * 8.0f, -dir.x * 8.0f, 0.0f };
+        coors.z += 16.0f;
+
+        if (!LineOfSightClear(FindPlayerCoors(), coors)) {
+            return false;
+        }
+
+        SetCamPositionForFixedMode(coors, CVector{});
+        TakeControl(FindPlayerEntity(), MODE_FIXED, eSwitchType::JUMPCUT, 2);
+        if (CameraObscuredByWaterLevel()) {
+            return false;
+        }
+        RwCameraSetNearClipPlane(Scene.m_pRwCamera, NORMAL_NEAR_CLIP * 0.5f);
+        return true;
+    }
+    case MOVIECAM5: { // Fixed cam just above the roofs of cars
+        auto coors = FindPlayerCoors();
+        const auto dir = FlatSpeedDir();
+        coors += dir * DISTCAM5 + CVector{ -dir.y * 6.0f, dir.x * 6.0f, 0.0f };
+
+        bool found;
+        if (auto z = CWorld::FindGroundZFor3DCoord({ coors.x, coors.y, coors.z + 5.0f }, &found); found) {
+            coors.z = z + 3.5f;
+        } else if (z = CWorld::FindRoofZFor3DCoord(coors.x, coors.y, coors.z - 5.0f, &found); found) {
+            coors.z = z + 3.5f;
+        }
+
+        if (!LineOfSightClear(FindPlayerCoors(), coors)) {
+            return false;
+        }
+        return StartFixedCam(coors);
+    }
+    case MOVIECAM6: // Standard camera
+        TakeControl(FindPlayerEntity(), MODE_1STPERSON, eSwitchType::JUMPCUT, 2);
+        return true;
+    case MOVIECAM7: { // Chase cam - try to find a copper chasing us
+        if (FindPlayerPed()->GetWantedLevel() < eWantedLevel::WANTED_LEVEL_1 || !FindPlayerVehicle() || PlayerInBoat()) {
+            return false;
+        }
+        auto* const cop = FindChasingCop(true);
+        if (!cop) {
+            return false;
+        }
+        TakeControl(cop, MODE_CAM_ON_A_STRING, eSwitchType::JUMPCUT, 2);
+        return !CameraObscuredByWaterLevel();
+    }
+    case MOVIECAM8: { // Wheel cam on a copper chasing us
+        if (FindPlayerPed()->GetWantedLevel() < eWantedLevel::WANTED_LEVEL_1 || !FindPlayerVehicle() || PlayerInBoat()) {
+            return false;
+        }
+        auto* const cop = FindChasingCop(false);
+        if (!cop) {
+            return false;
+        }
+        return TryWheelCam(cop) && !CameraObscuredByWaterLevel();
+    }
+    case MOVIECAM15: { // Straight in front of the player
+        if (!FindPlayerVehicle()) {
+            return false;
+        }
+        auto coors = FindPlayerCoors();
+        coors += FlatSpeedDir() * HELI_CAM_DIST_AWAY_ONE;
+        coors.z = FindPlayerCoors().z + 0.5f;
+        if (FindPlayerVehicle()->m_nVehicleType == VEHICLE_TYPE_BOAT) {
+            coors.z += 1.0f;
+        }
+
+        if (!LineOfSightClear(FindPlayerCoors(), coors)) {
+            return false;
+        }
+
+        const auto camDiff = FindPlayerCoors() - coors;
+        if (camDiff.Magnitude() > HELI_CAM_MAX_DIST_AWAY_ONE && DotProduct(FindPlayerSpeed(), camDiff) > 0.0f) {
+            return false;
+        }
+        if (camDiff.Magnitude() < HELI_CAM_DIST_TOO_CLOSE_ONE) {
+            return false;
+        }
+        return StartFixedCam(coors);
+    }
+    case MOVIECAM16: { // Underneath, in front of and to the side of the player
+        if (!FindPlayerVehicle()) {
+            return false;
+        }
+        auto coors = FindPlayerCoors();
+        auto dir   = FlatSpeedDir();
+        const auto ang = CGeneral::GetATanOfXY(dir.x, dir.y) + DegreesToRadians(60.0f);
+        dir += CVector{ std::cos(ang), std::sin(ang), 0.0f };
+        dir.Normalise();
+        coors += dir * HELI_CAM_DIST_AWAY_TWO;
+        coors.z = FindPlayerCoors().z - 5.5f;
+
+        bool  found = false;
+        float surfaceZ = CWorld::FindRoofZFor3DCoord(coors.x, coors.y, coors.z, &found);
+        if (found) {
+            coors.z = surfaceZ + 0.5f;
+        } else if (CWaterLevel::GetWaterLevelNoWaves(coors, &surfaceZ)) {
+            ClampAboveWater(coors, surfaceZ);
+        }
+
+        if (!LineOfSightClear(FindPlayerCoors(), coors)) {
+            return false;
+        }
+
+        const auto camDiff = FindPlayerCoors() - coors;
+        if (camDiff.Magnitude() > HELI_CAM_MAX_DIST_AWAY_TWO || camDiff.Magnitude() < HELI_CAM_DIST_TOO_CLOSE_TWO) {
+            return false;
+        }
+        return StartFixedCam(coors);
+    }
+    case MOVIECAM17: { // Behind the player, slightly to the side
+        if (!FindPlayerVehicle()) {
+            return false;
+        }
+        auto coors = FindPlayerCoors();
+        auto dir   = FlatSpeedDir();
+        const auto ang = CGeneral::GetATanOfXY(dir.x, dir.y) + DegreesToRadians(190.0f);
+        dir += CVector{ std::cos(ang), std::sin(ang), 0.0f };
+        dir.Normalise();
+        coors += dir * HELI_CAM_DIST_AWAY_THREE;
+        coors.z = FindPlayerCoors().z - 1.0f;
+
+        bool  found = false;
+        float surfaceZ = CWorld::FindRoofZFor3DCoord(coors.x, coors.y, coors.z, &found);
+        if (found) {
+            coors.z = surfaceZ + 0.5f;
+        } else if (CWaterLevel::GetWaterLevelNoWaves(coors, &surfaceZ)) {
+            ClampAboveWater(coors, surfaceZ);
+        }
+
+        if (!LineOfSightClear(FindPlayerCoors(), coors)) {
+            return false;
+        }
+
+        const auto camDiff = FindPlayerCoors() - coors;
+        if (camDiff.Magnitude() > HELI_CAM_MAX_DIST_AWAY_THREE && DotProduct(FindPlayerSpeed(), camDiff) > 0.0f) {
+            return false;
+        }
+        if (camDiff.Magnitude() < HELI_CAM_DIST_TOO_CLOSE_THREE) {
+            return false;
+        }
+        return StartFixedCam(coors);
+    }
+    case MOVIECAM18: { // Directly above the player
+        auto coors = FindPlayerCoors();
+        const auto* veh = FindPlayerVehicle();
+        coors.z += veh && veh->m_nVehicleType == VEHICLE_TYPE_BOAT ? HELI_CAM_DIST_AWAY_FOUR : -HELI_CAM_DIST_AWAY_FOUR;
+
+        auto dir = FindPlayerSpeed();
+        const auto ang = CGeneral::GetATanOfXY(dir.x, dir.y) + DegreesToRadians(145.0f);
+        dir += CVector{ std::cos(ang), std::sin(ang), 0.0f };
+        dir.z = 0.0f;
+        dir.Normalise();
+        coors += dir * 15.0f;
+
+        bool found = false;
+        // NOTE: the original compares the returned Z against `TRUE` instead of checking `found` - kept as is
+        float groundZ = CWorld::FindGroundZFor3DCoord(coors, &found);
+        if (groundZ == 1.0f) {
+            if (coors.z < groundZ) {
+                coors.z = groundZ + 0.5f;
+            }
+        } else if (CWaterLevel::GetWaterLevelNoWaves(coors, &groundZ)) {
+            ClampAboveWater(coors, groundZ);
+        }
+
+        if (!LineOfSightClear(FindPlayerCoors(), coors)) {
+            return false;
+        }
+
+        const auto camDiff = FindPlayerCoors() - coors;
+        if (camDiff.Magnitude() > HELI_CAM_MAX_DIST_AWAY_FOUR || camDiff.Magnitude() < HELI_CAM_DIST_TOO_CLOSE_FOUR) {
+            return false;
+        }
+        return StartFixedCam(coors);
+    }
+    case MOVIECAM19: { // Directly above the player, to the side
+        auto coors = FindPlayerCoors();
+        const auto* veh = FindPlayerVehicle();
+        coors.z += veh && veh->m_nVehicleType == VEHICLE_TYPE_BOAT ? 4.0f : -1.0f;
+
+        auto dir = FindPlayerSpeed();
+        const auto ang = CGeneral::GetATanOfXY(dir.x, dir.y) + DegreesToRadians(28.0f);
+        dir += CVector{ std::cos(ang), std::sin(ang), 0.0f };
+        dir.z = 0.0f;
+        dir.Normalise();
+        coors += dir * 12.5f;
+
+        bool found = false;
+        // NOTE: same `== TRUE` quirk as `MOVIECAM18`
+        float groundZ = CWorld::FindGroundZFor3DCoord(coors, &found);
+        if (groundZ == 1.0f) {
+            if (coors.z < groundZ) {
+                coors.z = groundZ + 0.5f;
+            }
+        } else if (CWaterLevel::GetWaterLevelNoWaves(coors, &groundZ)) {
+            ClampAboveWater(coors, groundZ);
+        }
+
+        if (!LineOfSightClear(FindPlayerCoors(), coors)) {
+            return false;
+        }
+
+        const auto camDiff = FindPlayerCoors() - coors;
+        if (camDiff.Magnitude() > HELI_CAM_MAX_DIST_AWAY_FIVE || camDiff.Magnitude() < HELI_CAM_DIST_TOO_CLOSE_FIVE) {
+            return false;
+        }
+        return StartFixedCam(coors);
+    }
+    case MOVIECAM20: return StartDWCam(m_aCams[m_nActiveCam].Process_DW_HeliChaseCam(true),    MODE_DW_HELI_CHASE);
+    case MOVIECAM21: return StartDWCam(m_aCams[m_nActiveCam].Process_DW_CamManCam(true),       MODE_DW_CAM_MAN);
+    case MOVIECAM22: return StartDWCam(m_aCams[m_nActiveCam].Process_DW_BirdyCam(true),        MODE_DW_BIRDY);
+    case MOVIECAM23: return StartDWCam(m_aCams[m_nActiveCam].Process_DW_PlaneSpotterCam(true), MODE_DW_PLANE_SPOTTER);
+    case MOVIECAM24:
+    case MOVIECAM25:
+        TheCamera.m_bUseNearClipScript = false;
+        return false;
+    case MOVIECAMPLANE1: return StartDWCam(m_aCams[m_nActiveCam].Process_DW_PlaneCam1(true), MODE_DW_PLANECAM1);
+    case MOVIECAMPLANE2: return StartDWCam(m_aCams[m_nActiveCam].Process_DW_PlaneCam2(true), MODE_DW_PLANECAM2);
+    case MOVIECAMPLANE3: return StartDWCam(m_aCams[m_nActiveCam].Process_DW_PlaneCam3(true), MODE_DW_PLANECAM3);
+    case CAM_ON_A_STRING_LAST_RESORT:
+        TakeControl(FindPlayerEntity(), MODE_CAM_ON_A_STRING, eSwitchType::JUMPCUT, 2);
+        return true;
+    default:
+        return false;
+    }
 }
 
 // 0x520190
@@ -2409,7 +3699,1386 @@ bool CCamera::CameraColDetAndReact(CVector* source, CVector* target) {
 
 // 0x527FA0
 void CCamera::CamControl() {
-    plugin::CallMethod<0x527FA0, CCamera*>(this); // good luck warrior!
+    static eCamMode GameMode;
+    static eCamMode ReqMode;
+    static int16    ReqMinZoom, ReqMaxZoom;
+    static int      LastPedState;
+    static eCamMode ThePickedArrestMode;
+    static bool     PlaceForFixedWhenSniperFound = false;
+
+    bool     NeedToDoAJumpCutForGameCam          = false;
+    bool     TargetIsBoat                        = false;
+    bool     IsInArrestCam                       = false;
+    bool     PretendPlayerInAGarage              = false;
+    CVector  CenterOfGarage;
+    CVector  CenterOfDoorOne;
+    CVector  CenterOfDoorTwo;
+    CVector  PlayerPosition;
+    CVector  DoorFront;
+    CVector  TheCamPosition;
+    CEntity* pDoorWeAreUnder                   = nullptr;
+    int      DoorWeAreUnder                    = 0;
+    float    DistanceCarToDoorOne              = 0.0f;
+    float    DistanceCarToDoorTwo              = 0.0f;
+    float    CamDistanceAwayForGarage          = 13.0f;
+    int      ModeAtStartOfCamControl           = m_aCams[m_nActiveCam].m_nMode;
+    m_bObbeCinematicPedCamOn                   = false;
+    m_bObbeCinematicCarCamOn                   = false;
+    m_bUseTransitionBeta                       = false;
+    m_bUseSpecialFovTrain                      = false;
+    m_bJustCameOutOfGarage                     = false;
+    m_bTargetJustCameOffTrain                  = false;
+    m_bInATunnelAndABigVehicle                 = false;
+    m_bJustJumpedOutOf1stPersonBecauseOfTarget = false;
+    JustGoneIntoObbeCamera                     = false;
+
+    if ((m_aCams[m_nActiveCam].m_pCamTargetEntity == nullptr) && (m_pTargetEntity == nullptr)) {
+        m_pTargetEntity->CleanUpOldReference(&m_pTargetEntity);
+        m_pTargetEntity = CWorld::Players[CWorld::PlayerInFocus].m_pPed;
+        m_pTargetEntity->RegisterReference(&m_pTargetEntity);
+    }
+
+    assert(m_pTargetEntity != nullptr && "No Target set yet for camera");
+    m_nZoneCullFrameNumWereAt++;
+
+    if (m_nZoneCullFrameNumWereAt > m_nCheckCullZoneThisNumFrames) {
+        m_nZoneCullFrameNumWereAt = 1;
+    }
+    if (m_nZoneCullFrameNumWereAt == m_nCheckCullZoneThisNumFrames) {
+        m_bCullZoneChecksOn = true;
+    } else {
+        m_bCullZoneChecksOn = false;
+    }
+
+    if (m_bCullZoneChecksOn == true) {
+        if (CCullZones::CamCloseInForPlayer()) {
+            m_bFailedCullZoneTestPreviously = true;
+        } else {
+            m_bFailedCullZoneTestPreviously = false;
+        }
+    }
+
+    if (m_bLookingAtPlayer == true) {
+        CPad::GetPad(0)->DisablePlayerControls &= ~1; // EnableControlsCamera
+        FindPlayerPed()->m_bIsVisible = true;
+    }
+
+    // `GTA_IDLECAM` is off in the retail PC build: neither this block nor `CanWeBeInIdleMode`
+    // appear in 0x527FA0, and the source's `CanWeBeInIdleMode` opens with a plain `return false`.
+    m_bIdleOn = false;
+
+    if ((!CTimer::m_UserPause && !CTimer::m_CodePause)) {
+        if (m_bIdleOn == false) {
+            float CarTargetCloseHeightOffset = 0.0f;
+            float PedTargetCloseHeightOffset = 0.0f;
+
+            if (m_bTargetJustBeenOnTrain == true) {
+                bool  NeedToRestoreCamera   = false;
+                float TrainSpeed            = 0.0f;
+                bool  ComingToAStopAStation = true;
+
+                if ((m_pTargetEntity->GetIsTypeVehicle()) == false) {
+                    NeedToRestoreCamera = true;
+
+                } else {
+                    if (m_pTargetEntity->AsVehicle()->m_nVehicleType != VEHICLE_TYPE_TRAIN) {
+                        NeedToRestoreCamera = true;
+                    }
+                }
+
+                if (NeedToRestoreCamera) {
+                    Restore();
+                    m_bTargetJustCameOffTrain = true;
+                    m_bTargetJustBeenOnTrain  = false;
+                    SetWideScreenOff();
+                }
+            }
+
+            if (m_pTargetEntity->GetIsTypeVehicle()) {
+                if (CamModeToRestore > 0) {
+                    bool bCollisionCheckIsStillBad = false;
+                    if (bCollisionCheckIsStillBad) {
+                    } else {
+                        ReqMode          = static_cast<eCamMode>(CamModeToRestore);
+                        CamModeToRestore = -1;
+                    }
+                }
+
+                if (m_pTargetEntity->AsVehicle()->m_nVehicleType == VEHICLE_TYPE_TRAIN) {
+                    ReqMode = MODE_BEHINDCAR;
+                } else {
+                    if (m_pTargetEntity->AsVehicle()->m_nVehicleType == VEHICLE_TYPE_BOAT) {
+                        if ((m_pTargetEntity->GetModelIndex()) != MODEL_SKIMMER) {
+                            TargetIsBoat = true;
+                        }
+                    }
+
+                    if ((CPad::GetPad(0)->CycleCameraModeUpJustDown() || CPad::GetPad(0)->sub_540530())
+                        && CReplay::Mode != MODE_PLAYBACK && !m_bWideScreenOn && !m_bFailedCullZoneTestPreviously
+                        && (m_bLookingAtPlayer == true || m_nWhoIsInControlOfTheCamera == 2) && !CGameLogic::IsCoopGameGoingOn()) {
+                        if (CPad::GetPad(0)->CycleCameraModeUpJustDown()) {
+                            m_nCarZoom -= 1;
+                        } else {
+                            m_nCarZoom += 1;
+                        }
+
+                        if (m_nCarZoom > 5) {
+                            m_nCarZoom = 0;
+                        } else if (m_nCarZoom < 0) {
+                            m_nCarZoom = 5;
+                        }
+
+                        if (m_nCarZoom == 4) {
+                            if (CPad::GetPad(0)->CycleCameraModeUpJustDown()) {
+                                m_nCarZoom = ZOOM_THREE;
+                            } else {
+                                m_nCarZoom = 5;
+                            }
+                        } else if (m_nCarZoom == 0 && m_bDisableFirstPersonInCar) {
+                            if (CPad::GetPad(0)->CycleCameraModeUpJustDown()) {
+                                m_nCarZoom = 5;
+                            } else {
+                                m_nCarZoom = ZOOM_ONE;
+                            }
+                        }
+                    }
+                    if (m_bFailedCullZoneTestPreviously && m_nCarZoom != 4 && m_nCarZoom != 0) {
+                        ReqMode = MODE_CAM_ON_A_STRING;
+                    }
+                    int32 iVehicleType = m_pTargetEntity->AsVehicle()->m_nVehicleType;
+
+                    if (iVehicleType == VEHICLE_TYPE_BOAT) {
+                        if ((m_pTargetEntity->GetModelIndex()) == MODEL_SKIMMER) {
+                            iVehicleType = VEHICLE_TYPE_AUTOMOBILE;
+                        }
+                    }
+
+                    if (iVehicleType == VEHICLE_TYPE_AUTOMOBILE || iVehicleType == VEHICLE_TYPE_BIKE) {
+                        CAttributeZone* pZoneLikeAGarage = nullptr;
+                        if (iVehicleType == VEHICLE_TYPE_BIKE && CCullZones::CamStairsForPlayer()) {
+                            if ((pZoneLikeAGarage = CCullZones::FindZoneWithStairsAttributeForPlayer()) != nullptr) {
+                                PretendPlayerInAGarage = true;
+                            }
+                        }
+
+                        if (CGarages::IsPointInAGarageCameraZone(m_pTargetEntity->GetPosition()) || PretendPlayerInAGarage) {
+                            CObject *pDoor1, *pDoor2;
+                            if ((m_bGarageFixedCamPositionSet == false && m_bLookingAtPlayer == true) || m_nWhoIsInControlOfTheCamera == 2) {
+                                if (m_pToGarageWeAreIn != nullptr || pZoneLikeAGarage != nullptr) {
+                                    PlayerPosition = m_pTargetEntity->GetPosition();
+
+                                    if (m_pToGarageWeAreIn != nullptr) {
+                                        m_pToGarageWeAreIn->FindDoorsWithGarage(&pDoor1, &pDoor2);
+
+                                        if (pDoor1 != nullptr) {
+                                            DoorWeAreUnder       = 1;
+                                            CenterOfDoorOne.x    = pDoor1->GetPosition().x;
+                                            CenterOfDoorOne.y    = pDoor1->GetPosition().y;
+                                            CenterOfDoorOne.z    = 0;
+                                            PlayerPosition.z     = 0;
+                                            DistanceCarToDoorOne = (PlayerPosition - CenterOfDoorOne).Magnitude();
+                                        } else if (pDoor2 != nullptr) {
+                                            if (DoorWeAreUnder == 1) {
+                                                CenterOfDoorTwo.x    = pDoor2->GetPosition().x;
+                                                CenterOfDoorTwo.y    = pDoor2->GetPosition().y;
+                                                CenterOfDoorTwo.z    = 0;
+                                                PlayerPosition.z     = 0;
+                                                DistanceCarToDoorTwo = (PlayerPosition - CenterOfDoorTwo).Magnitude();
+                                                if (DistanceCarToDoorTwo < DistanceCarToDoorOne) {
+                                                    DoorWeAreUnder = 2;
+                                                }
+                                            } else {
+                                                DoorWeAreUnder = 2;
+                                            }
+                                        } else {
+                                            DoorWeAreUnder    = 1;
+                                            CenterOfDoorOne.x = m_pTargetEntity->GetPosition().x;
+                                            CenterOfDoorOne.y = m_pTargetEntity->GetPosition().y;
+                                            CenterOfDoorTwo.z = 0;
+                                        }
+                                    } else {
+                                        assert(PretendPlayerInAGarage && "Cullzone garage stuff gone wrong");
+                                        DoorWeAreUnder  = 1;
+                                        CenterOfDoorOne = m_aCams[m_nActiveCam].m_vecSource;
+                                        CenterOfGarage  = PlayerPosition;
+                                        if ((CenterOfGarage - CenterOfDoorOne).Magnitude2D() > 15.0f) {
+                                            bool    bFoundExitDirn  = true;
+                                            CVector vecTestExitDirn = m_pTargetEntity->GetPosition() - CenterOfGarage;
+                                            vecTestExitDirn.z       = 0.0f;
+                                            vecTestExitDirn.Normalise();
+
+                                            float fMaxZoneDim      = (float)std::max(std::abs(pZoneLikeAGarage->zoneDef.m_vec1X) + std::abs(pZoneLikeAGarage->zoneDef.m_vec2X), std::abs(pZoneLikeAGarage->zoneDef.m_vec1Y) + std::abs(pZoneLikeAGarage->zoneDef.m_vec2Y));
+
+                                            CVector vecTestExitPos = m_pTargetEntity->GetPosition() + 2.0f * fMaxZoneDim * vecTestExitDirn;
+                                            if (!CWorld::GetIsLineOfSightClear(m_pTargetEntity->GetPosition(), vecTestExitPos, true, false, false, false, false, false, true)) {
+                                                vecTestExitPos = m_pTargetEntity->GetPosition() - 2.0f * fMaxZoneDim * vecTestExitDirn;
+                                                if (!CWorld::GetIsLineOfSightClear(m_pTargetEntity->GetPosition(), vecTestExitPos, true, false, false, false, false, false, true)) {
+                                                    bFoundExitDirn = false;
+                                                }
+                                            }
+
+                                            if (bFoundExitDirn) {
+                                                CenterOfDoorOne = vecTestExitPos;
+                                            }
+                                        }
+                                    }
+
+                                    //now find the normal out the way
+                                    if (m_pToGarageWeAreIn != nullptr) {
+                                        CenterOfGarage = CVector((m_pToGarageWeAreIn->m_fLeftCoord + m_pToGarageWeAreIn->m_fRightCoord) / 2, (m_pToGarageWeAreIn->m_fFrontCoord + m_pToGarageWeAreIn->m_fBackCoord) / 2, 0);
+                                    } else {
+                                        CenterOfDoorOne.z = 0.0f;
+                                        if (pZoneLikeAGarage == nullptr) {
+                                            CenterOfGarage = CVector(m_pTargetEntity->GetPosition().x, m_pTargetEntity->GetPosition().y, 0);
+                                        }
+                                    }
+
+                                    if (DoorWeAreUnder == 1) {
+                                        DoorFront = CenterOfDoorOne - CenterOfGarage;
+                                    } else {
+                                        assert(DoorWeAreUnder == 2 && "Get Mark Something worng with garages");
+                                        DoorFront = CenterOfDoorTwo - CenterOfGarage;
+                                    }
+
+                                    bool  GroundFound;
+                                    float GroundZ  = 0.0f;
+                                    float HeightUp = 3.1f;
+                                    PlayerPosition = m_pTargetEntity->GetPosition();
+                                    GroundZ        = CWorld::FindGroundZFor3DCoord({ PlayerPosition.x, PlayerPosition.y, PlayerPosition.z }, &GroundFound);
+                                    //assert(GroundFound && "Could find the ground are we in the sky?");
+                                    if (GroundFound == false) //this shouldn't be happening but been having
+                                    //lots of complaints about the game hanging so this is the best alternative
+                                    {
+                                        GroundZ = PlayerPosition.z - 0.20f;
+                                    }
+                                    DoorFront.z = 0;
+                                    DoorFront.Normalise();
+
+                                    if (DoorWeAreUnder == 1) {
+                                        if (m_pToGarageWeAreIn == nullptr && pZoneLikeAGarage != nullptr) {
+                                            CamDistanceAwayForGarage = 3.75f + 0.7f * std::max(std::abs(pZoneLikeAGarage->zoneDef.m_vec1X) + std::abs(pZoneLikeAGarage->zoneDef.m_vec2X), std::abs(pZoneLikeAGarage->zoneDef.m_vec1Y) + std::abs(pZoneLikeAGarage->zoneDef.m_vec2Y));
+                                            TheCamPosition           = CenterOfGarage + CamDistanceAwayForGarage * DoorFront;
+                                        } else {
+                                            TheCamPosition = CenterOfDoorOne + (CamDistanceAwayForGarage * DoorFront);
+                                        }
+                                    } else {
+                                        assert(DoorWeAreUnder == 2);
+                                        TheCamPosition = CenterOfDoorTwo + (CamDistanceAwayForGarage * DoorFront);
+                                    }
+                                    TheCamPosition.z = GroundZ + HeightUp;
+
+                                    CVector door1(0, 0, 0);
+                                    CVector door2(0, 0, 0);
+                                    CVector directionOfDoor1;
+                                    CVector directionOfDoor2;
+                                    CVector doorDir;
+
+                                    if (pDoor1) {
+                                        door1            = pDoor1->m_pDummyObject->GetPosition();
+                                        directionOfDoor1 = pDoor1->m_pDummyObject->GetMatrix().GetRight();
+                                        doorDir          = directionOfDoor1;
+                                    }
+
+                                    if (pDoor2) {
+                                        door2            = pDoor2->m_pDummyObject->GetPosition();
+                                        directionOfDoor2 = pDoor2->m_pDummyObject->GetMatrix().GetRight();
+                                        doorDir          = directionOfDoor2;
+                                    }
+
+                                    CVector posForCamera;
+                                    if (pDoor1) {
+                                        if (pDoor2) {
+                                            posForCamera = (door2 - door1) * 0.5f + door1;
+                                        } else {
+                                            posForCamera = door1;
+                                        }
+                                    } else if (pDoor2) {
+                                        posForCamera = door2;
+                                    } else {
+                                        posForCamera = PlayerPosition;
+                                        doorDir      = posForCamera - CenterOfGarage;
+                                        doorDir.z    = 0.0f;
+                                        doorDir.Normalise();
+                                        //										assert(false); // See me  - DW
+                                    }
+
+                                    static float gLenFromDoor    = -10.0f;
+                                    static float gHeightFromDoor = 2.0f;
+                                    TheCamPosition               = posForCamera + doorDir * gLenFromDoor;
+                                    TheCamPosition.z += gHeightFromDoor;
+
+                                    SetCamPositionForFixedMode((TheCamPosition), CVector(0, 0, 0));
+                                    m_bGarageFixedCamPositionSet = true;
+                                }
+                            }
+
+                            if ((CGarages::CameraShouldBeOutside() || PretendPlayerInAGarage) && m_bGarageFixedCamPositionSet == true && (m_bLookingAtPlayer == true || m_nWhoIsInControlOfTheCamera == 2)) {
+                                if (m_pToGarageWeAreIn != nullptr || pZoneLikeAGarage != nullptr) {
+                                    ReqMode             = MODE_FIXED;
+                                    m_bPlayerIsInGarage = true;
+                                }
+                            } else {
+                                if (m_bPlayerIsInGarage) {
+                                    m_bJustCameOutOfGarage = true;
+                                    m_bPlayerIsInGarage    = false;
+                                }
+                                ReqMode = MODE_CAM_ON_A_STRING;
+                            }
+                        } else {
+                            if (m_bPlayerIsInGarage) {
+                                m_bJustCameOutOfGarage = true;
+                                m_bPlayerIsInGarage    = false;
+                            }
+                            pDoorWeAreUnder              = nullptr;
+                            m_bGarageFixedCamPositionSet = false;
+                            ReqMode                      = MODE_CAM_ON_A_STRING;
+                        }
+                    } else if (iVehicleType == VEHICLE_TYPE_BOAT) {
+                        ReqMode = MODE_BEHINDBOAT;
+                    }
+
+                    eVehicleAppearance VehicleApperance = ((CVehicle*)(m_pTargetEntity))->GetVehicleAppearance();
+                    int                PositionInArray  = 0;
+                    GetArrPosForVehicleType(static_cast<eVehicleType>(VehicleApperance), PositionInArray);
+
+                    if ((m_nCarZoom == 0) && (!m_bPlayerIsInGarage)) {
+                        m_fCarZoomBase = 0.0f;
+                        ReqMode        = MODE_1STPERSON;
+                    } else if (m_nCarZoom == ZOOM_ONE) {
+                        m_fCarZoomBase = ZOOM_ONE_DISTANCE[PositionInArray];
+                    } else if (m_nCarZoom == ZOOM_TWO) {
+                        m_fCarZoomBase = ZOOM_TWO_DISTANCE[PositionInArray];
+                    } else if (m_nCarZoom == ZOOM_THREE) {
+                        m_fCarZoomBase = ZOOM_THREE_DISTANCE[PositionInArray];
+                    }
+
+                    if ((m_nCarZoom == 4) && (!m_bPlayerIsInGarage)) {
+                        m_fCarZoomBase = 1.0f;
+                    }
+
+                    if (m_fCarZoomTotal == 0.0f) {
+                        m_fCarZoomTotal = m_fCarZoomBase;
+                    }
+
+                    if (m_bUseScriptZoomValueCar == true) {
+                        if (m_fCarZoomSmoothed < m_fCarZoomValueScript) {
+                            m_fCarZoomSmoothed = std::min(m_fCarZoomValueScript, m_fCarZoomSmoothed + CTimer::GetTimeStep() * 0.12f);
+                        } else {
+                            m_fCarZoomSmoothed = std::max(m_fCarZoomValueScript, m_fCarZoomSmoothed - CTimer::GetTimeStep() * 0.12f);
+                        }
+                    } else if (m_bFailedCullZoneTestPreviously) {
+                        float ZoomedInVal          = -0.65f;
+                        CarTargetCloseHeightOffset = 0.65f;
+                        if (m_fCarZoomSmoothed < ZoomedInVal) {
+                            m_fCarZoomSmoothed = std::min(ZoomedInVal, m_fCarZoomSmoothed + CTimer::GetTimeStep() * 0.12f);
+                        } else {
+                            m_fCarZoomSmoothed = std::max(ZoomedInVal, m_fCarZoomSmoothed - CTimer::GetTimeStep() * 0.12f);
+                        }
+                    } else {
+                        if (m_fCarZoomSmoothed < m_fCarZoomBase) {
+                            m_fCarZoomSmoothed = std::min(m_fCarZoomBase, m_fCarZoomSmoothed + CTimer::GetTimeStep() * 0.12f);
+                        } else {
+                            m_fCarZoomSmoothed = std::max(m_fCarZoomBase, m_fCarZoomSmoothed - CTimer::GetTimeStep() * 0.12f);
+                        }
+                        //this is to indicate that we have just come out of first person mode
+                        if ((m_nCarZoom == ZOOM_THREE) && (m_fCarZoomBase == 0.0f)) {
+                            m_fCarZoomSmoothed = m_fCarZoomBase;
+                        }
+                    }
+
+                    WellBufferMe(CarTargetCloseHeightOffset, m_aCams[m_nActiveCam].m_fCloseInCarHeightOffset, m_aCams[m_nActiveCam].m_fCloseInCarHeightOffsetSpeed, 0.1f, 0.25f, false);
+                }
+            } else if (m_pTargetEntity->GetIsTypePed()) {
+                assert(m_pTargetEntity->GetIsTypePed() && "What in gods green earth is going on?");
+                if ((CPad::GetPad(0)->CycleCameraModeUpJustDown() || CPad::GetPad(0)->sub_540530())
+                    && CReplay::Mode != MODE_PLAYBACK && !m_bWideScreenOn && !m_bFailedCullZoneTestPreviously && !m_bFirstPersonBeingUsed
+                    && (m_bLookingAtPlayer == true || m_nWhoIsInControlOfTheCamera == 2) && !CGameLogic::IsCoopGameGoingOn()) {
+                    if (CPad::GetPad(0)->CycleCameraModeUpJustDown()) {
+                        m_nPedZoom -= 1;
+                    } else {
+                        m_nPedZoom += 1;
+                    }
+
+                    if (m_nPedZoom > ZOOM_THREE) {
+                        m_nPedZoom = ZOOM_ONE;
+                    } else if (m_nPedZoom < ZOOM_ONE) {
+                        m_nPedZoom = ZOOM_THREE;
+                    }
+                }
+
+                ReqMode = MODE_FOLLOWPED;
+
+                if (((m_bLookingAtPlayer == true) || (m_bEnable1rstPersonCamCntrlsScript)) && (m_pTargetEntity->GetIsTypePed()) && ((m_bWideScreenOn == false) || (m_bEnable1rstPersonCamCntrlsScript))
+                    && m_aCams[0].Using3rdPersonMouseCam() == false) {
+                    if (m_bFirstPersonBeingUsed) {
+                        if (CPad::GetPad(0)->GetPedWalkLeftRight() || CPad::GetPad(0)->GetPedWalkUpDown()
+                            || CPad::GetPad(0)->NewState.ButtonSquare || CPad::GetPad(0)->NewState.ButtonTriangle
+                            || CPad::GetPad(0)->NewState.ButtonCross || CPad::GetPad(0)->NewState.ButtonCircle
+                            || CPad::GetPad(0)->NewState.Select) {
+                            m_bFirstPersonBeingUsed = false;
+                        }
+
+                        else {
+                            if ((CTimer::GetTimeInMS() - m_nFirstPersonCamLastInputTime) > MAX_TIME_IN_FIRST_PERSON_NO_INPUT) {
+                                m_bFirstPersonBeingUsed = false;
+                            } else if (CPad::GetPad(0)->GetEnterTargeting()) {
+                                m_bFirstPersonBeingUsed                    = false;
+                                m_bJustJumpedOutOf1stPersonBecauseOfTarget = true;
+                            }
+                        }
+                    }
+                } else {
+                    m_bFirstPersonBeingUsed = false;
+                }
+
+                if (FindPlayerPed()->IsPedInControl() == false || FindPlayerPed()->GetPlayerData()->m_fMoveBlendRatio > 0.0f) {
+                    m_bFirstPersonBeingUsed = false;
+                }
+
+                if (m_bFirstPersonBeingUsed) {
+                    ReqMode = MODE_1STPERSON;
+                    CPad::GetPad(0)->DisablePlayerControls |= 1; // DisableControlsCamera
+                }
+
+                switch (m_nPedZoom) {
+                case ZOOM_ONE:
+                    m_fPedZoomBase = m_aCams[m_nActiveCam].m_fTargetZoomGroundOne; //ZOOM_PED_ONE_DISTANCE;
+                    break;
+                case ZOOM_THREE:
+                    m_fPedZoomBase = m_aCams[m_nActiveCam].m_fTargetZoomGroundThree; //ZOOM_PED_THREE_DISTANCE;
+                    break;
+                case ZOOM_TWO:
+                default:
+                    m_fPedZoomBase = m_aCams[m_nActiveCam].m_fTargetZoomGroundTwo; //ZOOM_PED_TWO_DISTANCE;
+                    break;
+                }
+
+                if (m_bUseScriptZoomValuePed == true) {
+                    if (m_fPedZoomSmoothed < m_fPedZoomValueScript) {
+                        m_fPedZoomSmoothed = std::min(m_fPedZoomValueScript, m_fPedZoomSmoothed + CTimer::GetTimeStep() * 0.12f);
+                    } else {
+                        m_fPedZoomSmoothed = std::max(m_fPedZoomValueScript, m_fPedZoomSmoothed - CTimer::GetTimeStep() * 0.12f);
+                    }
+                } else if (m_bFailedCullZoneTestPreviously) {
+                    static float PedZoomedInVal = 0.5f;
+                    PedTargetCloseHeightOffset  = 0.7f;
+                    if (m_fPedZoomSmoothed < PedZoomedInVal) {
+                        m_fPedZoomSmoothed = std::min(PedZoomedInVal, m_fPedZoomSmoothed + CTimer::GetTimeStep() * 0.12f);
+                    } else {
+                        m_fPedZoomSmoothed = std::max(PedZoomedInVal, m_fPedZoomSmoothed - CTimer::GetTimeStep() * 0.12f);
+                    }
+                } else {
+                    if (m_fPedZoomSmoothed < m_fPedZoomBase) {
+                        m_fPedZoomSmoothed = std::min(m_fPedZoomBase, m_fPedZoomSmoothed + CTimer::GetTimeStep() * 0.12f);
+                    } else {
+                        m_fPedZoomSmoothed = std::max(m_fPedZoomBase, m_fPedZoomSmoothed - CTimer::GetTimeStep() * 0.12f);
+                    }
+
+                    if (m_nPedZoom == ZOOM_THREE && m_fPedZoomBase == 0.0f) {
+                        m_fPedZoomSmoothed = m_fPedZoomBase;
+                    }
+                }
+
+                WellBufferMe(PedTargetCloseHeightOffset, m_aCams[m_nActiveCam].m_fCloseInPedHeightOffset, m_aCams[m_nActiveCam].m_fCloseInPedHeightOffsetSpeed, 0.1f, 0.025f, false);
+
+                CAttributeZone* pZoneLikeAGarage = nullptr;
+                if (CCullZones::CamStairsForPlayer()) {
+                    if ((pZoneLikeAGarage = CCullZones::FindZoneWithStairsAttributeForPlayer()) != nullptr) {
+                        PretendPlayerInAGarage = true;
+                    }
+                }
+                if (CGarages::IsPointInAGarageCameraZone(m_pTargetEntity->GetPosition()) || PretendPlayerInAGarage) {
+                    if ((m_bGarageFixedCamPositionSet == false) && (m_bLookingAtPlayer == true)) {
+                        if ((m_pToGarageWeAreIn != nullptr) || (PretendPlayerInAGarage)) {
+                            if (m_pToGarageWeAreIn != nullptr) {
+                                PlayerPosition = m_pTargetEntity->GetPosition();
+
+                                CObject *pDoor1, *pDoor2;
+                                m_pToGarageWeAreIn->FindDoorsWithGarage(&pDoor1, &pDoor2);
+
+                                if (pDoor1 != nullptr) {
+                                    DoorWeAreUnder       = 1;
+                                    CenterOfDoorOne.x    = pDoor1->GetPosition().x;
+                                    CenterOfDoorOne.y    = pDoor1->GetPosition().y;
+                                    CenterOfDoorOne.z    = 0;
+                                    PlayerPosition.z     = 0;
+                                    DistanceCarToDoorOne = (PlayerPosition - CenterOfDoorOne).Magnitude();
+                                } else if (pDoor2 != nullptr) {
+                                    if (DoorWeAreUnder == 1) {
+                                        CenterOfDoorTwo.x    = pDoor2->GetPosition().x;
+                                        CenterOfDoorTwo.y    = pDoor2->GetPosition().y;
+                                        CenterOfDoorTwo.z    = 0;
+                                        PlayerPosition.z     = 0;
+                                        DistanceCarToDoorTwo = (PlayerPosition - CenterOfDoorTwo).Magnitude();
+                                        if (DistanceCarToDoorTwo < DistanceCarToDoorOne) {
+                                            DoorWeAreUnder = 2;
+                                        }
+                                    } else {
+                                        DoorWeAreUnder = 2;
+                                    }
+                                } else {
+                                    DoorWeAreUnder    = 1;
+                                    CenterOfDoorOne.x = m_pTargetEntity->GetPosition().x;
+                                    CenterOfDoorOne.y = m_pTargetEntity->GetPosition().y;
+                                    CenterOfDoorTwo.z = 0;
+                                }
+                            } else {
+                                assert(PretendPlayerInAGarage && "Cullzone garage stuff gone wrong");
+                                DoorWeAreUnder  = 1;
+                                CenterOfDoorOne = m_aCams[m_nActiveCam].m_vecSource;
+
+                                if (pZoneLikeAGarage) {
+                                    CenterOfGarage = pZoneLikeAGarage->zoneDef.FindCenter();
+                                    if ((CenterOfGarage - CenterOfDoorOne).Magnitude2D() > 15.0f) {
+                                        bool    bFoundExitDirn  = true;
+                                        CVector vecTestExitDirn = m_pTargetEntity->GetPosition() - CenterOfGarage;
+                                        vecTestExitDirn.z       = 0.0f;
+                                        vecTestExitDirn.Normalise();
+
+                                        float fMaxZoneDim      = (float)std::max(std::abs(pZoneLikeAGarage->zoneDef.m_vec1X) + std::abs(pZoneLikeAGarage->zoneDef.m_vec2X), std::abs(pZoneLikeAGarage->zoneDef.m_vec1Y) + std::abs(pZoneLikeAGarage->zoneDef.m_vec2Y));
+
+                                        CVector vecTestExitPos = m_pTargetEntity->GetPosition() + 2.0f * fMaxZoneDim * vecTestExitDirn;
+                                        if (!CWorld::GetIsLineOfSightClear(m_pTargetEntity->GetPosition(), vecTestExitPos, true, false, false, false, false, false, true)) {
+                                            vecTestExitPos = m_pTargetEntity->GetPosition() - 2.0f * fMaxZoneDim * vecTestExitDirn;
+                                            if (!CWorld::GetIsLineOfSightClear(m_pTargetEntity->GetPosition(), vecTestExitPos, true, false, false, false, false, false, true)) {
+                                                bFoundExitDirn = false;
+                                            }
+                                        }
+
+                                        if (bFoundExitDirn) {
+                                            CenterOfDoorOne = vecTestExitPos;
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (m_pToGarageWeAreIn != nullptr) {
+                                CenterOfGarage = CVector((m_pToGarageWeAreIn->m_fLeftCoord + m_pToGarageWeAreIn->m_fRightCoord) / 2, (m_pToGarageWeAreIn->m_fFrontCoord + m_pToGarageWeAreIn->m_fBackCoord) / 2, 0);
+                            } else {
+                                CenterOfDoorOne.z = 0.0f;
+                                if (pZoneLikeAGarage == nullptr) {
+                                    CenterOfGarage = CVector(m_pTargetEntity->GetPosition().x, m_pTargetEntity->GetPosition().y, 0);
+                                }
+                            }
+
+                            if (DoorWeAreUnder == 1) {
+                                DoorFront = CenterOfDoorOne - CenterOfGarage;
+                            } else {
+                                assert(DoorWeAreUnder == 2 && "Get Mark Something worng with garages");
+                                DoorFront = CenterOfDoorTwo - CenterOfGarage;
+                            }
+
+                            bool  GroundFound;
+                            float GroundZ  = 0.0f;
+                            float HeightUp = 3.1f;
+                            PlayerPosition = m_pTargetEntity->GetPosition();
+                            GroundZ        = CWorld::FindGroundZFor3DCoord({ PlayerPosition.x, PlayerPosition.y, PlayerPosition.z }, &GroundFound);
+                            if (GroundFound == false) {
+                                GroundZ = PlayerPosition.z - 0.20f;
+                            }
+                            DoorFront.z = 0;
+
+                            if (DoorWeAreUnder == 1) {
+                                if ((m_pToGarageWeAreIn == nullptr) && (PretendPlayerInAGarage)) {
+                                    DoorFront.Normalise();
+                                    if (pZoneLikeAGarage) {
+                                        CamDistanceAwayForGarage = 3.75f + 0.7f * std::max(std::abs(pZoneLikeAGarage->zoneDef.m_vec1X) + std::abs(pZoneLikeAGarage->zoneDef.m_vec2X), std::abs(pZoneLikeAGarage->zoneDef.m_vec1Y) + std::abs(pZoneLikeAGarage->zoneDef.m_vec2Y));
+                                        TheCamPosition           = CenterOfGarage + CamDistanceAwayForGarage * DoorFront;
+                                    } else {
+                                        CamDistanceAwayForGarage = 3.75f;
+                                        TheCamPosition           = CenterOfDoorOne + CamDistanceAwayForGarage * DoorFront;
+                                    }
+                                } else {
+                                    DoorFront.Normalise();
+                                    TheCamPosition = CenterOfDoorOne + (CamDistanceAwayForGarage * DoorFront);
+                                }
+                            } else {
+                                assert(DoorWeAreUnder == 2);
+                                DoorFront.Normalise();
+                                TheCamPosition = CenterOfDoorTwo + (CamDistanceAwayForGarage * DoorFront);
+                            }
+
+                            if ((m_nPedZoom == 4) && (!PretendPlayerInAGarage)) {
+                                TheCamPosition = CenterOfGarage;
+                                TheCamPosition.z += FindPlayerPed()->GetPosition().z + 2.1f;
+                                if (m_pToGarageWeAreIn != nullptr) {
+                                    if (TheCamPosition.z > m_pToGarageWeAreIn->m_fRightCoord) {
+                                        TheCamPosition.z = m_pToGarageWeAreIn->m_fRightCoord;
+                                    }
+                                }
+                            } else {
+                                TheCamPosition.z = GroundZ + HeightUp;
+                            }
+
+                            SetCamPositionForFixedMode((TheCamPosition), CVector(0, 0, 0));
+                            m_bGarageFixedCamPositionSet = true;
+                        }
+
+                        CVector door1(0, 0, 0);
+                        CVector door2(0, 0, 0);
+                        CVector directionOfDoor1;
+                        CVector directionOfDoor2;
+                        CVector doorDir;
+                        if (m_pToGarageWeAreIn != nullptr) {
+                            CObject *pDoor1, *pDoor2;
+                            m_pToGarageWeAreIn->FindDoorsWithGarage(&pDoor1, &pDoor2);
+
+                            if (pDoor1) {
+                                door1            = pDoor1->m_pDummyObject->GetPosition();
+                                directionOfDoor1 = pDoor1->m_pDummyObject->GetMatrix().GetRight();
+                                doorDir          = directionOfDoor1;
+                            }
+
+                            if (pDoor2) {
+                                door2            = pDoor2->m_pDummyObject->GetPosition();
+                                directionOfDoor2 = pDoor2->m_pDummyObject->GetMatrix().GetRight();
+                                doorDir          = directionOfDoor2;
+                            }
+                            CVector posForCamera;
+                            if (pDoor1) {
+                                if (pDoor2) {
+                                    posForCamera = (door2 - door1) * 0.5f + door1;
+                                } else {
+                                    posForCamera = door1;
+                                }
+                            } else if (pDoor2) {
+                                posForCamera = door2;
+                            } else {
+                                posForCamera = PlayerPosition;
+                                doorDir      = posForCamera - CenterOfGarage;
+                                doorDir.z    = 0.0f;
+                                doorDir.Normalise();
+                            }
+
+                            static float gLenFromDoor    = -10.0f;
+                            static float gHeightFromDoor = 2.0f;
+                            TheCamPosition               = posForCamera + doorDir * gLenFromDoor;
+                            TheCamPosition.z += gHeightFromDoor;
+                            SetCamPositionForFixedMode((TheCamPosition), CVector(0, 0, 0));
+                            m_bGarageFixedCamPositionSet = true;
+                        }
+                    }
+
+                    if (((CGarages::CameraShouldBeOutside() || (PretendPlayerInAGarage)) && (m_bLookingAtPlayer == true) && (m_bGarageFixedCamPositionSet == true))) {
+                        if ((m_pToGarageWeAreIn != nullptr) || (PretendPlayerInAGarage)) {
+                            ReqMode             = MODE_FIXED;
+                            m_bPlayerIsInGarage = true;
+                        }
+                    } else {
+                        if (m_bPlayerIsInGarage) {
+                            m_bJustCameOutOfGarage = true;
+                            m_bPlayerIsInGarage    = false;
+                        }
+                        ReqMode = MODE_FOLLOWPED;
+                    }
+                } else {
+                    if (m_bPlayerIsInGarage) {
+                        m_bJustCameOutOfGarage = true;
+                        m_bPlayerIsInGarage    = false;
+                    }
+                    m_bGarageFixedCamPositionSet = false;
+                }
+
+                if (!CPad::GetPad(0)->GetTarget() && m_PlayerWeaponMode.m_nMode != MODE_NONE
+                    && m_PlayerWeaponMode.m_nMode != MODE_HELICANNON_1STPERSON
+                    && m_PlayerWeaponMode.m_nMode != MODE_AIMWEAPON_FROMCAR
+                    && m_PlayerWeaponMode.m_nMode != MODE_AIMWEAPON_ATTACHED
+                    && !(m_PlayerWeaponMode.m_nMode == MODE_CAMERA && FindPlayerPed()->m_pAttachedTo)) {
+                    ClearPlayerWeaponMode();
+                }
+
+                if (m_PlayerMode.m_nMode != MODE_NONE) {
+                    ReqMode = static_cast<eCamMode>(m_PlayerMode.m_nMode);
+                }
+
+                if ((m_PlayerWeaponMode.m_nMode != MODE_NONE) && (PretendPlayerInAGarage == false)) {
+                    if (m_PlayerWeaponMode.m_nMode == MODE_SNIPER || m_PlayerWeaponMode.m_nMode == MODE_ROCKETLAUNCHER
+                        || m_PlayerWeaponMode.m_nMode == MODE_ROCKETLAUNCHER_HS || m_PlayerWeaponMode.m_nMode == MODE_M16_1STPERSON
+                        || m_PlayerWeaponMode.m_nMode == MODE_HELICANNON_1STPERSON || m_PlayerWeaponMode.m_nMode == MODE_SNIPER
+                        || m_PlayerWeaponMode.m_nMode == MODE_CAMERA || m_aCams[m_nActiveCam].GetWeaponFirstPersonOn()) {
+                        if ((CWorld::Players[CWorld::PlayerInFocus].m_pPed->GetPedState()) == PEDSTATE_SEEK_CAR) {
+                            if ((ReqMode != MODE_TOP_DOWN_PED) && (!(m_aCams[m_nActiveCam].GetWeaponFirstPersonOn()))) //if we are in top down or 1rst person mode want to stay in it
+                            {
+                                ReqMode = MODE_FOLLOWPED;
+                            } else {
+                                ReqMode = static_cast<eCamMode>(m_PlayerWeaponMode.m_nMode);
+                            }
+                        } else {
+                            ReqMode = static_cast<eCamMode>(m_PlayerWeaponMode.m_nMode);
+                        }
+                    } else if (ReqMode != MODE_TOP_DOWN_PED) {
+                        float        Crim_Player_Cam_Angle         = 0.0f;
+                        float        CurrentDistOnGround           = 0.0f;
+                        float        DistanceOnGround              = 0.0f;
+                        float        Length                        = 0.0f;
+                        float        CrimToPlayerDist              = 0.0f;
+                        float        PlayerToCamDistance           = 0.0f;
+                        static float MinDistBetweenPlayerDeadCrim  = 3.0f; //used for when the target is deadied
+                        static float MinDistBetweenPlayerAliveCrim = 1.5f; //3.0f;
+                        static float MaxDistBetweenPlayerCrim      = 4.0f;
+                        static float SpecialFixedCamDist           = 4.0f;
+                        static float MaxPlayerToCameraDist         = 10.0f;
+
+                        float   PlayerToCrimAngle                  = 0.0f;
+                        float   PlayerToCamAngle                   = 0.0f;
+                        bool    TargetDyingOrDead                  = false;
+                        CVector PlayerPos                          = m_pTargetEntity->GetPosition();
+                        CVector PlayerToCrimVector                 = m_vecAimingTargetCoors - PlayerPos;
+                        CVector PlayerToCamVector                  = m_aCams[m_nActiveCam].m_vecSource - PlayerPos;
+
+                        if ((m_bPlayerIsInGarage == false) || (PretendPlayerInAGarage == false)) //we only want to go into syhpon filter esque modes
+                                                                                                 //if not in a garage
+                        {
+                            float DistToUseRePedStatus = 0.0f;
+                            if (FindPlayerPed()->m_pTargetedObject != nullptr || FindPlayerPed()->GetPlayerData()->m_bFreeAiming) {
+                                if (FindPlayerPed()->m_pTargetedObject && FindPlayerPed()->m_pTargetedObject->GetIsTypePed()
+                                    && (((CPed*)FindPlayerPed()->m_pTargetedObject)->GetPedState() == PEDSTATE_DEAD || ((CPed*)FindPlayerPed()->m_pTargetedObject)->GetPedState() == PEDSTATE_DIE)) {
+                                    TargetDyingOrDead    = true;
+                                    DistToUseRePedStatus = MinDistBetweenPlayerDeadCrim;
+                                }
+
+                                CrimToPlayerDist             = std::sqrt(PlayerToCrimVector.x * PlayerToCrimVector.x + PlayerToCrimVector.y * PlayerToCrimVector.y);
+                                PlayerToCamDistance          = std::sqrt(PlayerToCamVector.x * PlayerToCamVector.x + PlayerToCamVector.y * PlayerToCamVector.y);
+
+                                PlayerToCamAngle             = CGeneral::GetATanOfXY(PlayerToCamVector.x, PlayerToCamVector.y);
+                                PlayerToCrimAngle            = CGeneral::GetATanOfXY(PlayerToCrimVector.x, PlayerToCrimVector.y);
+
+                                ReqMode                      = static_cast<eCamMode>(m_PlayerWeaponMode.m_nMode);
+
+                                float SpecialFixedSyphonDist = 0.0f;
+                                if (ReqMode == MODE_AIMWEAPON && TargetDyingOrDead
+                                    && FindPlayerPed()->m_pTargetedObject != nullptr) // && !FindPlayerPed()->GetWeapon()->IsTypeMelee())
+                                {
+                                    if (!m_bTransitionState || m_aCams[m_nActiveCam].m_nMode == MODE_SPECIAL_FIXED_FOR_SYPHON) {
+                                        if (m_aCams[m_nActiveCam].m_nMode == MODE_SPECIAL_FIXED_FOR_SYPHON && FindPlayerPed()->m_pTargetedObject->GetIsTypePed()) {
+                                            DistToUseRePedStatus = MaxDistBetweenPlayerCrim;
+                                        }
+
+                                        if (CrimToPlayerDist < DistToUseRePedStatus) {
+                                            ReqMode                = MODE_SPECIAL_FIXED_FOR_SYPHON;
+                                            SpecialFixedSyphonDist = SpecialFixedCamDist;
+
+                                            if (TargetDyingOrDead) {
+                                                if (ReqMode == MODE_SYPHON_CRIM_IN_FRONT) {
+                                                    SpecialFixedSyphonDist = 5.0f;
+                                                } else {
+                                                    SpecialFixedSyphonDist = 5.6f;
+                                                }
+                                                ReqMode = MODE_SPECIAL_FIXED_FOR_SYPHON;
+                                            }
+                                        }
+                                    }
+                                }
+                                if (ReqMode == MODE_SPECIAL_FIXED_FOR_SYPHON) {
+                                    if (PlaceForFixedWhenSniperFound == false) {
+                                        CVector   TheFixedCamPositionToGoTo;
+                                        CColPoint TempCol;
+                                        CEntity*  TempHit         = nullptr;
+
+                                        TheFixedCamPositionToGoTo = m_pTargetEntity->GetPosition();
+                                        TheFixedCamPositionToGoTo.x += std::cos(PlayerToCamAngle) * SpecialFixedSyphonDist;
+                                        TheFixedCamPositionToGoTo.y += std::sin(PlayerToCamAngle) * SpecialFixedSyphonDist;
+                                        TheFixedCamPositionToGoTo.z += 1.15f;
+                                        //Lets Do A Quick Collision check
+                                        if (CWorld::ProcessLineOfSight(m_pTargetEntity->GetPosition(), TheFixedCamPositionToGoTo, TempCol, TempHit, true, false, false, true, false, true, true, false)) {
+                                            SetCamPositionForFixedMode(TempCol.m_vecPoint, CVector(0, 0, 0));
+                                        } else {
+                                            SetCamPositionForFixedMode(TheFixedCamPositionToGoTo, CVector(0, 0, 0));
+                                        }
+
+                                        PlaceForFixedWhenSniperFound = true;
+                                    }
+                                } else {
+                                    PlaceForFixedWhenSniperFound = false;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (m_bCooperativeCamMode && CWorld::Players[0].m_pPed && CWorld::Players[1].m_pPed) {
+        if (CWorld::Players[0].m_pPed->bInVehicle && CWorld::Players[1].m_pPed->bInVehicle && CWorld::Players[0].m_pPed->m_pVehicle && CWorld::Players[1].m_pPed->m_pVehicle) { // Both players are in a car.
+            if (CWorld::Players[0].m_pPed->m_pVehicle == CWorld::Players[1].m_pPed->m_pVehicle) {                                                                               // Both players are in the same car
+                if (m_bAllowShootingWith2PlayersInCar) {
+                    ReqMode         = m_nModeForTwoPlayersSameCarShootingAllowed;
+                    m_pTargetEntity = CWorld::Players[0].m_pPed->m_pVehicle;
+                } else {
+                    ReqMode         = m_nModeForTwoPlayersSameCarShootingNotAllowed;
+                    m_pTargetEntity = CWorld::Players[0].m_pPed->m_pVehicle;
+                }
+            } else { // Players are each in their own car.
+                ReqMode         = m_nModeForTwoPlayersSeparateCars;
+                m_pTargetEntity = CWorld::Players[0].m_pPed->m_pVehicle;
+            }
+        } else {
+            ReqMode = m_nModeForTwoPlayersNotBothInCar;
+        }
+    }
+
+    CPed*       PlayerPed;
+    bool        bJustArrested       = false;
+    static bool bPreviouslyArrested = false;
+    bool        bJustNotArrested    = false;
+    PlayerPed                       = CWorld::Players[CWorld::PlayerInFocus].m_pPed;
+
+    if (PlayerPed->GetPedState() == PEDSTATE_ARRESTED) {
+        bPreviouslyArrested = true;
+    } else if (bPreviouslyArrested) {
+        bJustNotArrested    = true;
+        bPreviouslyArrested = false;
+    }
+
+    if (LastPedState != PEDSTATE_ARRESTED && PlayerPed->GetPedState() == PEDSTATE_ARRESTED) {
+        if (m_nCarZoom != 0 || !m_pTargetEntity->GetIsTypeVehicle()) {
+            bJustArrested = true;
+        }
+    } else {
+        bJustArrested = false;
+    }
+
+    LastPedState = PlayerPed->GetPedState();
+
+    if (bJustArrested == true) {
+        ReqMode                               = MODE_ARRESTCAM_ONE;
+        ThePickedArrestMode                   = ReqMode;
+        m_aCams[m_nActiveCam].m_bResetStatics = true;
+    } else if ((PlayerPed->GetPedState()) == PEDSTATE_ARRESTED) {
+        ReqMode = ThePickedArrestMode;
+    }
+
+    if (CWorld::Players[CWorld::PlayerInFocus].m_pPed->GetPedState() == PEDSTATE_DEAD) {
+        m_bObbeCinematicCarCamOn = false;
+
+        if (m_aCams[m_nActiveCam].m_nMode == MODE_PED_DEAD_BABY) {
+            ReqMode = MODE_PED_DEAD_BABY;
+        } else if (m_aCams[m_nActiveCam].m_nMode == MODE_ARRESTCAM_ONE) {
+            ReqMode = MODE_ARRESTCAM_ONE;
+        } else {
+            bool bUseArrestCam = false;
+            if (m_pTargetEntity->GetIsTypePed()) {
+                CPed* pTempTargetPed = (CPed*)m_pTargetEntity;
+
+                int       i;
+                const int N                = (int)std::size(pTempTargetPed->GetIntelligence()->GetPedScanner().m_apEntities);
+                CEntity** ppNearbyEntities = pTempTargetPed->GetIntelligence()->GetPedEntities();
+                for (i = 0; i < N; i++) {
+                    CEntity* pNearbyEntity = ppNearbyEntities[i];
+                    if (pNearbyEntity) {
+                        assert(pNearbyEntity->GetType() == ENTITY_TYPE_PED);
+                        CPed*                 pNearbyPed  = (CPed*)pNearbyEntity;
+                        CTaskSimpleArrestPed* pTaskArrest = (CTaskSimpleArrestPed*)pNearbyPed->GetIntelligence()->FindTaskByType(TASK_SIMPLE_ARREST_PED);
+                        if (pTaskArrest && pTaskArrest->m_Ped == FindPlayerPed()) {
+                            if ((pNearbyPed->GetPosition() - pTempTargetPed->GetPosition()).Magnitude() < 4.0f) {
+                                bUseArrestCam                         = true;
+                                ReqMode                               = MODE_ARRESTCAM_ONE;
+                                m_aCams[m_nActiveCam].m_bResetStatics = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (bUseArrestCam == false) {
+                ReqMode                               = MODE_PED_DEAD_BABY;
+                m_aCams[m_nActiveCam].m_bResetStatics = true;
+            }
+        }
+    }
+
+    if (m_bRestoreByJumpCut == true) {
+        if (!((ReqMode == MODE_FOLLOWPED) || (ReqMode == MODE_M16_1STPERSON) || (ReqMode == MODE_SNIPER) || (ReqMode == MODE_ROCKETLAUNCHER) || (ReqMode == MODE_ROCKETLAUNCHER_HS) || (ReqMode == MODE_CAMERA) || (ReqMode == MODE_SYPHON) || (ReqMode == MODE_SYPHON_CRIM_IN_FRONT)
+              || (ReqMode == MODE_SPECIAL_FIXED_FOR_SYPHON) || (ReqMode == MODE_CAM_ON_A_STRING)
+              || (ReqMode == MODE_BEHINDCAR) || (m_bUseMouse3rdPerson))) {
+            SetCameraDirectlyBehindForFollowPed_CamOnAString();
+        }
+
+        ReqMode                                       = m_nModeToGoTo;
+        m_aCams[m_nActiveCam].m_nMode                 = ReqMode;
+        m_bJust_Switched                              = true;
+        m_aCams[m_nActiveCam].m_bResetStatics         = true;
+        m_aCams[m_nActiveCam].m_vecCamFixedModeVector = m_vecFixedModeVector;
+        m_aCams[m_nActiveCam].m_pCamTargetEntity->CleanUpOldReference(&m_aCams[m_nActiveCam].m_pCamTargetEntity);
+        m_aCams[m_nActiveCam].m_pCamTargetEntity = m_pTargetEntity;
+        m_aCams[m_nActiveCam].m_pCamTargetEntity->RegisterReference(&m_aCams[m_nActiveCam].m_pCamTargetEntity);
+        m_aCams[m_nActiveCam].m_vecCamFixedModeSource        = m_vecFixedModeSource;
+        m_aCams[m_nActiveCam].m_vecCamFixedModeUpOffSet      = m_vecFixedModeUpOffSet;
+        m_aCams[m_nActiveCam].m_bCamLookingAtVector          = false;
+        m_aCams[m_nActiveCam].m_vecLastAboveWaterCamPosition = m_aCams[(m_nActiveCam + 1) % 2].m_vecLastAboveWaterCamPosition;
+        m_bRestoreByJumpCut                                  = false;
+        m_aCams[m_nActiveCam].m_bResetStatics                = true;
+        m_fCarZoomSmoothed                                   = m_fCarZoomBase;
+        m_fPedZoomSmoothed                                   = m_fPedZoomBase;
+        m_bTransitionState                                   = false;
+        m_bDoingSpecialInterp                                = false;
+    }
+
+    if (gbModelViewer) {
+        ReqMode = MODE_MODELVIEW;
+    }
+
+    bool CanTryObbeCam = true;
+
+    if (m_pTargetEntity != nullptr) {
+        if (m_pTargetEntity->GetIsTypeVehicle() == false) {
+            if (m_nPedZoom == 5) {
+                m_bObbeCinematicPedCamOn = true;
+            }
+        } else {
+            if (m_nCarZoom == 5) {
+                m_bObbeCinematicCarCamOn = true;
+            }
+        }
+    }
+
+    if (FindPlayerVehicle() != nullptr) {
+        if ((FindPlayerVehicle()->m_nVehicleType) == VEHICLE_TYPE_TRAIN) {
+            m_bObbeCinematicCarCamOn = true;
+        }
+    }
+
+    if (m_pTargetEntity != nullptr) {
+        if (m_pTargetEntity->GetIsTypeVehicle()) {
+            CPlayerPed* PlayerPed;
+            PlayerPed = FindPlayerPed();
+            if (PlayerPed) {
+                if ((PlayerPed->GetPedState() == PEDSTATE_ARRESTED) || (PlayerPed->GetPedState() == PEDSTATE_DEAD)) {
+                    CanTryObbeCam            = false;
+                    m_bObbeCinematicPedCamOn = false;
+                    if (PlayerPed->GetPedState() == PEDSTATE_ARRESTED) {
+                        ReqMode = MODE_ARRESTCAM_ONE;
+                    } else if (PlayerPed->GetPedState() == PEDSTATE_DEAD) {
+                        ReqMode = MODE_PED_DEAD_BABY;
+                    }
+                }
+            }
+        }
+    }
+
+    if ((m_bTargetJustBeenOnTrain == true) || (ReqMode == MODE_PED_DEAD_BABY)
+        || (ReqMode == MODE_PED_DEAD_BABY) || (ReqMode == MODE_PLAYER_FALLEN_WATER)
+        || (ReqMode == MODE_SYPHON_CRIM_IN_FRONT) || (ReqMode == MODE_SYPHON)
+        || (ReqMode == MODE_SNIPER) || (ReqMode == MODE_SPECIAL_FIXED_FOR_SYPHON)
+        || (ReqMode == MODE_ROCKETLAUNCHER) || (ReqMode == MODE_ROCKETLAUNCHER_HS) || (ReqMode == MODE_PLAYER_FALLEN_WATER)
+        || (ReqMode == MODE_ARRESTCAM_ONE) || (ReqMode == MODE_ARRESTCAM_TWO)
+        || (ReqMode == MODE_M16_1STPERSON) || (ReqMode == MODE_FIGHT_CAM)
+        || (ReqMode == MODE_SNIPER_RUNABOUT) || (ReqMode == MODE_ROCKETLAUNCHER_RUNABOUT) || (ReqMode == MODE_ROCKETLAUNCHER_RUNABOUT_HS)
+        || (ReqMode == MODE_M16_1STPERSON_RUNABOUT) || (ReqMode == MODE_FIGHT_CAM_RUNABOUT)
+        || (ReqMode == MODE_1STPERSON_RUNABOUT) || (ReqMode == MODE_HELICANNON_1STPERSON)
+        || (ReqMode == MODE_CAMERA)
+        || (m_nWhoIsInControlOfTheCamera == SCRIPT_CAM_CONTROL) || (m_bJustCameOutOfGarage) || (m_bPlayerIsInGarage)
+        || (m_aCams[m_nActiveCam].m_nMode == MODE_PED_DEAD_BABY)) {
+        CanTryObbeCam = false;
+    }
+
+    if (m_bCinemaCamera) {
+        m_bObbeCinematicCarCamOn = true;
+        CanTryObbeCam            = true;
+        assert(m_pTargetEntity);
+        assert(m_pTargetEntity->GetIsTypeVehicle());
+    }
+
+    if ((m_bObbeCinematicPedCamOn) && (CanTryObbeCam == true)) {
+        //		ProcessObbeCinemaCameraPed();
+    } else if ((m_bObbeCinematicCarCamOn) && (CanTryObbeCam == true)) {
+        CPostEffects::m_bSpeedFXUserFlagCurrentFrame = false; // no speed blur please....
+
+        if (m_pTargetEntity->GetIsTypeVehicle()) {
+            int32 vehicleType = m_pTargetEntity->AsVehicle()->m_nVehicleType;
+
+            if (vehicleType == VEHICLE_TYPE_PLANE) {
+                ProcessObbeCinemaCameraPlane();
+            } else if ((m_pTargetEntity->AsVehicle()->GetVehicleAppearance() == VEHICLE_APPEARANCE_HELI)) {
+                ProcessObbeCinemaCameraHeli();
+            } else if (vehicleType == VEHICLE_TYPE_BOAT) {
+                ProcessObbeCinemaCameraBoat();
+            } else if (vehicleType == VEHICLE_TYPE_TRAIN) {
+                ProcessObbeCinemaCameraTrain();
+            } else {
+                ProcessObbeCinemaCameraCar();
+            }
+        }
+    } else {
+        if (m_bPlayerIsInGarage) {
+            if (m_bObbeCinematicCarCamOn) {
+                NeedToDoAJumpCutForGameCam = true;
+            }
+        }
+        CanTryObbeCam = false;
+        DontProcessObbeCinemaCamera();
+    }
+
+    if (m_bLookingAtPlayer == true) {
+        if ((ReqMode == MODE_TOPDOWN) || (ReqMode == MODE_1STPERSON) || (ReqMode == MODE_TOP_DOWN_PED)) //always jump cut for this
+        {
+            NeedToDoAJumpCutForGameCam = true;
+        } else if ((ReqMode == MODE_CAM_ON_A_STRING) || (ReqMode == MODE_BEHINDBOAT)) {
+            switch (m_aCams[m_nActiveCam].m_nMode) {
+            case MODE_TOPDOWN:
+            case MODE_1STPERSON:
+            case MODE_TOP_DOWN_PED:
+                NeedToDoAJumpCutForGameCam = true;
+                break;
+            }
+        } else if (ReqMode == MODE_FIXED) {
+            if (m_aCams[m_nActiveCam].m_nMode == MODE_TOPDOWN) {
+                NeedToDoAJumpCutForGameCam = true;
+            }
+        }
+
+        if ((ReqMode == MODE_AIMWEAPON || ReqMode == MODE_AIMWEAPON_FROMCAR || ReqMode == MODE_AIMWEAPON_ATTACHED)
+            && m_pTargetEntity && m_pTargetEntity->GetIsTypePed()) {
+            bool bIsUsingJetPack = false;
+
+            if (m_pTargetEntity->GetIsTypePed() && m_pTargetEntity->AsPed()->GetIntelligence()->GetTaskJetPack()) {
+                bIsUsingJetPack = true;
+            }
+
+            if (ReqMode == MODE_AIMWEAPON && m_aCams[m_nActiveCam].m_nMode == MODE_FOLLOWPED && !bIsUsingJetPack) {
+                float fTargetBeta = 0.0f;
+                if (m_pTargetEntity->AsPed()->m_pTargetedObject) {
+                    CVector vecAimDelta = m_pTargetEntity->AsPed()->m_pTargetedObject->GetPosition() - m_pTargetEntity->GetPosition();
+                    fTargetBeta         = std::atan2(-vecAimDelta.x, vecAimDelta.y) - HALF_PI;
+                } else {
+                    fTargetBeta = m_pTargetEntity->GetHeading() - HALF_PI;
+                }
+
+                if (fTargetBeta > m_aCams[m_nActiveCam].m_fHorizontalAngle + PI) {
+                    fTargetBeta -= TWO_PI;
+                } else if (fTargetBeta < m_aCams[m_nActiveCam].m_fHorizontalAngle - PI) {
+                    fTargetBeta += TWO_PI;
+                }
+
+                if (std::abs(fTargetBeta - m_aCams[m_nActiveCam].m_fHorizontalAngle) > DegreesToRadians(MAX_ANGLE_BEFORE_AIMWEAPON_JUMPCUT)) {
+                    NeedToDoAJumpCutForGameCam = true;
+                } else if ((m_pTargetEntity->GetPosition() - GetMatrix().GetPosition()).Magnitude() > 1.5f * (TheCamera.m_fPedZoomSmoothed + 2.0f)) {
+                    NeedToDoAJumpCutForGameCam = true;
+                }
+
+                if (TheCamera.m_bUseMouse3rdPerson) {
+                    NeedToDoAJumpCutForGameCam = false;
+                }
+            } else {
+                NeedToDoAJumpCutForGameCam = true;
+            }
+        }
+
+        if ((ReqMode == MODE_TWOPLAYER && m_aCams[m_nActiveCam].m_nMode != MODE_TWOPLAYER_IN_CAR_AND_SHOOTING)
+            || (ReqMode == MODE_TWOPLAYER_IN_CAR_AND_SHOOTING && m_aCams[m_nActiveCam].m_nMode != MODE_TWOPLAYER)
+            || (m_aCams[m_nActiveCam].m_nMode == MODE_TWOPLAYER && ReqMode != MODE_TWOPLAYER_IN_CAR_AND_SHOOTING)
+            || (m_aCams[m_nActiveCam].m_nMode == MODE_TWOPLAYER_IN_CAR_AND_SHOOTING && ReqMode != MODE_TWOPLAYER)) {
+            NeedToDoAJumpCutForGameCam = true;
+        }
+
+        if (ReqMode == MODE_TOPDOWN) {
+            if ((m_aCams[m_nActiveCam].m_nMode == MODE_TOP_DOWN_PED) || (m_aCams[m_nActiveCam].m_nMode == MODE_PED_DEAD_BABY)) {
+                NeedToDoAJumpCutForGameCam = false;
+            }
+
+        } else if (ReqMode == MODE_TOP_DOWN_PED) {
+            if ((m_aCams[m_nActiveCam].m_nMode == MODE_TOPDOWN) || (m_aCams[m_nActiveCam].m_nMode == MODE_PED_DEAD_BABY)) {
+                NeedToDoAJumpCutForGameCam = false;
+            }
+        }
+
+        if ((((ReqMode == MODE_1STPERSON) || (ReqMode == MODE_SNIPER)
+              || (ReqMode == MODE_M16_1STPERSON) || (ReqMode == MODE_ROCKETLAUNCHER) || (ReqMode == MODE_ROCKETLAUNCHER_HS)
+              || (ReqMode == MODE_SNIPER_RUNABOUT) || (ReqMode == MODE_ROCKETLAUNCHER_RUNABOUT) || (ReqMode == MODE_ROCKETLAUNCHER_RUNABOUT_HS)
+              || (ReqMode == MODE_M16_1STPERSON_RUNABOUT) || (ReqMode == MODE_FIGHT_CAM_RUNABOUT)
+              || (ReqMode == MODE_1STPERSON_RUNABOUT) || (ReqMode == MODE_HELICANNON_1STPERSON)
+              || (ReqMode == MODE_ARRESTCAM_ONE) || (ReqMode == MODE_ARRESTCAM_TWO) || (ReqMode == MODE_CAMERA)))
+            && (m_pTargetEntity->GetIsTypePed())) {
+            NeedToDoAJumpCutForGameCam = true;
+        } else if ((ReqMode == MODE_FIXED) && (m_bPlayerIsInGarage == true)) //this is for going into this mode
+        {
+            if (((m_aCams[m_nActiveCam].m_nMode == MODE_SNIPER) || (m_aCams[m_nActiveCam].m_nMode == MODE_HELICANNON_1STPERSON)
+                 || (m_aCams[m_nActiveCam].m_nMode == MODE_ROCKETLAUNCHER) || (m_aCams[m_nActiveCam].m_nMode == MODE_ROCKETLAUNCHER_HS) || (m_aCams[m_nActiveCam].m_nMode == MODE_M16_1STPERSON)
+                 || (m_aCams[m_nActiveCam].m_nMode == MODE_TOP_DOWN_PED) || (PretendPlayerInAGarage)
+                 || (m_aCams[m_nActiveCam].m_nMode == MODE_1STPERSON) || (m_aCams[m_nActiveCam].m_nMode == MODE_SNIPER_RUNABOUT)
+                 || (m_aCams[m_nActiveCam].m_nMode == MODE_ROCKETLAUNCHER_RUNABOUT) || (m_aCams[m_nActiveCam].m_nMode == MODE_ROCKETLAUNCHER_RUNABOUT_HS) || (m_aCams[m_nActiveCam].m_nMode == MODE_M16_1STPERSON_RUNABOUT)
+                 || (m_aCams[m_nActiveCam].m_nMode == MODE_FIGHT_CAM_RUNABOUT) || (m_aCams[m_nActiveCam].m_nMode == MODE_1STPERSON_RUNABOUT)
+                 || (m_aCams[m_nActiveCam].m_nMode == MODE_CAMERA))
+                && (m_pTargetEntity != nullptr) && (m_pTargetEntity->GetIsTypeVehicle())) //just came out of these modes
+            {
+                NeedToDoAJumpCutForGameCam = true;
+            }
+        }
+
+        else if (ReqMode == MODE_FOLLOWPED) {
+            bool JumpCutForSyphons = false;
+            if (m_aCams[m_nActiveCam].m_nMode == MODE_AIMWEAPON) {
+                if (m_pTargetEntity->AsPed()->CanWeRunAndFireWithWeapon() && !m_pTargetEntity->AsPed()->bIsDucking) {
+                    float fPedHeading = m_pTargetEntity->GetHeading() - HALF_PI;
+                    if (fPedHeading > m_aCams[m_nActiveCam].m_fHorizontalAngle + PI) {
+                        fPedHeading -= TWO_PI;
+                    } else if (fPedHeading < m_aCams[m_nActiveCam].m_fHorizontalAngle - PI) {
+                        fPedHeading += TWO_PI;
+                    }
+
+                    if (std::abs(fPedHeading - m_aCams[m_nActiveCam].m_fHorizontalAngle) > DegreesToRadians(MAX_ANGLE_BEFORE_AIMWEAPON_JUMPCUT)
+                        || !m_pTargetEntity->AsPed()->bIsStanding) {
+                        JumpCutForSyphons = true;
+                    }
+                    if (TheCamera.m_bUseMouse3rdPerson) {
+                        JumpCutForSyphons      = false;
+                        m_bJustCameOutOfGarage = true;
+                    }
+                }
+            }
+
+            if ((m_aCams[m_nActiveCam].m_nMode == MODE_1STPERSON) || (m_aCams[m_nActiveCam].m_nMode == MODE_SNIPER)
+                || (m_aCams[m_nActiveCam].m_nMode == MODE_M16_1STPERSON) || (m_aCams[m_nActiveCam].m_nMode == MODE_ROCKETLAUNCHER) || (m_aCams[m_nActiveCam].m_nMode == MODE_ROCKETLAUNCHER_HS)
+                || (m_aCams[m_nActiveCam].m_nMode == MODE_PED_DEAD_BABY) || (m_aCams[m_nActiveCam].m_nMode == MODE_ARRESTCAM_ONE)
+                || (m_aCams[m_nActiveCam].m_nMode == MODE_ARRESTCAM_TWO) || (m_aCams[m_nActiveCam].m_nMode == MODE_PILLOWS_PAPS)
+                || (m_aCams[m_nActiveCam].m_nMode == MODE_SNIPER_RUNABOUT) || (m_aCams[m_nActiveCam].m_nMode == MODE_ROCKETLAUNCHER_RUNABOUT) || (m_aCams[m_nActiveCam].m_nMode == MODE_ROCKETLAUNCHER_RUNABOUT_HS)
+                || (m_aCams[m_nActiveCam].m_nMode == MODE_M16_1STPERSON_RUNABOUT) || (m_aCams[m_nActiveCam].m_nMode == MODE_FIGHT_CAM_RUNABOUT)
+                || (m_aCams[m_nActiveCam].m_nMode == MODE_1STPERSON_RUNABOUT) || (m_aCams[m_nActiveCam].m_nMode == MODE_HELICANNON_1STPERSON)
+                || (m_aCams[m_nActiveCam].m_nMode == MODE_TOPDOWN) || (m_aCams[m_nActiveCam].m_nMode == MODE_TOP_DOWN_PED)
+                || (m_aCams[m_nActiveCam].m_nMode == MODE_CAMERA) || (JumpCutForSyphons) || (bJustNotArrested)) {
+                if (!m_bJustCameOutOfGarage) {
+                    if ((m_aCams[m_nActiveCam].m_nMode == MODE_SNIPER) || (m_aCams[m_nActiveCam].m_nMode == MODE_ROCKETLAUNCHER) || (m_aCams[m_nActiveCam].m_nMode == MODE_ROCKETLAUNCHER_HS)
+                        || (m_aCams[m_nActiveCam].m_nMode == MODE_M16_1STPERSON) || (m_aCams[m_nActiveCam].m_nMode == MODE_1STPERSON)
+                        || (m_aCams[m_nActiveCam].m_nMode == MODE_SNIPER_RUNABOUT) || (m_aCams[m_nActiveCam].m_nMode == MODE_ROCKETLAUNCHER_RUNABOUT) || (m_aCams[m_nActiveCam].m_nMode == MODE_ROCKETLAUNCHER_RUNABOUT_HS)
+                        || (m_aCams[m_nActiveCam].m_nMode == MODE_M16_1STPERSON_RUNABOUT) || (m_aCams[m_nActiveCam].m_nMode == MODE_FIGHT_CAM_RUNABOUT)
+                        || (m_aCams[m_nActiveCam].m_nMode == MODE_1STPERSON_RUNABOUT) || (m_aCams[m_nActiveCam].m_nMode == MODE_HELICANNON_1STPERSON)
+                        || (m_aCams[m_nActiveCam].m_nMode == MODE_CAMERA)) {
+                        float CamDirection;
+                        CamDirection                                 = CGeneral::GetATanOfXY(m_aCams[m_nActiveCam].m_vecFront.x, m_aCams[m_nActiveCam].m_vecFront.y) - (PI / 2);
+                        m_pTargetEntity->AsPed()->m_fCurrentRotation = CamDirection;
+                        m_pTargetEntity->AsPed()->m_fAimingRotation  = CamDirection;
+                    }
+
+                    NeedToDoAJumpCutForGameCam = true;
+                    m_bUseTransitionBeta       = true;
+                    if (m_aCams[m_nActiveCam].m_nMode == MODE_TOP_DOWN_PED) {
+                        CVector CamToPlayer = m_aCams[m_nActiveCam].m_vecSource - (FindPlayerPed()->GetPosition());
+                        CamToPlayer.z       = 0;
+                        CamToPlayer.Normalise();
+                        if ((CamToPlayer.x = 0.001f) && (CamToPlayer.y = 0.001f)) {
+                            CamToPlayer.y = 1.0f;
+                        }
+                        m_aCams[m_nActiveCam].m_fTransitionBeta = CGeneral::GetATanOfXY(CamToPlayer.x, CamToPlayer.y);
+                    } else {
+                        m_aCams[m_nActiveCam].m_fTransitionBeta = (CGeneral::GetATanOfXY(m_aCams[m_nActiveCam].m_vecFront.x, m_aCams[m_nActiveCam].m_vecFront.y) + PI);
+                    }
+                }
+            }
+
+        } else if (ReqMode == MODE_LIGHTHOUSE) {
+            NeedToDoAJumpCutForGameCam = true;
+        } else if (ReqMode == MODE_ARRESTCAM_ONE || ReqMode == MODE_ARRESTCAM_TWO
+                   || ReqMode == MODE_PED_DEAD_BABY) {
+            NeedToDoAJumpCutForGameCam = true;
+        } else if (m_aCams[m_nActiveCam].m_nMode == MODE_PED_DEAD_BABY && ReqMode != MODE_PED_DEAD_BABY) {
+            NeedToDoAJumpCutForGameCam = true;
+        }
+
+        if (ReqMode != m_aCams[m_nActiveCam].m_nMode) {
+            if (m_aCams[m_nActiveCam].m_pCamTargetEntity == nullptr) {
+                assert(m_pTargetEntity && "Mark- King of sex but not programming");
+                NeedToDoAJumpCutForGameCam = true;
+            }
+        }
+
+        if (m_bPlayerIsInGarage) {
+            if (m_pToGarageWeAreIn != nullptr) {
+                if ((m_pToGarageWeAreIn->m_nType == BOMBSHOP_TIMED) || (m_pToGarageWeAreIn->m_nType == BOMBSHOP_ENGINE) || (m_pToGarageWeAreIn->m_nType == BOMBSHOP_REMOTE)) {
+                    if (m_pTargetEntity->GetIsTypeVehicle()) {
+                        if (m_pTargetEntity->AsVehicle()->GetModelIndex() == MODEL_MRWHOOP) //check that van is entirely inside
+                        {
+                            if (ReqMode != m_aCams[m_nActiveCam].m_nMode) {
+                                NeedToDoAJumpCutForGameCam = true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (m_aCams[m_nActiveCam].m_pCamTargetEntity) {
+                CVector v1  = m_aCams[m_nActiveCam].m_pCamTargetEntity->GetPosition() - m_vecFixedModeSource;
+                CVector v2  = m_aCams[m_nActiveCam].m_pCamTargetEntity->GetPosition() - m_aCams[m_nActiveCam].m_vecSource;
+                float   dot = DotProduct(v1, v2);
+                if (dot < 0.0f) {
+                    NeedToDoAJumpCutForGameCam = true;
+                }
+            }
+        }
+
+        if (ReqMode != m_aCams[m_nActiveCam].m_nMode && (!m_bTransitionState || NeedToDoAJumpCutForGameCam == true)) {
+            if (NeedToDoAJumpCutForGameCam == true) {
+                if (!(m_bPlayerIsInGarage) || (m_bJustCameOutOfGarage)) //also can keep this in
+                //just in case they cahnge there mind about interpolating
+                {
+                    if (!((ReqMode == MODE_FOLLOWPED) || (ReqMode == MODE_M16_1STPERSON) || (ReqMode == MODE_SNIPER) || (ReqMode == MODE_ROCKETLAUNCHER) || (ReqMode == MODE_ROCKETLAUNCHER_HS) || (ReqMode == MODE_CAMERA) || (ReqMode == MODE_SYPHON) || (ReqMode == MODE_1STPERSON) || (ReqMode == MODE_SYPHON_CRIM_IN_FRONT)
+                          || (ReqMode == MODE_SPECIAL_FIXED_FOR_SYPHON) || (m_bUseMouse3rdPerson))) {
+                        SetCameraDirectlyBehindForFollowPed_CamOnAString();
+                    }
+                }
+                m_aCams[m_nActiveCam].m_nMode                 = ReqMode;
+                m_bJust_Switched                              = true;
+                m_aCams[m_nActiveCam].m_vecCamFixedModeVector = m_vecFixedModeVector;
+                m_aCams[m_nActiveCam].m_pCamTargetEntity->CleanUpOldReference(&m_aCams[m_nActiveCam].m_pCamTargetEntity);
+                m_aCams[m_nActiveCam].m_pCamTargetEntity = m_pTargetEntity;
+                m_aCams[m_nActiveCam].m_pCamTargetEntity->RegisterReference(&m_aCams[m_nActiveCam].m_pCamTargetEntity);
+                m_aCams[m_nActiveCam].m_vecCamFixedModeSource        = m_vecFixedModeSource;
+                m_aCams[m_nActiveCam].m_vecCamFixedModeUpOffSet      = m_vecFixedModeUpOffSet;
+                m_aCams[m_nActiveCam].m_bCamLookingAtVector          = m_bLookingAtVector;
+                m_aCams[m_nActiveCam].m_vecLastAboveWaterCamPosition = m_aCams[(m_nActiveCam + 1) % 2].m_vecLastAboveWaterCamPosition;
+                m_fCarZoomSmoothed                                   = m_fCarZoomBase;
+                m_fPedZoomSmoothed                                   = m_fPedZoomBase;
+                m_bTransitionState                                   = false;
+                m_bDoingSpecialInterp                                = false;
+
+                m_bStartInterScript                                  = false;
+                m_aCams[m_nActiveCam].m_bResetStatics                = true;
+            } else if (m_bWaitForInterpolToFinish == false) {
+                StartTransition(ReqMode);
+            }
+        } else if ((m_bTransitionState) && (ReqMode != m_aCams[m_nActiveCam].m_nMode)) //&&((ReqMode==MODE_SYPHON)||(ReqMode==MODE_SYPHON_CRIM_IN_FRONT)))
+        {
+            bool SafeToInterpolate = true;
+
+            CVector PlayerFarAway;
+
+            if (m_bWaitForInterpolToFinish == false) {
+                if ((m_bLookingAtPlayer) && (m_bTransitionState)) {
+                    PlayerFarAway.x = FindPlayerPed()->GetPosition().x - GetMatrix().GetPosition().x;
+                    PlayerFarAway.y = FindPlayerPed()->GetPosition().y - GetMatrix().GetPosition().y;
+                    PlayerFarAway.z = FindPlayerPed()->GetPosition().z - GetMatrix().GetPosition().z;
+
+                    if (m_pTargetEntity != nullptr) {
+                        if (m_pTargetEntity->GetIsTypePed()) {
+                            if (PlayerFarAway.Magnitude() > 17.5f) {
+                                if ((ReqMode == MODE_SYPHON) || (ReqMode == MODE_SYPHON_CRIM_IN_FRONT)) {
+                                    m_bWaitForInterpolToFinish = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (m_bWaitForInterpolToFinish == true) {
+                SafeToInterpolate = false;
+            }
+
+            if (SafeToInterpolate) {
+                StartTransitionWhenNotFinishedInter(ReqMode);
+            }
+        } else if ((ReqMode == MODE_FIXED) && (m_pTargetEntity != m_aCams[m_nActiveCam].m_pCamTargetEntity)) {
+            if (m_bPlayerIsInGarage) {
+                if (!m_bTransitionState) {
+                    StartTransition(ReqMode);
+                } else {
+                    StartTransitionWhenNotFinishedInter(ReqMode);
+                }
+            }
+        }
+    } else {
+        bool bJumpToFirstPerson       = false;
+        bool bFirstPersonWeaponActive = false;
+        if ((m_bEnable1rstPersonCamCntrlsScript == true) || (m_bAllow1rstPersonWeaponsCamera == true)) {
+            if (ReqMode == MODE_1STPERSON) {
+                if (m_aCams[m_nActiveCam].m_nMode != ReqMode) {
+                    bJumpToFirstPerson = true;
+                }
+            } else if (((m_PlayerWeaponMode.m_nMode == MODE_SNIPER) || (m_PlayerWeaponMode.m_nMode == MODE_1STPERSON)
+                        || (m_PlayerWeaponMode.m_nMode == MODE_ROCKETLAUNCHER) || (m_PlayerWeaponMode.m_nMode == MODE_ROCKETLAUNCHER_HS))
+                       && (CPad::GetPad(0)->GetTarget())
+                       && (m_bAllow1rstPersonWeaponsCamera)) {
+                bJumpToFirstPerson       = true;
+                bFirstPersonWeaponActive = true;
+            } else {
+                if (m_aCams[m_nActiveCam].m_nMode != m_nModeToGoTo) {
+                    m_bStartInterScript = true;
+                    m_nTypeOfSwitch     = eSwitchType::JUMPCUT;
+                    CPad::GetPad(0)->DisablePlayerControls &= ~1;
+                }
+            }
+        }
+
+        if (((!m_bTransitionState) && (m_bStartInterScript == true)) && (m_nTypeOfSwitch == eSwitchType::INTERPOLATION)) {
+            ReqMode = m_nModeToGoTo;
+            StartTransition(ReqMode);
+        } else if ((m_bTransitionState && (m_bStartInterScript == true)) && (m_nTypeOfSwitch == eSwitchType::INTERPOLATION)) {
+            ReqMode = m_nModeToGoTo;
+            StartTransitionWhenNotFinishedInter(ReqMode);
+        } else if (((m_bStartInterScript == true) && (m_nTypeOfSwitch == eSwitchType::JUMPCUT)) || (bJumpToFirstPerson)) {
+            m_bTransitionState    = false;
+            m_bDoingSpecialInterp = false;
+            if ((m_bEnable1rstPersonCamCntrlsScript == true) && (ReqMode == MODE_1STPERSON)) {
+                m_aCams[m_nActiveCam].m_nMode = ReqMode;
+            } else if (bFirstPersonWeaponActive) {
+                m_aCams[m_nActiveCam].m_nMode = static_cast<eCamMode>(m_PlayerWeaponMode.m_nMode);
+            } else {
+                m_aCams[m_nActiveCam].m_nMode = m_nModeToGoTo;
+            }
+            m_bJust_Switched                              = true;
+
+            m_aCams[m_nActiveCam].m_bResetStatics         = true;
+            m_aCams[m_nActiveCam].m_vecCamFixedModeVector = m_vecFixedModeVector;
+            m_aCams[m_nActiveCam].m_pCamTargetEntity->CleanUpOldReference(&m_aCams[m_nActiveCam].m_pCamTargetEntity);
+            m_aCams[m_nActiveCam].m_pCamTargetEntity = m_pTargetEntity;
+            m_aCams[m_nActiveCam].m_pCamTargetEntity->RegisterReference(&m_aCams[m_nActiveCam].m_pCamTargetEntity);
+            m_aCams[m_nActiveCam].m_vecCamFixedModeSource        = m_vecFixedModeSource;
+            m_aCams[m_nActiveCam].m_vecCamFixedModeUpOffSet      = m_vecFixedModeUpOffSet;
+            m_aCams[m_nActiveCam].m_bCamLookingAtVector          = m_bLookingAtVector;
+            m_aCams[m_nActiveCam].m_vecLastAboveWaterCamPosition = m_aCams[(m_nActiveCam + 1) % 2].m_vecLastAboveWaterCamPosition;
+            m_bJust_Switched                                     = true;
+            m_fCarZoomSmoothed                                   = m_fCarZoomBase;
+            m_fPedZoomSmoothed                                   = m_fPedZoomBase;
+        }
+    }
+    m_bStartInterScript = false;
+
+    if (m_aCams[m_nActiveCam].m_pCamTargetEntity == nullptr) {
+        m_aCams[m_nActiveCam].m_pCamTargetEntity->CleanUpOldReference(&m_aCams[m_nActiveCam].m_pCamTargetEntity);
+        m_aCams[m_nActiveCam].m_pCamTargetEntity = m_pTargetEntity;
+        m_aCams[m_nActiveCam].m_pCamTargetEntity->RegisterReference(&m_aCams[m_nActiveCam].m_pCamTargetEntity);
+    }
+
+    if (m_aCams[m_nActiveCam].m_nMode == MODE_FLYBY || (m_pTargetEntity->GetIsTypePed() && (m_aCams[m_nActiveCam].m_nMode == MODE_1STPERSON || m_aCams[m_nActiveCam].m_nMode == MODE_SNIPER || m_aCams[m_nActiveCam].m_nMode == MODE_M16_1STPERSON || m_aCams[m_nActiveCam].m_nMode == MODE_CAMERA || m_aCams[m_nActiveCam].m_nMode == MODE_HELICANNON_1STPERSON || m_aCams[m_nActiveCam].m_nMode == MODE_ROCKETLAUNCHER || m_aCams[m_nActiveCam].m_nMode == MODE_ROCKETLAUNCHER_HS))) {
+        if (FindPlayerPed()->m_bIsVisible) {
+            FindPlayerPed()->m_bIsVisible = false;
+
+            CTaskSimpleHoldEntity* pTask  = FindPlayerPed()->GetIntelligence()->GetTaskHold();
+
+            if (pTask && pTask->GetHeldEntity()) {
+                pTask->GetHeldEntity()->m_bIsVisible = false;
+            }
+        }
+    } else {
+        FindPlayerPed()->m_bIsVisible = true;
+    }
+
+    if (m_aCams[m_nActiveCam].m_nMode == MODE_FIXED) {
+        FindPlayerPed()->m_bIsVisible = gPlayerPedVisible;
+    }
+
+    bool JustGoneOutOfObbeCam = false;
+    if (CanTryObbeCam == false) {
+        if (m_nWhoIsInControlOfTheCamera == 2) {
+            RestoreWithJumpCut();
+            JustGoneOutOfObbeCam = true;
+            SetCameraDirectlyBehindForFollowPed_CamOnAString();
+        }
+    }
+    if ((ModeAtStartOfCamControl != m_aCams[m_nActiveCam].m_nMode) || (JustGoneOutOfObbeCam) || (m_aCams[m_nActiveCam].m_nMode == MODE_FOLLOWPED) || (m_aCams[m_nActiveCam].m_nMode == MODE_CAM_ON_A_STRING)) {
+        if ((CPad::GetPad(0)->sub_540530()) && (CReplay::Mode != MODE_PLAYBACK) && ((m_bLookingAtPlayer == true) || (m_nWhoIsInControlOfTheCamera == 2)) && (m_bWideScreenOn == false)) {
+            if (m_nWhoIsInControlOfTheCamera == 2) {
+                if (JustGoneIntoObbeCamera == true) {
+                    if (!CPad::GetPad(0)->DisablePlayerControls) {
+                        AudioEngine.ReportFrontendAudioEvent(AE_FRONTEND_DISPLAY_INFO);
+                    }
+                }
+            } else {
+                AudioEngine.ReportFrontendAudioEvent(AE_FRONTEND_DISPLAY_INFO);
+            }
+        }
+    }
 }
 
 // 0x5B24A0

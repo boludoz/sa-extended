@@ -158,12 +158,12 @@ public:
     uint32          m_nCheckCullZoneThisNumFrames{6}; // aka: m_iCheckCullZoneThisNumFrames
     uint32          m_nZoneCullFrameNumWereAt{};      // aka: m_iZoneCullFrameNumWereAt
     uint32          m_nWhoIsInControlOfTheCamera{};   // aka: WhoIsInControlOfTheCamera
-    uint32          m_nCarZoom{2};                    // aka: m_nCarZoom
+    int32           m_nCarZoom{2};                    // aka: m_nCarZoom
     float           m_fCarZoomBase{};                 // aka: m_fCarZoomBase
     float           m_fCarZoomTotal{};                // aka: m_fCarZoomTotal
     float           m_fCarZoomSmoothed{};             // aka: m_fCarZoomSmoothed
     float           m_fCarZoomValueScript{};          // aka: m_fCarZoomValueScript
-    uint32          m_nPedZoom{2};                    // aka: m_nPedZoom
+    int32           m_nPedZoom{2};                    // aka: m_nPedZoom
     float           m_fPedZoomBase{};                 // aka: m_fPedZoomBase
     float           m_fPedZoomTotal{};                // aka: m_fPedZoomTotal
     float           m_fPedZoomSmoothed{};             // aka: m_fPedZoomSmoothed
@@ -533,6 +533,39 @@ static inline auto& gpMadeInvisibleEntities = StaticRef<std::array<CEntity*, 10>
 static inline auto& gNumEntitiesSetInvisible = StaticRef<uint32>(0x9655DC);
 
 void CamShakeNoPos(CCamera* camera, float strength);
+
+//! Whether the active camera is under the water surface
+bool CameraObscuredByWaterLevel();
+
+//! Obbe cinema camera sequences, as indexed by `CCamera::TryToStartNewCamMode`. The gaps are
+//! modes that were compiled out; the switch there covers 0..29.
+enum eObbeCamSequence {
+    MOVIECAM0 = 0,  //!< Wheel cam on the player
+    MOVIECAM1,      //!< Fixed cam just above the road, quite far away
+    MOVIECAM2,      //!< Fixed right in front, just above the road
+    MOVIECAM3,      //!< Fixed cam quite high up
+    MOVIECAM5 = 5,  //!< Fixed cam just above the roofs of cars
+    MOVIECAM6,      //!< Standard camera
+    MOVIECAM7,      //!< Chase cam on a copper chasing us
+    MOVIECAM8,      //!< Wheel cam on a copper chasing us
+
+    MOVIECAM14 = 14,
+    MOVIECAM15,     //!< Straight in front of the player
+    MOVIECAM16,     //!< Underneath, in front of and to the side of the player
+    MOVIECAM17,     //!< Behind the player, slightly to the side
+    MOVIECAM18,     //!< Directly above the player
+    MOVIECAM19,     //!< Directly above the player, to the side
+    MOVIECAM20,     //!< Heli chase
+    MOVIECAM21,     //!< Cam man
+    MOVIECAM22,     //!< Bird
+    MOVIECAM23,     //!< Plane spotter
+    MOVIECAM24,     //!< Dog fight - disabled on PC
+    MOVIECAM25,     //!< Fish cam - disabled on PC
+    MOVIECAMPLANE1,
+    MOVIECAMPLANE2,
+    MOVIECAMPLANE3,
+    CAM_ON_A_STRING_LAST_RESORT,
+};
 
 void FindSplinePathPositionVector(float* outPos, const float* path, float timer, int32* marker);
 void FindSplinePathPositionFloat(float* outValue, const float* path, float timer, int32* marker);

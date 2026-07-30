@@ -117,6 +117,16 @@ struct CZoneDef {
 
         return true;
     }
+
+    //! @addr notsa
+    //! Middle of the parallelogram the zone spans: the corner plus half of each edge vector.
+    [[nodiscard]] CVector FindCenter() const {
+        return {
+            (float)m_cornerX + (float)(m_vec1X + m_vec2X) / 2.0f,
+            (float)m_cornerY + (float)(m_vec1Y + m_vec2Y) / 2.0f,
+            (float)(m_minZ + m_maxZ) / 2.0f
+        };
+    }
 };
 
 VALIDATE_SIZE(CZoneDef, 0x10);
