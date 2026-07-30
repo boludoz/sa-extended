@@ -43,16 +43,6 @@ static HRESULT GetVideoMemInfo(LPDWORD total, LPDWORD available) {
     return hr;
 }
 
-//! Check if D3D9 can be loaded (Originally this checked for versions 7 => 9, but GTA can only run with 9, so... :D
-static BOOL CheckDirectX() {
-    const auto hD3D9DLL = LoadLibrary("D3D9.DLL");
-    if (hD3D9DLL == NULL) {
-        return FALSE;
-    }
-    FreeLibrary(hD3D9DLL);
-    return TRUE;
-}
-
 //! 0x745840 - Check if DirectSound can be loaded
 static BOOL CheckDirectSound() {
     LPDIRECTSOUND ds;
@@ -102,7 +92,11 @@ static void InitialiseLanguage() {
 
 // 0x747420
 RwBool psInitialize() {
+
+#if FIX_BUGS
     SetProcessDPIAware();
+#endif
+
 #ifdef NOTSA_USE_SDL3
     auto ps = new psGlobalType;
 #else
@@ -164,8 +158,14 @@ RwBool psInitialize() {
         return FALSE;
     }
 
+//#if FIX_BUGS
+    s_OSStatus.DxVer = 0x900;
+//#else
+//    s_OSStatus.DxVer = GetDirectXVersion(); DIRECTX PLAY SHIT.
+//#endif
+
     // Originally figured out available dx version and only allowed dx9, but we've simplified it.
-    if (!CheckDirectX()) {
+    if (s_OSStatus.DxVer < 0x900) {
         MessageBoxW(
             NULL,
             (LPCWSTR)TheText.Get("WIN_DX"),	 // Grand Theft Auto San Andreas requires at least DirectX version 8.1
@@ -174,9 +174,6 @@ RwBool psInitialize() {
         );
         return FALSE;
     }
-
-    // CheckDirectX() Checks for Dx9 only, so use that
-    s_OSStatus.DxVer = 0x900;
 
     if (!CheckDirectSound()) {
         MessageBoxW(
