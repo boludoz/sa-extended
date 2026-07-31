@@ -94,9 +94,8 @@ CTask* CTaskComplexGoToCarDoorAndStandStill::CreateSubTask(eTaskType taskType, C
         return new CTaskSimpleGoToPoint{ m_MoveState, m_TargetPt, m_TargetRadius, true };
     }
     case TASK_FINISHED:
-        return nullptr;
     default:
-        NOTSA_UNREACHABLE();
+        return nullptr;
     }
 }
 
@@ -124,7 +123,7 @@ CTask* CTaskComplexGoToCarDoorAndStandStill::CreateNextSubTask(CPed* ped) {
         return CreateSubTask(TASK_FINISHED, ped);
     }
     default:
-        NOTSA_UNREACHABLE("SubTaskType: {}", (int)tt);
+        return nullptr;
     }
 }
 
@@ -140,7 +139,7 @@ CTask* CTaskComplexGoToCarDoorAndStandStill::CreateFirstSubTask(CPed* ped) {
         }
 
         if (m_TargetSeat != 0 && !m_bIsDriver) {
-            if (const auto psgrAtDoor = m_Vehicle->GetPassengers()[CCarEnterExit::ComputePassengerIndexFromCarDoor(m_Vehicle, m_TargetSeat)]) {
+            if (const auto psgrAtDoor = CCarEnterExit::ComputePedInPassengerSeatFromCarDoor(m_Vehicle, m_TargetSeat)) {
                 if (psgrAtDoor->bThisPedIsATargetPriority) {
                     return TASK_SIMPLE_STAND_STILL;
                 }
@@ -228,7 +227,7 @@ CTask* CTaskComplexGoToCarDoorAndStandStill::ControlSubTask(CPed* ped) {
         return m_pSubTask;
     }
     default:
-        NOTSA_UNREACHABLE("SubTaskType: {}", (int)tt);
+        return nullptr;
     }
 }
 

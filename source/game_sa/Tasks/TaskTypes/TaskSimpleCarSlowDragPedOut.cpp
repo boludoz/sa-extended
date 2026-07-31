@@ -50,7 +50,8 @@ void CTaskSimpleCarSlowDragPedOut::FinishAnimCarSlowDragPedOutCB(CAnimBlendAssoc
         self->m_Vehicle->ProcessOpenDoor(nullptr, self->m_TargetDoor, groupId, animId, 1.f);
 
         // Mark door as opened (Not sure why it's done here, not in `ProcessOpenDoor`...)
-        if (self->m_Vehicle->IsAutomobile()) {
+        // NOTSA: `m_bNoDoors` isn't checked in the original - don't flag a door open on a vehicle that has none
+        if (self->m_Vehicle->IsAutomobile() && !self->m_Vehicle->m_pHandlingData->m_bNoDoors) {
             self->m_Vehicle->AsAutomobile()->m_damageManager.SetDoorOpen((eDoors)self->m_TargetDoor);
         }
     }
@@ -77,8 +78,7 @@ std::pair<AssocGroupId, AnimationId> CTaskSimpleCarSlowDragPedOut::ComputeAnimID
         case TARGET_DOOR_UNK: // TODO: Figure this out, see CVehicleAnimGroup::GetGroup
             return ANIM_ID_UNKNOWN_15;
 
-        default:
-            assert(0); // Not reachable
+        default: // The original has no case for these and leaves the anim id unwritten - don't turn that into a crash
             return ANIM_ID_UNDEFINED;
         }
     }();
@@ -99,9 +99,8 @@ void CTaskSimpleCarSlowDragPedOut::StartAnim(const CPed* ped) {
 CPed* CTaskSimpleCarSlowDragPedOut::GetJackedPed() const {
     if (m_TargetDoor == TARGET_DOOR_DRIVER) {
         return m_Vehicle->m_pDriver;
-    } else {
-        return m_Vehicle->m_apPassengers[CCarEnterExit::ComputePassengerIndexFromCarDoor(m_Vehicle, (int32)m_TargetDoor)];
     }
+    return CCarEnterExit::ComputePedInPassengerSeatFromCarDoor(m_Vehicle, (int32)m_TargetDoor);
 }
 
 // 0x64BFB0

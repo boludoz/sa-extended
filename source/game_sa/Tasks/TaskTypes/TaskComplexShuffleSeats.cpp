@@ -62,7 +62,7 @@ CTask* CTaskComplexShuffleSeats::CreateSubTask(eTaskType taskType, CPed* ped) {
         return nullptr;
     }
     default:
-        NOTSA_UNREACHABLE();
+        return nullptr;
     }
 }
 
@@ -107,7 +107,7 @@ CTask* CTaskComplexShuffleSeats::CreateNextSubTask(CPed* ped) {
             case TASK_SIMPLE_CAR_SET_PED_OUT:
                 return TASK_FINISHED;
             default:
-                NOTSA_UNREACHABLE();
+                return TASK_NONE; // `CreateSubTask` turns it into `nullptr`, like the original
             }
         }
 
@@ -126,7 +126,7 @@ CTask* CTaskComplexShuffleSeats::CreateNextSubTask(CPed* ped) {
                 // Rear seats
                 case TARGET_DOOR_REAR_RIGHT:  return TARGET_DOOR_REAR_LEFT;
                 case TARGET_DOOR_REAR_LEFT:   return TARGET_DOOR_REAR_RIGHT;
-                default:                      NOTSA_UNREACHABLE();
+                default:                      return (eTargetDoor)m_TargetDoor; // Left untouched by the original
                 }
             }();
             //NOTSA_LOG_DEBUG("seat {} -> {}", m_OriginDoor, m_TargetDoor);
@@ -135,14 +135,16 @@ CTask* CTaskComplexShuffleSeats::CreateNextSubTask(CPed* ped) {
                     return TASK_SIMPLE_CAR_SET_PED_IN_AS_DRIVER;
                 }
             } else {
-                if (!m_Veh->m_apPassengers[CCarEnterExit::ComputePassengerIndexFromCarDoor(m_Veh, m_TargetDoor)]) {
+                if (!CCarEnterExit::ComputePedInPassengerSeatFromCarDoor(m_Veh, m_TargetDoor)) {
                     return TASK_SIMPLE_CAR_SET_PED_IN_AS_PASSENGER;
                 }
             }
             return TASK_FINISHED;
         }
+        case TASK_SIMPLE_CAR_SET_PED_OUT:
+            return TASK_FINISHED;
         default:
-            NOTSA_UNREACHABLE();
+            return TASK_NONE;
         }
     }(), ped);
 }

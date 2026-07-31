@@ -403,6 +403,10 @@ public:
         return m_moveStateRadius;
     }
 
+    auto HasAchievedSeekEntity() const {
+        return m_bAchievedSeekEntity;
+    }
+
 private:
     CTask* CreateSubTaskWhenPedIsTooFarFromEntity(CPed* ped, float pedToSeekPosDist2DSq) {
         return CreateSubTask(

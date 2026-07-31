@@ -31,6 +31,8 @@ public:
     void           GetCameraStickModifier(CPed* ped, float fCamDistance, float& fVerticalAngle, float& fHorizontalAngle, float& outStickAlpha, float& outStickBeta);
 
     auto GetTargetCar() const { return m_Car; }
+    auto IsQuitAfterOpeningDoor() const { return m_bQuitAfterOpeningDoor; }
+    auto IsQuitAfterDraggingPedOut() const { return m_bQuitAfterDraggingPedOut; }
     void SetMoveState(eMoveState ms) { m_MoveState = ms; }
 protected:
     virtual CTask* CreateNextSubTask_AfterSimpleCarAlign(CPed* ped);

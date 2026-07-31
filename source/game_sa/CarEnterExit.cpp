@@ -107,7 +107,7 @@ int32 CCarEnterExit::ComputeDoorFlag(const CVehicle* vehicle, int32 doorId, bool
         case 18: return 5;
         case 9:
         case 11: return 10;
-        default: NOTSA_UNREACHABLE(); // Originally `return 0`
+        default: return 0;
         }
     } else {
         switch (doorId) {
@@ -116,7 +116,7 @@ int32 CCarEnterExit::ComputeDoorFlag(const CVehicle* vehicle, int32 doorId, bool
         case 10:
         case 18: return 1;
         case 11: return 2;
-        default: NOTSA_UNREACHABLE(); // Originally `return 0`
+        default: return 0;
         }
     }
 }
@@ -130,7 +130,7 @@ int32 CCarEnterExit::ComputeOppositeDoorFlag(const CVehicle* vehicle, int32 door
         case 18: return 5;
         case 9:
         case 11: return 10;
-        default: NOTSA_UNREACHABLE(); // Originally `return 0`
+        default: return 0;
         }
     } else {
         switch (doorId) {
@@ -139,7 +139,7 @@ int32 CCarEnterExit::ComputeOppositeDoorFlag(const CVehicle* vehicle, int32 door
         case 10:
         case 18: return 4;
         case 11: return 8;
-        default: NOTSA_UNREACHABLE(); // Originally `return 0`
+        default: return 0;
         }
     }
 }
@@ -166,6 +166,19 @@ int32 CCarEnterExit::ComputePassengerIndexFromCarDoor(const CVehicle* vehicle, i
     default:
         return -1;
     }
+}
+
+/*!
+* @notsa
+* @brief Ped sitting behind `doorId`.
+*
+* `ComputePassengerIndexFromCarDoor` returns `-1` for doors with no passenger seat (`TARGET_DOOR_UNK`, or
+* the right hand side of a bike/tandem). The original code indexed `m_apPassengers` with it anyway, which
+* lands on `m_pDriver` - it sits right before the array at 0x460. Kept, since callers rely on that value.
+*/
+CPed* CCarEnterExit::ComputePedInPassengerSeatFromCarDoor(const CVehicle* vehicle, int32 doorId) {
+    const auto psgrIdx = ComputePassengerIndexFromCarDoor(vehicle, doorId);
+    return psgrIdx < 0 ? vehicle->m_pDriver : vehicle->m_apPassengers[psgrIdx];
 }
 
 // 0x64F070

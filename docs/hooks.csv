@@ -7002,10 +7002,10 @@ CTaskComplexAttractorPartnerWait,CreateFirstSubTask,0x00638F20,1,0,1
 CTaskComplexAttractorPartnerWait,CreateNextSubTask,0x006332A0,1,0,1
 CTaskComplexAttractorPartnerWait,GetTaskType,0x00633280,1,0,1
 CTaskComplexArrestPed,Constructor,0x0068B990,1,0,0
-CTaskComplexArrestPed,ControlSubTask,0x0068D350,0,1,1
+CTaskComplexArrestPed,ControlSubTask,0x0068D350,1,0,1
 CTaskComplexArrestPed,CreateFirstSubTask,0x006907A0,1,0,1
-CTaskComplexArrestPed,CreateNextSubTask,0x00690220,0,1,1
-CTaskComplexArrestPed,CreateSubTask,0x0068CF80,0,1,0
+CTaskComplexArrestPed,CreateNextSubTask,0x00690220,1,0,1
+CTaskComplexArrestPed,CreateSubTask,0x0068CF80,1,0,0
 CTaskComplexArrestPed,Destructor,0x0068BA00,1,0,0
 CTaskComplexArrestPed,MakeAbortable,0x0068BA60,1,0,1
 CScriptsForBrains,GetIndexOfScriptBrainWithThisName,0x0046AA30,1,0,0

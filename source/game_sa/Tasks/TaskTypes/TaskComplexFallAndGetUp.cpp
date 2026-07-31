@@ -115,7 +115,7 @@ CTask* CTaskComplexFallAndGetUp::CreateSubTask(eTaskType taskType) {
 
 // 0x6787D0
 bool CTaskComplexFallAndGetUp::IsFalling() {
-    return m_pSubTask->GetTaskType() == TASK_SIMPLE_FALL;
+    return m_pSubTask && m_pSubTask->GetTaskType() == TASK_SIMPLE_FALL;
 }
 
 // 0x6787A0

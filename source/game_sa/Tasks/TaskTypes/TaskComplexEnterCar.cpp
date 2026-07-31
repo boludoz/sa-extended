@@ -131,7 +131,7 @@ CTask* CTaskComplexEnterCar::CreateNextSubTask(CPed* ped) {
         case TASK_NONE:
             return C(TASK_FINISHED);
         default:
-            NOTSA_UNREACHABLE("SubTaskType = {}", tt);
+            return nullptr;
         }
     }
 
@@ -159,8 +159,8 @@ CTask* CTaskComplexEnterCar::CreateNextSubTask(CPed* ped) {
             return C(TASK_FINISHED);
         }
 
-        m_TargetDoor               = tGoToDoor->m_TargetDoor;
-        m_TargetSeat               = tGoToDoor->m_TargetSeat;
+        m_TargetDoor               = tGoToDoor->GetTargetDoor();
+        m_TargetDoorPos            = tGoToDoor->GetTargetPt();
         m_TargetDoorOppositeToFlag = ComputeTargetDoorOppositeToFlag();
 
         if (CCarEnterExit::IsCarDoorInUse(m_Car, m_TargetDoor, m_TargetDoorOppositeToFlag)) { // 0x63EC24
@@ -230,7 +230,7 @@ CTask* CTaskComplexEnterCar::CreateNextSubTask(CPed* ped) {
                     return C(TASK_FINISHED);
                 }
             }
-        } else if (m_DraggedPed && (m_bAsDriver ? m_Car->IsDriver(m_DraggedPed) : m_DraggedPed == m_Car->GetPassengers()[CCarEnterExit::ComputePassengerIndexFromCarDoor(m_Car, m_TargetDoor)])) { // 0x63EF18 - Check if it's  necessary to drag the ped out
+        } else if (m_DraggedPed && (m_bAsDriver ? m_Car->IsDriver(m_DraggedPed) : m_DraggedPed == CCarEnterExit::ComputePedInPassengerSeatFromCarDoor(m_Car, m_TargetDoor))) { // 0x63EF18 - Check if it's  necessary to drag the ped out
             if (CCarEnterExit::CarHasDoorToClose(m_Car, (eDoors)m_TargetDoor)) {
                 return C(TASK_SIMPLE_CAR_CLOSE_DOOR_FROM_OUTSIDE);
             }
@@ -352,7 +352,7 @@ CTask* CTaskComplexEnterCar::CreateNextSubTask(CPed* ped) {
         return nullptr;
 
     default:
-        NOTSA_UNREACHABLE("SubTaskType = {}", tt);
+        return nullptr;
     }
 }
 
@@ -437,7 +437,7 @@ CTask* CTaskComplexEnterCar::CreateNextSubTask_AfterSimpleCarAlign(CPed* ped) {
             } else { // 0x63FC2E
                 if (!m_DraggedPed || CPedGroups::AreInSameGroup(m_DraggedPed, ped) || m_DraggedPed->bDontDragMeOutCar) { // 0x63FC41
                     if (!m_DraggedPed || !m_bAsDriver || !m_Car->IsDriver(m_DraggedPed)) { // 0x63FC63 - Inverted
-                        if (!m_DraggedPed || m_bAsDriver || m_DraggedPed != m_Car->GetPassengers()[CCarEnterExit::ComputePassengerIndexFromCarDoor(m_Car, m_TargetDoor)]) {
+                        if (!m_DraggedPed || m_bAsDriver || m_DraggedPed != CCarEnterExit::ComputePedInPassengerSeatFromCarDoor(m_Car, m_TargetDoor)) {
                             return C(TASK_SIMPLE_CAR_GET_IN);
                         }
                     }
@@ -732,7 +732,7 @@ CTask* CTaskComplexEnterCar::CreateSubTask(eTaskType taskType, CPed* ped) {
     case TASK_SIMPLE_STAND_STILL:
         return new CTaskSimpleStandStill{}; // 0x63E0CE
     default:
-        NOTSA_UNREACHABLE("taskType = {}", taskType);
+        return nullptr;
     }
 }
 
