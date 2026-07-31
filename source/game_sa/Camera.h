@@ -465,7 +465,7 @@ public:
     void Enable1rstPersonWeaponsCamera();
 
     void Fade(float duration, eFadeFlag direction);
-    void Find3rdPersonCamTargetVector(float range, CVector vecGunMuzzle, CVector& outSource, CVector& outTarget);
+    bool Find3rdPersonCamTargetVector(float range, CVector vecGunMuzzle, CVector& outSource, CVector& outTarget);
     float Find3rdPersonQuickAimPitch() const;
     float FindCamFOV() const;
     void FinishCutscene();

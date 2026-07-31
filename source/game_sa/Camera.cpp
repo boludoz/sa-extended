@@ -2965,38 +2965,34 @@ void CCamera::FinishCutscene() {
 }
 
 // 0x514970
-void CCamera::Find3rdPersonCamTargetVector(float range, CVector gunMuzzle, CVector& outSource, CVector& outTarget) {
-    const auto pActiveCam = &m_aCams[m_nActiveCam];
-    const float tanHalfFOV = std::tan(DegreesToRadians(pActiveCam->m_fFOV * 0.5f));
-    const float aspectRatio = CDraw::ms_fAspectRatio;
-    
-    // Calculate aim target direction (This will be a unit vector)
-    CVector dir = m_aCams[m_nActiveCam].m_vecFront;
-    
-    if (pActiveCam->m_nMode == eCamMode::MODE_TWOPLAYER_IN_CAR_AND_SHOOTING) {
-        pActiveCam->Get_TwoPlayer_AimVector(dir);
+bool CCamera::Find3rdPersonCamTargetVector(float fRange, CVector vecGunMuzzle, CVector& vecSource, CVector& vecTarget) {
+    float fScreenAngle, fScreenPosMult;
+
+    fScreenAngle     = DegreesToRadians(0.5f * m_aCams[m_nActiveCam].m_fFOV);
+    fScreenPosMult   = 2.0f * (m_f3rdPersonCHairMultX - 0.5f);
+    float fRightMult = fScreenPosMult * std::tan(fScreenAngle);
+
+    fScreenPosMult   = 2.0f * (0.5f - m_f3rdPersonCHairMultY);
+    float fUpMult    = fScreenPosMult * (1.0f / CDraw::GetAspectRatio()) * std::tan(fScreenAngle);
+
+    vecSource        = m_aCams[m_nActiveCam].m_vecSource;
+    vecTarget        = m_aCams[m_nActiveCam].m_vecFront;
+
+    if (m_aCams[m_nActiveCam].m_nMode == eCamMode::MODE_TWOPLAYER_IN_CAR_AND_SHOOTING) {
+        m_aCams[m_nActiveCam].Get_TwoPlayer_AimVector(vecTarget);
     } else {
-        // Vertical offset
-        dir += pActiveCam->m_vecUp * (tanHalfFOV * ((0.5f - m_f3rdPersonCHairMultY) * 2.0f) / aspectRatio);
+        vecTarget += m_aCams[m_nActiveCam].m_vecUp * fUpMult;
+        vecTarget += CrossProduct(m_aCams[m_nActiveCam].m_vecFront, m_aCams[m_nActiveCam].m_vecUp) * fRightMult;
 
-        // Horizontal offset
-        const auto right = pActiveCam->m_vecFront.Cross(pActiveCam->m_vecUp);
-        dir += right * (tanHalfFOV * ((m_f3rdPersonCHairMultX - 0.5f) * 2.0f));
-        
-        // Handle zero magnitude case
-        if (dir.Magnitude() <= 0.0f) {
-            dir = CVector(1.0f, 0.0f, 0.0f);
-        } else {
-            dir.Normalise();
-        }
+        vecTarget.Normalise();
     }
-    
-    // Calculate intersection point with muzzle
-    outSource = pActiveCam->m_vecSource;
-    outSource += (gunMuzzle - outSource).ProjectOnToNormal(dir);
 
-    // Apply final range to target 
-    outTarget = outSource + dir * range;
+    float fGunVec = DotProduct(vecGunMuzzle - vecSource, vecTarget);
+    vecSource += fGunVec * vecTarget;
+
+    vecTarget = vecSource + fRange * vecTarget;
+
+    return true;
 }
 
 // 0x514B80
