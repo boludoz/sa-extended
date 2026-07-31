@@ -42,9 +42,10 @@ public:
     FixedFloat<int16, 4.f> m_Height;
 
     // As usual, some R* dev from 2003 decided to swap the order of rotations as well :D
-    FixedFloat<int8, 256.f / TWO_PI> m_RotZ;
-    FixedFloat<int8, 256.f / TWO_PI> m_RotY;
-    FixedFloat<int8, 256.f / TWO_PI> m_RotX;
+    // Unsigned - ProcessOneOccluder reads these with `movzx`, and AddOne stores [0, 256)
+    FixedFloat<uint8, 256.f / TWO_PI> m_RotZ;
+    FixedFloat<uint8, 256.f / TWO_PI> m_RotY;
+    FixedFloat<uint8, 256.f / TWO_PI> m_RotX;
 
     struct {
         int16 m_NextIndex : 15;

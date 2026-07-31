@@ -595,7 +595,7 @@ void CHeli::ProcessFlyingCarStuff() {
     // Please do not confuse with type of automobile!
     if (!GetStatus() || GetStatus() == STATUS_REMOTE_CONTROLLED || GetStatus() == STATUS_PHYSICS) {
         // Handle wheel angular velocity
-        if (vehicleType->m_fHeliRotorSpeed < 0.22f && !physicalFlags.bSubmergedInWater) {
+        if (vehicleType->m_fHeliRotorSpeed < 0.22f && !physicalFlags.bTouchingWater) {
             vehicleType->m_fHeliRotorSpeed += (m_nModelIndex == MODEL_RCGOBLIN || m_nModelIndex == MODEL_RCRAIDER) ? 0.003f : 0.001f;
         }
 
@@ -674,7 +674,7 @@ void CHeli::ProcessFlyingCarStuff() {
         }
 
         vehicleType->vehicleFlags.bEngineOn = false;
-        float speedReduction = CTimer::GetTimeInMS() * 0.00055f;
+        float speedReduction = CTimer::GetTimeStep() * 0.00055f;
         if (speedReduction >= vehicleType->m_fHeliRotorSpeed) {
             vehicleType->m_fHeliRotorSpeed = 0.0f;
         } else {
@@ -710,116 +710,89 @@ void CHeli::ProcessFlyingCarStuff() {
 void CHeli::PreRender() {
     CVehicle::PreRender();
 
-    // Get vehicle model info
-    auto modelInfo = GetVehicleModelInfo();
+    auto* const mi = GetVehicleModelInfo();
 
-    // Add search light if it's on
+    CMatrix matrix;
+    CVector posn;
+
     if (m_bSearchLightOn && m_LightBrightness > 0.0f && CClock::GetIsTimeInRange(19, 6)) {
-        CVector point(0.0f, 3.5f, -0.3f);
-        auto outPoint = m_matrix->TransformPoint(point);
-        
-        CVector pointTarget(m_SearchLightX, m_SearchLightY, m_SearchLightZ);
-        
-        CHeli::AddHeliSearchLight(
-            outPoint,
-            pointTarget,
+        AddHeliSearchLight(
+            m_matrix->TransformPoint({ 0.0f, 3.5f, -0.3f }),
+            { m_SearchLightX, m_SearchLightY, m_SearchLightZ },
             20.0f,
             m_LightBrightness,
-            (uint32)(&m_placement.m_vPosn.y) + 3,
-            1,
-            1);
+            (uint32)((uintptr_t)this + 0xB),
+            true,
+            true
+        );
     }
 
-    // Get collision model
     CEntity::GetColModel();
 
-    // Update wheel/suspension positions if flag is set
     if (vehicleFlags.bVehicleColProcessed) {
         DoBurstAndSoftGroundRatios();
 
-        for (int i = 0; i < 4; ++i) {
-            float& wheelPos = m_wheelPosition[i];
+        for (auto i = 0; i < 4; i++) {
+            const auto r     = 1.0f - m_fSuspensionLength[i] / m_fLineLength[i];
+            const auto ratio = (m_fWheelsSuspensionCompression[i] - r) / (1.0f - r);
 
-            // Get 'wheel' position from model (x, y, z offset relative to vehicle)
-            CVector wheelOffset;
-            modelInfo->GetWheelPosn(i, wheelOffset, true);
+            mi->GetWheelPosn(i, posn, true);
 
-            // Calculate target z-position based on suspension upper limit
-            float zPos = wheelOffset.z + m_pHandlingData->m_fSuspensionUpperLimit;
-
-            // Adjust z-position if wheel is compressed (simplified, as ratio calculation is unclear)
-            if (zPos <= wheelPos && (!physicalFlags.bDisableCollisionForce || !handlingFlags.bHydraulicInst)) {
-                zPos = (zPos - wheelPos) * 0.75f + wheelPos;
+            auto height = posn.z + m_pHandlingData->m_fSuspensionUpperLimit;
+            if (ratio > 0.0f) {
+                height -= ratio * m_fSuspensionLength[i];
             }
 
-            // Update wheel position
-            wheelPos = zPos;
+            if (height > m_wheelPosition[i] || (physicalFlags.bDisableCollisionForce && handlingFlags.bHydraulicInst)) {
+                m_wheelPosition[i] = height;
+            } else {
+                m_wheelPosition[i] += (height - m_wheelPosition[i]) * 0.3f;
+            }
         }
     }
 
-    // Update wheel matrices
-    AsAutomobile()->UpdateWheelMatrix(4, true); // WHEEL_FRONT_LEFT
-    AsAutomobile()->UpdateWheelMatrix(7, true); // WHEEL_REAR_LEFT
-    AsAutomobile()->UpdateWheelMatrix(2, true); // WHEEL_FRONT_RIGHT
-    AsAutomobile()->UpdateWheelMatrix(5, true); // WHEEL_REAR_RIGHT
+    UpdateWheelMatrix(CAR_WHEEL_RB, 1);
+    UpdateWheelMatrix(CAR_WHEEL_LB, 1);
+    UpdateWheelMatrix(CAR_WHEEL_RF, 1);
+    UpdateWheelMatrix(CAR_WHEEL_LF, 1);
 
-    // Do heli dust effect for all models except RCGOBLIN and RCRAIDER
-    if (m_nModelIndex != MODEL_RCGOBLIN && m_nModelIndex != MODEL_RCRAIDER) {
-        AsAutomobile()->DoHeliDustEffect(1.0f, 1.0f);
+    if (m_nModelIndex != MODEL_RCRAIDER && m_nModelIndex != MODEL_RCGOBLIN) {
+        DoHeliDustEffect(1.0f, 1.0f);
     }
 
-    // Update main rotor angle
-    float rotorSpeedMultiplier = 1.0f;
-    if ( m_nModelIndex == 469 || m_nModelIndex == 447 || m_nModelIndex == 487 || m_nModelIndex == 488 || m_nModelIndex == 497 ) {
-        rotorSpeedMultiplier = 1.66f; // Value from 8D33A0
-    }
+    // The rotor speed lives in the wheel-speed slot, `m_fEngineSpeed` is never written
+    const auto rotorSpeed = m_wheelSpeed[1];
 
-    // Update main rotor angle based on wheel speed and time step
-    m_fMainRotorAngle -= CTimer::GetTimeInMS() * m_wheelSpeed[1] * rotorSpeedMultiplier;
-    
-    // Normalize main rotor angle to [0, TWO_PI)
-    while (m_fMainRotorAngle < 0.0f) {
+    const auto isFastRotor = notsa::contains({ MODEL_SPARROW, MODEL_SEASPAR, MODEL_MAVERICK, MODEL_VCNMAV, MODEL_POLMAV }, (eModelID)m_nModelIndex);
+    m_fMainRotorAngle -= CTimer::GetTimeStep() * rotorSpeed * (isFastRotor ? EXTRA_HELI_ROTOR_SPIN_SPEED_MULT : 1.0f);
+    while (m_fMainRotorAngle < -TWO_PI) {
         m_fMainRotorAngle += TWO_PI;
     }
-    while (m_fMainRotorAngle >= TWO_PI) {
-        m_fMainRotorAngle -= TWO_PI;
-    }
 
-    // Update rear rotor angle with model-specific multiplier
-    float rearRotorMultiplier = (m_nModelIndex == 417) ? 2.0f : 2.3f;
-    m_fRearRotorAngle -= CTimer::GetTimeInMS() * m_wheelSpeed[1] * rearRotorMultiplier;
-    
-    // Normalize rear rotor angle to [0, TWO_PI)
-    while (m_fRearRotorAngle < 0.0f) {
-        m_fRearRotorAngle += TWO_PI;
-    }
-    while (m_fRearRotorAngle >= TWO_PI) {
+    m_fRearRotorAngle -= CTimer::GetTimeStep() * rotorSpeed * (m_nModelIndex == MODEL_LEVIATHN ? 2.0f : REAR_ROTOR_SPIN_SPEED_MULT);
+    while (m_fRearRotorAngle > TWO_PI) {
         m_fRearRotorAngle -= TWO_PI;
     }
 
-    auto updateRotor = [this](eHeliNodes rotorNode) {
-        if (auto rotorFrame = m_aCarNodes[rotorNode]) {            
-            CMatrix mat;
-            CVector pos;
-            mat.Attach(RwFrameGetMatrix(rotorFrame), false);
-            pos = mat.GetPosition();
-            if (notsa::contains({HELI_STATIC_ROTOR, HELI_MOVING_ROTOR}, rotorNode)) {
-                mat.SetRotateZ(m_fMainRotorAngle);
+    const auto SpinRotor = [&](eHeliNodes node, bool aroundZ, float angle) {
+        if (auto* const frame = m_aCarNodes[node]) {
+            matrix.Attach(RwFrameGetMatrix(frame), false);
+            const auto offset = matrix.GetPosition();
+            if (aroundZ) {
+                matrix.SetRotateZ(angle);
             } else {
-                mat.SetRotateX(m_fRearRotorAngle);
+                matrix.SetRotateX(angle);
             }
-            mat.SetTranslate(pos);
-            mat.UpdateRW();
+            matrix.GetPosition() += offset;
+            matrix.UpdateRW();
         }
     };
 
-    // Update rotor frames
-    constexpr std::array rotorSatetesSet = { HELI_STATIC_ROTOR, HELI_MOVING_ROTOR, HELI_STATIC_ROTOR2, HELI_MOVING_ROTOR2 };
-    for (auto rotor : rotorSatetesSet) {
-        updateRotor(rotor);
-    }
+    SpinRotor(HELI_STATIC_ROTOR,  true,  m_fMainRotorAngle);
+    SpinRotor(HELI_MOVING_ROTOR,  true,  m_fMainRotorAngle);
+    SpinRotor(HELI_STATIC_ROTOR2, false, m_fRearRotorAngle);
+    SpinRotor(HELI_MOVING_ROTOR2, false, m_fRearRotorAngle);
 
-    // Store shadow
     CShadows::StoreShadowForVehicle(this, VEH_SHD_HELI);
 }
 

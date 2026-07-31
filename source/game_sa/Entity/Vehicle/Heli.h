@@ -10,6 +10,11 @@
 
 constexpr float HELI_ROTOR_DOTPROD_LIMIT = 0.5f;
 
+// 0x8D33A0 - main rotor speed-up for sparrow/seaspar/maverick/vcnmav/polmav
+constexpr float EXTRA_HELI_ROTOR_SPIN_SPEED_MULT = 1.66f;
+// 0x858F54 - rear rotor multiplier for everything but the leviathan
+constexpr float REAR_ROTOR_SPIN_SPEED_MULT = 2.3f;
+
 enum
 {
 	ROTOR_TOP = -3,
@@ -172,3 +177,19 @@ private:
 };
 
 VALIDATE_SIZE(CHeli, 0xA18);
+
+// Offsets proven from the disassembly:
+//   [esi+988h] & 2   -> m_nHeliFlags.bUseSearchLightOnTarget   (CHeli::ProcessControl 0x6C7154)
+//   [esi+9A0h]       -> m_fMainRotorAngle                      (CHeli::PreRender 0x6C564C)
+//   [esi+9A4h]       -> m_fRearRotorAngle                      (CHeli::PreRender 0x6C56A7)
+//   [esi+9F4h/8h/Ch] -> m_SearchLight{X,Y,Z}                   (CHeli::PreRender 0x6C5495)
+//   [esi+0A00h]      -> m_LightBrightness                      (CHeli::PreRender 0x6C5472)
+//   [esi+0A11h]      -> m_bSearchLightOn                       (CHeli::ProcessControl 0x6C70B3)
+static_assert(offsetof(CHeli, m_nHeliFlags)      == 0x988);
+static_assert(offsetof(CHeli, m_fMainRotorAngle) == 0x9A0);
+static_assert(offsetof(CHeli, m_fRearRotorAngle) == 0x9A4);
+static_assert(offsetof(CHeli, m_SearchLightX)    == 0x9F4);
+static_assert(offsetof(CHeli, m_SearchLightY)    == 0x9F8);
+static_assert(offsetof(CHeli, m_SearchLightZ)    == 0x9FC);
+static_assert(offsetof(CHeli, m_LightBrightness) == 0xA00);
+static_assert(offsetof(CHeli, m_bSearchLightOn)  == 0xA11);
