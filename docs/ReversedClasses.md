@@ -1,13 +1,13 @@
 # Reversed Classes progress
 This file is updated automatically every time the hooks.csv file is updated (which happens every time there are changes to hooks made by a commit), and shows the current progress of reversed classes in the project.
 
-Last update was at Jul 29, 2026 at 02:59:38 UTC triggered by [46b93d4fde5dd6506835b6f862328370e5c5b91e](https://github.com/boludoz/sa-extended/commit/46b93d4fde5dd6506835b6f862328370e5c5b91e) 
+Last update was at Jul 31, 2026 at 05:25:02 UTC triggered by [1aa539b3bcd7e2bd9f6b02e2d457dc76b694cab3](https://github.com/boludoz/sa-extended/commit/1aa539b3bcd7e2bd9f6b02e2d457dc76b694cab3) 
 
 ## Disclaimer
 The percentages and the number of classes shown here may not be completely accurate, because not all classes and functions are documented yet.
-## Stats (7970 functions, 700 classes)
+## Stats (7997 functions, 701 classes)
 
-#### Completely reversed classes (557/700) [80%]
+#### Completely reversed classes (558/701) [80%]
 
 <details>
 <summary>See list of classes</summary>- cTransmission (4)<br />
@@ -22,7 +22,7 @@ The percentages and the number of classes shown here may not be completely accur
 - Rs (27)<br />
 - RenderBuffer (4)<br />
 - ModelIndices (2)<br />
-- IKChain_c (17)<br />
+- IKChain_c (20)<br />
 - IKChainManager_c (17)<br />
 - CdStream (9)<br />
 - CWindModifiers (2)<br />
@@ -156,7 +156,7 @@ The percentages and the number of classes shown here may not be completely accur
 - BreakObject_c (9)<br />
 - BreakManager_c (6)<br />
 - BoneNode_c (17)<br />
-- BoneNodeManager_c (6)<br />
+- BoneNodeManager_c (8)<br />
 - CEventVehicleToSteal (2)<br />
 - CEventVehicleOnFire (3)<br />
 - CEventVehicleHitAndRun (3)<br />
@@ -496,6 +496,7 @@ The percentages and the number of classes shown here may not be completely accur
 - CTaskComplexBeInGroup (10)<br />
 - CTaskComplexAvoidOtherPedWhileWandering (15)<br />
 - CTaskComplexAttractorPartnerWait (5)<br />
+- CTaskComplexArrestPed (7)<br />
 - CPedGroupDefaultTaskAllocatorStandStill (2)<br />
 - CPedGroupDefaultTaskAllocatorFollowLimited (2)<br />
 - CPedGroupDefaultTaskAllocatorFollowAnyMeans (2)<br />
@@ -570,7 +571,7 @@ The percentages and the number of classes shown here may not be completely accur
 
 </details>
 
-#### Partially reversed classes (136/700) [19%]
+#### Partially reversed classes (136/701) [19%]
 
 <details>
 <summary>See list of classes</summary>- CWorld (92/93) [99%]<br />
@@ -619,11 +620,11 @@ The percentages and the number of classes shown here may not be completely accur
 - CClothes (10/11) [91%]<br />
 - CCarEnterExit (27/32) [84%]<br />
 - CCarCtrl (21/22) [95%]<br />
-- CCamera (109/112) [97%]<br />
+- CCamera (113/119) [95%]<br />
 - CGroupEventHandler (30/32) [94%]<br />
 - CEventHandler (69/72) [96%]<br />
 - CBaseModelInfo (33/34) [97%]<br />
-- CVehicle (139/143) [97%]<br />
+- CVehicle (140/144) [97%]<br />
 - CTrain (20/40) [50%]<br />
 - CQuadBike (11/12) [92%]<br />
 - CPlane (14/23) [61%]<br />
@@ -690,7 +691,6 @@ The percentages and the number of classes shown here may not be completely accur
 - CTaskComplexDestroyCarArmed (8/10) [80%]<br />
 - CTaskComplexDestroyCar (8/9) [89%]<br />
 - CTaskComplexCarSlowBeDraggedOutAndStandUp (3/9) [33%]<br />
-- CTaskComplexArrestPed (4/7) [57%]<br />
 - CScriptsForBrains (3/6) [50%]<br />
 - CPedGroupDefaultTaskAllocatorSitInLeaderCar (1/2) [50%]<br />
 - CPedGroupDefaultTaskAllocatorRandom (1/2) [50%]<br />
@@ -708,11 +708,12 @@ The percentages and the number of classes shown here may not be completely accur
 - Light (26/27) [96%]<br />
 - CDecisionMakerTypesFileLoader (6/7) [86%]<br />
 - CConversations (10/11) [91%]<br />
-- CCam (43/44) [98%]<br />
+- CCam (45/46) [98%]<br />
+- CProjectileInfo (1/12) [8%]<br />
 
 </details>
 
-#### Not-at-all reversed classes (7/700) [1%]
+#### Not-at-all reversed classes (7/701) [1%]
 
 <details>
 <summary>See list of classes</summary>- C_PcSave (5)<br />

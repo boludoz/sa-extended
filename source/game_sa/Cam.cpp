@@ -25,7 +25,7 @@
 #include "Draw.h"
 #include "ControllerConfigManager.h"
 #include "PedClothesDesc.h"
-#include "IKChainManager_c.h"
+#include "Ragdoll/IKChainManager.h"
 #include "IdleCam.h"
 #include "Tasks/TaskTypes/TaskSimpleUseGun.h"
 #include "Tasks/TaskTypes/TaskComplexProstituteSolicit.h"
