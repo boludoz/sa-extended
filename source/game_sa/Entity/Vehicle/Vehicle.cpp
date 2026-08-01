@@ -184,7 +184,7 @@ void CVehicle::InjectHooks() {
     RH_ScopedInstall(SetVehicleCreatedBy, 0x6D5D70);
     RH_ScopedInstall(SetEngineOn, 0x41BDD0);
     RH_ScopedInstall(SetupRender, 0x6D64F0);
-    // RH_ScopedInstall(ProcessBikeWheel, 0x6D73B0);
+    RH_ScopedInstall(ProcessBikeWheel, 0x6D73B0);
     RH_ScopedInstall(FindTyreNearestPoint, 0x6D7BC0);
     // RH_ScopedInstall(InflictDamage, 0x6D7C90);
     RH_ScopedInstall(KillPedsGettingInVehicle, 0x6D82F0);
@@ -3318,24 +3318,201 @@ void CVehicle::ProcessWheel(CVector& wheelFwd, CVector& wheelRight,
 }
 
 // 0x6D73B0
-void CVehicle::ProcessBikeWheel(CVector& wheelFwd, CVector& wheelRight, CVector& wheelContactSpeed, CVector& wheelContactPoint, int32 wheelsOnGround, float thrust, float brake,
-                                float adhesion, float destabTraction, int8 wheelId, float* wheelSpeed, tWheelState* wheelState, eBikeWheelSpecial special, uint16 wheelStatus) {
-    plugin::CallMethod<0x6D73B0, CVehicle*, CVector&, CVector&, CVector&, CVector&, int32, float, float, float, float, char, float*, tWheelState*, eBikeWheelSpecial, uint16>(
-        this, wheelFwd, wheelRight, wheelContactSpeed, wheelContactPoint, wheelsOnGround, thrust, brake, destabTraction, adhesion, wheelId, wheelSpeed, wheelState, special,
-        wheelStatus);
+void CVehicle::ProcessBikeWheel(
+    CVector& wheelFwd,
+    CVector& wheelRight, 
+    CVector& wheelContactSpeed,
+    CVector& wheelContactPoint,
+    int32 wheelsOnGround,
+    float thrust,
+    float brake,
+    float adhesion,
+    float destabTraction,
+    int8 wheelId,
+    float* wheelSpeed,
+    tWheelState* wheelState,
+    eBikeWheelSpecial special,
+    uint16 wheelStatus)
+{
+    const float RANDOM_FACTOR = 0.00003052f;
+    const float WHEEL_THRESHOLD = 0.01f;
+    const float BRAKE_THRESHOLD = 0.05f;
+    const float SPEED_THRESHOLD = 0.005f;
+    const float MIN_SPEED = 0.1f;
+    const float TURN_SLOW = 0.2f;
+    const float TURN_MEDIUM = 0.5f;
+    const float TURN_FAST = 0.6f;
+    const float MAX_TRACTION = 1.0f;
+    const float NEG_MULTIPLIER = -1.0f;
+
+    float currentTurnForce = 0.0;
+    currentTurnForce = brake; 
+
+    float right = 0.0f;
+    float fwd = 0.0f;
+    float contactSpeedFwd = DotProduct(wheelFwd, wheelContactSpeed);
+
+    // Set driving states
+    bool bBraking = (brake != 0.0f);
+    bool bDriving = false;
+    bool bReversing = false;
+    
+    if (brake == 0.0f) {
+        bDriving = (thrust != 0.0f);
+        bReversing = (thrust < 0.0f);
+    }
+    // Process wheel state and calculate traction
+    bool bWasSkidding = false;
+    float timeSteppedAdhesion = CTimer::GetTimeStep() * adhesion;
+    
+    if (*wheelState) {
+        bWasSkidding = true;
+        *wheelState = WHEEL_STATE_NORMAL;
+        timeSteppedAdhesion *= this->m_pHandlingData->m_fTractionLoss;
+    } else {
+        if (bWasSkidding) {
+            timeSteppedAdhesion *= this->m_pHandlingData->m_fTractionLoss;
+        }
+        *wheelState = WHEEL_STATE_NORMAL;
+    }
+
+    // Process side forces for non-regular wheels
+    if (special != BIKE_WHEEL_F_SLIP && special != BIKE_WHEEL_R_SLIP) {
+        float contactSpeedRight = DotProduct(wheelRight, wheelContactSpeed);
+        if (contactSpeedRight != 0.0f) {
+            right = -(contactSpeedRight / (float)wheelsOnGround);
+
+            // Apply burst tire physics if wheel is burst
+            if (wheelStatus == WHEEL_STATUS_BURST) {
+                float speedClamp = std::min(contactSpeedFwd, fBurstBikeSpeedMax);
+                float randMod = CGeneral::GetRandomNumberInRange(-fBurstBikeTyreMod, fBurstBikeTyreMod);
+                right += speedClamp * randMod;
+            }
+        }
+    }
+
+    // Process forward forces
+    if (bDriving) {
+        fwd = thrust;
+        if ( right < 0.0f )
+        {
+            float timeStepNeg = -timeSteppedAdhesion;
+            if ( right < timeStepNeg )
+                right = timeStepNeg;
+        }
+        else if ( right > timeSteppedAdhesion )
+        {
+            right = timeSteppedAdhesion;
+        }
+    } else if (contactSpeedFwd != 0.0f) {
+
+        fwd = -(contactSpeedFwd / wheelsOnGround);
+        if (bBraking || fabsf(this->m_GasPedal) >= WHEEL_THRESHOLD)
+        {
+            if ( m_nVehicleSubType == eVehicleType::VEHICLE_TYPE_BMX )
+            {
+                if ( fwd > -BRAKE_THRESHOLD && fwd < BRAKE_THRESHOLD )
+                {
+                    currentTurnForce = gHandlingDataMgr.fWheelFriction * TURN_MEDIUM / (m_pHandlingData->m_fMass + 200.0f);
+                }
+            } else if ( m_nVehicleSubType == eVehicleType::VEHICLE_TYPE_BIKE )
+            {
+                currentTurnForce = gHandlingDataMgr.fWheelFriction * TURN_FAST / (m_pHandlingData->m_fMass + 200.0f);
+            } 
+            else {
+                currentTurnForce = gHandlingDataMgr.fWheelFriction / m_pHandlingData->m_fMass;
+                if ((m_pHandlingData->m_fMass < 500.0) || m_nModelIndex == MODEL_RCBANDIT && !std::isnan(m_pHandlingData->m_fMass)) 
+                {
+                    currentTurnForce *= TURN_SLOW;
+                }
+            }
+        }
+
+        if (currentTurnForce > timeSteppedAdhesion) {
+            if (std::abs(contactSpeedFwd) > 0.005f)
+                *wheelState = WHEEL_STATE_FIXED;
+        } else {
+            fwd = std::clamp(fwd, -currentTurnForce, currentTurnForce);
+        }
+    }
+
+    // Process combined forces
+    float speedSq = right * right + fwd * fwd;
+    float adhesionSq = timeSteppedAdhesion * timeSteppedAdhesion;
+
+    if (speedSq > adhesionSq) {
+        if (*wheelState != WHEEL_STATE_FIXED) {
+            if (bDriving && contactSpeedFwd < 0.1f)
+                *wheelState = WHEEL_STATE_SPINNING;
+            else
+                *wheelState = WHEEL_STATE_SKIDDING;
+        }
+
+        float tractionLoss = m_pHandlingData->m_fTractionLoss;
+        if (bWasSkidding)
+            tractionLoss = 1.0f;
+
+        float scale = timeSteppedAdhesion * tractionLoss / sqrt(speedSq);
+        fwd *= scale;
+        right *= scale;
+
+        if (destabTraction < 1.0f)
+            right *= destabTraction; 
+    }
+
+    if(fwd != 0.0f || right != 0.0f){
+        CVector direction = fwd*wheelFwd + right*wheelRight;
+
+        float speed = direction.Magnitude();
+        direction.Normalise();
+
+        float impulse = speed*m_fMass;
+        float turnImpulse = speed*GetMass(wheelContactPoint, direction);
+        CVector vTurnImpulse = turnImpulse * direction;
+        ApplyMoveForce(impulse * direction);
+
+        float turnRight = DotProduct(vTurnImpulse, GetRight());
+        float contactRight = DotProduct(wheelContactPoint, GetRight());
+        float contactFwd = DotProduct(wheelContactPoint, GetForward());
+
+        if(wheelId != BIKE_WHEEL_R_STD || !bBraking && !bReversing)
+            ApplyTurnForce((vTurnImpulse - turnRight*GetRight()) * fTweakBikeWheelTurnForce,
+                wheelContactPoint - contactRight*GetRight());
+
+        ApplyTurnForce(turnRight*GetRight(), contactFwd*GetForward());
+    }
 }
 
 // 0x6D7BC0
-auto CVehicle::FindTyreNearestPoint(CVector2D point) -> eNearestCarWheel {
-    const auto relativePt = point - GetPosition2D();
-    const bool isFront = relativePt.Dot(GetForward()) > 0.f;
-    if (IsBike()) { // only distinguishes front vs rear
-        return isFront ? eNearestCarWheel::FRONT_LEFT : eNearestCarWheel::REAR_LEFT;
+// 100 % Match
+int CVehicle::FindTyreNearestPoint(int PointX, int PointY) {
+    int ReturnVal;
+    CVector Diff;
+    float DotFront;
+    float DotRight;
+
+    Diff.x = PointX - GetPosition().x;
+    Diff.y = PointY - GetPosition().y;
+    Diff.z = 0.0f;
+
+    DotFront = DotProduct(Diff, GetMatrix().GetForward());
+    DotRight = DotProduct(Diff, GetMatrix().GetRight());
+
+    //if (GetBaseVehicleType() == VEHICLE_TYPE_BIKE)
+    if (IsBike())
+    {
+        ReturnVal = (DotFront > 0.0f) ? 13 : 15;
+    } else {
+        if (DotFront > 0.0f)
+        {
+            ReturnVal = (DotRight > 0.0f) ? 14 : 13;
+        }
+        else
+        {
+            ReturnVal = (DotRight > 0.0f) ? 16 : 15;
+        }
     }
-    const bool isRight = relativePt.Dot(GetRight()) > 0.f;
-    return isFront
-        ? isRight ? eNearestCarWheel::FRONT_RIGHT : eNearestCarWheel::FRONT_LEFT
-        : isRight ? eNearestCarWheel::REAR_RIGHT : eNearestCarWheel::REAR_LEFT;
+    return ReturnVal - 13;
 }
 
 // 0x6D7C90

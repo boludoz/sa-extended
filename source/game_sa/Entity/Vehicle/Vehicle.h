@@ -36,6 +36,17 @@ class CHeli;
 class CPedGroup;
 class CVehicleAnimGroup;
 
+enum eBikeWheelSpecial
+{                                       // XREF: _ZN8CVehicle16ProcessBikeWheelER7CVectorS1_S1_S1_iffffcPfP11tWheelState17eBikeWheelSpecialt/r
+                                        // _ZN5CBike14ProcessControlEv/r
+    BIKE_WHEEL_F_STD       = 0x0,
+    BIKE_WHEEL_R_STD       = 0x1,
+    BIKE_WHEEL_F_SLIP      = 0x2,
+    BIKE_WHEEL_R_SLIP      = 0x3,
+    BIKE_WHEEL_R_HBRAKE    = 0x4,
+    BIKE_WHEEL_R_SLIPBRAKE = 0x5,
+};
+
 enum eStoredColsPoly : int32 {
     COL_FRONT = 0,
     COL_REAR = 1,
@@ -132,7 +143,7 @@ enum eRotationAxis : int32 {
 };
 
 typedef int32 eOrdnanceType;
-typedef int32 eBikeWheelSpecial;
+//typedef int32 eBikeWheelSpecial;
 
 enum eFlightModel : int32 {
     FLIGHT_MODEL_UNK = 0,
@@ -620,13 +631,7 @@ public:
                       float adhesion, int8 wheelId, float* wheelSpeed, tWheelState* wheelState, uint16 wheelStatus);
     void ProcessBikeWheel(CVector& wheelFwd, CVector& wheelRight, CVector& wheelContactSpeed, CVector& wheelContactPoint, int32 wheelsOnGround, float thrust, float brake,
                           float adhesion, float destabTraction, int8 wheelId, float* wheelSpeed, tWheelState* wheelState, eBikeWheelSpecial special, uint16 wheelStatus);
-    enum class eNearestCarWheel {
-        FRONT_LEFT  = +CAR_PIECE_WHEEL_LF - +CAR_PIECE_FIRST_WHEEL,
-        FRONT_RIGHT = +CAR_PIECE_WHEEL_RF - +CAR_PIECE_FIRST_WHEEL,
-        REAR_LEFT   = +CAR_PIECE_WHEEL_RL - +CAR_PIECE_FIRST_WHEEL,
-        REAR_RIGHT  = +CAR_PIECE_WHEEL_RR - +CAR_PIECE_FIRST_WHEEL,
-    };
-    eNearestCarWheel FindTyreNearestPoint(CVector2D point);
+    int FindTyreNearestPoint(int PointX, int PointY);
     void InflictDamage(CEntity* damager, eWeaponType weapon, float intensity, CVector coords);
     void KillPedsGettingInVehicle();
     bool UsesSiren();

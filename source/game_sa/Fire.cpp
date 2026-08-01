@@ -331,7 +331,7 @@ void CFire::ProcessFire() {
             if (veh.IsSubBMX()) {
                 player->DoStuffToGoOnFire();
                 gFireManager.StartFire(player, m_EntityStartedFire, 0.8f, true, 7000, 100);
-                veh.BurstTyre(CAR_PIECE_FIRST_WHEEL + +veh.FindTyreNearestPoint(m_Position), false);
+                veh.BurstTyre(CAR_PIECE_FIRST_WHEEL + veh.FindTyreNearestPoint(static_cast<int>(m_Position[0]), static_cast<int>(m_Position[1])), false);
             } else {
                 gFireManager.StartFire(&veh, m_EntityStartedFire, 0.8f, true, 7000, 100);
             }
