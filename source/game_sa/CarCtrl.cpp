@@ -82,6 +82,8 @@ void CCarCtrl::InjectHooks() {
     RH_ScopedInstall(FindMaxSteerAngle, 0x427FE0);
     RH_ScopedInstall(GenerateRandomCars, 0x4341C0);
     RH_ScopedInstall(GenerateOneRandomCar, 0x430050);
+    RH_ScopedInstall(SetUpDriverAndPassengersForVehicle, 0x4217C0);
+    RH_ScopedInstall(ClearInterestingVehicleList, 0x423F00);
 }
 
 // 0x4212E0
@@ -194,7 +196,8 @@ int32 CCarCtrl::ChoosePoliceCarModel(uint32 ignoreLvpd1Model) {
 
 // 0x423F00
 void CCarCtrl::ClearInterestingVehicleList() {
-    plugin::Call<0x423F00>();
+    apCarsToKeep[0] = nullptr;
+    apCarsToKeep[1] = nullptr;
 }
 
 // 0x422760
@@ -1565,8 +1568,65 @@ void CCarCtrl::SetCoordsOfScriptCar(CVehicle* vehicle, float x, float y, float z
 }
 
 // 0x4217C0
-void CCarCtrl::SetUpDriverAndPassengersForVehicle(CVehicle* vehicle, int32 arg2, int32 arg3, bool arg4, bool arg5, int32 passengersNum) {
-    plugin::Call<0x4217C0, CVehicle*, int32, int32, bool, bool, int32>(vehicle, arg2, arg3, arg4, arg5, passengersNum);
+void CCarCtrl::SetUpDriverAndPassengersForVehicle(CVehicle* pNewVehicle, int CarRating, int MinPassengers, bool bMustBeMale, bool bCriminal, int MaxPassengers)
+{
+
+    pNewVehicle->SetUpDriver(CarRating, bMustBeMale, bCriminal);
+
+    if (CarRating >= 14 && CarRating <= 23 && CGeneral::GetRandomNumber() < 16383)
+    {
+        pNewVehicle->m_pDriver->GiveObjectToPedToHold(ModelIndices::MI_GANG_SMOKE, true);
+    }
+
+    int MaxToCreate = MaxPassengers;
+    if (pNewVehicle->m_nMaxPassengers < MaxPassengers)
+    {
+        MaxToCreate = pNewVehicle->m_nMaxPassengers;
+    }
+
+    int NumPassengers = MinPassengers;
+
+    if (MinPassengers < MaxToCreate)
+    {
+        for (int C = MaxToCreate - MinPassengers; C != 0; --C)
+        {
+            NumPassengers += CGeneral::GetRandomNumberInRange(0.0f, 1.0f) < 0.125f;
+        }
+
+        if (NumPassengers >= MaxToCreate)
+        {
+            NumPassengers = MaxToCreate;
+        }
+    }
+    else
+    {
+        NumPassengers = MaxToCreate;
+    }
+
+    if (CModelInfo::IsCarModel(pNewVehicle->GetModelIndex()))
+    {
+        int AnimationBlockIndex = CAnimManager::GetAnimationBlockIndex("van");
+
+        if (CModelInfo::GetModelInfo(pNewVehicle->GetModelIndex())->GetAnimFileIndex() == AnimationBlockIndex && NumPassengers >= 1)
+        {
+            NumPassengers = 1;
+        }
+    }
+
+    for (int C = 0; C < NumPassengers; ++C)
+    {
+        CPed* pPassenger = pNewVehicle->SetupPassenger(C, CarRating, bMustBeMale, bCriminal);
+
+        if (pPassenger != nullptr)
+        {
+            // pPassenger.UpdateStatEnteringVehicle(); NOP
+
+            if (CarRating >= 14 && CarRating <= 23 && CGeneral::GetRandomNumber() < 16383)
+            {
+                pPassenger->GiveObjectToPedToHold(ModelIndices::MI_GANG_SMOKE, true);
+            }
+        }
+    }
 }
 
 // 0x432420

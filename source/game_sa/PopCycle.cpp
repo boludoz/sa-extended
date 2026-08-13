@@ -7,6 +7,7 @@
 #include "StdInc.h"
 
 #include "PopCycle.h"
+#include "Gangs.h"
 #include <CustomBuildingDNPipeline.h>
 
 void CPopCycle::InjectHooks() {
@@ -16,7 +17,7 @@ void CPopCycle::InjectHooks() {
     RH_ScopedGlobalInstall(Initialise, 0x5BC090);
     RH_ScopedGlobalInstall(PickGangToCreateMembersOf, 0x60F8D0);
     RH_ScopedGlobalInstall(FindNewPedType, 0x60FBD0);
-    RH_ScopedGlobalInstall(PickPedMIToStreamInForCurrentZone, 0x60FFD0, { .reversed = false });
+    RH_ScopedGlobalInstall(PickPedMIToStreamInForCurrentZone, 0x60FFD0);
     RH_ScopedGlobalInstall(IsPedAppropriateForCurrentZone, 0x610150);
     RH_ScopedGlobalInstall(IsPedInGroup, 0x610210);
     RH_ScopedGlobalInstall(PickARandomGroupOfOtherPeds, 0x610420);
@@ -296,19 +297,47 @@ ePopcycleGroup CPopCycle::PickARandomGroupOfOtherPeds() {
 
 // 0x60FFD0
 eModelID CPopCycle::PickPedMIToStreamInForCurrentZone() {
-    for (auto tr = 0; tr < 10; tr++) { // 10 tries
-        const auto grpId        = PickARandomGroupOfOtherPeds();
-        const auto pedGrpId     = CPopulation::GetPedGroupId(grpId, CPopulation::CurrentWorldZone);
-        const auto npeds        = CPopulation::GetNumPedsInGroup(pedGrpId);
-        auto& nextPedToLoadSlot = CStreaming::ms_NextPedToLoadFromGroup[grpId];
-        for (auto p = 0; p < npeds; p++) {
-            nextPedToLoadSlot  = (nextPedToLoadSlot + 1) % npeds;
-            const auto modelId = (eModelID)CPopulation::GetPedGroupModelId(pedGrpId, nextPedToLoadSlot);
-            if (!notsa::contains(CStreaming::ms_pedsLoaded, modelId) && IsRaceAllowedInCurrentZone(modelId)) {
-                return modelId;
+    int32 GroupTry, i, MI;
+    bool  bHappy;
+    int32 TypeGroup;
+    int32 Tries;
+
+    for (Tries = 0; Tries < 10; ++Tries) {
+        TypeGroup = PickARandomGroupOfOtherPeds();
+
+        GroupTry = (int32)CPopulation::GetPedGroupId((ePopcycleGroup)TypeGroup, CPopulation::CurrentWorldZone);
+
+        int32 numPeds = CPopulation::GetNumPedsInGroup((ePopcyclePedGroup)GroupTry);
+
+        if (numPeds > 0) {
+            for (i = 0; i < numPeds; ++i) {
+                auto& nextPedToLoadSlot = CStreaming::ms_NextPedToLoadFromGroup[TypeGroup];
+                nextPedToLoadSlot       = (nextPedToLoadSlot + 1) % numPeds;
+
+                MI     = (int32)CPopulation::GetPedGroupModelId((ePopcyclePedGroup)GroupTry, nextPedToLoadSlot);
+
+                bHappy = true;
+
+                for (int32 j = 0; j < 8; ++j) {
+                    if (CStreaming::ms_pedsLoaded[j] == MI) {
+                        bHappy = false;
+                        break;
+                    }
+                }
+
+                if (bHappy) {
+                    if (!IsRaceAllowedInCurrentZone((eModelID)MI)) {
+                        bHappy = false;
+                    }
+                }
+
+                if (bHappy) {
+                    return (eModelID)MI;
+                }
             }
         }
     }
+
     return MODEL_INVALID;
 }
 
@@ -320,31 +349,51 @@ void CPopCycle::PlayerKilledADealer() {
 }
 
 // 0x610BF0
-void CPopCycle::Update() {
-    ZoneScoped;
-
-    m_nCurrentTimeOfWeek = [] {
-        switch (CClock::GetGameWeekDay()) {
-        case 0: // Not sure (Maybe Sunday)
-        case 7: // Sunday
-            return 1;
-        case 1:  // Monday
-            return CClock::GetGameClockHours() >= 20 ? 0 : 1;
-        case 2:
-        case 3:
-        case 4:
-        case 5:
-            return 0;
-        case 6: // Saturday
-            return CClock::GetGameClockHours() >= 20 ? 1 : 0;
-        }
-        NOTSA_UNREACHABLE();
-    }();
+void CPopCycle::Update()
+{
+    switch (CClock::CurrentDay)
+    {
+        case 0u:
+        case 7u:
+            m_nCurrentTimeOfWeek = POPCYCLE_WEEKEND;
+            break;
+        case 1u:
+            if (CClock::GetGameClockHours() < 20u)
+            {
+                m_nCurrentTimeOfWeek = POPCYCLE_WEEKEND;
+            }
+            else
+            {
+                m_nCurrentTimeOfWeek = POPCYCLE_WEEKDAY;
+            }
+            break;
+        case 2u:
+        case 3u:
+        case 4u:
+        case 5u:
+            m_nCurrentTimeOfWeek = POPCYCLE_WEEKDAY;
+            break;
+        case 6u:
+            if (CClock::GetGameClockHours() < 20u)
+            {
+                m_nCurrentTimeOfWeek = POPCYCLE_WEEKDAY;
+            }
+            else
+            {
+                m_nCurrentTimeOfWeek = POPCYCLE_WEEKEND;
+            }
+            break;
+        default:
+            break;
+    }
 
     m_nCurrentTimeIndex = CClock::GetGameClockHours() / 2;
 
-    if (const auto& pos = FindPlayerCentreOfWorld(); pos.z < 950.f || !m_pCurrZoneInfo) {
-        m_pCurrZoneInfo = CTheZones::GetZoneInfo(pos, &m_pCurrZone);
+    CVector playerPos = FindPlayerCentreOfWorld(CWorld::PlayerInFocus);
+    if (playerPos.z < 950.0f || !m_pCurrZoneInfo)
+    {
+        //m_pCurrZoneInfo    = m_pCurrZone.GetZoneInfo(playerPos);
+        m_pCurrZoneInfo    = CTheZones::GetZoneInfo(playerPos, nullptr);
         m_nCurrentZoneType = m_pCurrZoneInfo->PopType;
     }
 
@@ -355,8 +404,20 @@ void CPopCycle::Update() {
 }
 
 // 0x610560
-void CPopCycle::UpdateAreaDodgyness() {
-    m_fCurrentZoneDodgyness = std::min((float)m_pCurrZoneInfo->DealerStrength * 0.07f + (float)m_pCurrZoneInfo->GetSumOfGangDensity() / 100.f, 1.0f);
+void CPopCycle::UpdateAreaDodgyness()
+{
+    // ASM Chequed
+
+    int32 Gang = 0;
+    m_fCurrentZoneDodgyness = 0.0f;
+    m_fCurrentZoneDodgyness = static_cast<float>(m_pCurrZoneInfo->DealerStrength) * 0.07f;
+    while (Gang < TOTAL_GANGS)
+    {
+        m_fCurrentZoneDodgyness += m_pCurrZoneInfo->GetSumOfGangDensity() / 100.0f;
+        Gang++;
+    }
+
+    m_fCurrentZoneDodgyness = std::min(m_fCurrentZoneDodgyness, 1.0f);
 }
 
 // 0x6104B0

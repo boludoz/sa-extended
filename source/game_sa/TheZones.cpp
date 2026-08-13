@@ -149,7 +149,7 @@ CZone* CTheZones::FindSmallestZoneForPosition(const CVector& point, bool checkIs
 }
 
 // 0x572400
-CZoneInfo* CTheZones::GetZoneInfo(const CVector& point, CZone** outZone) {
+CZoneInfo* CTheZones::GetZoneInfo(const CVector& point, CZone** outZone = nullptr) {
     const auto z = FindSmallestZoneForPosition(point, false);
     if (outZone) {
         *outZone = z ? z : &NavigationZoneArray[0]; // Zone 0 is always SAN_AND

@@ -14,6 +14,13 @@ class CZone;
 
 enum ePedType : uint32;
 
+enum
+{
+    POPCYCLE_WEEKDAY,
+    POPCYCLE_WEEKEND,
+    POPCYCLE_TIMESOFWEEK
+};
+
 // used in CPopCycle::m_nPercTypeGroup
 enum ePopcycleGroupPerc {
     POPCYCLE_GROUP_PERC_WORKERS = 0,
