@@ -1,6 +1,7 @@
 #include "StdInc.h"
 #include "TaskSimpleCarShuffle.h"
 #include "TaskUtilityLineUpPedWithCar.h"
+#include "VehicleAnimGroupData.h"
 
 void CTaskSimpleCarShuffle::InjectHooks() {
     RH_ScopedVirtualClass(CTaskSimpleCarShuffle, 0x86ed74, 9);
@@ -52,12 +53,13 @@ void CTaskSimpleCarShuffle::FinishAnimCarShuffleCB(CAnimBlendAssociation* anim, 
 }
 
 // 0x64B3E0
-void CTaskSimpleCarShuffle::StartAnim(const CPed* target) {
-    assert(!m_Anim);
+void CTaskSimpleCarShuffle::StartAnim(const CPed* pPed) {
+    const auto animId = ANIM_ID_CAR_SHUFFLE_RHS_1;
+    const auto animGroupId = CVehicleAnimGroupData::GetVehicleAnimGroup(m_Car->m_pHandlingData->m_nAnimGroup).GetGroup(animId);
     m_Anim = CAnimManager::BlendAnimation(
-        target->GetRpClump(),
-        m_Car->GetAnimGroup().GetGroup(ANIM_ID_CAR_SHUFFLE_RHS_1),
-        ANIM_ID_CAR_SHUFFLE_RHS_1,
+        pPed->GetRpClump(),
+        animGroupId,
+        animId,
         1000.f
     );
     m_Anim->SetFinishCallback(FinishAnimCarShuffleCB, this);

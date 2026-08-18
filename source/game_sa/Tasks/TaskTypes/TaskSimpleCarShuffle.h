@@ -18,7 +18,7 @@ public:
     CTaskSimpleCarShuffle(const CTaskSimpleCarShuffle&);
     ~CTaskSimpleCarShuffle();
 
-    void StartAnim(const CPed* a2);
+    void StartAnim(const CPed* pPed);
 
     CTask*    Clone() const override { return new CTaskSimpleCarShuffle{ *this }; }
     eTaskType GetTaskType() const override { return Type; }

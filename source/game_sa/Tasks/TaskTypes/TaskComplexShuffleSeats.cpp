@@ -41,26 +41,32 @@ CTaskComplexShuffleSeats::~CTaskComplexShuffleSeats() {
 // 0x63D240
 CTask* CTaskComplexShuffleSeats::CreateSubTask(eTaskType taskType, CPed* ped) {
     switch (taskType) {
-    case TASK_SIMPLE_CAR_SET_PED_IN_AS_DRIVER:
-        return new CTaskSimpleCarSetPedInAsDriver{m_Veh, m_TaskUtilityLineUpPedWithCar};
     case TASK_SIMPLE_CAR_SHUFFLE:
         return new CTaskSimpleCarShuffle{ m_Veh, m_OriginDoor, m_TaskUtilityLineUpPedWithCar };
-    case TASK_SIMPLE_CAR_SET_PED_IN_AS_PASSENGER: {
+
+    case TASK_SIMPLE_CAR_SET_PED_IN_AS_PASSENGER:
         if (m_Veh->m_pDriver == ped) {
-            m_Veh->RemoveDriver(ped);
+            m_Veh->RemoveDriver(true);
         } else {
             m_Veh->RemovePassenger(ped);
         }
         return new CTaskSimpleCarSetPedInAsPassenger{ m_Veh, (eTargetDoor)m_TargetDoor, false, m_TaskUtilityLineUpPedWithCar };
+
+    case TASK_SIMPLE_CAR_SET_PED_IN_AS_DRIVER:
+        m_Veh->RemovePassenger(ped);
+        return new CTaskSimpleCarSetPedInAsDriver{ m_Veh, m_TaskUtilityLineUpPedWithCar };
+
+    case TASK_SIMPLE_CAR_SET_PED_OUT: {
+        const auto targetDoor = (eTargetDoor)CCarEnterExit::ComputeTargetDoorToExit(ped->m_pVehicle, ped);
+        return new CTaskSimpleCarSetPedOut{ ped->m_pVehicle, targetDoor, true };
     }
-    case TASK_SIMPLE_CAR_SET_PED_OUT:
-        return new CTaskSimpleCarSetPedOut{ m_Veh, (eTargetDoor)CCarEnterExit::ComputeTargetDoorToExit(m_Veh, ped), true };
-    case TASK_FINISHED: {
-        if (!ped->bInVehicle) {
+
+    case TASK_FINISHED:
+        if (ped && !ped->bInVehicle) {
             ped->SetUsesCollision(true);
         }
         return nullptr;
-    }
+
     default:
         return nullptr;
     }
