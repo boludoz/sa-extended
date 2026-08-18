@@ -290,6 +290,12 @@ void CCam::InjectHooks() {
     RH_ScopedInstall(Process_SpecialFixedForSyphon, 0x517500);
     RH_ScopedInstall(Process_WheelCam, 0x512110);
 
+    RH_ScopedInstall(ClipAlpha, 0x509C30);
+    RH_ScopedInstall(ClipBeta, 0x509B80);
+    RH_ScopedInstall(GetWeaponFirstPersonOn, 0x509DC0);
+    RH_ScopedGlobalInstall(MakeAngleLessThan180, 0x509BE0);
+    RH_ScopedGlobalInstall(ConvertPedNode2BoneTag, 0x509A90);
+    RH_ScopedGlobalInstall(IsLampPost, 0x509A30);
     RH_ScopedGlobalInstall(WellBufferMe, 0x509AE0);
     RH_ScopedGlobalInstall(FTrunc, 0x50A0A0);
     RH_ScopedGlobalInstall(VecTrunc, 0x50A120);
@@ -976,21 +982,22 @@ bool CCam::GetWeaponFirstPersonOn() {
     return m_pCamTargetEntity && m_pCamTargetEntity->GetIsTypePed() && m_pCamTargetEntity->AsPed()->GetActiveWeapon().m_IsFirstPersonWeaponModeSelected;
 }
 
-// inlined -- alpha = vertical angle
+// 0x509C30 -- alpha = vertical angle
 void CCam::ClipAlpha() {
-    m_fVerticalAngle = std::clamp(
-        m_fVerticalAngle,
-        DegreesToRadians(-85.5f),
-        DegreesToRadians(+60.0f)
-    );
+    while (m_fVerticalAngle >= TWO_PI) {
+        m_fVerticalAngle -= TWO_PI;
+    }
+    while (m_fVerticalAngle < 0.0f) {
+        m_fVerticalAngle += TWO_PI;
+    }
 }
 
-// 0x509C50 -- beta = horizontal angle
+// 0x509B80 -- beta = horizontal angle
 void CCam::ClipBeta() {
-    if (m_fHorizontalAngle < DegreesToRadians(-180.0f)) {
-        m_fHorizontalAngle += DegreesToRadians(360.0f);
-    } else {
-        m_fHorizontalAngle -= DegreesToRadians(360.0f);
+    if (m_fHorizontalAngle > PI) {
+        m_fHorizontalAngle -= TWO_PI;
+    } else if (m_fHorizontalAngle < -PI) {
+        m_fHorizontalAngle += TWO_PI;
     }
 }
 
