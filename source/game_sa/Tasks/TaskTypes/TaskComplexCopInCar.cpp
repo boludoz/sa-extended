@@ -11,6 +11,7 @@
 #include "TaskComplexCarDrive.h"
 #include "TaskComplexCarDriveMission.h"
 #include "eCarDrivingStyle.h"
+#include "Vehicle.h"
 
 void CTaskComplexCopInCar::InjectHooks() {
     RH_ScopedVirtualClass(CTaskComplexCopInCar, 0x870A2C, 11);
@@ -230,7 +231,7 @@ CTask* CTaskComplexCopInCar::ControlSubTask(CPed* ped) {
     }
 
     // 0x68FD7E
-    if (m_Vehicle && !m_Vehicle->m_pDriver && m_Vehicle->m_autoPilot.m_nCarMission != MISSION_NONE) {
+    if (m_Vehicle && !m_Vehicle->m_pDriver && m_Vehicle->m_autoPilot.Mission != MISSION_NONE) {
         m_Vehicle->m_autoPilot.SetCarMission(MISSION_NONE);
     }
 

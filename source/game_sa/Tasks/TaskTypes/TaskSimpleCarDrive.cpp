@@ -80,7 +80,7 @@ void CTaskSimpleCarDrive::TriggerIK(CPed* ped) const {
         return;
     }
 
-    switch (m_pVehicle->m_autoPilot.m_nCarMission) {
+    switch (m_pVehicle->m_autoPilot.Mission) {
     case MISSION_RAMPLAYER_FARAWAY:
     case MISSION_RAMPLAYER_CLOSE:
     case MISSION_BLOCKPLAYER_FARAWAY:
@@ -91,9 +91,9 @@ void CTaskSimpleCarDrive::TriggerIK(CPed* ped) const {
     }
     case MISSION_RAMCAR_FARAWAY:
     case MISSION_RAMCAR_CLOSE: {
-        if (const auto vehTargetCar = m_pVehicle->m_autoPilot.m_TargetEntity) {
+        if (const auto vehTargetCar = m_pVehicle->m_autoPilot.pTargetEntity) {
             if (vehTargetCar->GetIsTypeVehicle()) {
-                if (const auto driver = vehTargetCar->m_pDriver) { // Make ped look at target car or it's driver (if any)
+                if (const auto driver = vehTargetCar->AsVehicle()->m_pDriver) { // Make ped look at target car or it's driver (if any)
                     g_ikChainMan.LookAt("DriveCar", ped, driver, 3000, BONE_HEAD, nullptr, false, 0.25f, 500, 3, false);
                 } else {
                     g_ikChainMan.LookAt("DriveCar", ped, vehTargetCar, 3000, BONE_UNKNOWN, nullptr, false, 0.25f, 500, 3, false);

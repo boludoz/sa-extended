@@ -36,12 +36,12 @@ void CTaskComplexCarDriveMission::SetUpCar() {
     m_Veh->SetStatus(STATUS_PHYSICS);
 
     auto& autopilot = m_Veh->m_autoPilot;
-    autopilot.m_nCruiseSpeed        = (uint32)m_CruiseSpeed;
-    autopilot.m_speed               = (float)autopilot.m_nCruiseSpeed;
-    autopilot.m_nCarDrivingStyle    = (eCarDrivingStyle)m_CarDrivingStyle;
-    autopilot.m_TargetEntity          = m_pTargetVehicle;
+    autopilot.CruiseSpeed     = (uint8)m_CruiseSpeed;
+    autopilot.ActualSpeed     = (float)autopilot.CruiseSpeed;
+    autopilot.DrivingMode     = (eCarDrivingStyle)m_CarDrivingStyle;
+    autopilot.pTargetEntity   = m_pTargetVehicle;
     autopilot.SetCarMission(m_nCarMission, 0);
-    CEntity::SafeRegisterRef(autopilot.m_TargetEntity);
+    CEntity::SafeRegisterRef(autopilot.pTargetEntity);
 
     m_Veh->vehicleFlags.bEngineOn = m_Veh->vehicleFlags.bEngineBroken ? false : true;
 }
