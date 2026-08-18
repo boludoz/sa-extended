@@ -152,11 +152,11 @@ void CSetPiece::Update() {
     const auto SetupCar = [this](const CVector2D& spawn, const CVector2D& target, eCarDrivingStyle style, eCarMission mission, uint8 speed, uint32 timeNeeded, bool tempAction = false, bool addSpeed = false) -> CVehicle* {
         if (auto* car = TryToGenerateCopCar(spawn, target)) {
             car->SetStatus(STATUS_SIMPLE);
-            car->m_autoPilot.m_nCruiseSpeed        = speed;
-            car->m_autoPilot.m_nCarDrivingStyle    = style;
-            car->m_autoPilot.m_nCarMission         = mission;
-            car->m_autoPilot.m_speed               = car->m_autoPilot.m_nCruiseSpeed;
-            car->m_autoPilot.m_vecDestinationCoors = CVector{ target };
+            car->m_autoPilot.CruiseSpeed        = speed;
+            car->m_autoPilot.DrivingMode    = style;
+            car->m_autoPilot.Mission         = mission;
+            car->m_autoPilot.ActualSpeed               = car->m_autoPilot.CruiseSpeed;
+            car->m_autoPilot.TargetCoors = CVector{ target };
             car->m_nTimeTillWeNeedThisCar          = CTimer::GetTimeInMS() + timeNeeded;
             if (tempAction) {
                 car->m_autoPilot.SetTempAction(TEMPACT_GOFORWARD, 100);

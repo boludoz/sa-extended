@@ -118,9 +118,9 @@ bool CQuadBike::ProcessAI(uint32& extraHandlingFlags) {
 
     GetColModel(); // Called, but not used?
 
-    m_autoPilot.carCtrlFlags.bHonkAtCar = false;
-    m_autoPilot.carCtrlFlags.bHonkAtPed = false;
-    const auto recID = m_autoPilot.m_vehicleRecordingId;
+    m_autoPilot.SlowingDownForCar = false;
+    m_autoPilot.SlowingDownForPed = false;
+    const auto recID = m_autoPilot.RecordingNumber;
     if (recID >= 0 && !CVehicleRecording::bUseCarAI[recID]) {
         return false;
     }

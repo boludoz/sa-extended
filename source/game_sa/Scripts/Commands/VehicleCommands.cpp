@@ -56,7 +56,7 @@ float GetCarSpeed(CVehicle& veh) {
 }
 
 void SetCarDrivingStyle(CVehicle& veh, eCarDrivingStyle style) {
-    veh.m_autoPilot.m_nCarDrivingStyle = style;
+    veh.m_autoPilot.DrivingMode = style;
 }
 
 bool IsFirstCarColor(CVehicle& veh, int32 color) {
@@ -158,8 +158,8 @@ void CarGotoCoordinates(CVehicle& veh, CVector posn) {
 
     veh.SetStatus(STATUS_PHYSICS);
     veh.SetEngineOn(true);
-    veh.m_autoPilot.SetCruiseSpeed(std::max<uint8>(1, veh.m_autoPilot.m_nCruiseSpeed));
-    veh.m_autoPilot.m_nTimeToStartMission = CTimer::GetTimeInMS();
+    veh.m_autoPilot.SetCruiseSpeed(std::max<uint8>(1, veh.m_autoPilot.CruiseSpeed));
+    veh.m_autoPilot.LastTimeNotStuck = CTimer::GetTimeInMS();
 }
 
 /// CAR_WANDER_RANDOMLY(00A8)
@@ -167,8 +167,8 @@ void CarWanderRandomly(CVehicle& veh) {
     CCarCtrl::JoinCarWithRoadSystem(&veh);
     veh.m_autoPilot.SetCarMissionUnlessCrashing(MISSION_CRUISE);
     veh.SetEngineOn(true);
-    veh.m_autoPilot.SetCruiseSpeed(std::max<uint8>(1, veh.m_autoPilot.m_nCruiseSpeed));
-    veh.m_autoPilot.m_nTimeToStartMission = CTimer::GetTimeInMS();
+    veh.m_autoPilot.SetCruiseSpeed(std::max<uint8>(1, veh.m_autoPilot.CruiseSpeed));
+    veh.m_autoPilot.LastTimeNotStuck = CTimer::GetTimeInMS();
 }
 
 /// CAR_SET_IDLE(00A9)
@@ -192,17 +192,17 @@ void SetCarCruiseSpeed(CVehicle& veh, float speed) {
     const auto max = veh.m_pHandlingData->m_transmissionData.m_MaxFlatVelocity * 60.0f;
 
     if (notsa::bugfixes::Script_00AD_SetCarCruiseSpeed_TruncatedBeforeClamp) {
-        ap.m_nCruiseSpeed = (uint8)(int32)std::min(speed, max);
+        ap.CruiseSpeed = (uint8)(int32)std::min(speed, max);
     } else {
-        ap.m_nCruiseSpeed = (uint8)(int32)speed;
-        ap.m_nCruiseSpeed = (uint8)(int32)std::min((float)ap.m_nCruiseSpeed, max);
+        ap.CruiseSpeed = (uint8)(int32)speed;
+        ap.CruiseSpeed = (uint8)(int32)std::min((float)ap.CruiseSpeed, max);
     }
 }
 
 /// SET_CAR_MISSION(00AF)
 void SetCarMission(CVehicle& veh, eCarMission mission) {
     veh.m_autoPilot.SetCarMissionUnlessCrashing(mission);
-    veh.m_autoPilot.m_nTimeToStartMission = CTimer::GetTimeInMS();
+    veh.m_autoPilot.LastTimeNotStuck = CTimer::GetTimeInMS();
     veh.SetEngineOn(true);
 }
 

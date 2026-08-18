@@ -47,110 +47,154 @@ enum eAutoPilotTempAction : int8 {
 
 class CAutoPilot {
 public:
-    CNodeAddress        m_currentAddress;
-    CNodeAddress        m_startingRouteNode;
-    CNodeAddress        m_endingRouteNode;
-    int32               field_C;
-    uint32              m_nSpeedScaleFactor;
-    CCarPathLinkAddress m_nCurrentPathNodeInfo;
-    CCarPathLinkAddress m_nNextPathNodeInfo;
-    CCarPathLinkAddress m_nPreviousPathNodeInfo;
-    char                field_1A[2];
-    uint32              m_nTimeToStartMission;
-    uint32              m_nTimeSwitchedToRealPhysics;
-    int8                _smthPrev;
-    int8                _smthCurr;
-    int8                _smthNext;
-    int8                m_nCurrentLane;
-    int8                m_nNextLane;
-    eCarDrivingStyle    m_nCarDrivingStyle;
-    eCarMission         m_nCarMission;
-    eAutoPilotTempAction m_nTempAction;
-    uint32              m_nTempActionTime;
-    uint32              m_LastUpdateTimeMs; // 
-    uint8               m_ucTempActionMode;
-    uint8               m_ucCarMissionModeCounter;
-    char                field_36[2];
-    float               m_speed;
-    float               m_fMaxTrafficSpeed;
-    uint8               m_nCruiseSpeed;
-    char                field_41;
-    char                field_42[2];
-    float               m_SpeedMult;
-    uint8               m_ucHeliTargetDist;
-    uint8               m_ucHeliSpeedMult;
-    char                field_4A;
-    union {
-        uint8 m_nCarCtrlFlags;
-        struct carCtrlFlags {
-            uint8 bHonkAtCar : 1;
-            uint8 bHonkAtPed : 1;
-            uint8 bAvoidLevelTransitions : 1;
-            uint8 bStayInFastLane : 1;
-            uint8 bStayInSlowLane : 1;
-            uint8 bDoTargetCatchupCheck : 1;
-            uint8 bCantGoAgainstTraffic : 1;
-            uint8 bHeliFollowTarget : 1;
-        } carCtrlFlags;
+    enum {
+        DRIVINGMODE_STOPFORCARS,
+        DRIVINGMODE_SLOWDOWNFORCARS,
+        DRIVINGMODE_AVOIDCARS,
+        DRIVINGMODE_PLOUGHTHROUGH,
+        DRIVINGMODE_STOPFORCARS_IGNORELIGHTS,
+        DRIVINGMODE_AVOIDCARS_OBEYLIGHTS,
+        DRIVINGMODE_AVOIDCARS_STOPFORPEDS_OBEYLIGHTS
     };
-    union {
-        uint8 m_nMovementFlags;
-        struct movementFlags {
-            uint8 bIsStopped : 1;
-            uint8 bIsParked : 1;
-        } movementFlags;
+
+    enum {
+        CAR_NUM_PATHNODES_LOOKAHEAD = 8
     };
-    uint8           m_nStraightLineDistance;
-    uint8           m_ucCarFollowDist;
-    uint8           m_ucHeliTargetDist2;
-    char            field_50;
-    char            field_51;
-    char            field_52[10];
-    CVector         m_vecDestinationCoors;
-    std::array<CNodeAddress, 8> m_aPathFindNodesInfo;
-    uint16          m_nPathFindNodesCount;
-    char            field_8A[2];
-    CVehicle*       m_TargetEntity;
-    CEntity*        m_ObstructingEntity; // Entity to slow down for
-    int8            m_vehicleRecordingId;
-    bool            m_bPlaneDogfightSomething;
-    int16           field_96;
+
+    CNodeAddress         OldNode;
+    CNodeAddress         NewNode;
+    CNodeAddress         VeryOldNode;
+    int32                TimeToLeaveLink;
+    int32                TimeToGetToNextLink;
+    CCarPathLinkAddress  OldLink;
+    CCarPathLinkAddress  NewLink;
+    CCarPathLinkAddress  VeryOldLink;
+
+    uint32               LastTimeNotStuck;
+    uint32               LastTimeMoving;
+    int8                 InvertDirVeryOldLink;
+    int8                 InvertDirOldLink;
+    int8                 InvertDirNewLink;
+    int8                 OldLane;
+    int8                 NewLane;
+    eCarDrivingStyle     DrivingMode;
+    eCarMission          Mission;
+    eAutoPilotTempAction TempAction;
+    uint32               TempActionFinish;
+    uint32               LastTimeWeStartedTempActReverse;
+    uint8                WhatToTryForReverse;
+    uint8                NumTimesWantingToChangeNodes;
+    float                ActualSpeed;
+    float                MaxSpeedBuffer;
+    uint8                CruiseSpeed;
+    int8                 SpeedFromNodes;
+    float                SpeedMultiplier;
+    uint8                HooverDistFromTarget;
+    int8                 SpeedCheat;
+    int8                 AimAheadOfTarget;
+    uint8                SlowingDownForCar : 1;
+    uint8                SlowingDownForPed : 1;
+    uint8                AvoidLevelTransitions : 1;
+    uint8                bAlwaysInFastLane : 1;
+    uint8                bAlwaysInSlowLane : 1;
+    uint8                bWarnTargetEntity : 1;
+    uint8                bDontGoAgainstTraffic : 1;
+    uint8                bLeaveAfterAWhile : 1;
+    uint8                bWaitForValidNodes : 1;
+    uint8                bCarHasToReverseFirst : 1;
+    uint8                AISwitchToStraightLineDistance;
+    uint8                FollowCarDistance;
+    uint8                TargetReachedDist;
+    int8                 LaneChangeCounter;
+    int8                 FramesFloating;
+
+    int16                ConstrainAreaMinX;
+    int16                ConstrainAreaMaxX;
+    int16                ConstrainAreaMinY;
+    int16                ConstrainAreaMaxY;
+
+    CVector              TargetCoors;
+    CNodeAddress         aPathNodeList[8];
+    int16                NumPathNodes;
+    CEntity*             pTargetEntity;
+    CEntity*             pObstructingEntity;
+
+    int8                 RecordingNumber;
+    int8                 Diversion;
 
     CAutoPilot();
+    ~CAutoPilot() = default;
 
     void ModifySpeed(float target);
     void RemoveOnePathNode();
 
-    void SetCarMission(eCarMission carMission) { m_nCarMission = carMission; }
+    void SetCarMission(eCarMission carMission) { Mission = carMission; }
+    void SetMission(int8 carMission) { Mission = (eCarMission)carMission; }
 
     void SetCarMission(eCarMission carMission, uint32 timeOffsetMs);
 
     //! 0x463490, listed as `CCarCtrl::SetCarMission` but `this` is the auto pilot.
     //! A vehicle already crashing down keeps that mission. Only script commands use it.
     void SetCarMissionUnlessCrashing(eCarMission carMission) {
-        if (m_nCarMission != MISSION_PLANE_CRASH_AND_BURN && m_nCarMission != MISSION_HELI_CRASH_AND_BURN) {
-            m_nCarMission = carMission;
+        if (Mission != MISSION_PLANE_CRASH_AND_BURN && Mission != MISSION_HELI_CRASH_AND_BURN) {
+            Mission = carMission;
         }
     }
 
-    void ClearCarMission() { m_nCarMission = MISSION_NONE; }
+    void ClearCarMission() { Mission = MISSION_NONE; }
 
-    void SetCruiseSpeed(uint32 s) { assert(s <= UINT8_MAX); m_nCruiseSpeed = (uint8)s; }
+    void SetCruiseSpeed(uint32 s) { assert(s <= UINT8_MAX); CruiseSpeed = (uint8)s; }
 
-    /*!
-     * @notsa
-     * @brief Set the temporary action
-     * @param action The action set add
-     * @param durMs  The action's duration in milliseconds
-    */
     void SetTempAction(eAutoPilotTempAction action, uint32 durMs);
+    void ClearTempAct() { TempAction = TEMPACT_NONE; }
 
-    /*!
-     * @brief Clear current temp. act.
-    */
-    void ClearTempAct() { m_nTempAction = TEMPACT_NONE; }
-
-    void SetDrivingStyle(eCarDrivingStyle s) { m_nCarDrivingStyle = s; }
+    void SetDrivingStyle(eCarDrivingStyle s) { DrivingMode = s; }
 };
 
 VALIDATE_SIZE(CAutoPilot, 0x98);
+VALIDATE_OFFSET(CAutoPilot, OldNode, 0x00);
+VALIDATE_OFFSET(CAutoPilot, NewNode, 0x04);
+VALIDATE_OFFSET(CAutoPilot, VeryOldNode, 0x08);
+VALIDATE_OFFSET(CAutoPilot, TimeToLeaveLink, 0x0C);
+VALIDATE_OFFSET(CAutoPilot, TimeToGetToNextLink, 0x10);
+VALIDATE_OFFSET(CAutoPilot, OldLink, 0x14);
+VALIDATE_OFFSET(CAutoPilot, NewLink, 0x16);
+VALIDATE_OFFSET(CAutoPilot, VeryOldLink, 0x18);
+VALIDATE_OFFSET(CAutoPilot, LastTimeNotStuck, 0x1C);
+VALIDATE_OFFSET(CAutoPilot, LastTimeMoving, 0x20);
+VALIDATE_OFFSET(CAutoPilot, InvertDirVeryOldLink, 0x24);
+VALIDATE_OFFSET(CAutoPilot, InvertDirOldLink, 0x25);
+VALIDATE_OFFSET(CAutoPilot, InvertDirNewLink, 0x26);
+VALIDATE_OFFSET(CAutoPilot, OldLane, 0x27);
+VALIDATE_OFFSET(CAutoPilot, NewLane, 0x28);
+VALIDATE_OFFSET(CAutoPilot, DrivingMode, 0x29);
+VALIDATE_OFFSET(CAutoPilot, Mission, 0x2A);
+VALIDATE_OFFSET(CAutoPilot, TempAction, 0x2B);
+VALIDATE_OFFSET(CAutoPilot, TempActionFinish, 0x2C);
+VALIDATE_OFFSET(CAutoPilot, LastTimeWeStartedTempActReverse, 0x30);
+VALIDATE_OFFSET(CAutoPilot, WhatToTryForReverse, 0x34);
+VALIDATE_OFFSET(CAutoPilot, NumTimesWantingToChangeNodes, 0x35);
+VALIDATE_OFFSET(CAutoPilot, ActualSpeed, 0x38);
+VALIDATE_OFFSET(CAutoPilot, MaxSpeedBuffer, 0x3C);
+VALIDATE_OFFSET(CAutoPilot, CruiseSpeed, 0x40);
+VALIDATE_OFFSET(CAutoPilot, SpeedFromNodes, 0x41);
+VALIDATE_OFFSET(CAutoPilot, SpeedMultiplier, 0x44);
+VALIDATE_OFFSET(CAutoPilot, HooverDistFromTarget, 0x48);
+VALIDATE_OFFSET(CAutoPilot, SpeedCheat, 0x49);
+VALIDATE_OFFSET(CAutoPilot, AimAheadOfTarget, 0x4A);
+VALIDATE_OFFSET(CAutoPilot, AISwitchToStraightLineDistance, 0x4D);
+VALIDATE_OFFSET(CAutoPilot, FollowCarDistance, 0x4E);
+VALIDATE_OFFSET(CAutoPilot, TargetReachedDist, 0x4F);
+VALIDATE_OFFSET(CAutoPilot, LaneChangeCounter, 0x50);
+VALIDATE_OFFSET(CAutoPilot, FramesFloating, 0x51);
+VALIDATE_OFFSET(CAutoPilot, ConstrainAreaMinX, 0x52);
+VALIDATE_OFFSET(CAutoPilot, ConstrainAreaMaxX, 0x54);
+VALIDATE_OFFSET(CAutoPilot, ConstrainAreaMinY, 0x56);
+VALIDATE_OFFSET(CAutoPilot, ConstrainAreaMaxY, 0x58);
+VALIDATE_OFFSET(CAutoPilot, TargetCoors, 0x5C);
+VALIDATE_OFFSET(CAutoPilot, aPathNodeList, 0x68);
+VALIDATE_OFFSET(CAutoPilot, NumPathNodes, 0x88);
+VALIDATE_OFFSET(CAutoPilot, pTargetEntity, 0x8C);
+VALIDATE_OFFSET(CAutoPilot, pObstructingEntity, 0x90);
+VALIDATE_OFFSET(CAutoPilot, RecordingNumber, 0x94);
+VALIDATE_OFFSET(CAutoPilot, Diversion, 0x95);

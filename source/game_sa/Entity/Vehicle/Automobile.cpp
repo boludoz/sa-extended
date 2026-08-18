@@ -405,7 +405,7 @@ void CAutomobile::ProcessControl()
     m_vehicleAudio.Service();
     bool bExplodeImmediately = false;
     if (IsSubPlane() || IsSubHeli()) {
-        eCarMission carMission = m_autoPilot.m_nCarMission;
+        eCarMission carMission = m_autoPilot.Mission;
         if ((carMission == MISSION_PLANE_CRASH_AND_BURN
             || carMission == MISSION_HELI_CRASH_AND_BURN
             || GetStatus() == STATUS_PLAYER && m_fHealth < 250.0 && m_fireParticleCounter == 2)
@@ -1136,13 +1136,13 @@ CVector CAutomobile::AddMovingCollisionSpeed(CVector& point) {
 bool CAutomobile::ProcessAI(uint32& extraHandlingFlags) {
     CColModel* colModel = GetColModel();
     CCollisionData* colData = colModel->m_pColData;
-    int8 recordingId = this->m_autoPilot.m_vehicleRecordingId;
-    m_autoPilot.carCtrlFlags.bHonkAtCar = false;
-    m_autoPilot.carCtrlFlags.bHonkAtPed = false;
+    int8 recordingId = this->m_autoPilot.RecordingNumber;
+    m_autoPilot.SlowingDownForCar = false;
+    m_autoPilot.SlowingDownForPed = false;
     if (recordingId >= 0 && !CVehicleRecording::bUseCarAI[recordingId])
         return false;
 
-    eCarMission carMission = m_autoPilot.m_nCarMission;
+    eCarMission carMission = m_autoPilot.Mission;
     CVehicle* playerVehicle = FindPlayerVehicle();
     if (playerVehicle && playerVehicle != this && FindPlayerWanted()->GetWantedLevel() > eWantedLevel::WANTED_LEVEL_3
         && (carMission == MISSION_RAMPLAYER_FARAWAY
@@ -1168,7 +1168,7 @@ bool CAutomobile::ProcessAI(uint32& extraHandlingFlags) {
     }
     else if (GetStatus() == STATUS_PHYSICS) {
         if (handlingFlags.bHydraulicGeom) {
-            if (m_autoPilot.m_nCarMission != MISSION_NONE && colData && colData->m_nNumLines > 0) {
+            if (m_autoPilot.Mission != MISSION_NONE && colData && colData->m_nNumLines > 0) {
                 m_vecCentreOfMass.y = (colData->m_pLines[0].m_vecStart.y + colData->m_pLines[1].m_vecStart.y)  * 0.5f;
                 handlingFlags.bNpcNeutralHandl = true;
             }
@@ -1196,7 +1196,7 @@ bool CAutomobile::ProcessAI(uint32& extraHandlingFlags) {
     if (vehicleFlags.bCanPark
         && !vehicleFlags.bParking
         && GetCreatedBy() != MISSION_VEHICLE
-        && m_autoPilot.m_nCarMission == MISSION_CRUISE
+        && m_autoPilot.Mission == MISSION_CRUISE
         && ((CTimer::GetFrameCounter() + static_cast<uint8>(m_nRandomSeed)) & 0xF) == 0)
     {
         if (m_nModelIndex != MODEL_TAXI && m_nModelIndex != MODEL_CABBIE) {
@@ -1220,7 +1220,7 @@ bool CAutomobile::ProcessAI(uint32& extraHandlingFlags) {
         m_nNumContactWheels = 4;
         m_NumDriveWheelsOnGroundLastFrame = m_NumDriveWheelsOnGround;
         m_NumDriveWheelsOnGround = 4;
-        float speed = m_autoPilot.m_speed / 50.0f;
+        float speed = m_autoPilot.ActualSpeed / 50.0f;
         m_pHandlingData->GetTransmission().CalculateGearForSimpleCar(speed, m_nCurrentGear);
         float wheelRot = CVehicle::ProcessWheelRotation(WHEEL_STATE_NORMAL, GetForward(), m_vecMoveSpeed, 0.35f);
         for (float& rotation : m_wheelRotation) {
@@ -2301,7 +2301,7 @@ void CAutomobile::BlowUpCar_Impl(CEntity* dmgr, bool bDontShakeCam, bool bDontSp
 
     if (bIsForCutScene) {
         if (IsSubPlane() && GetStatus() != STATUS_PLAYER) {
-            switch (m_autoPilot.m_nCarMission) {
+            switch (m_autoPilot.Mission) {
             case MISSION_PLANE_FLYTOCOORS:
             case MISSION_PLANE_ATTACK_PLAYER:
             case MISSION_PLANE_FLYINDIRECTION:
@@ -2778,7 +2778,7 @@ void CAutomobile::PlayCarHorn()
     m_nCarHornTimer = CGeneral::GetRandomNumber() % 128 - 106; // TODO: GetRandomNumberInRange
     if (const auto r = m_nCarHornTimer % 8; r < 4) {
         if (r >= 2) {
-            if (m_pDriver && m_autoPilot.carCtrlFlags.bHonkAtCar) {
+            if (m_pDriver && m_autoPilot.SlowingDownForCar) {
                 m_pDriver->Say(CTX_GLOBAL_BLOCKED);
             }
         }
@@ -3875,7 +3875,7 @@ float CAutomobile::GetMovingCollisionOffset() {
 
 // 0x6A2390
 void CAutomobile::TellHeliToGoToCoors(CVector target, float minHeightAboveTerrain, float lowestFlightHeight) {
-    m_autoPilot.m_vecDestinationCoors = target;
+    m_autoPilot.TargetCoors = target;
     m_autoPilot.SetCarMission(MISSION_HELI_FLYTOCOORS);
     m_autoPilot.SetCruiseSpeed(100);
 
@@ -3909,7 +3909,7 @@ void CAutomobile::ClearHeliOrientation() {
 
 // 0x6A2470
 void CAutomobile::TellPlaneToGoToCoors(float x, float y, float z, float altitudeMin, float altitudeMax) {
-    m_autoPilot.m_vecDestinationCoors = CVector{ x, y, z };
+    m_autoPilot.TargetCoors = CVector{ x, y, z };
     m_autoPilot.SetCarMission(MISSION_PLANE_FLYTOCOORS);
     m_autoPilot.SetCruiseSpeed(0);
 
@@ -4182,7 +4182,7 @@ void CAutomobile::SetAllTaxiLights(bool enable) {
 
 // 0x6A3820
 void CAutomobile::PlayHornIfNecessary() {
-    if ((m_autoPilot.carCtrlFlags.bHonkAtPed || m_autoPilot.carCtrlFlags.bHonkAtCar) && !HasCarStoppedBecauseOfLight()) {
+    if ((m_autoPilot.SlowingDownForPed || m_autoPilot.SlowingDownForCar) && !HasCarStoppedBecauseOfLight()) {
         PlayCarHorn();
     }
 }
@@ -6535,8 +6535,8 @@ bool CAutomobile::HasCarStoppedBecauseOfLight() {
         return false;
     }
 
-    const auto oldNode = m_autoPilot.m_startingRouteNode;
-    const auto newNode = m_autoPilot.m_currentAddress;
+    const auto oldNode = m_autoPilot.NewNode;
+    const auto newNode = m_autoPilot.OldNode;
 
     if (!ThePaths.m_pPathNodes[oldNode.m_wAreaId] || !ThePaths.m_pPathNodes[newNode.m_wAreaId]) {
         return false;
@@ -6562,7 +6562,7 @@ bool CAutomobile::HasCarStoppedBecauseOfLight() {
         }
     }
 
-    const auto veryOldNode = m_autoPilot.m_endingRouteNode;
+    const auto veryOldNode = m_autoPilot.VeryOldNode;
     if (!veryOldNode.IsValid() || veryOldNode.m_wAreaId == (uint16)-1) {
         return false;
     }

@@ -581,7 +581,7 @@ void CTheScripts::CleanUpThisPed(CPed* ped) {
 
     if (auto* veh = ped->GetVehicleIfInOne(); veh && veh->IsDriver(ped)) {
         const auto FixMission = [veh](eCarMission fix) {
-            auto& mis = veh->m_autoPilot.m_nCarMission;
+            auto& mis = veh->m_autoPilot.Mission;
             if (mis != MISSION_PLANE_CRASH_AND_BURN && mis != MISSION_HELI_CRASH_AND_BURN) {
                 mis = fix;
             }
@@ -591,7 +591,7 @@ void CTheScripts::CleanUpThisPed(CPed* ped) {
         case eVehicleType::VEHICLE_TYPE_HELI: {
             FixMission(MISSION_HELI_FLYTOCOORS);
 
-            veh->m_autoPilot.m_vecDestinationCoors = CVector{ 10'000.0f, -10'000.0f, 1'000.0f };
+            veh->m_autoPilot.TargetCoors = CVector{ 10'000.0f, -10'000.0f, 1'000.0f };
             veh->AsHeli()->m_MinHeightAboveTerrain = 1000.0f;
             veh->AsHeli()->m_LowestFlightHeight    = 1000.0f;
             break;
@@ -599,7 +599,7 @@ void CTheScripts::CleanUpThisPed(CPed* ped) {
         case eVehicleType::VEHICLE_TYPE_PLANE: {
             FixMission(MISSION_PLANE_FLYTOCOORS);
 
-            veh->m_autoPilot.m_vecDestinationCoors = CVector{ 10'000.0f, 10'000.0f, 1'000.0f };
+            veh->m_autoPilot.TargetCoors = CVector{ 10'000.0f, 10'000.0f, 1'000.0f };
             veh->AsPlane()->m_minAltitude          = 1000.0f;
             veh->AsPlane()->m_maxAltitude          = 1000.0f;
             break;

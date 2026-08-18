@@ -3210,7 +3210,7 @@ void CAEVehicleAudioEntity::ProcessAircraft(tVehicleParams& params) {
         default: {
             if (m_IsPlayerDriver) {
                 ProcessPlayerProp(params);
-            } else if (vehicle->GetStatus() == STATUS_PHYSICS || vehicle->m_autoPilot.m_vehicleRecordingId >= 0) {
+            } else if (vehicle->GetStatus() == STATUS_PHYSICS || vehicle->m_autoPilot.RecordingNumber >= 0) {
                 ProcessAIProp(params);
             } else {
                 ProcessDummyProp(params);
@@ -3275,7 +3275,7 @@ auto GetPropSpeedFactor(float propSpeed) {
 
 // notsa
 float CalculatePropSpeed(const CPlane* plane, float gas, float brake) {
-    return plane->m_autoPilot.m_vehicleRecordingId != -1
+    return plane->m_autoPilot.RecordingNumber != -1
         ? 0.7f + 0.3f * std::clamp(std::max(gas, brake), 0.f, 1.f)
         : plane->m_fPropSpeed / 0.34f;
 }
@@ -3304,7 +3304,7 @@ void CAEVehicleAudioEntity::ProcessAIProp(tVehicleParams& vp) {
     if (!AEAudioHardware.IsSoundBankLoaded(SND_BANK_GENRL_VEHICLE_GEN, SND_BANK_SLOT_VEHICLE_GEN)) { // 0x4FE0CA
         return;
     }
-    if (!vp.Vehicle->vehicleFlags.bEngineOn && vp.Vehicle->m_autoPilot.m_vehicleRecordingId == -1) { // 0x4FE0F2
+    if (!vp.Vehicle->vehicleFlags.bEngineOn && vp.Vehicle->m_autoPilot.RecordingNumber == -1) { // 0x4FE0F2
         CancelAllVehicleEngineSounds();
         return;
     }
@@ -3341,7 +3341,7 @@ void CAEVehicleAudioEntity::ProcessDummyOrPlayerProp(tVehicleParams& vp, bool is
         return;
     }
 
-    if (!plane->vehicleFlags.bEngineOn && (isDummy || plane->m_autoPilot.m_vehicleRecordingId < 0)) {
+    if (!plane->vehicleFlags.bEngineOn && (isDummy || plane->m_autoPilot.RecordingNumber < 0)) {
         CancelAllVehicleEngineSounds();
         return;
     }
@@ -3774,7 +3774,7 @@ void CAEVehicleAudioEntity::ProcessGenericJet(bool bEngineOn, tVehicleParams& pa
 void CAEVehicleAudioEntity::ProcessDummyJet(tVehicleParams& vp) {
     auto* const plane = vp.Vehicle->AsPlane();
     ProcessGenericJet(
-        plane->vehicleFlags.bEngineOn || plane->m_autoPilot.m_vehicleRecordingId >= 0,
+        plane->vehicleFlags.bEngineOn || plane->m_autoPilot.RecordingNumber >= 0,
         vp,
         (std::clamp(CalculatePropSpeed(plane, plane->m_GasPedal, plane->m_BrakePedal), 0.2f, 1.f) - 0.2f) * 1.25f,
         plane->m_GasPedal / 255.f,
@@ -3787,7 +3787,7 @@ void CAEVehicleAudioEntity::ProcessDummyJet(tVehicleParams& vp) {
 // 0x501650
 void CAEVehicleAudioEntity::ProcessPlayerJet(tVehicleParams& vp) {
     auto* const plane = vp.Vehicle->AsPlane();
-    const auto isRecordingVehicle = plane->m_autoPilot.m_vehicleRecordingId >= 0;
+    const auto isRecordingVehicle = plane->m_autoPilot.RecordingNumber >= 0;
 
     if (isRecordingVehicle) {
         vp.ThisAccel = 0;
@@ -4565,7 +4565,7 @@ void CAEVehicleAudioEntity::ProcessVehicle(CPhysical* physical) {
         ? &vehicle->m_pHandlingData->m_transmissionData
         : nullptr;
     vp.Speed                 = isStatusSimple
-        ? vehicle->m_autoPilot.m_speed / 50.0f
+        ? vehicle->m_autoPilot.ActualSpeed / 50.0f
         : DotProduct(physical->m_vecMoveSpeed, physical->m_matrix->GetForward());
 
     switch (m_AuSettings.VehicleAudioType) {

@@ -237,7 +237,7 @@ void CInterestingEvents::ScanForNearbyEntities() {
                 if (!vehicle->m_pDriver)
                     continue;
 
-                auto style = vehicle->m_autoPilot.m_nCarDrivingStyle;
+                auto style = vehicle->m_autoPilot.DrivingMode;
                 if (!style)
                     continue;
 

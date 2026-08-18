@@ -259,12 +259,12 @@ void CRoadBlocks::CreateRoadBlockBetween2Points(CVector a, CVector b, bool isGan
         veh->m_nDoorLock = CARLOCK_UNLOCKED;
         CCarCtrl::JoinCarWithRoadSystem(veh);
 
-        veh->m_autoPilot.m_nCarMission  = MISSION_NONE;
-        veh->m_autoPilot.m_nTempAction  = TEMPACT_NONE;
-        veh->m_autoPilot.m_nCurrentLane = 0;
-        veh->m_autoPilot.m_nNextLane    = 0;
-        veh->m_autoPilot.m_speed        = 0.0f;
-        veh->m_autoPilot.m_nCruiseSpeed = 0;
+        veh->m_autoPilot.Mission  = MISSION_NONE;
+        veh->m_autoPilot.TempAction  = TEMPACT_NONE;
+        veh->m_autoPilot.OldLane = 0;
+        veh->m_autoPilot.NewLane    = 0;
+        veh->m_autoPilot.ActualSpeed        = 0.0f;
+        veh->m_autoPilot.CruiseSpeed = 0;
 
         veh->vehicleFlags.bNeverUseSmallerRemovalRange = true;
         veh->vehicleFlags.bIsLocked                    = false;

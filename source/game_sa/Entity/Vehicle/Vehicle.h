@@ -681,6 +681,10 @@ public:
 
 
     auto GetHealth() const noexcept { return m_fHealth; }
+    [[nodiscard]] float GetGasPedal() const noexcept { return m_GasPedal; }
+    [[nodiscard]] float GetBrakePedal() const noexcept { return m_BrakePedal; }
+    [[nodiscard]] float GetSteerAngle() const noexcept { return m_fSteerAngle; }
+    [[nodiscard]] eVehicleType GetVehicleType() const noexcept { return m_nVehicleType; }
 
     static void Shutdown();
     static void SetComponentAtomicAlpha(RpAtomic* atomic, int32 alpha);

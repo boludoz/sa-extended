@@ -331,9 +331,9 @@ CVehicle::CVehicle(eVehicleCreatedBy createdBy) : CPhysical(), m_vehicleAudio(),
     m_StoredCollPolys[COL_REAR].valid = false;
     m_pHandlingData = nullptr;
     m_nHandlingFlagsIntValue = static_cast<eVehicleHandlingFlags>(0);
-    m_autoPilot.m_nTempAction = TEMPACT_NONE;
+    m_autoPilot.TempAction = TEMPACT_NONE;
     m_autoPilot.SetCarMission(MISSION_NONE, 0);
-    m_autoPilot.carCtrlFlags.bAvoidLevelTransitions = false;
+    m_autoPilot.AvoidLevelTransitions = false;
     m_nRemapTxd = -1;
     m_nPreviousRemapTxd = -1;
     m_pRemapTexture = nullptr;
@@ -4186,7 +4186,7 @@ void CVehicle::DoBoatSplashes(float fWaterDamping) {
         return;
     }
 
-    if (m_autoPilot.m_nCarMission == MISSION_CRUISE && (CTimer::m_FrameCounter & 2) != 0) {
+    if (m_autoPilot.Mission == MISSION_CRUISE && (CTimer::m_FrameCounter & 2) != 0) {
         return;
     }
 
@@ -4208,7 +4208,7 @@ void CVehicle::DoBoatSplashes(float fWaterDamping) {
     }
 
     auto v48 = v9 * 0.75f;
-    if (m_autoPilot.m_nCarMission == MISSION_CRUISE) {
+    if (m_autoPilot.Mission == MISSION_CRUISE) {
         auto v10 = v48 + v48;
         if (v10 >= 1.0f)
             v48 = 1.0f;

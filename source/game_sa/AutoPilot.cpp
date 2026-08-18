@@ -3,62 +3,100 @@
 #include "AutoPilot.h"
 
 // 0x6D5E20
-CAutoPilot::CAutoPilot() : m_aPathFindNodesInfo() {
-    _smthNext = 1;
-    _smthCurr = 1;
+CAutoPilot::CAutoPilot() {
+    OldNode.m_wAreaId     = (uint16)-1;
+    NewNode.m_wAreaId     = (uint16)-1;
+    VeryOldNode.m_wAreaId = (uint16)-1;
 
-    m_nCarCtrlFlags = 0;
+    OldLink               = CCarPathLinkAddress();
+    NewLink               = CCarPathLinkAddress();
+    VeryOldLink           = CCarPathLinkAddress();
 
-    field_C = 0;
-    m_nSpeedScaleFactor = 1000;
-    m_nNextLane = 0;
-    m_nCurrentLane = 0;
-    m_nCarDrivingStyle = DRIVING_STYLE_STOP_FOR_CARS;
-    m_nCarMission = eCarMission::MISSION_NONE;
-    m_nTempAction = TEMPACT_NONE;
-    SetCruiseSpeed(10);
-    m_speed = 10.0F;
-    m_nPathFindNodesCount = 0;
-    m_TargetEntity = nullptr;
+    for (int32 i = 0; i < CAR_NUM_PATHNODES_LOOKAHEAD; ++i) {
+        aPathNodeList[i].m_wAreaId = (uint16)-1;
+    }
 
-    m_nTimeToStartMission = CTimer::GetTimeInMS();
-    m_nTimeSwitchedToRealPhysics = CTimer::GetTimeInMS();
-    m_LastUpdateTimeMs = 0;
+    InvertDirOldLink     = 1;
+    InvertDirNewLink     = 1;
+    InvertDirVeryOldLink = 1;
 
-    m_nStraightLineDistance = 20;
-    m_ucTempActionMode = 0;
-    m_ucCarMissionModeCounter = 0;
-    field_41 = 0;
-    m_SpeedMult = 1.0f;
-    m_ucHeliSpeedMult = 0;
-    movementFlags.bIsStopped = false;
-    movementFlags.bIsParked = false;
-    field_4A = 0;
-    m_ucCarFollowDist = 10;
-    m_ucHeliTargetDist2 = 10;
-    field_50 = CGeneral::GetRandomNumber() % 8 + 2;
-    m_vehicleRecordingId = -1;
-    m_bPlaneDogfightSomething = false;
-    m_ObstructingEntity = nullptr;
-    m_fMaxTrafficSpeed = 0.0F;
+    SlowingDownForCar    = false;
+    SlowingDownForPed    = false;
+    AvoidLevelTransitions = false;
+    bAlwaysInFastLane    = false;
+    bAlwaysInSlowLane    = false;
+    bWarnTargetEntity    = false;
+    bDontGoAgainstTraffic = false;
+    bLeaveAfterAWhile    = false;
+    bWaitForValidNodes   = false;
+    bCarHasToReverseFirst = false;
+
+    TimeToLeaveLink      = 0;
+    TimeToGetToNextLink  = 1000;
+
+    OldLane              = 0;
+    NewLane              = 0;
+
+    DrivingMode          = DRIVING_STYLE_STOP_FOR_CARS;
+    Mission              = MISSION_NONE;
+    TempAction           = TEMPACT_NONE;
+
+    CruiseSpeed          = 10;
+    ActualSpeed          = 10.0f;
+
+    NumPathNodes         = 0;
+    pTargetEntity        = nullptr;
+
+    const uint32 timeMs  = CTimer::m_snTimeInMilliseconds;
+    LastTimeNotStuck     = timeMs;
+    LastTimeMoving       = timeMs;
+
+    SpeedFromNodes       = 0;
+    SpeedMultiplier      = 1.0f;
+    RecordingNumber      = -1;
+    NumTimesWantingToChangeNodes = 0;
+    AISwitchToStraightLineDistance = 20;
+    TempActionFinish     = 0;
+    LastTimeWeStartedTempActReverse = 0;
+
+    WhatToTryForReverse  = 0;
+    SpeedCheat           = 0;
+    AimAheadOfTarget     = 0;
+    FollowCarDistance    = 10;
+    TargetReachedDist    = 10;
+    Diversion            = 0;
+
+    LaneChangeCounter    = (rand() & 7) + 2;
+    FramesFloating       = 0;
+    ConstrainAreaMinX    = 0;
+    ConstrainAreaMaxX    = 0;
+    ConstrainAreaMinY    = 0;
+    ConstrainAreaMaxY    = 0;
+    pObstructingEntity   = nullptr;
+    MaxSpeedBuffer       = 0.0f;
+    HooverDistFromTarget = 0;
 }
 
+// 0x41B980
 void CAutoPilot::ModifySpeed(float target) {
     plugin::CallMethod<0x41B980, CAutoPilot*, float>(this, target);
 }
 
 // 0x41B950
 void CAutoPilot::RemoveOnePathNode() {
-    plugin::CallMethod<0x41B950, CAutoPilot*>(this);
+    --NumPathNodes;
+    for (int16 c = 0; c < NumPathNodes; ++c) {
+        aPathNodeList[c] = aPathNodeList[c + 1];
+    }
 }
 
 void CAutoPilot::SetCarMission(eCarMission carMission, uint32 timeOffsetMs) {
-    m_nCarMission = carMission;
-    m_nTimeToStartMission = CTimer::GetTimeInMS() + timeOffsetMs;
+    Mission = carMission;
+    LastTimeNotStuck = CTimer::GetTimeInMS() + timeOffsetMs;
 }
 
 // notsa
 void CAutoPilot::SetTempAction(eAutoPilotTempAction action, uint32 durMs) {
-    m_nTempAction = action;
-    m_nTempActionTime = CTimer::GetTimeInMS() + durMs;
+    TempAction = action;
+    TempActionFinish = CTimer::GetTimeInMS() + durMs;
 }

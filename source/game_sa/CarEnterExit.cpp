@@ -743,7 +743,7 @@ bool CCarEnterExit::SetPedInCarDirect(CPed* ped, CVehicle* vehicle, int32 doorId
         task.ProcessPed(ped);
 
         // And make them drive
-        ped->GetTaskManager().SetTask(new CTaskComplexCarDriveWander{ vehicle, vehicle->m_autoPilot.m_nCarDrivingStyle, (float)vehicle->m_autoPilot.m_nCruiseSpeed }, TASK_PRIMARY_PRIMARY);
+        ped->GetTaskManager().SetTask(new CTaskComplexCarDriveWander{ vehicle, vehicle->m_autoPilot.DrivingMode, (float)vehicle->m_autoPilot.CruiseSpeed }, TASK_PRIMARY_PRIMARY);
 
         return true;
     }

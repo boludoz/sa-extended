@@ -70,7 +70,7 @@ CHeli::CHeli(int32 modelIndex, eVehicleCreatedBy createdBy) : CAutomobile(modelI
     m_nNextTalkTimer = CTimer::GetTimeInMS();
 
     vehicleFlags.bNeverUseSmallerRemovalRange = true; // 0x6C42BD
-    m_autoPilot.m_ucHeliTargetDist2 = 10;
+    m_autoPilot.TargetReachedDist = 10;
 
     m_GunflashFxPtrs = nullptr;
     m_FiringRateMultiplier = 16;
@@ -320,10 +320,10 @@ void CHeli::UpdateHelis() {
     if (IsHeliValid(CHeli::pHelis[0])) {
         // Check if destroyed
         if (CHeli::pHelis[0]->physicalFlags.bRenderScorched || CHeli::pHelis[0]->vehicleFlags.bIsDrowning) {
-            CHeli::pHelis[0]->m_autoPilot.m_nCarMission = MISSION_HELI_FLY_AWAY_FROM_PLAYER;
+            CHeli::pHelis[0]->m_autoPilot.Mission = MISSION_HELI_FLY_AWAY_FROM_PLAYER;
             CHeli::pHelis[0] = nullptr;
         } 
-        else if (CHeli::pHelis[0]->m_autoPilot.m_nCarMission == MISSION_HELI_FLY_AWAY_FROM_PLAYER) {
+        else if (CHeli::pHelis[0]->m_autoPilot.Mission == MISSION_HELI_FLY_AWAY_FROM_PLAYER) {
             // Check distance to player for removal
             playerPosition = FindPlayerCoors();
             CVector camDist = playerPosition - CHeli::pHelis[0]->GetPosition();
@@ -343,9 +343,9 @@ void CHeli::UpdateHelis() {
     if (IsHeliValid(CHeli::pHelis[1])) {
         // Check if destroyed
         if (CHeli::pHelis[1]->physicalFlags.bRenderScorched || CHeli::pHelis[1]->vehicleFlags.bIsDrowning) {
-            CHeli::pHelis[1]->m_autoPilot.m_nCarMission = MISSION_HELI_FLY_AWAY_FROM_PLAYER;
+            CHeli::pHelis[1]->m_autoPilot.Mission = MISSION_HELI_FLY_AWAY_FROM_PLAYER;
             CHeli::pHelis[1] = nullptr;
-        } else if (CHeli::pHelis[1]->m_autoPilot.m_nCarMission == MISSION_HELI_FLY_AWAY_FROM_PLAYER) {
+        } else if (CHeli::pHelis[1]->m_autoPilot.Mission == MISSION_HELI_FLY_AWAY_FROM_PLAYER) {
             // Check distance to player for removal
             playerPosition = FindPlayerCoors();
             CVector camDist = playerPosition - CHeli::pHelis[1]->GetPosition();
@@ -362,9 +362,9 @@ void CHeli::UpdateHelis() {
     }
     
     // Make helicopters fly away if too many
-    if (IsHeliValid(CHeli::pHelis[0]) && CHeli::pHelis[0]->m_autoPilot.m_nCarMission != MISSION_HELI_FLY_AWAY_FROM_PLAYER) {
+    if (IsHeliValid(CHeli::pHelis[0]) && CHeli::pHelis[0]->m_autoPilot.Mission != MISSION_HELI_FLY_AWAY_FROM_PLAYER) {
         if (maxAllowedHelis < 1) {
-            CHeli::pHelis[0]->m_autoPilot.m_nCarMission = MISSION_HELI_FLY_AWAY_FROM_PLAYER;
+            CHeli::pHelis[0]->m_autoPilot.Mission = MISSION_HELI_FLY_AWAY_FROM_PLAYER;
             CHeli::pHelis[0]->m_MinHeightAboveTerrain = 100.0f;
             CHeli::pHelis[0]->m_LowestFlightHeight = 100.0f;
         } else {
@@ -373,8 +373,8 @@ void CHeli::UpdateHelis() {
     }
     
     // Process second helicopter flying away if too many
-    if (IsHeliValid(CHeli::pHelis[1]) && CHeli::pHelis[1]->m_autoPilot.m_nCarMission != MISSION_HELI_FLY_AWAY_FROM_PLAYER && maxAllowedHelis <= 0) {
-        CHeli::pHelis[1]->m_autoPilot.m_nCarMission = MISSION_HELI_FLY_AWAY_FROM_PLAYER;
+    if (IsHeliValid(CHeli::pHelis[1]) && CHeli::pHelis[1]->m_autoPilot.Mission != MISSION_HELI_FLY_AWAY_FROM_PLAYER && maxAllowedHelis <= 0) {
+        CHeli::pHelis[1]->m_autoPilot.Mission = MISSION_HELI_FLY_AWAY_FROM_PLAYER;
         CHeli::pHelis[1]->m_MinHeightAboveTerrain = 100.0f;
         CHeli::pHelis[1]->m_LowestFlightHeight = 100.0f;
     }
@@ -408,12 +408,12 @@ void CHeli::RenderAllHeliSearchLights() {
 // 0x6C6D30
 void CHeli::BlowUpCar(CEntity* damager, bool bHideExplosion) {
     if (!vehicleFlags.bCanBeDamaged) {
-        m_autoPilot.m_nCarMission = eCarMission::MISSION_HELI_CRASH_AND_BURN;
+        m_autoPilot.Mission = eCarMission::MISSION_HELI_CRASH_AND_BURN;
         m_fHealth = 0.0f;
         return;
     }
 
-    if (GetStatus() <= STATUS_PHYSICS || m_autoPilot.m_nCarMission == eCarMission::MISSION_HELI_CRASH_AND_BURN || m_nModelIndex == MODEL_RCGOBLIN || m_nModelIndex == MODEL_RCRAIDER) {
+    if (GetStatus() <= STATUS_PHYSICS || m_autoPilot.Mission == eCarMission::MISSION_HELI_CRASH_AND_BURN || m_nModelIndex == MODEL_RCGOBLIN || m_nModelIndex == MODEL_RCRAIDER) {
         
         // Update player stats if player caused explosion
         if (damager == FindPlayerPed() || damager == FindPlayerVehicle()) {
@@ -834,7 +834,7 @@ void CHeli::ProcessControl() {
         m_LightBrightness = 0.0f;
     } else {
         // Handle different missions
-        if (m_autoPilot.m_nCarMission == MISSION_HELI_FLYDIRECT) {
+        if (m_autoPilot.Mission == MISSION_HELI_FLYDIRECT) {
             // Check if player is not in vehicle or not in heli/plane
             CVehicle* playerVehicle = FindPlayerVehicle();
             if (!playerVehicle || 
@@ -844,8 +844,8 @@ void CHeli::ProcessControl() {
                 shouldFireGun = true;
                 useSearchLight = true;
             }
-        } else if (m_autoPilot.m_nCarMission == MISSION_HELI_CIRCLE_TARGET) {
-            targetEntity = static_cast<CPlayerPed*>(m_autoPilot.m_pTargetEntity);
+        } else if (m_autoPilot.Mission == MISSION_HELI_CIRCLE_TARGET) {
+            targetEntity = static_cast<CPlayerPed*>(m_autoPilot.pTargetEntity);
             if (targetEntity && m_nHeliFlags.bUseSearchLightOnTarget) {
                 shouldFireGun = false;
                 useSearchLight = true;
@@ -1056,7 +1056,7 @@ void CHeli::ProcessControl() {
     }
     
     // Handle SWAT team rappelling
-    if (m_autoPilot.m_nCarMission == MISSION_HELI_FLYDIRECT && m_nSwatOnBoard) {
+    if (m_autoPilot.Mission == MISSION_HELI_FLYDIRECT && m_nSwatOnBoard) {
         SendDownSwat();
         // CInterestingEvents::Add(&g_InterestingEvents, EVENT_SWAT_TEAM_ABSEILING, this);
     }
