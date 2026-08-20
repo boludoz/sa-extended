@@ -120,7 +120,7 @@ public:
     CVector             m_vecCentreOfMass;
     CEntryInfoList      m_pCollisionList;
     CPtrNodeDoubleLink<CPhysical*>* m_pMovingList;
-    uint8               m_nFakePhysics;
+    uint8               m_nFakePhysics; // aka: m_nNoOfStaticFrames
     uint8               m_nNumEntitiesCollided;
     eSurfaceType        m_nContactSurface;
     CEntity*            m_apCollidedEntities[6];

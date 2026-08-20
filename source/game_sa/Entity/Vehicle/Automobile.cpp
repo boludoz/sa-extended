@@ -2479,49 +2479,53 @@ bool CAutomobile::SetUpWheelColModel(CColModel* wheelCol) {
 }
 
 // 0x6A32B0
-bool CAutomobile::BurstTyre(uint8 tyreComponentId, bool bPhysicalEffect) {
-    if (m_nModelIndex == MODEL_RHINO)
-        return false;
+float fBurstForceMult = 0.03f;
 
-    if (vehicleFlags.bTyresDontBurst)
-        return false;
+bool CAutomobile::BurstTyre(uint8 nWheelPieceType, bool bApplyForce) {
 
-    if (physicalFlags.bRenderScorched)
+    if (GetModelIndex() == MODEL_RHINO) {
         return false;
+    }
 
-    const auto GetCarWheel = [&]() -> eCarWheel { // TODO: `CarPieceToCarWheel` (See `CarWheelToCarPiece`)
-        switch (tyreComponentId) {
-        case CAR_PIECE_WHEEL_LF: return CAR_WHEEL_FRONT_LEFT;
-        case CAR_PIECE_WHEEL_RF: return CAR_WHEEL_FRONT_RIGHT;
-        case CAR_PIECE_WHEEL_RL: return CAR_WHEEL_REAR_LEFT;
-        case CAR_PIECE_WHEEL_RR: return CAR_WHEEL_REAR_RIGHT;
-        default:
-            return (eCarWheel)tyreComponentId; // TODO: NOTSA_UNREACHABLE()
+    if (vehicleFlags.bTyresDontBurst || physicalFlags.bRenderScorched) {
+        return false;
+    }
+
+    switch (nWheelPieceType) {
+    case CAR_PIECE_WHEEL_LF:
+        nWheelPieceType = CAR_WHEEL_FRONT_LEFT;
+        break;
+    case CAR_PIECE_WHEEL_RL:
+        nWheelPieceType = CAR_WHEEL_REAR_LEFT;
+        break;
+    case CAR_PIECE_WHEEL_RF:
+        nWheelPieceType = CAR_WHEEL_FRONT_RIGHT;
+        break;
+    case CAR_PIECE_WHEEL_RR:
+        nWheelPieceType = CAR_WHEEL_REAR_RIGHT;
+        break;
+    }
+    // check the wheel's there to burst before bursting it.
+    if (m_damageManager.GetWheelStatus((eCarWheel)nWheelPieceType) == WHEEL_STATUS_OK) {
+        m_damageManager.SetWheelStatus((eCarWheel)nWheelPieceType, WHEEL_STATUS_BURST);
+        CStats::IncrementStat(STAT_TIRES_POPPED_WITH_GUNFIRE, 1);
+
+        m_vehicleAudio.AddAudioEvent(AE_TYRE_BURST, 0.0f);
+
+        if (GetStatus() == STATUS_SIMPLE) {
+            CCarCtrl::SwitchVehicleToRealPhysics(this);
         }
-    };
 
-    auto wheel = GetCarWheel();
-    if (m_damageManager.GetWheelStatus(wheel))
-        return false;
+        if (bApplyForce) {
+            ApplyMoveForce(CGeneral::GetRandomNumberInRange(-fBurstForceMult, fBurstForceMult) * m_fMass * GetMatrix().GetRight());
+            ApplyTurnForce(CGeneral::GetRandomNumberInRange(-fBurstForceMult, fBurstForceMult) * m_fTurnMass * GetMatrix().GetRight(), GetMatrix().GetForward());
+            m_nFakePhysics = 0;
+        }
 
-    m_damageManager.SetWheelStatus(wheel, WHEEL_STATUS_BURST);
-    CStats::IncrementStat(STAT_TIRES_POPPED_WITH_GUNFIRE, 1.0f);
-    m_vehicleAudio.AddAudioEvent(AE_TYRE_BURST, 0.0f);
-    if (GetStatus() == STATUS_SIMPLE) {
-        CCarCtrl::SwitchVehicleToRealPhysics(this);
+        return true;
     }
 
-    constexpr auto force = 0.03f;
-    if (bPhysicalEffect) {
-        ApplyMoveForce(m_matrix->GetRight() * CGeneral::GetRandomNumberInRange(-force, force) * m_fMass);
-        ApplyTurnForce(
-            m_matrix->GetRight() * CGeneral::GetRandomNumberInRange(-force, force) * m_fTurnMass,
-            m_matrix->GetForward()
-        );
-
-        m_nFakePhysics = 0;
-    }
-    return true;
+    return false;
 }
 
 // 0x6A3850
