@@ -364,15 +364,23 @@ float CPlayerPed::GetWeaponRadiusOnScreen() {
     if (wep.IsTypeMelee())
         return 0.0f;
 
-    const float accuracyProg = 0.5f / wepInfo.m_fAccuracy;
+#if MODERN_CAM
+    if (wep.m_Type >= eWeaponType::WEAPON_GRENADE && wep.m_Type <= eWeaponType::WEAPON_REMOTE_SATCHEL_CHARGE) {
+        return 0.25f;
+    }
+#endif
+
+    const float fAcc = wepInfo.m_fAccuracy > 0.001f ? wepInfo.m_fAccuracy : 1.0f;
+    const float accuracyProg = 0.5f / fAcc;
     switch (wep.m_Type) {
     case eWeaponType::WEAPON_SHOTGUN:
     case eWeaponType::WEAPON_SPAS12_SHOTGUN:
     case eWeaponType::WEAPON_SAWNOFF_SHOTGUN:
-        return std::max(0.2f, accuracyProg); // here they multiply *accuracyProg * 1.0f* :thinking
+        return std::max(0.2f, accuracyProg);
 
     default: {
-        const float rangeProg = std::min(1.0f, 15.0f / wepInfo.m_fWeaponRange);
+        const float fRange = wepInfo.m_fWeaponRange > 0.001f ? wepInfo.m_fWeaponRange : 30.0f;
+        const float rangeProg = std::min(1.0f, 15.0f / fRange);
         const float radius = (GetPlayerData()->m_fAttackButtonCounter * 0.5f + 1.0f) * rangeProg * accuracyProg;
         if (bIsDucking)
             return std::max(0.2f, radius / 2.0f);

@@ -1505,7 +1505,63 @@ bool CWeapon::FireProjectile(CEntity* firedBy, const CVector& origin, CEntity* t
                 &projDir,
                 targetEntity
             );
-        } else {
+        }
+#if MODERN_CAM
+        else if (firedByPed && firedByPed->IsPlayer() && firedByPed->GetPlayerData() && firedByPed->GetPlayerData()->m_bFreeAiming
+                 && notsa::contains({ WEAPON_GRENADE, WEAPON_TEARGAS, WEAPON_MOLOTOV, WEAPON_REMOTE_SATCHEL_CHARGE }, projType)) {
+            const auto& activeCam = TheCamera.GetActiveCam();
+            const CVector camPos   = activeCam.m_vecSource;
+            const CVector camFront = activeCam.m_vecFront;
+            const CVector rayEnd   = camPos + camFront * 120.0f;
+
+            CColPoint colPoint{};
+            CEntity*  hitEntity = nullptr;
+            CVector   targetPoint = rayEnd;
+
+            CWorld::pIgnoreEntity = firedBy;
+            if (CWorld::ProcessLineOfSight(camPos, rayEnd, colPoint, hitEntity, true, true, true, true, true, false, false, false)) {
+                targetPoint = colPoint.m_vecPoint;
+            }
+            CWorld::pIgnoreEntity = nullptr;
+
+            const CVector delta      = targetPoint - projOrigin;
+            const float   horizDist  = CVector2D(delta.x, delta.y).Magnitude();
+            const float   heightDiff = delta.z;
+
+            constexpr float SA_GRAVITY      = 0.008f;
+            constexpr float MIN_THROW_SPEED  = 0.4f;
+            constexpr float MAX_THROW_SPEED  = 1.2f;
+            constexpr float MIN_DIST         = 3.0f;
+            constexpr float MAX_DIST         = 60.0f;
+
+            const float distProp   = std::clamp((horizDist - MIN_DIST) / (MAX_DIST - MIN_DIST), 0.0f, 1.0f);
+            const float throwSpeed = MIN_THROW_SPEED + (MAX_THROW_SPEED - MIN_THROW_SPEED) * distProp;
+            const float flightTime = (throwSpeed > 0.01f) ? (horizDist / throwSpeed) : 1.0f;
+            const float vZ = (flightTime > 0.01f)
+                ? (heightDiff + 0.5f * SA_GRAVITY * flightTime * flightTime) / flightTime
+                : 0.3f;
+
+            CVector aimDir;
+            if (horizDist > 0.1f) {
+                aimDir.x = delta.x / horizDist * throwSpeed;
+                aimDir.y = delta.y / horizDist * throwSpeed;
+            } else {
+                aimDir.x = camFront.x * throwSpeed;
+                aimDir.y = camFront.y * throwSpeed;
+            }
+            aimDir.z = vZ;
+
+            CProjectileInfo::AddProjectile(
+                firedBy,
+                projType,
+                projOrigin,
+                force,
+                &aimDir,
+                targetEntity
+            );
+        }
+#endif
+        else {
             CProjectileInfo::AddProjectile(
                 firedBy,
                 projType,
@@ -1519,14 +1575,71 @@ bool CWeapon::FireProjectile(CEntity* firedBy, const CVector& origin, CEntity* t
     } else if (notsa::contains({ WEAPON_GRENADE, WEAPON_REMOTE_SATCHEL_CHARGE }, GetType()) && firedBy->GetIsTypePed()) { // 0x74193B
         const auto thorwableProjOrigin = firedBy->GetPosition() - firedBy->GetForward() - CVector{0.f, 0.f, 0.4f};
         if (CWorld::TestSphereAgainstWorld(thorwableProjOrigin, 0.3f, nullptr, false, false, true, false, false, false)) { // 0x7419CE
-            CProjectileInfo::AddProjectile(
-                firedBy,
-                projType,
-                thorwableProjOrigin,
-                force,
-                nullptr,
-                targetEntity
-            );
+#if MODERN_CAM
+            if (firedByPed && firedByPed->IsPlayer() && firedByPed->GetPlayerData() && firedByPed->GetPlayerData()->m_bFreeAiming) {
+                const auto& activeCam = TheCamera.GetActiveCam();
+                const CVector camPos   = activeCam.m_vecSource;
+                const CVector camFront = activeCam.m_vecFront;
+                const CVector rayEnd   = camPos + camFront * 120.0f;
+
+                CColPoint colPoint{};
+                CEntity*  hitEntity = nullptr;
+                CVector   targetPoint = rayEnd;
+
+                CWorld::pIgnoreEntity = firedBy;
+                if (CWorld::ProcessLineOfSight(camPos, rayEnd, colPoint, hitEntity, true, true, true, true, true, false, false, false)) {
+                    targetPoint = colPoint.m_vecPoint;
+                }
+                CWorld::pIgnoreEntity = nullptr;
+
+                const CVector launchPos = firedBy->GetPosition() + firedBy->GetForward() * 0.4f + CVector{0.f, 0.f, 0.4f};
+                const CVector delta      = targetPoint - launchPos;
+                const float   horizDist  = CVector2D(delta.x, delta.y).Magnitude();
+                const float   heightDiff = delta.z;
+
+                constexpr float SA_GRAVITY      = 0.008f;
+                constexpr float MIN_THROW_SPEED  = 0.4f;
+                constexpr float MAX_THROW_SPEED  = 1.2f;
+                constexpr float MIN_DIST         = 3.0f;
+                constexpr float MAX_DIST         = 60.0f;
+
+                const float distProp   = std::clamp((horizDist - MIN_DIST) / (MAX_DIST - MIN_DIST), 0.0f, 1.0f);
+                const float throwSpeed = MIN_THROW_SPEED + (MAX_THROW_SPEED - MIN_THROW_SPEED) * distProp;
+                const float flightTime = (throwSpeed > 0.01f) ? (horizDist / throwSpeed) : 1.0f;
+                const float vZ = (flightTime > 0.01f)
+                    ? (heightDiff + 0.5f * SA_GRAVITY * flightTime * flightTime) / flightTime
+                    : 0.3f;
+
+                CVector aimDir;
+                if (horizDist > 0.1f) {
+                    aimDir.x = delta.x / horizDist * throwSpeed;
+                    aimDir.y = delta.y / horizDist * throwSpeed;
+                } else {
+                    aimDir.x = camFront.x * throwSpeed;
+                    aimDir.y = camFront.y * throwSpeed;
+                }
+                aimDir.z = vZ;
+
+                CProjectileInfo::AddProjectile(
+                    firedBy,
+                    projType,
+                    launchPos,
+                    force,
+                    &aimDir,
+                    targetEntity
+                );
+            } else
+#endif
+            {
+                CProjectileInfo::AddProjectile(
+                    firedBy,
+                    projType,
+                    thorwableProjOrigin,
+                    force,
+                    nullptr,
+                    targetEntity
+                );
+            }
         } else {
             CProjectileInfo::RemoveNotAdd(firedBy, projType, projOrigin);
         }
@@ -1576,27 +1689,70 @@ bool CWeapon::FireM16_1stPerson(CPed* owner) {
     case MODE_ROCKETLAUNCHER_RUNABOUT:
     case MODE_ROCKETLAUNCHER_RUNABOUT_HS:
     case MODE_HELICANNON_1STPERSON:
+    case MODE_1STPERSON_RUNABOUT:
+    case MODE_1STPERSON:
         break;
     default:
         return false;
     }
 
-    const auto wi = &GetWeaponInfo(); // NOTE: Why not `GetWeaponInfo(owner)`
+    const auto wi = &GetWeaponInfo(owner);
 
     CWorld::bIncludeDeadPeds = true;
     CWorld::bIncludeCarTyres = true;
     CWorld::bIncludeBikers   = true;
 
     const auto camOriginPos = cam->m_vecSource;
-    const auto camTargetPos = camOriginPos + cam->m_vecFront * 3.f;
 
-    CBirds::HandleGunShot(&camOriginPos, &camTargetPos);
-    CShadows::GunShotSetsOilOnFire(camOriginPos, camTargetPos);
+    if (m_Type == WEAPON_SHOTGUN || m_Type == WEAPON_SAWNOFF_SHOTGUN || m_Type == WEAPON_SPAS12_SHOTGUN) {
+        const uint32 numPellets = (m_Type == WEAPON_SPAS12_SHOTGUN) ? 4 : 15;
+        for (uint32 p = 0; p < numPellets; p++) {
+            CVector pelletDir = cam->m_vecFront;
+            pelletDir.x += CGeneral::GetRandomNumberInRange(-0.045f, 0.045f);
+            pelletDir.y += CGeneral::GetRandomNumberInRange(-0.045f, 0.045f);
+            pelletDir.z += CGeneral::GetRandomNumberInRange(-0.035f, 0.035f);
+            pelletDir.Normalise();
 
-    CColPoint shotCP;
-    CEntity*  shotHitEntity;
-    if (CWorld::ProcessLineOfSight(camOriginPos, camTargetPos, shotCP, shotHitEntity, true, true, true, true, true, false, false, true)) {
-        CheckForShootingVehicleOccupant(&shotHitEntity, &shotCP, m_Type, camOriginPos, camTargetPos);
+            const auto pelletTarget = camOriginPos + pelletDir * wi->m_fWeaponRange;
+            CColPoint pelletCP;
+            CEntity* pelletHit = nullptr;
+            CWorld::pIgnoreEntity = owner;
+            if (CWorld::ProcessLineOfSight(camOriginPos, pelletTarget, pelletCP, pelletHit, true, true, true, true, true, false, false, true)) {
+                CheckForShootingVehicleOccupant(&pelletHit, &pelletCP, m_Type, camOriginPos, pelletTarget);
+            }
+            CWorld::pIgnoreEntity = nullptr;
+
+            if (pelletHit) {
+                const float maxRange = TargetWeaponRangeMultiplier(pelletHit, owner) * wi->m_fWeaponRange;
+                if ((camOriginPos - pelletCP.m_vecPoint).SquaredMagnitude() > maxRange * maxRange) {
+                    pelletHit = nullptr;
+                }
+            }
+            DoBulletImpact(owner, pelletHit, camOriginPos, pelletTarget, pelletCP, (p == 0) ? -1 : 1);
+        }
+    } else {
+        const auto camTargetPos = camOriginPos + cam->m_vecFront * wi->m_fWeaponRange;
+
+        CBirds::HandleGunShot(&camOriginPos, &camTargetPos);
+        CShadows::GunShotSetsOilOnFire(camOriginPos, camTargetPos);
+
+        CColPoint shotCP;
+        CEntity*  shotHitEntity = nullptr;
+        CWorld::pIgnoreEntity   = owner;
+        if (CWorld::ProcessLineOfSight(camOriginPos, camTargetPos, shotCP, shotHitEntity, true, true, true, true, true, false, false, true)) {
+            CheckForShootingVehicleOccupant(&shotHitEntity, &shotCP, m_Type, camOriginPos, camTargetPos);
+        }
+        CWorld::pIgnoreEntity = nullptr;
+
+        // Check if hit entity is within range
+        if (shotHitEntity) {
+            const float maxRange = TargetWeaponRangeMultiplier(shotHitEntity, owner) * wi->m_fWeaponRange;
+            if ((camOriginPos - shotCP.m_vecPoint).SquaredMagnitude() > maxRange * maxRange) {
+                shotHitEntity = nullptr;
+            }
+        }
+
+        DoBulletImpact(owner, shotHitEntity, camOriginPos, camTargetPos, shotCP, false);
     }
 
     CWorld::bIncludeDeadPeds = false;
@@ -1604,16 +1760,7 @@ bool CWeapon::FireM16_1stPerson(CPed* owner) {
     CWorld::bIncludeBikers   = false;
     CWorld::pIgnoreEntity    = nullptr;
 
-    //> 0x741DC4 - Check if hit entity is within range
-    if (shotHitEntity) {
-        if (TargetWeaponRangeMultiplier(shotHitEntity, owner) * wi->m_fWeaponRange >= (camOriginPos - shotCP.m_vecPoint).SquaredMagnitude2D()) {
-            shotHitEntity = nullptr;
-        }
-    }
-
-    DoBulletImpact(owner, shotHitEntity, camOriginPos, camTargetPos, shotCP, false);
-
-    //> 0x741E48 - Visual/physical feedback for the player(s)
+    // Visual/physical feedback for the player(s)
     if (owner->IsPlayer()) {
         auto intensity = [&]{
             switch (m_Type) {
@@ -1740,7 +1887,7 @@ bool CWeapon::Fire(CEntity* firedBy, CVector* startPosn, CVector* barrelPosn, CE
         case WEAPON_MINIGUN: { // 0x7424FE
             if (   firedByPed
                 && firedByPed->m_nPedType == PED_TYPE_PLAYER1
-                && notsa::contains({ MODE_M16_1STPERSON, MODE_HELICANNON_1STPERSON }, (eCamMode)TheCamera.m_PlayerWeaponMode.m_nMode)
+                && (TheCamera.Using1stPersonWeaponMode() || notsa::contains({ MODE_M16_1STPERSON, MODE_HELICANNON_1STPERSON, MODE_1STPERSON_RUNABOUT, MODE_1STPERSON, MODE_M16_1STPERSON_RUNABOUT }, (eCamMode)TheCamera.GetActiveCam().m_nMode))
             ) {
                 return { FireM16_1stPerson(firedByPed), true };
             }
@@ -1758,6 +1905,12 @@ bool CWeapon::Fire(CEntity* firedBy, CVector* startPosn, CVector* barrelPosn, CE
         case WEAPON_SHOTGUN:
         case WEAPON_SAWNOFF_SHOTGUN:
         case WEAPON_SPAS12_SHOTGUN:
+            if (   firedByPed
+                && firedByPed->m_nPedType == PED_TYPE_PLAYER1
+                && (TheCamera.Using1stPersonWeaponMode() || notsa::contains({ MODE_M16_1STPERSON, MODE_HELICANNON_1STPERSON, MODE_1STPERSON_RUNABOUT, MODE_1STPERSON, MODE_M16_1STPERSON_RUNABOUT }, (eCamMode)TheCamera.GetActiveCam().m_nMode))
+            ) {
+                return { FireM16_1stPerson(firedByPed), true };
+            }
             return {
                 FireInstantHit( // 0x742495
                     firedBy,

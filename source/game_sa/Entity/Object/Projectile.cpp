@@ -13,4 +13,8 @@ CProjectile::CProjectile(int32 modelId) : CObject() {
     physicalFlags.bExplosionProof = true;
     CEntity::SetModelIndex(modelId);
     m_nObjectType = eObjectType::OBJECT_TYPE_DECORATION;
+    m_bUsesCollision = true;
+    physicalFlags.bCollidable = true;
+    physicalFlags.bCanBeCollidedWith = true;
+    physicalFlags.bDisableCollisionForce = false;
 }

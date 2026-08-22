@@ -880,6 +880,7 @@ void CAutomobile::ProcessControl()
             ProcessFlyingCarStuff();
     }
     ProcessCarOnFireAndExplode(bExplodeImmediately);
+    ProcessAllOpenDoors();
     if (vehicleFlags.bSirenOrAlarm
         && (CTimer::GetFrameCounter() & 7) == 5
         && UsesSiren()
@@ -1077,6 +1078,8 @@ void CAutomobile::ProcessControl()
         m_doors[DOOR_LEFT_REAR].SetExtraWheelPositions(1.0f, 1.0f, 1.0f, 1.0f);
         m_doors[DOOR_RIGHT_REAR].SetExtraWheelPositions(1.0f, 1.0f, 1.0f, 1.0f);
     }
+
+    ProcessAllOpenDoors();
 }
 
 // 0x6A1ED0
@@ -5500,11 +5503,341 @@ void CAutomobile::ProcessSwingingDoor(eCarNodes nodeIdx, eDoors doorIdx)
                 } else {
                     flyingObj->m_vecMoveSpeed -= m_matrix->GetUp() / 2.f;
                 }
-                flyingObj->ApplyTurnForce(m_matrix->GetUp() * 10.f, m_matrix->GetForward());
             }
         }
     }
 }
+
+
+// GTA V-style open door physical collision processing on every tick
+void CAutomobile::ProcessAllOpenDoors() {
+    static constexpr std::pair<eCarNodes, eDoors> s_Doors[] = {
+        { CAR_DOOR_LF, DOOR_LEFT_FRONT },
+        { CAR_DOOR_RF, DOOR_RIGHT_FRONT },
+        { CAR_DOOR_LR, DOOR_LEFT_REAR },
+        { CAR_DOOR_RR, DOOR_RIGHT_REAR },
+        { CAR_BONNET,  DOOR_BONNET },
+        { CAR_BOOT,    DOOR_BOOT }
+    };
+
+    for (const auto& [nodeIdx, doorIdx] : s_Doors) {
+        auto frame = m_aCarNodes[(size_t)nodeIdx];
+        if (!frame || !m_damageManager.IsDoorPresent(doorIdx)) {
+            continue;
+        }
+
+        auto& door = m_doors[doorIdx];
+        if (door.IsOpenForCollision()) {
+            CMatrix frameMat{ RwFrameGetMatrix(frame) };
+            door.UpdateFrameMatrix(frameMat);
+            ProcessOpenDoorCollision(nodeIdx, doorIdx);
+        }
+    }
+}
+
+// GTA V-style open door physical collision handling (world, vehicles, peds)
+void CAutomobile::ProcessOpenDoorCollision(eCarNodes nodeIdx, eDoors doorIdx) {
+    auto frame = m_aCarNodes[(size_t)nodeIdx];
+    if (!frame || !m_damageManager.IsDoorPresent(doorIdx)) {
+        return;
+    }
+
+    auto& door = m_doors[doorIdx];
+    if (!door.IsOpenForCollision()) {
+        return;
+    }
+
+    RwMatrix* ltm = RwFrameGetLTM(frame);
+    if (!ltm) {
+        return;
+    }
+
+    CMatrix doorWorldMat{ ltm };
+    CVector hingePos = doorWorldMat.GetPosition();
+
+    float panelLength = 1.05f;
+    if (doorIdx == DOOR_LEFT_REAR || doorIdx == DOOR_RIGHT_REAR) {
+        panelLength = 0.95f;
+    } else if (doorIdx == DOOR_BONNET) {
+        panelLength = 0.95f;
+    } else if (doorIdx == DOOR_BOOT) {
+        panelLength = 0.90f;
+    }
+
+    CVector worldEdge = (doorIdx == DOOR_BONNET)
+        ? (hingePos + doorWorldMat.GetForward() * panelLength)
+        : (hingePos - doorWorldMat.GetForward() * panelLength);
+
+    CVector doorDir = worldEdge - hingePos;
+    float doorLen = doorDir.Magnitude();
+    if (doorLen < 0.25f) {
+        return;
+    }
+
+    CVector hingeAxis = (doorIdx == DOOR_BONNET || doorIdx == DOOR_BOOT)
+        ? GetMatrix().GetRight()
+        : GetMatrix().GetUp();
+
+    // 1. Collision with World & Static Obstacles (Poles, Walls, Buildings, Props — NOT vehicles or peds)
+    {
+        CColPoint colPoint;
+        CEntity* hitEntity = nullptr;
+        CVector probeStart = hingePos;
+        CVector probeEnd = worldEdge + doorDir * (0.15f / doorLen);
+
+        if (CWorld::ProcessLineOfSight(probeStart, probeEnd, colPoint, hitEntity, true, false, false, true, false, false, false, false)) {
+            CVector hitPos = colPoint.m_vecPoint;
+            CVector contactOffset = hitPos - GetPosition();
+            CVector doorSpeedAtHit = GetSpeed(contactOffset);
+            float impactSpeed = doorSpeedAtHit.Magnitude();
+
+            // Reaction force from obstacle on the door
+            CVector obstacleForce = -doorSpeedAtHit;
+            CVector r = hitPos - hingePos;
+            float torque = DotProduct(CrossProduct(r, obstacleForce), hingeAxis);
+
+            // Add sparks and sound FX
+            g_fx.AddSparks(hitPos, -doorSpeedAtHit, 4.0f, 4, m_vecMoveSpeed, eSparkType::SPARK_PARTICLE_SPARK2, 0.1f, 1.0f);
+            m_vehicleAudio.AddAudioEvent((eAudioEvents)((int32)AE_CAR_BONNET_CLOSE + (int32)doorIdx), 0.f);
+
+            // GTA V Break-off Rule on high speed impact
+            if (impactSpeed > 3.5f) {
+                PopDoor(nodeIdx, doorIdx, true);
+                ApplyMoveForce(doorSpeedAtHit * -0.05f * m_fMass);
+                return;
+            } else {
+                // Apply torque: door swings open or shut based on which side hit!
+                if (std::fabs(torque) > 0.0001f) {
+                    door.m_angVel += std::clamp(torque * 0.15f, -0.35f, 0.35f);
+                }
+                door.m_doorState = DOOR_HIT_MAX_END;
+                m_damageManager.SetDoorStatus(doorIdx, DAMSTATE_OPENED_DAMAGED);
+            }
+        }
+    }
+
+    // 2. Collision with Other Vehicles — test multiple sample points along the door panel
+    if (auto* vehPool = GetVehiclePool()) {
+        // Sample points along the door length for robust detection
+        constexpr float sampleFractions[] = { 0.1f, 0.3f, 0.5f, 0.7f, 0.9f, 1.0f };
+
+        for (int32 i = vehPool->GetSize() - 1; i >= 0; i--) {
+            auto* otherVeh = vehPool->GetAt(i);
+            if (!otherVeh || otherVeh == this) {
+                continue;
+            }
+
+            float distSq = DistanceBetweenPointsSquared(GetPosition(), otherVeh->GetPosition());
+            if (distSq > sq(8.0f)) {
+                continue;
+            }
+
+            CColModel* otherCol = otherVeh->GetColModel();
+            if (!otherCol) {
+                continue;
+            }
+            const auto& bbox = otherCol->GetBoundingBox();
+
+            bool hitDetected = false;
+            CVector hitWorldPoint{};
+
+            for (float frac : sampleFractions) {
+                CVector sampleWorld = hingePos + doorDir * frac;
+                CVector localInOther = otherVeh->GetMatrix().InverseTransformPoint(sampleWorld);
+
+                if (localInOther.x >= bbox.m_vecMin.x - 0.5f && localInOther.x <= bbox.m_vecMax.x + 0.5f &&
+                    localInOther.y >= bbox.m_vecMin.y - 0.5f && localInOther.y <= bbox.m_vecMax.y + 0.5f &&
+                    localInOther.z >= bbox.m_vecMin.z - 0.3f && localInOther.z <= bbox.m_vecMax.z + 0.3f)
+                {
+                    hitDetected = true;
+                    hitWorldPoint = sampleWorld;
+                    break;
+                }
+            }
+
+            if (!hitDetected) {
+                continue;
+            }
+
+            // Calculate relative velocity and torque direction
+            CVector relVel = m_vecMoveSpeed - otherVeh->m_vecMoveSpeed;
+            float relSpeed = relVel.Magnitude();
+
+            CVector r = hitWorldPoint - hingePos;
+            CVector contactForce = otherVeh->m_vecMoveSpeed - m_vecMoveSpeed; // force FROM the other car
+            float torque = DotProduct(CrossProduct(r, contactForce), hingeAxis);
+
+            // Determine if the torque pushes the door toward CLOSED or PAST OPEN
+            // openDir > 0 means open is in positive angle direction
+            float openDir = door.m_openAngle - door.m_closedAngle;
+            // torquePushesOpen is true if the torque pushes the door further open (against hinge)
+            bool torquePushesOpen = (torque * openDir > 0.0f);
+
+            g_fx.AddSparks(hitWorldPoint, relVel, 5.0f, 6, m_vecMoveSpeed, eSparkType::SPARK_PARTICLE_SPARK2, 0.1f, 1.0f);
+            m_vehicleAudio.AddAudioEvent((eAudioEvents)((int32)AE_CAR_BONNET_CLOSE + (int32)doorIdx), 0.f);
+
+            if (relSpeed > 2.5f) {
+                // High speed impact from any direction → always rip off
+                PopDoor(nodeIdx, doorIdx, true);
+                CVector pushDir = (hitWorldPoint - otherVeh->GetPosition()).Normalized();
+                ApplyMoveForce(pushDir * -0.02f * m_fMass);
+                otherVeh->ApplyMoveForce(pushDir * 0.02f * otherVeh->m_fMass);
+                return;
+            } else if (torquePushesOpen && relSpeed > 0.05f) {
+                // Moderate speed pushing against the hinge → rip off
+                PopDoor(nodeIdx, doorIdx, true);
+                CVector pushDir = (hitWorldPoint - otherVeh->GetPosition()).Normalized();
+                ApplyMoveForce(pushDir * -0.015f * m_fMass);
+                otherVeh->ApplyMoveForce(pushDir * 0.015f * otherVeh->m_fMass);
+                return;
+            } else {
+                // Pushing toward closed → door swings shut
+                if (std::fabs(torque) > 0.0001f) {
+                    door.m_angVel += std::clamp(torque * 0.2f, -0.45f, 0.45f);
+                }
+                m_damageManager.SetDoorStatus(doorIdx, DAMSTATE_OPENED_DAMAGED);
+            }
+        }
+    }
+
+    // 3. Collision with Pedestrians and Player (Solid Door Blocking & Realistic Push)
+    if (auto* pedPool = GetPedPool()) {
+        float vehZ = GetPosition().z;
+
+        for (int32 i = pedPool->GetSize() - 1; i >= 0; i--) {
+            auto* ped = pedPool->GetAt(i);
+            if (!ped) {
+                continue;
+            }
+
+            // Skip ped only while they are actually seated in or actively entering/exiting this vehicle
+            if (ped->m_pVehicle == this &&
+                (ped->m_nPedState == PEDSTATE_DRIVING ||
+                 ped->m_nPedState == PEDSTATE_PASSENGER ||
+                 ped->m_nPedState == PEDSTATE_TAXI_PASSENGER ||
+                 ped->m_nPedState == PEDSTATE_ENTER_CAR ||
+                 ped->m_nPedState == PEDSTATE_EXIT_CAR ||
+                 ped->m_nPedState == PEDSTATE_OPEN_DOOR ||
+                 ped->m_nPedState == PEDSTATE_DRAGGED_FROM_CAR ||
+                 ped->m_nPedState == PEDSTATE_CARJACK))
+            {
+                continue;
+            }
+
+            CVector pedPos = ped->GetPosition();
+            if (DistanceBetweenPointsSquared(GetPosition(), pedPos) > sq(6.5f)) {
+                continue;
+            }
+
+            // Check vertical overlap with car/door
+            if (pedPos.z + 1.8f < vehZ - 0.5f || pedPos.z > vehZ + 2.2f) {
+                continue;
+            }
+
+            // 2D horizontal line segment test (hingePos.xy to worldEdge.xy)
+            CVector2D segStart{ hingePos.x, hingePos.y };
+            CVector2D segEnd{ worldEdge.x, worldEdge.y };
+            CVector2D seg = segEnd - segStart;
+            float segLenSq = seg.SquaredMagnitude();
+            if (segLenSq < 0.01f) {
+                continue;
+            }
+
+            CVector2D ped2D{ pedPos.x, pedPos.y };
+            float t = (ped2D - segStart).Dot(seg) / segLenSq;
+            t = std::clamp(t, 0.0f, 1.0f);
+            CVector2D closest2D = segStart + seg * t;
+            CVector2D diff2D = ped2D - closest2D;
+            float dist2D = diff2D.Magnitude();
+
+            constexpr float PED_DOOR_RADIUS = 0.45f;
+            if (dist2D < PED_DOOR_RADIUS) {
+                CVector contactPoint{ closest2D.x, closest2D.y, pedPos.z + 0.8f };
+                CVector doorSpeed = GetSpeed(contactPoint - GetPosition());
+                float speedMag = doorSpeed.Magnitude();
+
+                // If door is moving fast (e.g. car driving by and hitting ped with open door)
+                if (speedMag > 2.5f) {
+                    CEventDamage damageEvent{ m_pDriver ? (CEntity*)m_pDriver : (CEntity*)this, CTimer::GetTimeInMS(), eWeaponType::WEAPON_RAMMEDBYCAR, PED_PIECE_TORSO, 0, false, true };
+                    ped->GetEventGroup().Add(damageEvent, false);
+                    ped->ApplyMoveForce(doorSpeed * 8.0f);
+
+                    if (speedMag > 4.5f) {
+                        PopDoor(nodeIdx, doorIdx, true);
+                        return;
+                    }
+                }
+
+                // Calculate contact force applied by pedestrian to the door
+                CVector2D pushDir2D = diff2D;
+                if (pushDir2D.SquaredMagnitude() > 0.0001f) {
+                    pushDir2D.Normalise();
+                } else {
+                    pushDir2D = CVector2D{ -seg.y, seg.x };
+                    pushDir2D.Normalise();
+                }
+
+                float penetration = PED_DOOR_RADIUS - dist2D;
+                // Force exerted on the door by the ped (movement + contact)
+                CVector pedForce = ped->m_vecMoveSpeed * 1.5f - CVector{ pushDir2D.x, pushDir2D.y, 0.0f } * (penetration * 0.5f);
+                CVector r = contactPoint - hingePos;
+                float torque = DotProduct(CrossProduct(r, pedForce), hingeAxis);
+
+                if (std::fabs(torque) > 0.0001f) {
+                    door.m_angVel += std::clamp(torque * 0.15f, -0.25f, 0.25f);
+                }
+
+                // Push pedestrian out to prevent penetration from BOTH inside and outside
+                CVector newPos = ped->GetPosition();
+                newPos.x += pushDir2D.x * penetration;
+                newPos.y += pushDir2D.y * penetration;
+                ped->SetPosn(newPos);
+
+                // Cancel ped velocity into the door panel
+                float pushDot = ped->m_vecMoveSpeed.x * pushDir2D.x + ped->m_vecMoveSpeed.y * pushDir2D.y;
+                if (pushDot < 0.0f) {
+                    ped->m_vecMoveSpeed.x -= pushDir2D.x * pushDot;
+                    ped->m_vecMoveSpeed.y -= pushDir2D.y * pushDot;
+                }
+
+                // Stabilize empty parked vehicle against physics jitter from ped contact
+                if (!m_pDriver && m_vecMoveSpeed.SquaredMagnitude() < 0.005f) {
+                    m_vecMoveSpeed = CVector( 0.0f, 0.0f, m_vecMoveSpeed.z );
+                    m_vecTurnSpeed = CVector(0.0f, 0.0f, 0.0f);
+                }
+            }
+        }
+    }
+
+    // Integrate door angular velocity and update physical angle in real-time
+    if (std::fabs(door.m_angVel) > 0.0001f) {
+        door.m_angle += door.m_angVel;
+        door.m_angVel *= 0.88f; // Angular damping
+
+        float minAngle = std::min(door.m_openAngle, door.m_closedAngle);
+        float maxAngle = std::max(door.m_openAngle, door.m_closedAngle);
+
+        if (door.m_angle <= minAngle) {
+            door.m_angle = minAngle;
+            door.m_angVel = 0.0f;
+            if (minAngle == door.m_closedAngle) {
+                m_damageManager.SetDoorClosed(doorIdx);
+                m_vehicleAudio.AddAudioEvent((eAudioEvents)((int32)AE_CAR_BONNET_CLOSE + (int32)doorIdx), 0.f);
+            }
+        } else if (door.m_angle >= maxAngle) {
+            door.m_angle = maxAngle;
+            door.m_angVel = 0.0f;
+            if (maxAngle == door.m_closedAngle) {
+                m_damageManager.SetDoorClosed(doorIdx);
+                m_vehicleAudio.AddAudioEvent((eAudioEvents)((int32)AE_CAR_BONNET_CLOSE + (int32)doorIdx), 0.f);
+            }
+        }
+
+        CMatrix frameMat{ RwFrameGetMatrix(frame) };
+        door.UpdateFrameMatrix(frameMat);
+    }
+}
+
 
 /*!
 * @addr 0x6AA200

@@ -389,8 +389,13 @@ void CCamera::Init() {
     
     SetMotionBlur(255, 255, 255, 0, eMotionBlurType::NONE);
 
+#if MODERN_CAM
+    m_f3rdPersonCHairMultX = 0.50f;
+    m_f3rdPersonCHairMultY = 0.50f;
+#else
     m_f3rdPersonCHairMultX = 0.53f;
     m_f3rdPersonCHairMultY = 0.4f;
+#endif
     gPlayerPedVisible = 1;
     m_bResetOldMatrix = true;
 }
@@ -787,12 +792,15 @@ float CCamera::FindCamFOV() const {
 */
 float CCamera::Find3rdPersonQuickAimPitch() const {
     const auto& cam = m_aCams[m_nActiveCam];
-
+#if MODERN_CAM
+    return cam.m_fVerticalAngle;
+#else
     // https://mathworld.wolfram.com/images/eps-svg/SOHCAHTOA_500.svg
     const auto adjacent = (0.5f - m_f3rdPersonCHairMultY) * 2.f;
     const auto opposite = std::tan(DegreesToRadians(cam.m_fFOV / 2.0f)) * adjacent;
     const auto relAngle = cam.m_fVerticalAngle - std::atan(opposite / CDraw::ms_fAspectRatio);
     return -relAngle; // Flip it
+#endif
 }
 
 // 0x50AD90
@@ -2720,10 +2728,15 @@ void CCamera::Process() {
             m_vecSourceWhenInterPol = m_vecStartingSourceForInterPol + (m_vecSourceSpeedAtStartInter * InterFraction);
             if (m_bLookingAtPlayer) {
                 CVector TempForGroundDist = m_vecSourceWhenInterPol - TempTargetWhenInterPol;
-                if (TempForGroundDist.Magnitude2D() < MinDistCamAwayFromPlayWhenInter) {
+#if MODERN_CAM
+                const float fMinDistAllowed = (activeCam.m_nMode == MODE_AIMWEAPON) ? 0.6f : 1.2f;
+#else
+                const float fMinDistAllowed = MinDistCamAwayFromPlayWhenInter;
+#endif
+                if (TempForGroundDist.Magnitude2D() < fMinDistAllowed) {
                     float VecAngle = CGeneral::GetATanOfXY(TempForGroundDist.x, TempForGroundDist.y);
-                    m_vecSourceWhenInterPol.x = TempTargetWhenInterPol.x + MinDistCamAwayFromPlayWhenInter * std::cos(VecAngle);
-                    m_vecSourceWhenInterPol.y = TempTargetWhenInterPol.y + MinDistCamAwayFromPlayWhenInter * std::sin(VecAngle);
+                    m_vecSourceWhenInterPol.x = TempTargetWhenInterPol.x + fMinDistAllowed * std::cos(VecAngle);
+                    m_vecSourceWhenInterPol.y = TempTargetWhenInterPol.y + fMinDistAllowed * std::sin(VecAngle);
                 }
             }
 
@@ -2770,10 +2783,15 @@ void CCamera::Process() {
 
             if (m_bLookingAtPlayer) {
                 CVector TempForGroundDist = FinalSource - TempTargetWhenInterPol;
-                if (TempForGroundDist.Magnitude2D() < MinDistCamAwayFromPlayWhenInter) {
+#if MODERN_CAM
+                const float fMinDistAllowed = (activeCam.m_nMode == MODE_AIMWEAPON) ? 0.6f : 1.2f;
+#else
+                const float fMinDistAllowed = MinDistCamAwayFromPlayWhenInter;
+#endif
+                if (TempForGroundDist.Magnitude2D() < fMinDistAllowed) {
                     float VecAngle = CGeneral::GetATanOfXY(TempForGroundDist.x, TempForGroundDist.y);
-                    FinalSource.x = TempTargetWhenInterPol.x + MinDistCamAwayFromPlayWhenInter * std::cos(VecAngle);
-                    FinalSource.y = TempTargetWhenInterPol.y + MinDistCamAwayFromPlayWhenInter * std::sin(VecAngle);
+                    FinalSource.x = TempTargetWhenInterPol.x + fMinDistAllowed * std::cos(VecAngle);
+                    FinalSource.y = TempTargetWhenInterPol.y + fMinDistAllowed * std::sin(VecAngle);
                 }
             }
 
@@ -2996,6 +3014,52 @@ void CCamera::FinishCutscene() {
 
 // 0x514970
 bool CCamera::Find3rdPersonCamTargetVector(float fRange, CVector vecGunMuzzle, CVector& vecSource, CVector& vecTarget) {
+#if MODERN_CAM
+    const auto& cam = m_aCams[m_nActiveCam];
+    const CVector camSrc = cam.m_vecSource;
+    const CVector camDir = cam.m_vecFront;
+
+    CVector hitTargetPos = camSrc + camDir * fRange;
+    if (auto* const player = FindPlayerPed()) {
+        if (auto* const lockOn = player->m_pTargetedObject) {
+            if (lockOn->GetIsTypePed()) {
+                eBoneTag bone = BONE_SPINE1;
+                if (auto* const pd = player->GetPlayerData()) {
+                    if (pd->m_nTargetBone == BONE_HEAD) {
+                        bone = BONE_HEAD;
+                    }
+                }
+                lockOn->AsPed()->GetTransformedBonePosition(hitTargetPos, bone, true);
+            } else if (lockOn->GetIsTypeVehicle()) {
+                hitTargetPos = lockOn->GetPosition() + CVector(0.0f, 0.0f, 0.35f);
+            } else {
+                hitTargetPos = lockOn->GetPosition();
+            }
+        } else {
+            // Free-aim crosshair raycast: find the 3D impact point the player is aiming at
+            CColPoint colPoint;
+            CEntity* pHitEntity = nullptr;
+            const CVector vecRayEnd = camSrc + camDir * fRange;
+            CWorld::pIgnoreEntity = player;
+            if (CWorld::ProcessLineOfSight(camSrc, vecRayEnd, colPoint, pHitEntity, true, true, true, true, true, false, false, false)) {
+                hitTargetPos = colPoint.m_vecPoint;
+            }
+            CWorld::pIgnoreEntity = nullptr;
+        }
+    }
+
+    // Converge bullet trajectory from gun muzzle towards the target point
+    CVector aimDir = (hitTargetPos - vecGunMuzzle);
+    if (aimDir.SquaredMagnitude() > 0.001f) {
+        aimDir.Normalise();
+    } else {
+        aimDir = camDir;
+    }
+
+    vecSource = vecGunMuzzle;
+    vecTarget = vecGunMuzzle + aimDir * fRange;
+    return true;
+#else
     float fScreenAngle, fScreenPosMult;
 
     fScreenAngle     = DegreesToRadians(0.5f * m_aCams[m_nActiveCam].m_fFOV);
@@ -3023,6 +3087,7 @@ bool CCamera::Find3rdPersonCamTargetVector(float fRange, CVector vecGunMuzzle, C
     vecTarget = vecSource + fRange * vecTarget;
 
     return true;
+#endif
 }
 
 // 0x514B80
@@ -4127,14 +4192,31 @@ void CCamera::CamControl() {
                         m_nPedZoom += 1;
                     }
 
+#if MODERN_CAM
+                    // 0 = First Person, 1 = Close, 2 = Normal, 3 = Far
+                    if (m_nPedZoom > ZOOM_THREE) {
+                        m_nPedZoom = 0;
+                    } else if (m_nPedZoom < 0) {
+                        m_nPedZoom = ZOOM_THREE;
+                    }
+#else
                     if (m_nPedZoom > ZOOM_THREE) {
                         m_nPedZoom = ZOOM_ONE;
                     } else if (m_nPedZoom < ZOOM_ONE) {
                         m_nPedZoom = ZOOM_THREE;
                     }
+#endif
                 }
 
+#if MODERN_CAM
+                if (m_nPedZoom == 0) {
+                    ReqMode = MODE_1STPERSON_RUNABOUT;
+                } else {
+                    ReqMode = MODE_FOLLOWPED;
+                }
+#else
                 ReqMode = MODE_FOLLOWPED;
+#endif
 
                 if (((m_bLookingAtPlayer == true) || (m_bEnable1rstPersonCamCntrlsScript)) && (m_pTargetEntity->GetIsTypePed()) && ((m_bWideScreenOn == false) || (m_bEnable1rstPersonCamCntrlsScript))
                     && m_aCams[0].Using3rdPersonMouseCam() == false) {
@@ -4397,7 +4479,15 @@ void CCamera::CamControl() {
                             m_bJustCameOutOfGarage = true;
                             m_bPlayerIsInGarage    = false;
                         }
+#if MODERN_CAM
+                        if (m_nPedZoom == 0) {
+                            ReqMode = MODE_1STPERSON_RUNABOUT;
+                        } else {
+                            ReqMode = MODE_FOLLOWPED;
+                        }
+#else
                         ReqMode = MODE_FOLLOWPED;
+#endif
                     }
                 } else {
                     if (m_bPlayerIsInGarage) {
@@ -4429,12 +4519,37 @@ void CCamera::CamControl() {
                             {
                                 ReqMode = MODE_FOLLOWPED;
                             } else {
+#if MODERN_CAM
+                                if (m_nPedZoom == 0) {
+                                    ReqMode = MODE_1STPERSON_RUNABOUT;
+                                } else {
+                                    ReqMode = static_cast<eCamMode>(m_PlayerWeaponMode.m_nMode);
+                                }
+#else
                                 ReqMode = static_cast<eCamMode>(m_PlayerWeaponMode.m_nMode);
+#endif
                             }
                         } else {
+#if MODERN_CAM
+                            if (m_nPedZoom == 0) {
+                                ReqMode = MODE_1STPERSON_RUNABOUT;
+                            } else {
+                                ReqMode = static_cast<eCamMode>(m_PlayerWeaponMode.m_nMode);
+                            }
+#else
                             ReqMode = static_cast<eCamMode>(m_PlayerWeaponMode.m_nMode);
+#endif
                         }
                     } else if (ReqMode != MODE_TOP_DOWN_PED) {
+#if MODERN_CAM
+                        if (m_nPedZoom == 0) {
+                            ReqMode = MODE_1STPERSON_RUNABOUT;
+                        } else {
+                            ReqMode = MODE_AIMWEAPON;
+                        }
+#else
+                        ReqMode = MODE_AIMWEAPON;
+#endif
                         float        Crim_Player_Cam_Angle         = 0.0f;
                         float        CurrentDistOnGround           = 0.0f;
                         float        DistanceOnGround              = 0.0f;
@@ -4471,8 +4586,15 @@ void CCamera::CamControl() {
                                 PlayerToCamAngle             = CGeneral::GetATanOfXY(PlayerToCamVector.x, PlayerToCamVector.y);
                                 PlayerToCrimAngle            = CGeneral::GetATanOfXY(PlayerToCrimVector.x, PlayerToCrimVector.y);
 
+#if MODERN_CAM
+                                if (m_nPedZoom == 0) {
+                                    ReqMode = MODE_1STPERSON_RUNABOUT;
+                                } else {
+                                    ReqMode = static_cast<eCamMode>(m_PlayerWeaponMode.m_nMode);
+                                }
+#else
                                 ReqMode                      = static_cast<eCamMode>(m_PlayerWeaponMode.m_nMode);
-
+#endif
                                 float SpecialFixedSyphonDist = 0.0f;
                                 if (ReqMode == MODE_AIMWEAPON && TargetDyingOrDead
                                     && FindPlayerPed()->m_pTargetedObject != nullptr) // && !FindPlayerPed()->GetWeapon()->IsTypeMelee())
@@ -5359,6 +5481,36 @@ void CCamera::StartTransition(eCamMode newCamMode) {
     }
 
     [&]() -> const void {
+#if MODERN_CAM
+        if (newCamMode == MODE_AIMWEAPON) {
+            m_fFractionInterToStopMoving  = 0.0f;
+            m_fFractionInterToStopCatchUp = 1.0f;
+            m_nTransitionDuration         = 240; // 240ms smooth, snappy aim zoom
+            targetCoorsDuration           = 240;
+            return;
+        }
+        if (activeCamMode == MODE_AIMWEAPON && newCamMode == MODE_FOLLOWPED) {
+            m_fFractionInterToStopMoving  = 0.0f;
+            m_fFractionInterToStopCatchUp = 1.0f;
+            m_nTransitionDuration         = 260; // 260ms smooth return from aim
+            targetCoorsDuration           = 260;
+            return;
+        }
+        if (newCamMode == MODE_CAM_ON_A_STRING && activeCamMode == MODE_FOLLOWPED) {
+            m_fFractionInterToStopMoving  = 0.08f;
+            m_fFractionInterToStopCatchUp = 0.92f;
+            m_nTransitionDuration         = 650; // Smooth vehicle enter
+            targetCoorsDuration           = 650;
+            return;
+        }
+        if (newCamMode == MODE_FOLLOWPED && activeCamMode == MODE_CAM_ON_A_STRING) {
+            m_fFractionInterToStopMoving  = 0.05f;
+            m_fFractionInterToStopCatchUp = 0.95f;
+            m_nTransitionDuration         = 550; // Smooth vehicle exit
+            targetCoorsDuration           = 550;
+            return;
+        }
+#endif
         if (newCamMode == MODE_CAM_ON_A_STRING && notsa::contains({ MODE_SYPHON_CRIM_IN_FRONT, MODE_FOLLOWPED, MODE_SYPHON, MODE_SPECIAL_FIXED_FOR_SYPHON, MODE_AIMWEAPON }, activeCamMode)) {
             m_fFractionInterToStopMoving  = 0.1f;
             m_fFractionInterToStopCatchUp = 0.9f;

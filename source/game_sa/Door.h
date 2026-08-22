@@ -104,6 +104,7 @@ public:
     void UpdateFrameMatrix(CMatrix& mat);
     void OpenFully() { m_angle = m_openAngle; }
     void CloseFully() { m_angle = m_closedAngle; }
+    bool IsOpenForCollision() const { return !IsClosed() && std::fabs(m_angle - m_closedAngle) > 0.05f; }
 
 private:
     friend void InjectHooksMain();

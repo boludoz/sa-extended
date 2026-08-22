@@ -6,6 +6,8 @@
 */
 #pragma once
 
+#define MODERN_CAM 1
+
 #include "Base.h"
 
 #include "eCamMode.h"

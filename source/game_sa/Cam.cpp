@@ -75,6 +75,160 @@ enum {
     ZOOM_THREE = 3
 };
 
+#if MODERN_CAM
+// GTA V CCurve Implementation for Non-Linear Stick Response Curves
+struct CCurve {
+    float m_fInitialValue = 0.0f;
+    float m_fInputMin     = 0.0f;
+    float m_fInputMax     = 1.0f;
+    float m_fResultMax    = 1.0f;
+    float m_fPow          = 2.0f;
+
+    constexpr CCurve(float pow = 2.0f, float inMin = 0.0f, float inMax = 1.0f, float resMax = 1.0f, float initVal = 0.0f)
+        : m_fInitialValue(initVal), m_fInputMin(inMin), m_fInputMax(inMax), m_fResultMax(resMax), m_fPow(pow) {}
+
+    float GetResult(float fInput) const {
+        if (fInput <= m_fInputMin) return m_fInitialValue;
+        if (fInput >= m_fInputMax) return m_fResultMax;
+        const float t = (fInput - m_fInputMin) / (m_fInputMax - m_fInputMin);
+        const float curved = std::pow(t, m_fPow);
+        return m_fInitialValue + curved * (m_fResultMax - m_fInitialValue);
+    }
+};
+
+// GTA V Gamepad Stick & Mouse Input Processor with Curves, Deadzone & FOV Scaling
+static void ProcessGTAVStickAndMouseInput(
+    CPad* pPad,
+    float fov,
+    float& outStickX,
+    float& outStickY,
+    float& outRawMag,
+    float& outRawX,
+    float& outRawY
+) {
+    static const CCurve s_AimCurve(2.0f, 0.0f, 1.0f, 1.0f, 0.0f); // GTA V CS_Aim curve (power 2.0)
+
+    // 1. Mouse Input with GTA V power exponent (MOUSE_POWER_EXPONENT = 1.3f)
+    const auto mouseMoved = pPad->NewMouseControllerState.GetAmountMouseMoved();
+    const float mouseMag = std::sqrt(mouseMoved.x * mouseMoved.x + mouseMoved.y * mouseMoved.y);
+    float mouseX = 0.0f;
+    float mouseY = 0.0f;
+    if (mouseMag > 0.001f) {
+        const float curvedMouseMag = std::pow(mouseMag, 1.30f);
+        const float mouseScale = curvedMouseMag / mouseMag;
+        mouseX = -mouseMoved.x * mouseScale * 2.5f;
+        mouseY = -mouseMoved.y * mouseScale * 2.5f;
+    }
+
+    // 2. Gamepad Right Stick Input with GTA V Circular Deadzone & Power Curve
+    int16 rawStickX = pPad->GetRightStickX();
+    int16 rawStickY = pPad->GetRightStickY();
+    if (CPad::bInvertLook4Pad) {
+        rawStickY = -rawStickY;
+    }
+
+    outRawX = static_cast<float>(rawStickX) / 128.0f;
+    outRawY = static_cast<float>(rawStickY) / 128.0f;
+    outRawMag = std::sqrt(outRawX * outRawX + outRawY * outRawY);
+
+    float stickX = 0.0f;
+    float stickY = 0.0f;
+    constexpr float kDeadzone = 0.15f; // Standard GTA V controller deadzone
+
+    if (outRawMag > kDeadzone) {
+        const float normMag = std::min(1.0f, (outRawMag - kDeadzone) / (1.0f - kDeadzone));
+        const float curvedMag = s_AimCurve.GetResult(normMag);
+        const float scale = curvedMag / outRawMag;
+        stickX = -outRawX * scale * 75.0f * (60.0f * CTimer::GetTimeStepInSeconds());
+        stickY = -outRawY * scale * 75.0f * (60.0f * CTimer::GetTimeStepInSeconds());
+    }
+
+    // 3. Combine inputs & apply GTA V FOV sensitivity scaling
+    const float fFovScale = std::clamp(fov / 70.0f, 0.4f, 1.2f);
+    outStickX = (mouseX + stickX) * fFovScale;
+    outStickY = (mouseY + stickY) * fFovScale;
+}
+
+// GTA V Running & Walking Camera Frame Shaker (FOLLOW_RUN_SHAKE)
+class CGTAVRunningFrameShaker {
+private:
+    float m_fPhaseX      = 0.0f; // Stride phase (horizontal sway & roll, 1 cycle per 2 footsteps)
+    float m_fPhaseZ      = 0.0f; // Step phase (vertical bounce & pitch dip, 2 cycles per stride)
+    float m_fCurrentAmp  = 0.0f; // Damped amplitude envelope
+    float m_fCurrentFreq = 1.0f; // Step frequency
+
+public:
+    void Update(CPed* pPed, float& outRelX, float& outRelZ, float& outPitchBob, float& outRollBob) {
+        outRelX     = 0.0f;
+        outRelZ     = 0.0f;
+        outPitchBob = 0.0f;
+        outRollBob  = 0.0f;
+
+        if (!pPed) return;
+
+        // Verify ped is actively moving on foot on solid ground
+        const bool bCanShake = !pPed->bIsDucking &&
+                               !pPed->bIsInTheAir &&
+                               !pPed->bInVehicle &&
+                               !pPed->bIsDrowning &&
+                               pPed->m_nPedState != PEDSTATE_DIE &&
+                               pPed->m_nPedState != PEDSTATE_DEAD;
+
+        float fTargetAmp  = 0.0f;
+        float fTargetFreq = 1.5f;
+
+        if (bCanShake) {
+            const float fPedSpeed = pPed->m_vecMoveSpeed.Magnitude();
+            if (pPed->m_nMoveState == PEDMOVE_SPRINT || fPedSpeed > 0.16f) {
+                // GTA V Sprint Shake: 2.85 Hz step rate, 0.030m vertical bounce, 0.012m sway, subtle pitch dip
+                fTargetAmp  = 1.0f;
+                fTargetFreq = 2.85f;
+            } else if (pPed->m_nMoveState == PEDMOVE_RUN || fPedSpeed > 0.08f) {
+                // GTA V Jog/Run Shake: 2.25 Hz step rate, 0.018m vertical bounce, 0.007m sway
+                fTargetAmp  = 0.58f;
+                fTargetFreq = 2.25f;
+            } else if (pPed->m_nMoveState == PEDMOVE_WALK || fPedSpeed > 0.015f) {
+                // GTA V Walk Shake: 1.50 Hz step rate, gentle 0.007m step bob
+                fTargetAmp  = 0.22f;
+                fTargetFreq = 1.50f;
+            }
+        }
+
+        // GTA V Damped Spring Smoothing for Shake Amplitude & Frequency
+        const float fTimeStep = CTimer::GetTimeStepInSeconds();
+        const float fBlendRate = std::min(1.0f, 10.0f * fTimeStep);
+        m_fCurrentAmp  += (fTargetAmp - m_fCurrentAmp) * fBlendRate;
+        m_fCurrentFreq += (fTargetFreq - m_fCurrentFreq) * fBlendRate;
+
+        if (m_fCurrentAmp > 0.001f) {
+            // Update Phase (X = 0.5x frequency for left-to-right foot alternation, Z = 1x frequency per footstep)
+            const float fDeltaPhase = TWO_PI * m_fCurrentFreq * fTimeStep;
+            m_fPhaseX += fDeltaPhase * 0.5f;
+            m_fPhaseZ += fDeltaPhase;
+
+            if (m_fPhaseX > TWO_PI) m_fPhaseX -= TWO_PI;
+            if (m_fPhaseZ > TWO_PI) m_fPhaseZ -= TWO_PI;
+
+            // GTA V FOLLOW_RUN_SHAKE Oscillators:
+            // 1. Vertical bounce (SHAKE_COMP_REL_POS_Z): drops on each footstep
+            outRelZ = -std::abs(std::sin(m_fPhaseZ)) * (0.028f * m_fCurrentAmp);
+
+            // 2. Horizontal sway (SHAKE_COMP_REL_POS_X): sways left on left foot, right on right foot
+            outRelX = std::sin(m_fPhaseX) * (0.012f * m_fCurrentAmp);
+
+            // 3. Pitch Rotation (SHAKE_COMP_ROT_X): Subtle nose-down on foot impact
+            outPitchBob = -std::abs(std::sin(m_fPhaseZ)) * (0.004f * m_fCurrentAmp);
+
+            // 4. Roll Rotation (SHAKE_COMP_ROT_Y): Subtle camera roll tilt towards landing foot
+            outRollBob = std::cos(m_fPhaseX) * (0.005f * m_fCurrentAmp);
+        } else {
+            m_fPhaseX = 0.0f;
+            m_fPhaseZ = 0.0f;
+        }
+    }
+};
+#endif
+
 constexpr auto AIMWEAPON_FOV_ZOOM_RATE          = 1.0f;       // 0x862F1C
 constexpr auto AIMWEAPON_STICK_SENS             = 0.007f;     // 0x8CC4A0
 constexpr auto SWIM_CAM_ALPHA_FORCE             = 0.5f;       // 0x862F34
@@ -635,6 +789,83 @@ bool CCam::GetBoatLook_L_R_HeightOffset(float& outHeightOffset) const {
 
 // 0x520690
 bool CCam::LookBehind() {
+#if MODERN_CAM
+    if (!m_pCamTargetEntity) {
+        return false;
+    }
+
+    if (m_pCamTargetEntity->GetIsTypePed()) {
+        auto* const ped = m_pCamTargetEntity->AsPed();
+        m_bLookingBehind = true;
+
+        const float fDist = 2.4f + TheCamera.m_fPedZoomSmoothed;
+        const CVector vecPedPos = ped->GetPosition();
+        const CVector vecPivot = vecPedPos + CVector(0.0f, 0.0f, 0.55f);
+
+        // Ped forward vector: place camera in FRONT of ped looking back
+        const CVector vecFwd = ped->GetForward();
+        const CVector vecIdealSource = vecPivot + vecFwd * fDist + CVector(0.0f, 0.0f, 0.20f);
+
+        CColPoint colPoint;
+        CEntity* pHitEntity = nullptr;
+        CWorld::pIgnoreEntity = ped;
+        if (CWorld::ProcessLineOfSight(vecPivot, vecIdealSource, colPoint, pHitEntity, true, false, false, true, false, false, false, false)) {
+            float fHitDist = (colPoint.m_vecPoint - vecPivot).Magnitude() - 0.25f;
+            if (fHitDist < 0.60f) fHitDist = 0.60f;
+            m_vecSource = vecPivot + vecFwd * fHitDist + CVector(0.0f, 0.0f, 0.20f);
+        } else {
+            m_vecSource = vecIdealSource;
+        }
+        CWorld::pIgnoreEntity = nullptr;
+
+        m_vecFront = (vecPivot - m_vecSource).Normalized();
+        m_vecUp    = CVector(0.0f, 0.0f, 1.0f);
+        m_vecTargetCoorsForFudgeInter = vecPivot;
+        GetVectorsReadyForRW();
+        return true;
+    }
+
+    if (m_pCamTargetEntity->GetIsTypeVehicle()) {
+        auto* const veh = m_pCamTargetEntity->AsVehicle();
+        m_bLookingBehind = true;
+
+        float CarHeight = 1.2f;
+        float CarLength = 4.0f;
+        if (auto* const colModel = veh->GetColModel()) {
+            CarHeight = colModel->GetBoundingBox().m_vecMax.z;
+            CarLength = 2.0f * std::abs(colModel->GetBoundingBox().m_vecMin.y);
+        }
+        if (CarHeight < 0.5f) CarHeight = 1.2f;
+        if (CarLength < 1.0f) CarLength = 4.0f;
+
+        const float fDist = 5.2f + (CarLength * 0.45f) + (TheCamera.m_fCarZoomSmoothed * 1.5f);
+        const CVector vecPivot = veh->GetPosition() + CVector(0.0f, 0.0f, (CarHeight * 0.45f) + 0.35f);
+
+        // Position camera in front of the vehicle looking backwards
+        const CVector vecFwd = veh->GetForward();
+        const CVector vecIdealSource = vecPivot + vecFwd * fDist + CVector(0.0f, 0.0f, 0.35f);
+
+        CColPoint colPoint;
+        CEntity* pHitEntity = nullptr;
+        CWorld::pIgnoreEntity = veh;
+        if (CWorld::ProcessLineOfSight(vecPivot, vecIdealSource, colPoint, pHitEntity, true, false, false, true, false, false, false, false)) {
+            float fHitDist = (colPoint.m_vecPoint - vecPivot).Magnitude() - 0.35f;
+            if (fHitDist < 2.0f) fHitDist = 2.0f;
+            m_vecSource = vecPivot + vecFwd * fHitDist + CVector(0.0f, 0.0f, 0.35f);
+        } else {
+            m_vecSource = vecIdealSource;
+        }
+        CWorld::pIgnoreEntity = nullptr;
+
+        m_vecFront = (vecPivot - m_vecSource).Normalized();
+        m_vecUp    = CVector(0.0f, 0.0f, 1.0f);
+        m_vecTargetCoorsForFudgeInter = vecPivot;
+        GetVectorsReadyForRW();
+        return true;
+    }
+
+    return false;
+#else
     const auto isCarCam       = IsCamOnAStringMode() && m_pCamTargetEntity->GetIsTypeVehicle();
     const auto isPed          = m_pCamTargetEntity->GetIsTypePed();
     const auto isFirstPersonCar = m_nMode == MODE_1STPERSON && m_pCamTargetEntity->GetIsTypeVehicle();
@@ -755,10 +986,90 @@ bool CCam::LookBehind() {
 
     GetVectorsReadyForRW();
     return true;
+#endif
 }
 
 // 0x520E40
 bool CCam::LookRight(bool bLookRight) {
+#if MODERN_CAM
+    if (!m_pCamTargetEntity) {
+        return false;
+    }
+
+    if (bLookRight) {
+        m_bLookingRight = true;
+    } else {
+        m_bLookingLeft = true;
+    }
+
+    const float sideSign = bLookRight ? 1.0f : -1.0f;
+
+    if (m_pCamTargetEntity->GetIsTypeVehicle()) {
+        auto* const veh = m_pCamTargetEntity->AsVehicle();
+
+        float CarHeight = 1.2f;
+        float CarLength = 4.0f;
+        if (auto* const colModel = veh->GetColModel()) {
+            CarHeight = colModel->GetBoundingBox().m_vecMax.z;
+            CarLength = 2.0f * std::abs(colModel->GetBoundingBox().m_vecMin.y);
+        }
+        if (CarHeight < 0.5f) CarHeight = 1.2f;
+        if (CarLength < 1.0f) CarLength = 4.0f;
+
+        const float fDist = 4.5f + (CarLength * 0.35f) + (TheCamera.m_fCarZoomSmoothed * 1.5f);
+        const CVector vecPivot = veh->GetPosition() + CVector(0.0f, 0.0f, (CarHeight * 0.45f) + 0.35f);
+
+        const CVector vecRight = veh->GetRight();
+        const CVector vecIdealSource = vecPivot - vecRight * (sideSign * fDist) + CVector(0.0f, 0.0f, 0.30f);
+
+        CColPoint colPoint;
+        CEntity* pHitEntity = nullptr;
+        CWorld::pIgnoreEntity = veh;
+        if (CWorld::ProcessLineOfSight(vecPivot, vecIdealSource, colPoint, pHitEntity, true, false, false, true, false, false, false, false)) {
+            float fHitDist = (colPoint.m_vecPoint - vecPivot).Magnitude() - 0.35f;
+            if (fHitDist < 2.0f) fHitDist = 2.0f;
+            m_vecSource = vecPivot - vecRight * (sideSign * fHitDist) + CVector(0.0f, 0.0f, 0.30f);
+        } else {
+            m_vecSource = vecIdealSource;
+        }
+        CWorld::pIgnoreEntity = nullptr;
+
+        m_vecFront = (vecPivot + vecRight * (sideSign * 4.0f) - m_vecSource).Normalized();
+        m_vecUp    = CVector(0.0f, 0.0f, 1.0f);
+        m_vecTargetCoorsForFudgeInter = vecPivot;
+        GetVectorsReadyForRW();
+        return true;
+    }
+
+    if (m_pCamTargetEntity->GetIsTypePed()) {
+        auto* const ped = m_pCamTargetEntity->AsPed();
+        const float fDist = 2.4f + TheCamera.m_fPedZoomSmoothed;
+        const CVector vecPivot = ped->GetPosition() + CVector(0.0f, 0.0f, 0.55f);
+
+        const CVector vecRight = ped->GetRight();
+        const CVector vecIdealSource = vecPivot - vecRight * (sideSign * fDist) + CVector(0.0f, 0.0f, 0.20f);
+
+        CColPoint colPoint;
+        CEntity* pHitEntity = nullptr;
+        CWorld::pIgnoreEntity = ped;
+        if (CWorld::ProcessLineOfSight(vecPivot, vecIdealSource, colPoint, pHitEntity, true, false, false, true, false, false, false, false)) {
+            float fHitDist = (colPoint.m_vecPoint - vecPivot).Magnitude() - 0.25f;
+            if (fHitDist < 0.60f) fHitDist = 0.60f;
+            m_vecSource = vecPivot - vecRight * (sideSign * fHitDist) + CVector(0.0f, 0.0f, 0.20f);
+        } else {
+            m_vecSource = vecIdealSource;
+        }
+        CWorld::pIgnoreEntity = nullptr;
+
+        m_vecFront = (vecPivot + vecRight * (sideSign * 4.0f) - m_vecSource).Normalized();
+        m_vecUp    = CVector(0.0f, 0.0f, 1.0f);
+        m_vecTargetCoorsForFudgeInter = vecPivot;
+        GetVectorsReadyForRW();
+        return true;
+    }
+
+    return false;
+#else
     const auto isCarCam         = IsCamOnAStringMode() && m_pCamTargetEntity->GetIsTypeVehicle();
     const auto isPed            = m_pCamTargetEntity->GetIsTypePed();
     const auto isFirstPersonCar = m_nMode == MODE_1STPERSON && m_pCamTargetEntity->GetIsTypeVehicle();
@@ -878,6 +1189,7 @@ bool CCam::LookRight(bool bLookRight) {
 
     // Peds fall through with nothing to do, but still count as handled
     return isPed;
+#endif
 }
 
 // 0x50A4F0
@@ -974,7 +1286,11 @@ bool CCam::RotCamIfInFrontCar(const CVector& targetCoors, float targetOrientatio
 
 // 0x50A850
 bool CCam::Using3rdPersonMouseCam() const {
+#if MODERN_CAM
+    return CCamera::m_bUseMouse3rdPerson && (m_nMode == MODE_FOLLOWPED || m_nMode == MODE_1STPERSON_RUNABOUT);
+#else
     return CCamera::m_bUseMouse3rdPerson && m_nMode == MODE_FOLLOWPED;
+#endif
 }
 
 // 0x509DC0
@@ -1832,153 +2148,391 @@ void CCam::ProcessPedsDeadBaby() {
 
 // 0x50EB70
 void CCam::Process_1rstPersonPedOnPC(const CVector& ThisCamsTarget, float TargetOrientation, float SpeedVar, float SpeedVarDesired) {
+    if (!m_pCamTargetEntity || !m_pCamTargetEntity->GetIsTypePed() || !m_pCamTargetEntity->GetRwObject()) {
+        return;
+    }
+
+    auto* const targetPed = m_pCamTargetEntity->AsPed();
+    auto* const pPad      = CPad::GetPad(0);
+
+    gbFirstPersonRunThisFrame = true;
+
+    if (m_bResetStatics) {
+        m_fHorizontalAngle          = targetPed->m_fCurrentRotation;
+        m_fVerticalAngle            = 0.0f;
+        m_fInitialPlayerOrientation = m_fHorizontalAngle;
+        m_bResetStatics             = false;
+    }
+
+#if MODERN_CAM
+    // Mouse and Gamepad Look Processing with GTA V Response Curves
+    float fStickX = 0.0f;
+    float fStickY = 0.0f;
+    float fRawStickMag = 0.0f;
+    float fRawStickNormX = 0.0f;
+    float fRawStickNormY = 0.0f;
+    ProcessGTAVStickAndMouseInput(pPad, m_fFOV, fStickX, fStickY, fRawStickMag, fRawStickNormX, fRawStickNormY);
+
+    const float fSensH = TheCamera.m_fMouseAccelHorzntl > 0.0f ? TheCamera.m_fMouseAccelHorzntl : 0.0028f;
+    const float fSensV = TheCamera.m_fMouseAccelVertical > 0.0f ? TheCamera.m_fMouseAccelVertical : 0.0028f;
+
+    // Check if auto-aim / lock-on target is active
+    CVector vecTargetPos{};
+    bool bHasLockOnTarget = false;
+    if (auto* const lockOn = targetPed->m_pTargetedObject) {
+        bHasLockOnTarget = true;
+        if (lockOn->GetIsTypePed()) {
+            CPed* targetEnemy = lockOn->AsPed();
+            eBoneTag boneTag = BONE_SPINE1;
+            if (auto* const player = targetPed->AsPlayer()) {
+                if (auto* const data = player->GetPlayerData()) {
+                    if (data->m_nTargetBone == BONE_HEAD) {
+                        boneTag = BONE_HEAD;
+                    }
+                }
+            }
+            targetEnemy->GetTransformedBonePosition(vecTargetPos, boneTag, true);
+        } else if (lockOn->GetIsTypeVehicle()) {
+            vecTargetPos = lockOn->GetPosition() + CVector(0.0f, 0.0f, 0.35f);
+        } else {
+            vecTargetPos = lockOn->GetPosition();
+        }
+    }
+
+    if (bHasLockOnTarget) {
+        // --- Lock-On Tracking (Same exact logic as 3rd person Process_AimWeapon) ---
+        const CVector deltaToTarget = vecTargetPos - targetPed->GetPosition();
+        const float fDesiredLockHeading = std::atan2(-deltaToTarget.x, deltaToTarget.y);
+        const float fDesiredLockPitch   = std::atan2(deltaToTarget.z - 0.65f, deltaToTarget.Magnitude2D());
+
+        if (m_bResetStatics) {
+            m_fHorizontalAngle = fDesiredLockHeading;
+            m_fVerticalAngle   = fDesiredLockPitch;
+            m_bResetStatics    = false;
+        } else {
+            float diffH = fDesiredLockHeading - m_fHorizontalAngle;
+            while (diffH > PI) diffH -= TWO_PI;
+            while (diffH < -PI) diffH += TWO_PI;
+            const float fTrackRateH = std::min(1.0f, 24.0f * CTimer::GetTimeStepInSeconds());
+            m_fHorizontalAngle += diffH * fTrackRateH;
+
+            const float fTrackRateV = std::min(1.0f, 24.0f * CTimer::GetTimeStepInSeconds());
+            m_fVerticalAngle += (fDesiredLockPitch - m_fVerticalAngle) * fTrackRateV;
+        }
+    } else {
+        m_fHorizontalAngle += fStickX * fSensH;
+        m_fVerticalAngle   += fStickY * fSensV;
+    }
+
+    // Full natural human head pitch range (-88 deg down at feet, +82 deg up at sky)
+    m_fVerticalAngle = std::clamp(m_fVerticalAngle, -1.54f, 1.43f);
+    ClipBeta();
+
+    // Spectacular 1st Person Head & Body Motion Dynamics
+    struct CSpectacularDynamics {
+        float m_fStepPhase{ 0.0f };
+        float m_fBreathPhase{ 0.0f };
+        float m_fSmoothRoll{ 0.0f };
+        float m_fSmoothSwayX{ 0.0f };
+        float m_fSmoothSwayZ{ 0.0f };
+        float m_fSmoothPitch{ 0.0f };
+
+        void Update(CPed* ped, float fTurnX, float fStrafe,
+                    float& outSwayX, float& outSwayZ, float& outPitch, float& outRoll) {
+            const float dt = CTimer::GetTimeStep();
+            const float fSpeed2D = ped->m_vecMoveSpeed.Magnitude2D();
+            const bool bMoving = fSpeed2D > 0.005f;
+
+            if (bMoving) {
+                float fStepFreq = 9.0f;
+                if (ped->m_nMoveState == PEDMOVE_SPRINT) {
+                    fStepFreq = 14.0f;
+                } else if (ped->m_nMoveState == PEDMOVE_RUN) {
+                    fStepFreq = 11.0f;
+                } else if (ped->m_nMoveState == PEDMOVE_WALK) {
+                    fStepFreq = 7.5f;
+                }
+                m_fStepPhase += fStepFreq * dt * 0.02f;
+                if (m_fStepPhase > TWO_PI) m_fStepPhase -= TWO_PI;
+            }
+
+            m_fBreathPhase += 1.6f * dt * 0.02f;
+            if (m_fBreathPhase > TWO_PI) m_fBreathPhase -= TWO_PI;
+
+            float fTargetSwayX = 0.0f;
+            float fTargetSwayZ = 0.0f;
+            float fTargetPitch = 0.0f;
+
+            if (bMoving) {
+                float fAmpX = 0.020f;
+                float fAmpZ = 0.028f;
+                float fAmpPitch = 0.012f;
+
+                if (ped->m_nMoveState == PEDMOVE_SPRINT) {
+                    fAmpX     = 0.042f;
+                    fAmpZ     = 0.052f;
+                    fAmpPitch = 0.024f;
+                } else if (ped->m_nMoveState == PEDMOVE_RUN) {
+                    fAmpX     = 0.028f;
+                    fAmpZ     = 0.038f;
+                    fAmpPitch = 0.016f;
+                }
+
+                fTargetSwayX = std::sin(m_fStepPhase) * fAmpX;
+                fTargetSwayZ = (std::abs(std::sin(m_fStepPhase)) - 0.5f) * fAmpZ * 2.0f;
+                fTargetPitch = std::cos(m_fStepPhase) * fAmpPitch;
+            } else {
+                fTargetSwayZ = std::sin(m_fBreathPhase) * 0.006f;
+                fTargetSwayX = std::cos(m_fBreathPhase * 0.5f) * 0.003f;
+                fTargetPitch = std::sin(m_fBreathPhase) * 0.003f;
+            }
+
+            // Dynamic camera roll (banking into turns and strafes)
+            float fTargetRoll = -fStrafe * 0.030f - fTurnX * 0.0006f;
+            fTargetRoll = std::clamp(fTargetRoll, -0.055f, 0.055f);
+
+            const float fDamp = std::clamp(10.0f * dt * 0.02f, 0.04f, 0.35f);
+            m_fSmoothSwayX   = std::lerp(m_fSmoothSwayX, fTargetSwayX, fDamp);
+            m_fSmoothSwayZ   = std::lerp(m_fSmoothSwayZ, fTargetSwayZ, fDamp);
+            m_fSmoothPitch   = std::lerp(m_fSmoothPitch, fTargetPitch, fDamp);
+            m_fSmoothRoll    = std::lerp(m_fSmoothRoll, fTargetRoll, fDamp);
+
+            outSwayX   = m_fSmoothSwayX;
+            outSwayZ   = m_fSmoothSwayZ;
+            outPitch   = m_fSmoothPitch;
+            outRoll    = m_fSmoothRoll;
+        }
+    };
+
+    static CSpectacularDynamics s_Dynamics;
+    float fSwayX = 0.0f;
+    float fSwayZ = 0.0f;
+    float fPitchTilt = 0.0f;
+    float fRollTilt = 0.0f;
+    const float fStrafeInput = (float)pPad->GetPedWalkLeftRight() / 128.0f;
+    s_Dynamics.Update(targetPed, fStickX, fStrafeInput, fSwayX, fSwayZ, fPitchTilt, fRollTilt);
+
+    const float fTotalPitch = m_fVerticalAngle + fPitchTilt;
+
+    // Direction vector of the camera view
+    CVector vecDir;
+    vecDir.x = -std::sin(m_fHorizontalAngle) * std::cos(fTotalPitch);
+    vecDir.y =  std::cos(m_fHorizontalAngle) * std::cos(fTotalPitch);
+    vecDir.z =  std::sin(fTotalPitch);
+
+    const CVector vecHorzForward(-std::sin(m_fHorizontalAngle), std::cos(m_fHorizontalAngle), 0.0f);
+    const CVector vecRight(std::cos(m_fHorizontalAngle), std::sin(m_fHorizontalAngle), 0.0f);
+    const CVector vecUp(0.0f, 0.0f, 1.0f);
+
+    // Update skeletal matrices to the current frame before sampling head bone
+    targetPed->UpdateRwMatrix();
+    targetPed->UpdateRwFrame();
+    targetPed->UpdateRpHAnim();
+
+    // Get true animated head position in world coordinates from skin hierarchy
+    const auto hier = GetAnimHierarchyFromSkinClump(targetPed->GetRpClump());
+    CVector eyePos = targetPed->GetPosition() + CVector(0.0f, 0.0f, targetPed->bIsDucking ? 0.45f : 0.72f);
+    if (hier) {
+        const int32 headIndex = RpHAnimIDGetIndex(hier, ConvertPedNode2BoneTag(2)); // PED_HEAD
+        if (headIndex >= 0) {
+            auto& mat = RpHAnimHierarchyGetMatrixArray(hier)[headIndex];
+
+            // Transform eye offset through head bone matrix
+            CVector localEyeOffset = CVector(0.065f, 0.055f, 0.0f);
+            RwV3dTransformPoint(&eyePos, &localEyeOffset, &mat);
+
+            // Scale head bone to 0 to hide inside mesh while keeping body/arms/legs visible
+            RwV3d scale{ 0.0f, 0.0f, 0.0f };
+            RwMatrixScale(&mat, &scale, rwCOMBINEPRECONCAT);
+        }
+    }
+
+    // Position camera at eye height, projected slightly in front of nose/face
+    CVector camPos = eyePos;
+    camPos += vecHorzForward * 0.10f;
+
+    // Natural forward projection when looking down to comfortably view torso/belt/feet
+    if (m_fVerticalAngle < 0.0f) {
+        const float fDownRatio = -m_fVerticalAngle / 1.54f;
+        camPos += vecHorzForward * (0.10f * fDownRatio);
+    }
+
+    // Apply spectacular vertical and horizontal head & body dynamics
+    camPos += vecRight * fSwayX + vecUp * fSwayZ;
+    m_vecSource = camPos;
+
+    if (bHasLockOnTarget) {
+        TheCamera.m_vecAimingTargetCoors = vecTargetPos;
+        m_vecFront = (vecTargetPos - m_vecSource).Normalized();
+    } else {
+        m_vecFront = vecDir.Normalized();
+    }
+    m_vecUp    = (vecUp + vecRight * fRollTilt).Normalized();
+
+    // Spectacular Modern FOV: 88 deg base, 98 deg sprint rush, 68 deg focused aim
+    float fDesiredFOV = 88.0f;
+    if (targetPed->m_nMoveState == PEDMOVE_SPRINT) {
+        fDesiredFOV = 98.0f;
+    } else if (targetPed->m_nMoveState == PEDMOVE_RUN) {
+        fDesiredFOV = 92.0f;
+    }
+    if (targetPed->bIsDucking) {
+        fDesiredFOV = 84.0f;
+    }
+    if (pPad->GetTarget() || pPad->GetEnterTargeting()) {
+        fDesiredFOV = 68.0f;
+    }
+    if (m_nMode == MODE_SNIPER_RUNABOUT) {
+        if (pPad->SniperZoomOut()) {
+            m_fFOV *= (10000.0f + 255.0f * CTimer::GetTimeStep()) / 10000.0f;
+        } else if (pPad->SniperZoomIn()) {
+            m_fFOV /= (10000.0f + 255.0f * CTimer::GetTimeStep()) / 10000.0f;
+        }
+        TheCamera.SetMotionBlur(180, 255, 180, 120, eMotionBlurType::SNIPER);
+        m_fFOV = std::clamp(m_fFOV, 15.0f, 70.0f);
+    } else {
+        // Silky smooth cinematic FOV lerp
+        const float fFovLerp = std::clamp(8.0f * CTimer::GetTimeStep() * 0.02f, 0.04f, 0.30f);
+        m_fFOV = std::lerp(m_fFOV, fDesiredFOV, fFovLerp);
+    }
+
+    TheCamera.m_fAlphaForPlayerAnim1rstPerson = m_fVerticalAngle;
+    TheCamera.m_fOrientation                  = std::atan2(m_vecFront.x, m_vecFront.y);
+
+    GetVectorsReadyForRW();
+
+    // Synchronize ped heading and body IK with camera look direction
+    const bool bIsAimingOrFiring = pPad->GetTarget() || pPad->GetEnterTargeting() ||
+                                   (targetPed->GetPlayerData() && targetPed->GetPlayerData()->m_bFreeAiming) ||
+                                   pPad->GetWeapon(targetPed);
+    const bool bHasMoveInput     = (pPad->GetPedWalkLeftRight() != 0 || pPad->GetPedWalkUpDown() != 0);
+    const float camDirection     = std::atan2(-m_vecFront.x, m_vecFront.y);
+
+    if (bIsAimingOrFiring || !bHasMoveInput) {
+        targetPed->m_fCurrentRotation = camDirection;
+        targetPed->m_fAimingRotation  = camDirection;
+        targetPed->SetHeading(camDirection);
+        targetPed->UpdateRwMatrix();
+    }
+
+    if (auto* const pd = targetPed->GetPlayerData()) {
+        pd->m_fLookPitch = -m_fVerticalAngle;
+    }
+
+    RwCameraSetNearClipPlane(Scene.m_pRwCamera, 0.03f);
+#else
     static auto& vecHeadCamOffset          = StaticRef<CVector>(0x8CCC54);
     static auto& InitialHeadPos            = StaticRef<CVector>(0xB6FFC4);
-    static auto& DPadAndWorldFixer         = StaticRef<CVector>(0xB6FFD0); // DPadHorizontal, DPadVertical, DontLookThroughWorldFixer - only ever reset
+    static auto& DPadAndWorldFixer         = StaticRef<CVector>(0xB6FFD0);
     static auto& FailedTestTwelveFramesAgo = StaticRef<bool>(0xB6FFDC);
 
     const auto MaxRotationUp   = DegreesToRadians(60.0f);
     const auto MaxRotationDown = DegreesToRadians(89.5f);
 
-    if (m_nMode != MODE_SNIPER_RUNABOUT) { // Sniper needs to be able to zoom
+    if (m_nMode != MODE_SNIPER_RUNABOUT) {
         m_fFOV = 70.0f;
     }
     TheCamera.m_b1rstPersonRunCloseToAWall = false;
 
-    if (!m_pCamTargetEntity->GetRwObject()) {
-        return;
+    const auto hier = GetAnimHierarchyFromSkinClump(m_pCamTargetEntity->GetRpClump());
+    auto&      mat  = RpHAnimHierarchyGetMatrixArray(hier)[RpHAnimIDGetIndex(hier, ConvertPedNode2BoneTag(2))];
+
+    CVector posn = vecHeadCamOffset;
+    RwV3dTransformPoint(&posn, &posn, &mat);
+
+    RwV3d scale{ 0.0f, 0.0f, 0.0f };
+    RwMatrixScale(&mat, &scale, rwCOMBINEPRECONCAT);
+
+    if (m_bResetStatics) {
+        m_fHorizontalAngle            = targetPed->m_fCurrentRotation + HALF_PI;
+        m_fVerticalAngle              = 0.0f;
+        m_fInitialPlayerOrientation   = m_fHorizontalAngle;
+        FailedTestTwelveFramesAgo     = false;
+        DPadAndWorldFixer.Reset();
+        m_bCollisionChecksOn          = true;
+        m_vecBufferedPlayerBodyOffset = InitialHeadPos = posn;
     }
 
-    if (m_pCamTargetEntity->GetIsTypePed()) {
-        auto* const targetPed = m_pCamTargetEntity->AsPed();
+    m_vecBufferedPlayerBodyOffset.y = posn.y;
+    if (TheCamera.m_bHeadBob) {
+        const auto sway = TheCamera.m_fGaitSwayBuffer;
+        m_vecBufferedPlayerBodyOffset.x = sway * m_vecBufferedPlayerBodyOffset.x + (1.0f - sway) * posn.x;
+        m_vecBufferedPlayerBodyOffset.z = sway * m_vecBufferedPlayerBodyOffset.z + (1.0f - sway) * posn.z;
+        posn = targetPed->GetMatrix().TransformPoint(m_vecBufferedPlayerBodyOffset);
+    } else {
+        auto headDiff = posn - InitialHeadPos;
+        headDiff.z    = 0.0f;
 
-        // Offset the head bone towards eye height in head space, so it follows looking up/down
-        const auto hier = GetAnimHierarchyFromSkinClump(m_pCamTargetEntity->GetRpClump());
-        auto&      mat  = RpHAnimHierarchyGetMatrixArray(hier)[RpHAnimIDGetIndex(hier, ConvertPedNode2BoneTag(2))];
+        auto playHead = targetPed->GetMatrix().GetForward();
+        playHead.z    = 0.0f;
+        playHead.Normalise();
 
-        CVector posn = vecHeadCamOffset;
-        RwV3dTransformPoint(&posn, &posn, &mat);
+        posn    = targetPed->GetPosition() + playHead * headDiff.Magnitude() * 1.23f;
+        posn.z += 0.59f;
+    }
+    m_vecSource = posn;
 
-        RwV3d scale{ 0.0f, 0.0f, 0.0f }; // Scale the head away so we're not looking at the inside of it
-        RwMatrixScale(&mat, &scale, rwCOMBINEPRECONCAT);
+    float      fStickX, fStickY;
+    bool       bUsingMouse   = false;
+    const auto mouseMovement = CPad::GetPad(0)->NewMouseControllerState.GetAmountMouseMoved();
+    if (mouseMovement.x == 0.0f && mouseMovement.y == 0.0f) {
+        fStickX = -(float)CPad::GetPad(0)->LookAroundLeftRight(targetPed);
+        fStickY = (float)CPad::GetPad(0)->LookAroundUpDown(targetPed);
+    } else {
+        fStickX     = -mouseMovement.x * 3.0f;
+        fStickY     = mouseMovement.y * 4.0f;
+        bUsingMouse = true;
+    }
 
-        if (m_bResetStatics) {
-            m_fHorizontalAngle            = targetPed->m_fCurrentRotation + HALF_PI;
-            m_fVerticalAngle              = 0.0f;
-            m_fInitialPlayerOrientation   = m_fHorizontalAngle;
-            FailedTestTwelveFramesAgo     = false;
-            DPadAndWorldFixer.Reset();
-            m_bCollisionChecksOn          = true;
-            m_vecBufferedPlayerBodyOffset = InitialHeadPos = posn;
+    float StickBetaOffset, StickAlphaOffset;
+    if (bUsingMouse) {
+        StickBetaOffset  = TheCamera.m_fMouseAccelHorzntl * fStickX * (m_fFOV / 80.0f);
+        StickAlphaOffset = TheCamera.m_fMouseAccelVertical * fStickY * (m_fFOV / 80.0f);
+    } else {
+        const auto X_Sign = fStickX < 0.0f ? -1.0f : 1.0f;
+        const auto Y_Sign = fStickY < 0.0f ? -1.0f : 1.0f;
+
+        StickBetaOffset  = X_Sign * sq(fStickX / 100.0f) * (0.20f / 3.5f * (m_fFOV / 80.0f)) * CTimer::GetTimeStep();
+        StickAlphaOffset = Y_Sign * sq(fStickY / 150.0f) * (0.25f / 3.5f * (m_fFOV / 80.0f)) * CTimer::GetTimeStep();
+    }
+
+    m_fHorizontalAngle += StickBetaOffset;
+    m_fVerticalAngle   += StickAlphaOffset;
+
+    ClipBeta();
+    m_fVerticalAngle = std::clamp(m_fVerticalAngle, -MaxRotationDown, MaxRotationUp);
+
+    const auto TargetCoors = m_vecSource + 3.0f * CVector{
+        std::cos(m_fHorizontalAngle) * std::cos(m_fVerticalAngle),
+        std::sin(m_fHorizontalAngle) * std::cos(m_fVerticalAngle),
+        std::sin(m_fVerticalAngle)
+    };
+    m_vecFront = (TargetCoors - m_vecSource).Normalized();
+
+    TheCamera.m_fAlphaForPlayerAnim1rstPerson = m_fVerticalAngle;
+
+    GetVectorsReadyForRW();
+
+    const auto  CamDirection = std::atan2(-m_vecFront.x, m_vecFront.y);
+    auto* const camTarget    = TheCamera.m_pTargetEntity->AsPed();
+    camTarget->m_fCurrentRotation = CamDirection;
+    camTarget->m_fAimingRotation  = CamDirection;
+    camTarget->SetHeading(CamDirection);
+    camTarget->UpdateRwMatrix();
+
+    if (m_nMode == MODE_SNIPER_RUNABOUT) {
+        if (CPad::GetPad(0)->SniperZoomOut()) {
+            m_fFOV *= (10000.0f + 255.0f * CTimer::GetTimeStep()) / 10000.0f;
+        } else if (CPad::GetPad(0)->SniperZoomIn()) {
+            m_fFOV /= (10000.0f + 255.0f * CTimer::GetTimeStep()) / 10000.0f;
         }
-
-        m_vecBufferedPlayerBodyOffset.y = posn.y;
-        if (TheCamera.m_bHeadBob) {
-            const auto sway = TheCamera.m_fGaitSwayBuffer;
-            m_vecBufferedPlayerBodyOffset.x = sway * m_vecBufferedPlayerBodyOffset.x + (1.0f - sway) * posn.x;
-            m_vecBufferedPlayerBodyOffset.z = sway * m_vecBufferedPlayerBodyOffset.z + (1.0f - sway) * posn.z;
-            posn = targetPed->GetMatrix().TransformPoint(m_vecBufferedPlayerBodyOffset);
-        } else {
-            auto headDiff = posn - InitialHeadPos;
-            headDiff.z    = 0.0f;
-
-            auto playHead = targetPed->GetMatrix().GetForward();
-            playHead.z    = 0.0f;
-            playHead.Normalise();
-
-            posn    = targetPed->GetPosition() + playHead * headDiff.Magnitude() * 1.23f;
-            posn.z += 0.59f;
-        }
-        m_vecSource = posn;
-
-        CVector torsoPos;
-        targetPed->GetTransformedBonePosition(torsoPos, BONE_SPINE1, true);
-
-        float      fStickX, fStickY;
-        bool       bUsingMouse   = false;
-        const auto mouseMovement = CPad::GetPad(0)->NewMouseControllerState.GetAmountMouseMoved();
-        if (mouseMovement.x == 0.0f && mouseMovement.y == 0.0f) {
-            fStickX = -(float)CPad::GetPad(0)->LookAroundLeftRight(targetPed);
-            fStickY = (float)CPad::GetPad(0)->LookAroundUpDown(targetPed);
-        } else {
-            fStickX     = -mouseMovement.x * 3.0f;
-            fStickY     = mouseMovement.y * 4.0f;
-            bUsingMouse = true;
-        }
-
-        float StickBetaOffset, StickAlphaOffset;
-        if (bUsingMouse) {
-            StickBetaOffset  = TheCamera.m_fMouseAccelHorzntl * fStickX * (m_fFOV / 80.0f);
-            StickAlphaOffset = TheCamera.m_fMouseAccelVertical * fStickY * (m_fFOV / 80.0f);
-        } else {
-            const auto X_Sign = fStickX < 0.0f ? -1.0f : 1.0f;
-            const auto Y_Sign = fStickY < 0.0f ? -1.0f : 1.0f;
-
-            StickBetaOffset  = X_Sign * sq(fStickX / 100.0f) * (0.20f / 3.5f * (m_fFOV / 80.0f)) * CTimer::GetTimeStep();
-            StickAlphaOffset = Y_Sign * sq(fStickY / 150.0f) * (0.25f / 3.5f * (m_fFOV / 80.0f)) * CTimer::GetTimeStep();
-        }
-
-        m_fHorizontalAngle += StickBetaOffset;
-        m_fVerticalAngle   += StickAlphaOffset;
-
-        ClipBeta();
-        m_fVerticalAngle = std::clamp(m_fVerticalAngle, -MaxRotationDown, MaxRotationUp);
-
-        if (const auto* attachedTo = targetPed->m_pAttachedTo; targetPed->IsPlayer() && attachedTo) {
-            auto fDefaultHeading = attachedTo->GetHeading();
-            switch ((int32)targetPed->m_fTurretAngleA) { // m_nAttachLookDirn
-            case 0: fDefaultHeading += HALF_PI; break; // Forward - heading is taken from the x vector
-            case 1: fDefaultHeading += PI;      break; // Left
-            case 2: fDefaultHeading -= HALF_PI; break; // Back
-            case 3:                             break; // Right
-            }
-
-            auto fCamDelta = m_fHorizontalAngle - fDefaultHeading;
-            if (fCamDelta > PI) {
-                fCamDelta -= TWO_PI;
-            } else if (fCamDelta < -PI) {
-                fCamDelta += TWO_PI;
-            }
-
-            const auto limit   = targetPed->m_fTurretAngleB; // m_fAttachHeadingLimit
-            m_fHorizontalAngle = fDefaultHeading + std::clamp(fCamDelta, -limit, limit);
-        }
-
-        const auto TargetCoors = m_vecSource + 3.0f * CVector{
-            std::cos(m_fHorizontalAngle) * std::cos(m_fVerticalAngle),
-            std::sin(m_fHorizontalAngle) * std::cos(m_fVerticalAngle),
-            std::sin(m_fVerticalAngle)
-        };
-        m_vecFront = (TargetCoors - m_vecSource).Normalized();
-
-        // The original nudges the source 0.4 along the front here so its wall-proximity checks don't
-        // hit the player, then undoes it. Those checks are `#if 0`'d out, so the pair cancels.
-
-        TheCamera.m_fAlphaForPlayerAnim1rstPerson = m_fVerticalAngle;
-
-        GetVectorsReadyForRW();
-
-        // Keep the entity heading in sync with the camera
-        const auto  CamDirection = std::atan2(-m_vecFront.x, m_vecFront.y);
-        auto* const camTarget    = TheCamera.m_pTargetEntity->AsPed();
-        camTarget->m_fCurrentRotation = CamDirection;
-        camTarget->m_fAimingRotation  = CamDirection;
-        camTarget->SetHeading(CamDirection);
-        camTarget->UpdateRwMatrix();
-
-        if (m_nMode == MODE_SNIPER_RUNABOUT) {
-            if (CPad::GetPad(0)->SniperZoomOut()) {
-                m_fFOV *= (10000.0f + 255.0f * CTimer::GetTimeStep()) / 10000.0f;
-            } else if (CPad::GetPad(0)->SniperZoomIn()) {
-                m_fFOV /= (10000.0f + 255.0f * CTimer::GetTimeStep()) / 10000.0f;
-            }
-            TheCamera.SetMotionBlur(180, 255, 180, 120, eMotionBlurType::SNIPER);
-            m_fFOV = std::clamp(m_fFOV, 15.0f, 70.0f);
-        }
+        TheCamera.SetMotionBlur(180, 255, 180, 120, eMotionBlurType::SNIPER);
+        m_fFOV = std::clamp(m_fFOV, 15.0f, 70.0f);
     }
 
     m_bResetStatics = false;
     RwCameraSetNearClipPlane(Scene.m_pRwCamera, 0.05f);
+#endif
 }
 
 // 0x517EA0
@@ -2118,6 +2672,246 @@ void CCam::Process_1stPerson(const CVector& target, float orientation, float spe
 
 // 0x521500
 void CCam::Process_AimWeapon(const CVector& ThisCamsTarget, float TargetOrientation, float SpeedVar, float SpeedVarDesired) {
+#if MODERN_CAM
+    if (!m_pCamTargetEntity || !m_pCamTargetEntity->GetIsTypePed() || !m_pCamTargetEntity->AsPed()->IsPlayer()) {
+        return;
+    }
+
+    auto* const pPed = m_pCamTargetEntity->AsPed();
+    auto* const pPad = CPad::GetPad(0);
+
+    // Check if auto-aim / lock-on target is active
+    CVector vecTargetPos{};
+    bool bHasLockOnTarget = false;
+    if (auto* const lockOn = pPed->m_pTargetedObject) {
+        bHasLockOnTarget = true;
+        if (lockOn->GetIsTypePed()) {
+            CPed* targetPed = lockOn->AsPed();
+            eBoneTag boneTag = BONE_SPINE1;
+            if (auto* const player = pPed->AsPlayer()) {
+                if (auto* const data = player->GetPlayerData()) {
+                    if (data->m_nTargetBone == BONE_HEAD) {
+                        boneTag = BONE_HEAD;
+                    }
+                }
+            }
+            targetPed->GetTransformedBonePosition(vecTargetPos, boneTag, true);
+        } else if (lockOn->GetIsTypeVehicle()) {
+            vecTargetPos = lockOn->GetPosition() + CVector(0.0f, 0.0f, 0.35f);
+        } else {
+            vecTargetPos = lockOn->GetPosition();
+        }
+    }
+
+    static float s_fAimPitch = 0.0f;
+
+    float fStickX = 0.0f;
+    float fStickY = 0.0f;
+    float fRawStickMag = 0.0f;
+    float fRawStickNormX = 0.0f;
+    float fRawStickNormY = 0.0f;
+    ProcessGTAVStickAndMouseInput(pPad, m_fFOV, fStickX, fStickY, fRawStickMag, fRawStickNormX, fRawStickNormY);
+
+    const float fSensH = TheCamera.m_fMouseAccelHorzntl > 0.0f ? TheCamera.m_fMouseAccelHorzntl : 0.0025f;
+    const float fSensV = TheCamera.m_fMouseAccelVertical > 0.0f ? TheCamera.m_fMouseAccelVertical : 0.0025f;
+
+    static float s_fTimeTryingToBreakLock = 0.0f;
+
+    if (bHasLockOnTarget) {
+        // --- GTA V SoftLock Break / Delink ---
+        // If the player pushes stick hard (>=0.75) and holds it for >0.30s or moves mouse fast, break lock-on to free-aim!
+        const auto mouseMoved = pPad->NewMouseControllerState.GetAmountMouseMoved();
+        const float mouseMagSq = mouseMoved.x * mouseMoved.x + mouseMoved.y * mouseMoved.y;
+
+        if (fRawStickMag >= 0.75f || mouseMagSq > 30.0f) {
+            s_fTimeTryingToBreakLock += CTimer::GetTimeStepInSeconds();
+            if (s_fTimeTryingToBreakLock > 0.30f || mouseMagSq > 30.0f) {
+                if (auto* const player = pPed->AsPlayer()) {
+                    player->ClearWeaponTarget();
+                    if (auto* const pd = player->GetPlayerData()) {
+                        pd->m_bFreeAiming = 1;
+                    }
+                }
+                bHasLockOnTarget = false;
+                s_fTimeTryingToBreakLock = 0.0f;
+            }
+        } else {
+            s_fTimeTryingToBreakLock = 0.0f;
+        }
+    }
+
+    if (bHasLockOnTarget) {
+        // --- GTA V Lock-On Behavior ---
+        // 1. Right Stick Horizontal Flick / Mouse Flick -> Target Switching (Cycle Target Left/Right)
+        static uint32 s_nTargetSwitchCooldownMs = 0;
+        static bool   s_bStickWasCentered = true;
+
+        const auto mouseMoved = pPad->NewMouseControllerState.GetAmountMouseMoved();
+        const float fTotalHorzInput = fRawStickNormX + mouseMoved.x * 0.05f;
+
+        if (std::abs(fTotalHorzInput) > 0.40f && fRawStickMag < 0.75f) {
+            if (s_bStickWasCentered && CTimer::GetTimeInMS() > s_nTargetSwitchCooldownMs) {
+                // Flicking stick to left/right switches target in that direction!
+                const bool bShiftLeft = (fTotalHorzInput < 0.0f);
+                if (auto* const player = pPed->AsPlayer()) {
+                    player->FindNextWeaponLockOnTarget(player->m_pTargetedObject, bShiftLeft);
+                }
+                s_nTargetSwitchCooldownMs = CTimer::GetTimeInMS() + 250;
+                s_bStickWasCentered = false;
+            }
+        } else if (std::abs(fTotalHorzInput) < 0.20f) {
+            s_bStickWasCentered = true;
+        }
+
+        // 2. Right Stick Vertical / Mouse Vertical -> Fine-Aim Reticle Adjustment (Nudge to Head / Spine)
+        const float fTotalVertInput = fRawStickNormY - mouseMoved.y * 0.05f;
+
+        if (auto* const player = pPed->AsPlayer()) {
+            if (auto* const data = player->GetPlayerData()) {
+                if (fTotalVertInput > 0.25f) {
+                    // Pushing stick UP -> Aim at head for headshot
+                    data->m_nTargetBone = BONE_HEAD;
+                    data->m_vecTargetBoneOffset = CVector(0.05f, 0.0f, 0.0f);
+                } else if (fTotalVertInput < -0.25f) {
+                    // Pushing stick DOWN -> Aim at chest/torso
+                    data->m_nTargetBone = BONE_SPINE1;
+                    data->m_vecTargetBoneOffset = CVector(0.2f, 0.0f, 0.0f);
+                }
+            }
+        }
+
+        // 3. Camera Smooth Lock-On Tracking (GTA V UpdateLockOnTargetBlend)
+        const CVector deltaToTarget = vecTargetPos - pPed->GetPosition();
+        const float fDesiredLockHeading = std::atan2(-deltaToTarget.x, deltaToTarget.y);
+        const float fDesiredLockPitch   = std::atan2(deltaToTarget.z, deltaToTarget.Magnitude2D());
+
+        if (m_bResetStatics) {
+            m_fHorizontalAngle = fDesiredLockHeading;
+            s_fAimPitch        = fDesiredLockPitch;
+            m_bResetStatics    = false;
+        } else {
+            float diffH = fDesiredLockHeading - m_fHorizontalAngle;
+            while (diffH > PI) diffH -= TWO_PI;
+            while (diffH < -PI) diffH += TWO_PI;
+            const float fTrackRateH = std::min(1.0f, 22.0f * CTimer::GetTimeStepInSeconds());
+            m_fHorizontalAngle += diffH * fTrackRateH;
+
+            const float fTrackRateV = std::min(1.0f, 22.0f * CTimer::GetTimeStepInSeconds());
+            s_fAimPitch += (fDesiredLockPitch - s_fAimPitch) * fTrackRateV;
+        }
+    } else {
+        // --- Free-Aim Camera Orbit (Full 360 manual look with GTA V response curve) ---
+        if (m_bResetStatics) {
+            m_fHorizontalAngle = pPed->m_fCurrentRotation;
+            s_fAimPitch        = 0.0f;
+            m_bResetStatics    = false;
+        }
+
+        m_fHorizontalAngle += fStickX * fSensH;
+        s_fAimPitch        += fStickY * fSensV;
+    }
+
+    // Pitch limits (GTA V style: -75 deg to +75 deg)
+    s_fAimPitch      = std::clamp(s_fAimPitch, -1.25f, 1.25f);
+    m_fVerticalAngle = -s_fAimPitch;
+
+    // Determine target FOV based on weapon type
+    float fDesiredFOV = 55.0f;
+    const auto weaponType = pPed->GetActiveWeapon().GetType();
+    if (weaponType == WEAPON_AK47 || weaponType == WEAPON_M4) {
+        fDesiredFOV = 50.0f;
+    } else if (weaponType == WEAPON_COUNTRYRIFLE || weaponType == WEAPON_SNIPERRIFLE) {
+        fDesiredFOV = 35.0f;
+    }
+
+    // Smooth FOV zoom
+    const float fFovRate = 45.0f * CTimer::GetTimeStep();
+    if (m_fFOV > fDesiredFOV + fFovRate) {
+        m_fFOV -= fFovRate;
+    } else if (m_fFOV < fDesiredFOV - fFovRate) {
+        m_fFOV += fFovRate;
+    } else {
+        m_fFOV = fDesiredFOV;
+    }
+
+    // Direction vector from Alpha & Beta (RenderWare coords: +Y is North/Forward, +X is East/Right, +Z is Up)
+    CVector vecDir;
+    vecDir.x = -std::sin(m_fHorizontalAngle) * std::cos(s_fAimPitch);
+    vecDir.y = std::cos(m_fHorizontalAngle) * std::cos(s_fAimPitch);
+    vecDir.z = std::sin(s_fAimPitch);
+
+    // Right vector on horizontal plane
+    const CVector vecRight(std::cos(m_fHorizontalAngle), std::sin(m_fHorizontalAngle), 0.0f);
+    const CVector vecUp(0.0f, 0.0f, 1.0f);
+
+    // GTA V Over-the-shoulder pivot: right +0.38m, up +0.65m from ped root
+    const CVector vecPedPos = pPed->GetPosition();
+    const CVector vecPivot  = vecPedPos + vecRight * 0.38f + vecUp * 0.65f;
+
+    constexpr float fAimDist = 1.35f;
+    const CVector vecIdealSource = vecPivot - vecDir * fAimDist;
+
+    // Line of sight raycast for obstacle clearance (ignore ped itself)
+    CColPoint colPoint;
+    CEntity* pHitEntity = nullptr;
+    CWorld::pIgnoreEntity = pPed;
+    if (CWorld::ProcessLineOfSight(vecPivot, vecIdealSource, colPoint, pHitEntity, true, true, false, true, false, false, false, false)) {
+        m_vecSource = colPoint.m_vecPoint + vecDir * 0.15f;
+    } else {
+        m_vecSource = vecIdealSource;
+    }
+    CWorld::pIgnoreEntity = nullptr;
+
+    m_vecFront = vecDir;
+    m_vecUp    = vecUp;
+
+    if (bHasLockOnTarget) {
+        // Auto-aim lock-on: set aim target directly to the target entity so bullets hit accurately
+        TheCamera.m_vecAimingTargetCoors = vecTargetPos;
+
+        // Eliminate over-the-shoulder parallax so reticle and bullet vector point directly at the target
+        m_vecFront = (vecTargetPos - m_vecSource).Normalized();
+
+        // Orient player ped to face the target directly
+        const CVector deltaToTarget = vecTargetPos - vecPedPos;
+        const float fPedAimHeading  = std::atan2(-deltaToTarget.x, deltaToTarget.y);
+        pPed->m_fCurrentRotation    = fPedAimHeading;
+        pPed->m_fAimingRotation     = fPedAimHeading;
+        pPed->SetHeading(fPedAimHeading);
+        pPed->UpdateRwMatrix();
+    } else {
+        // Free aim: crosshair world raycast for accurate weapon bullet alignment
+        const CVector vecAimRayEnd = m_vecSource + vecDir * 120.0f;
+        if (CWorld::ProcessLineOfSight(m_vecSource, vecAimRayEnd, colPoint, pHitEntity, true, true, true, true, true, false, false, false)) {
+            TheCamera.m_vecAimingTargetCoors = colPoint.m_vecPoint;
+        } else {
+            TheCamera.m_vecAimingTargetCoors = vecAimRayEnd;
+        }
+
+        // Orient player ped to aim direction
+        const float fPedAimHeading = std::atan2(-vecDir.x, vecDir.y);
+        pPed->m_fCurrentRotation = fPedAimHeading;
+        pPed->m_fAimingRotation  = fPedAimHeading;
+        pPed->SetHeading(fPedAimHeading);
+        pPed->UpdateRwMatrix();
+    }
+
+    if (auto* const player = pPed->AsPlayer()) {
+        if (auto* const data = player->GetPlayerData()) {
+            data->m_fLookPitch = -s_fAimPitch;
+        }
+    }
+
+    m_vecTargetCoorsForFudgeInter = m_vecSource + m_vecFront * 30.0f;
+    m_fDistance = fAimDist;
+
+    TheCamera.m_bCamDirectlyBehind  = false;
+    TheCamera.m_bCamDirectlyInFront = false;
+
+    GetVectorsReadyForRW();
+    m_bResetStatics = false;
+    return;
+#else
     // `AIMWEAPON_SETTINGS` @ 0x8CC4C0, `tAimingCamData[4]` - indices confirmed at 0x5215AD..0x521612
     enum eAimType { AIMWEAPON_ONFOOT = 0, AIMWEAPON_ONBIKE = 1, AIMWEAPON_INCAR = 2, AIMWEAPON_MELEE = 3 };
     struct tAimingCamData {
@@ -2607,6 +3401,7 @@ void CCam::Process_AimWeapon(const CVector& ThisCamsTarget, float TargetOrientat
     }
 
     m_bResetStatics = false;
+#endif
 }
 
 // 0x512B10
@@ -4431,6 +5226,162 @@ void CCam::Process_FlyBy(const CVector& target, float orientation, float speedVa
 
 // 0x5245B0
 void CCam::Process_FollowCar_SA(const CVector& ThisCamsTarget, float TargetOrientation, float SpeedVar, float SpeedVarDesired, bool bScriptSetAngles) {
+#if MODERN_CAM
+    if (!m_pCamTargetEntity || !m_pCamTargetEntity->GetIsTypeVehicle()) {
+        return;
+    }
+
+    auto* const pVehicle = m_pCamTargetEntity->AsVehicle();
+    auto* const pPad     = CPad::GetPad(0);
+
+    // Car bounding box dimensions
+    float CarHeight = 1.2f;
+    float CarLength = 4.0f;
+    if (auto* const colModel = pVehicle->GetColModel()) {
+        CarHeight = colModel->GetBoundingBox().m_vecMax.z;
+        CarLength = 2.0f * std::abs(colModel->GetBoundingBox().m_vecMin.y);
+    }
+    if (CarHeight < 0.5f) CarHeight = 1.2f;
+    if (CarLength < 1.0f) CarLength = 4.0f;
+
+    // Speed calculation
+    const CVector vecMoveSpeed = pVehicle->m_vecMoveSpeed;
+    const float fSpeed = vecMoveSpeed.Magnitude() * 50.0f; // in m/s (approx km/h)
+    float fSpeedRatio = fSpeed / 45.0f;
+    if (fSpeedRatio > 1.0f) fSpeedRatio = 1.0f;
+
+    // Dynamic distance & FOV scaling with speed (GTA V style)
+    const float fBaseDistance = 5.2f + (CarLength * 0.45f) + (TheCamera.m_fCarZoomSmoothed * 1.5f) + (fSpeedRatio * 2.2f);
+    const float fDesiredFOV    = 70.0f + (fSpeedRatio * 7.5f);
+
+    // Smooth FOV
+    const float fFovRate = 15.0f * CTimer::GetTimeStep();
+    if (m_fFOV > fDesiredFOV + fFovRate) {
+        m_fFOV -= fFovRate;
+    } else if (m_fFOV < fDesiredFOV - fFovRate) {
+        m_fFOV += fFovRate;
+    } else {
+        m_fFOV = fDesiredFOV;
+    }
+
+    // Trailing heading behind vehicle motion (RenderWare coords: +Y is North/Forward)
+    const CVector vecVehFwd = pVehicle->GetForward();
+    float fVehHeading = std::atan2(-vecVehFwd.x, vecVehFwd.y);
+
+    // Check if reversing
+    const float fDotFwd = DotProduct(vecMoveSpeed, vecVehFwd);
+    if (fDotFwd < -0.05f && fSpeed > 2.0f) {
+        fVehHeading += PI; // flip when reversing
+    }
+
+    // Handle user mouse and gamepad right stick input for 360 free-look around vehicle (simultaneous GTA V style)
+    const auto mouseMoved = pPad->NewMouseControllerState.GetAmountMouseMoved();
+    float fStickX = -mouseMoved.x * 2.0f;
+    float fStickY = mouseMoved.y * 2.0f;
+
+    int16 rawStickX = pPad->GetRightStickX();
+    int16 rawStickY = pPad->GetRightStickY();
+    if (CPad::bInvertLook4Pad) {
+        rawStickY = -rawStickY;
+    }
+    if (std::abs(rawStickX) > 20) {
+        const float sign = (rawStickX < 0) ? -1.0f : 1.0f;
+        const float normX = sign * (static_cast<float>(std::abs(rawStickX)) - 20.0f) / 108.0f;
+        fStickX += -normX * 80.0f * (60.0f * CTimer::GetTimeStepInSeconds());
+    }
+    if (std::abs(rawStickY) > 20) {
+        const float sign = (rawStickY < 0) ? -1.0f : 1.0f;
+        const float normY = sign * (static_cast<float>(std::abs(rawStickY)) - 20.0f) / 108.0f;
+        fStickY += normY * 80.0f * (60.0f * CTimer::GetTimeStepInSeconds());
+    }
+
+    static float s_fOrbitBeta = 0.0f;
+    static float s_fOrbitAlpha = 0.22f;
+    static float s_fFreeLookTimer = 0.0f;
+
+    if (m_bResetStatics) {
+        s_fOrbitBeta = fVehHeading;
+        s_fOrbitAlpha = 0.22f;
+        s_fFreeLookTimer = 0.0f;
+        m_bResetStatics = false;
+    }
+
+    const float fSensH = TheCamera.m_fMouseAccelHorzntl > 0.0f ? TheCamera.m_fMouseAccelHorzntl : 0.003f;
+    const float fSensV = TheCamera.m_fMouseAccelVertical > 0.0f ? TheCamera.m_fMouseAccelVertical : 0.003f;
+
+    const bool bHasInput = (std::abs(fStickX) > 0.01f || std::abs(fStickY) > 0.01f);
+    if (bHasInput) {
+        s_fOrbitBeta += fStickX * fSensH;
+        s_fOrbitAlpha += fStickY * fSensV;
+        s_fFreeLookTimer = 1.8f; // Stay in manual control for 1.8 seconds
+    } else if (s_fFreeLookTimer > 0.0f) {
+        s_fFreeLookTimer -= CTimer::GetTimeStepInSeconds();
+    }
+
+    // Clamp pitch (elevation angle above horizon)
+    s_fOrbitAlpha = std::clamp(s_fOrbitAlpha, -0.25f, 0.80f);
+
+    if (s_fFreeLookTimer <= 0.0f) {
+        // Smoothly pull camera behind vehicle
+        float fHeadingDiff = fVehHeading - s_fOrbitBeta;
+        while (fHeadingDiff > PI) fHeadingDiff -= TWO_PI;
+        while (fHeadingDiff < -PI) fHeadingDiff += TWO_PI;
+
+        float fCatchUpSpeed = (2.8f + fSpeedRatio * 3.5f) * CTimer::GetTimeStepInSeconds();
+        if (fCatchUpSpeed > 1.0f) fCatchUpSpeed = 1.0f;
+        s_fOrbitBeta += fHeadingDiff * fCatchUpSpeed;
+
+        // Reset default elevated pitch
+        const float fTargetAlpha = 0.16f + (fSpeedRatio * 0.04f);
+        s_fOrbitAlpha += (fTargetAlpha - s_fOrbitAlpha) * 0.1f * CTimer::GetTimeStep();
+    }
+
+    m_fHorizontalAngle = s_fOrbitBeta;
+    m_fVerticalAngle   = s_fOrbitAlpha;
+
+    // Calculate vehicle center pivot (chest/roof height)
+    CVector vecPivot = pVehicle->GetPosition();
+    vecPivot.z += (CarHeight * 0.45f) + 0.35f;
+
+    // Direction vector pointing FROM camera TO vehicle (forward & slightly downward)
+    CVector vecDir;
+    vecDir.x = -std::sin(m_fHorizontalAngle) * std::cos(m_fVerticalAngle);
+    vecDir.y = std::cos(m_fHorizontalAngle) * std::cos(m_fVerticalAngle);
+    vecDir.z = -std::sin(m_fVerticalAngle);
+
+    CVector vecIdealSource = vecPivot - vecDir * fBaseDistance;
+
+    // Ground height safety limit (never go below vehicle bottom)
+    const float fMinZ = pVehicle->GetPosition().z + 0.40f;
+    if (vecIdealSource.z < fMinZ) {
+        vecIdealSource.z = fMinZ;
+    }
+
+    // Line of sight check to avoid clipping into buildings/ground (ignore player vehicle!)
+    CColPoint colPoint;
+    CEntity* pHitEntity = nullptr;
+    CWorld::pIgnoreEntity = pVehicle;
+    if (CWorld::ProcessLineOfSight(vecPivot, vecIdealSource, colPoint, pHitEntity, true, false, false, true, false, false, false, false)) {
+        float fHitDist = (colPoint.m_vecPoint - vecPivot).Magnitude() - 0.35f;
+        if (fHitDist < 2.2f) fHitDist = 2.2f;
+        m_vecSource = vecPivot - vecDir * fHitDist;
+    } else {
+        m_vecSource = vecIdealSource;
+    }
+    CWorld::pIgnoreEntity = nullptr;
+
+    m_vecFront = vecDir;
+    m_vecUp    = CVector(0.0f, 0.0f, 1.0f);
+
+    m_vecTargetCoorsForFudgeInter = vecPivot;
+    m_fDistance = fBaseDistance;
+
+    TheCamera.m_bCamDirectlyBehind  = false;
+    TheCamera.m_bCamDirectlyInFront = false;
+
+    GetVectorsReadyForRW();
+    return;
+#else
     enum { ZOOM_ONE = 1, ZOOM_TWO = 2, ZOOM_THREE = 3 };
 
     constexpr auto AIMWEAPON_STICK_SENS      = 0.007f;
@@ -4909,10 +5860,14 @@ void CCam::Process_FollowCar_SA(const CVector& ThisCamsTarget, float TargetOrien
     GetVectorsReadyForRW();
 
     gTargetCoordsForLookingBehind = vecTargetCoords;
+#endif
 }
 
 // 0x50F970
 void CCam::Process_FollowPedWithMouse(const CVector& ThisCamsTarget, float TargetOrientation, float SpeedVar, float SpeedVarDesired) {
+#if MODERN_CAM
+    Process_FollowPed_SA(ThisCamsTarget, TargetOrientation, SpeedVar, SpeedVarDesired, false);
+#else
     constexpr auto fTranslateCamUp          = 0.8f;      // 0x8CC7D0
     constexpr auto fStickSens               = 0.01f;     // 0x8CC7CC
     constexpr auto fDefaultAlphaOrient      = -0.22f;    // 0x8CC7D8
@@ -5121,10 +6076,178 @@ void CCam::Process_FollowPedWithMouse(const CVector& ThisCamsTarget, float Targe
         camTarget->SetHeading(CamDirection);
         camTarget->UpdateRwMatrix();
     }
+#endif
 }
 
 // 0x522D40
 void CCam::Process_FollowPed_SA(const CVector &ThisCamsTarget, float TargetOrientation, float SpeedVar, float SpeedVarDesired, bool bScriptSetAngles) {
+#if MODERN_CAM
+    if (!m_pCamTargetEntity || !m_pCamTargetEntity->GetIsTypePed() || !m_pCamTargetEntity->AsPed()->IsPlayer()) {
+        return;
+    }
+
+    auto* const pPed = m_pCamTargetEntity->AsPed();
+    auto* const pPad = CPad::GetPad(0);
+
+    // Mouse and Gamepad Right Stick input handling with GTA V response curves
+    float fStickX = 0.0f;
+    float fStickY = 0.0f;
+    float fRawStickMag = 0.0f;
+    float fRawStickNormX = 0.0f;
+    float fRawStickNormY = 0.0f;
+    ProcessGTAVStickAndMouseInput(pPad, m_fFOV, fStickX, fStickY, fRawStickMag, fRawStickNormX, fRawStickNormY);
+
+    // Follow Ped uses inverted pitch relative to aim weapon
+    fStickY = -fStickY;
+
+    const float fSensH = TheCamera.m_fMouseAccelHorzntl > 0.0f ? TheCamera.m_fMouseAccelHorzntl : 0.0028f;
+    const float fSensV = TheCamera.m_fMouseAccelVertical > 0.0f ? TheCamera.m_fMouseAccelVertical : 0.0028f;
+
+    static float s_fPedOrbitBeta = 0.0f;
+    static float s_fPedOrbitAlpha = 0.16f; // GTA V default pitch ~9 deg looking slightly down at ped
+    static float s_fPedFreeLookTimer = 0.0f;
+    static float s_fSmoothedPedZ = 0.0f;
+
+    const CVector vecPedPos = pPed->GetPosition();
+
+    if (m_bResetStatics || bScriptSetAngles || TheCamera.m_bCamDirectlyBehind) {
+        s_fPedOrbitBeta = pPed->m_fCurrentRotation;
+        s_fPedOrbitAlpha = 0.16f;
+        s_fPedFreeLookTimer = 0.0f;
+        s_fSmoothedPedZ = vecPedPos.z;
+        m_bResetStatics = false;
+    }
+
+    const bool bHasInput = (std::abs(fStickX) > 0.01f || std::abs(fStickY) > 0.01f);
+    if (bHasInput) {
+        s_fPedOrbitBeta += fStickX * fSensH;
+        s_fPedOrbitAlpha += fStickY * fSensV;
+        s_fPedFreeLookTimer = 1.5f;
+    } else if (s_fPedFreeLookTimer > 0.0f) {
+        s_fPedFreeLookTimer -= CTimer::GetTimeStepInSeconds();
+    }
+
+    // Clamp pitch (GTA V FollowPedCamera limits: -72 deg looking up, +75 deg looking straight down)
+    s_fPedOrbitAlpha = std::clamp(s_fPedOrbitAlpha, -1.25f, 1.30f);
+
+    // Auto pull-around behind ped when moving without manual camera input (GTA V style)
+    const float fMoveSpeed = pPed->m_vecMoveSpeed.Magnitude();
+    if (fMoveSpeed > 0.01f && s_fPedFreeLookTimer <= 0.0f) {
+        const float fDesiredHeading = pPed->m_fCurrentRotation;
+        float fHeadingDiff = fDesiredHeading - s_fPedOrbitBeta;
+        while (fHeadingDiff > PI) fHeadingDiff -= TWO_PI;
+        while (fHeadingDiff < -PI) fHeadingDiff += TWO_PI;
+
+        // Speed-proportional catch-up rate: slow walk = gentle, sprint = aggressive
+        const float fSpeedFactor = std::clamp((fMoveSpeed - 0.01f) / 0.12f, 0.0f, 1.0f);
+        const float fMinRate = 2.0f;
+        const float fMaxRate = 6.0f;
+        const float fCatchUpSpeed = fMinRate + (fMaxRate - fMinRate) * fSpeedFactor;
+        float fCatchUpRate = fCatchUpSpeed * CTimer::GetTimeStepInSeconds();
+        if (fCatchUpRate > 1.0f) fCatchUpRate = 1.0f;
+        s_fPedOrbitBeta += fHeadingDiff * fCatchUpRate;
+    }
+
+    // --- GTA V Running & Walking Motion Shake / Head Bobbing (FOLLOW_RUN_SHAKE) ---
+    static CGTAVRunningFrameShaker s_RunFrameShaker;
+    float fShakeRelX  = 0.0f;
+    float fShakeRelZ  = 0.0f;
+    float fShakePitch = 0.0f;
+    float fShakeRoll  = 0.0f;
+    s_RunFrameShaker.Update(pPed, fShakeRelX, fShakeRelZ, fShakePitch, fShakeRoll);
+
+    m_fHorizontalAngle = s_fPedOrbitBeta;
+    m_fVerticalAngle   = s_fPedOrbitAlpha + fShakePitch;
+
+    // Smooth only vertical Z (stairs / curbs) - X and Y are locked 1:1 to ped position (GTA V style)
+    if (std::abs(vecPedPos.z - s_fSmoothedPedZ) > 3.0f) {
+        s_fSmoothedPedZ = vecPedPos.z;
+    } else {
+        const float fZLerp = 1.0f - std::pow(0.01f, CTimer::GetTimeStep() * 0.05f);
+        s_fSmoothedPedZ = (1.0f - fZLerp) * s_fSmoothedPedZ + fZLerp * vecPedPos.z;
+    }
+
+    const CVector vecRight(std::cos(m_fHorizontalAngle), std::sin(m_fHorizontalAngle), 0.0f);
+    const CVector vecUp(0.0f, 0.0f, 1.0f);
+
+    // Pivot is centered directly on CJ with exact GTA V motion shake displacement
+    CVector vecPivot = CVector(vecPedPos.x, vecPedPos.y, s_fSmoothedPedZ + 0.65f);
+    vecPivot += vecRight * fShakeRelX + vecUp * fShakeRelZ;
+
+    // Distance based on PedZoom setting
+    float fBaseDist = 2.4f;
+    if (TheCamera.m_nPedZoom == ZOOM_ONE) {
+        fBaseDist = 1.85f;
+    } else if (TheCamera.m_nPedZoom == ZOOM_TWO) {
+        fBaseDist = 2.55f;
+    } else if (TheCamera.m_nPedZoom == ZOOM_THREE) {
+        fBaseDist = 3.65f;
+    }
+
+    fBaseDist += TheCamera.m_fPedZoomSmoothed;
+
+    // --- GTA V Pitch-Dependent FOV Amplification & Shoulder Centering ---
+    // When looking down from above (top-down view), FOV amplifies from 70 deg up to ~84 deg
+    float fDynamicFOV = 70.0f;
+    float fDownRatio  = 0.0f;
+    if (s_fPedOrbitAlpha > 0.15f) {
+        fDownRatio = std::clamp((s_fPedOrbitAlpha - 0.15f) / 1.15f, 0.0f, 1.0f);
+        fDynamicFOV += 14.0f * (fDownRatio * fDownRatio);
+        fBaseDist   += 0.40f * (fDownRatio * fDownRatio);
+    } else if (s_fPedOrbitAlpha < 0.0f) {
+        const float fUpRatio = std::clamp(-s_fPedOrbitAlpha / 1.25f, 0.0f, 1.0f);
+        fDynamicFOV -= 3.0f * fUpRatio;
+    }
+
+    // Direction vector pointing FROM camera TO ped (RenderWare coords: +Y is North/Forward, +X is East/Right, +Z is Up)
+    CVector vecDir;
+    vecDir.x = -std::sin(m_fHorizontalAngle) * std::cos(m_fVerticalAngle);
+    vecDir.y = std::cos(m_fHorizontalAngle) * std::cos(m_fVerticalAngle);
+    vecDir.z = -std::sin(m_fVerticalAngle);
+
+    // Over-the-right-shoulder offset blends to 0 when looking straight down (GTA V style top-down centering)
+    const float fShoulderScale = 1.0f - (fDownRatio * fDownRatio * 0.85f);
+    const CVector vecShoulderOffset = vecRight * (0.22f * fShoulderScale);
+    CVector vecIdealSource = vecPivot + vecShoulderOffset - vecDir * fBaseDist;
+
+    // Ground height safety limit (never go below ped feet + 0.35m)
+    const float fMinPedZ = vecPedPos.z + 0.35f;
+    if (vecIdealSource.z < fMinPedZ) {
+        vecIdealSource.z = fMinPedZ;
+    }
+
+    // Obstacle clearance via line of sight (ignore player ped)
+    CColPoint colPoint;
+    CEntity* pHitEntity = nullptr;
+    CWorld::pIgnoreEntity = pPed;
+    if (CWorld::ProcessLineOfSight(vecPivot, vecIdealSource, colPoint, pHitEntity, true, false, false, true, false, false, false, false)) {
+        float fHitDist = (colPoint.m_vecPoint - vecPivot).Magnitude() - 0.25f;
+        if (fHitDist < 0.60f) fHitDist = 0.60f;
+        m_vecSource = vecPivot + vecShoulderOffset - vecDir * fHitDist;
+        if (m_vecSource.z < fMinPedZ) {
+            m_vecSource.z = fMinPedZ;
+        }
+    } else {
+        m_vecSource = vecIdealSource;
+    }
+    CWorld::pIgnoreEntity = nullptr;
+
+    // Look-At Target (focused on CJ's upper body / head, centered on screen)
+    const CVector vecLookAtTarget = vecPivot + vecRight * (0.08f * fShoulderScale);
+    m_vecFront = (vecLookAtTarget - m_vecSource).Normalized();
+    m_vecUp    = (vecUp + vecRight * fShakeRoll).Normalized();
+    m_fFOV     = fDynamicFOV;
+
+    TheCamera.m_bCamDirectlyBehind  = false;
+    TheCamera.m_bCamDirectlyInFront = false;
+
+    m_vecTargetCoorsForFudgeInter = vecPivot;
+    m_fDistance = fBaseDist;
+
+    GetVectorsReadyForRW();
+    RwCameraSetNearClipPlane(Scene.m_pRwCamera, 0.15f);
+    return;
+#else
     if (!m_pCamTargetEntity->GetIsTypePed())
         return;
 
@@ -5589,6 +6712,7 @@ void CCam::Process_FollowPed_SA(const CVector &ThisCamsTarget, float TargetOrien
     }
 
     this->m_bResetStatics = false;
+#endif
 }
 
 // 0x5105C0
@@ -5599,6 +6723,10 @@ float M16_1STPERSON_MOUSEWHEEL_ZOOM_RATE = 7.0f;
 float fCameraNearClipMult = 0.15f;
 
 void CCam::Process_M16_1stPerson(const CVector& ThisCamsTarget, float TargetOrientation, float SpeedVar, float SpeedVarDesired) {
+#if MODERN_CAM
+    Process_AimWeapon(ThisCamsTarget, TargetOrientation, SpeedVar, SpeedVarDesired);
+    return;
+#else
     constexpr auto CAM_BUMPED_SWING_PERIOD = 120.0f;
     constexpr auto CAM_BUMPED_MOVE_MULT    = 0.05f;
     constexpr auto CAM_BUMPED_DAMP_RATE    = 0.95f;
@@ -5964,6 +7092,7 @@ void CCam::Process_M16_1stPerson(const CVector& ThisCamsTarget, float TargetOrie
     const float CamDirection                               = std::atan2(-m_vecFront.x, m_vecFront.y);
     TheCamera.m_pTargetEntity->AsPed()->m_fCurrentRotation = CamDirection;
     TheCamera.m_pTargetEntity->AsPed()->m_fAimingRotation  = CamDirection;
+#endif
 }
 
 // 0x511B50

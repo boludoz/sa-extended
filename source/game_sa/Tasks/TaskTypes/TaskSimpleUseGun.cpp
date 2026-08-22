@@ -100,6 +100,14 @@ void CTaskSimpleUseGun::FireGun(CPed* ped, bool isLeftHand) {
         if (!ped->m_pedIK.bUseArm) {
             ped->m_pedIK.bGunReachedTarget = g_ikChainMan.IsFacingTarget(ped, isLeftHand ? eIKChainSlot::LEFT_ARM : eIKChainSlot::RIGHT_ARM);
         }
+#if MODERN_CAM
+        // When auto-aim lock-on is active, force bGunReachedTarget so FireInstantHit
+        // uses the direct target entity path (path 2) which correctly computes the
+        // bullet direction from origin to the target's bone position.
+        if (m_TargetEntity && ped->IsPlayer() && ped->m_pTargetedObject) {
+            ped->m_pedIK.bGunReachedTarget = true;
+        }
+#endif
         DoFireGun(origin, barrelPos);
     } else { // Otherwise ped is probably not on screen anyways, so just do something good enough
         CVector origin = ped->GetPosition();
@@ -321,13 +329,13 @@ void CTaskSimpleUseGun::AimGun(CPed* ped) {
                 } 
             }
 
-            ped->m_pedIK.RotateTorsoForArm(m_TargetEntity->GetPosition());
+            ped->m_pedIK.RotateTorsoForArm(lookAtPos);
         } else {
             ped->m_pedIK.PointGunAtPosition(lookAtPos, m_Anim->GetBlendAmount());
         }
     } else if (ped->m_pedIK.bUseArm) { // 0x61EFB4 - Process player free-aiming
         const auto pd = ped->GetPlayerData();
-        if (pd && pd->m_bFreeAiming && CVector2D{ m_TargetPos }.IsZero() && notsa::contains({ MODE_AIMWEAPON, MODE_AIMWEAPON_ATTACHED }, TheCamera.m_aCams[0].m_nMode)) { // Aim to in front of us
+        if (pd && pd->m_bFreeAiming && CVector2D{ m_TargetPos }.IsZero() && notsa::contains({ MODE_AIMWEAPON, MODE_AIMWEAPON_ATTACHED, MODE_1STPERSON_RUNABOUT }, TheCamera.m_aCams[0].m_nMode)) { // Aim to in front of us
             CVector origin, target;
             TheCamera.Find3rdPersonCamTargetVector(20.f, ped->GetPosition() + CVector{0.f, 0.f, 0.7f}, origin, target);
 
@@ -567,7 +575,7 @@ CVector CTaskSimpleUseGun::GetAimTargetPosition(CPed* ped) const {
         }
         return m_TargetEntity->GetPosition();
     }
-    if (ped->IsPlayer() && TheCamera.m_aCams[0].m_nMode == MODE_AIMWEAPON) {
+    if (ped->IsPlayer() && notsa::contains({ MODE_AIMWEAPON, MODE_AIMWEAPON_ATTACHED, MODE_1STPERSON_RUNABOUT }, TheCamera.m_aCams[0].m_nMode)) {
         CVector src, target;
         TheCamera.Find3rdPersonCamTargetVector(20.f, ped->GetPosition() + CVector{0.f, 0.f, 0.7f}, src, target);
         return target;
@@ -579,11 +587,22 @@ CVector CTaskSimpleUseGun::GetAimTargetPosition(CPed* ped) const {
 std::pair<CVector, eBoneTag> CTaskSimpleUseGun::GetAimLookAtInfo() const {
     if (m_TargetEntity->GetIsTypePed()) {
         const auto targetPed = m_TargetEntity->AsPed();
-        if (const auto pd = targetPed->GetPlayerData()) {
-            CVector ret = pd->m_vecTargetBoneOffset;
-            targetPed->GetTransformedBonePosition(ret, (eBoneTag)pd->m_nTargetBone);
-            return {ret, (eBoneTag)pd->m_nTargetBone};
+        eBoneTag boneTag = BONE_SPINE1;
+        CVector offset = CVector(0.0f, 0.0f, 0.0f);
+        if (const auto player = FindPlayerPed()) {
+            if (const auto pd = player->GetPlayerData()) {
+                if (pd->m_nTargetBone != 0) {
+                    boneTag = (eBoneTag)pd->m_nTargetBone;
+                    offset = pd->m_vecTargetBoneOffset;
+                }
+            }
         }
+        CVector ret = offset;
+        targetPed->GetTransformedBonePosition(ret, boneTag, false);
+        return {ret, boneTag};
+    }
+    if (m_TargetEntity->GetIsTypeVehicle()) {
+        return {m_TargetEntity->GetPosition() + CVector(0.0f, 0.0f, 0.35f), BONE_SPINE1};
     }
     return {m_TargetEntity->GetPosition(), BONE_SPINE1};
 }

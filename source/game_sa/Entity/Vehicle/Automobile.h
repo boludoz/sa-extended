@@ -273,6 +273,8 @@ public:
     // Process combine
     void ProcessHarvester();
     void ProcessSwingingDoor(eCarNodes nodeIndex, eDoors door);
+    void ProcessOpenDoorCollision(eCarNodes nodeIndex, eDoors door);
+    void ProcessAllOpenDoors();
     // Returns spawned flying component?
     CPhysical* RemoveBonnetInPedCollision();
     void UpdateWheelMatrix(int32 nodeIndex, int32 flags);

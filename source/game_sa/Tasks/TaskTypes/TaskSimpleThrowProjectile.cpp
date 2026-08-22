@@ -138,6 +138,46 @@ bool CTaskSimpleThrowProjectile::ProcessPed(CPed* ped) {
     }
 
     switch (m_Anim->m_AnimId) {
+    case ANIM_ID_GRENADE_WEAPON_START_THROW: {
+        if (ped->IsPlayer()) {
+            const auto pad = ped->AsPlayer()->GetPadFromPlayer();
+            const bool bHoldingAim = pad ? pad->GetTarget() : false;
+            const bool bPressingFire = pad ? (pad->GetWeapon(ped) || pad->WeaponJustDown(ped)) : false;
+
+            if (bHoldingAim && !bPressingFire) {
+                // Hold at the ready-to-throw wind-up position while RMB is held
+                if (m_Anim->m_BlendHier) {
+                    const float maxProgress = 0.85f;
+                    const float maxTime = m_Anim->m_BlendHier->GetTotalTime() * maxProgress;
+                    if (m_Anim->m_CurrentTime >= maxTime) {
+                        m_Anim->m_CurrentTime = maxTime;
+                        m_Anim->m_TimeStep = 0.0f;
+                    }
+                }
+                return false;
+            }
+
+            if (!bHoldingAim && !bPressingFire) {
+                // Aim released without firing -> smoothly cancel back to idle without throwing!
+                m_Anim->SetDefaultFinishCallback();
+                m_Anim->m_BlendDelta = -8.0f;
+                m_Anim = nullptr;
+                m_bIsFinished = true;
+                return true;
+            }
+
+            if (bPressingFire && !m_bStartThrowFinished) {
+                // Left click pressed -> proceed to throw!
+                m_bStartThrowFinished = true;
+                m_bButtonReleased = true;
+                m_Anim->SetDefaultFinishCallback();
+                m_Anim = nullptr;
+                StartAnim(ped);
+                return false;
+            }
+        }
+        break;
+    }
     case ANIM_ID_GRENADE_WEAPON_THROW:
     case ANIM_ID_GRENADE_WEAPON_THROWU:
         const auto animFireTime = m_Anim->m_AnimId == ANIM_ID_GRENADE_WEAPON_THROW

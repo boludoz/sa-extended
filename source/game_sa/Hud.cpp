@@ -38,7 +38,7 @@ void CHud::InjectHooks() {
     RH_ScopedInstall(DrawAfterFade, 0x58D490);
     RH_ScopedInstall(DrawAreaName, 0x58AA50);
     RH_ScopedInstall(DrawBustedWastedMessage, 0x58CA50);
-    RH_ScopedInstall(DrawCrossHairs, 0x58E020, { .reversed = false }); // -
+    RH_ScopedInstall(DrawCrossHairs, 0x58E020);
     RH_ScopedInstall(DrawFadeState, 0x58D580);
     RH_ScopedInstall(DrawHelpText, 0x58B6E0, { .reversed = false });
     RH_ScopedInstall(DrawMissionTimers, 0x58B180, { .reversed = false });
@@ -593,10 +593,6 @@ void CHud::ResetWastedText() {
 
 // 0x58E020
 void CHud::DrawCrossHairs() {
-    return plugin::Call<0x58E020>();
-
-    plugin::Call<0x58E020>(); // for test purposes
-
     struct RestoreRenderState {
         ~RestoreRenderState() {
             RwRenderStateSet(rwRENDERSTATESRCBLEND,     RWRSTATE(rwBLENDSRCALPHA));
@@ -646,24 +642,44 @@ void CHud::DrawCrossHairs() {
 
     CTaskSimpleUseGun* localTakUseGun = player->GetIntelligence()->GetTaskUseGun();
     if (!player->m_pTargetedObject && !player->bIsRestoringLook && (!localTakUseGun || !localTakUseGun->m_SkipAim)) {
-        if (camMode == MODE_AIMWEAPON || camMode == MODE_AIMWEAPON_FROMCAR || camMode == MODE_AIMWEAPON_ATTACHED) {
+        if (camMode == MODE_AIMWEAPON || camMode == MODE_AIMWEAPON_FROMCAR || camMode == MODE_AIMWEAPON_ATTACHED
+#if MODERN_CAM
+            || (camMode == MODE_1STPERSON_RUNABOUT && (CPad::GetPad(0)->GetTarget() || (player->GetPlayerData() && player->GetPlayerData()->m_bFreeAiming)))
+#endif
+        ) {
             if (player->m_nPedState != ePedState::PEDSTATE_ENTER_CAR && player->m_nPedState != ePedState::PEDSTATE_CARJACK) {
                 if ((activeWeapon.m_Type >= eWeaponType::WEAPON_PISTOL &&
                      activeWeapon.m_Type <= eWeaponType::WEAPON_COUNTRYRIFLE
                     ) ||
                      activeWeapon.m_Type == eWeaponType::WEAPON_FLAMETHROWER || activeWeapon.m_Type == eWeaponType::WEAPON_MINIGUN
+#if MODERN_CAM
+                     || (activeWeapon.m_Type >= eWeaponType::WEAPON_GRENADE && activeWeapon.m_Type <= eWeaponType::WEAPON_MOLOTOV)
+                     || activeWeapon.m_Type == eWeaponType::WEAPON_REMOTE_SATCHEL_CHARGE
+#endif
                 ) {
-                    bDrawCircleCrossHair = camMode == MODE_AIMWEAPON || TheCamera.m_bTransitionState;
+                    bDrawCircleCrossHair = camMode == MODE_AIMWEAPON || camMode == MODE_1STPERSON_RUNABOUT || TheCamera.m_bTransitionState;
                 }
             }
         }
     }
 
+#if MODERN_CAM
+    // Force crosshair for throwable weapons when player is free-aiming (GTA V style)
+    // This catches cases where the camera hasn't fully transitioned to MODE_AIMWEAPON yet
+    if (!bDrawCircleCrossHair && player && player->GetPlayerData() && player->GetPlayerData()->m_bFreeAiming
+        && CPad::GetPad(0)->GetTarget()
+        && ((activeWeapon.m_Type >= eWeaponType::WEAPON_GRENADE && activeWeapon.m_Type <= eWeaponType::WEAPON_MOLOTOV)
+            || activeWeapon.m_Type == eWeaponType::WEAPON_REMOTE_SATCHEL_CHARGE))
+    {
+        bDrawCircleCrossHair = true;
+    }
+#endif
+
     if (!bDrawCircleCrossHair && !bDrawCustomCrossHair && CTheScripts::bDrawCrossHair == eCrossHairType::NONE)
         return;
 
     CRect rect;
-    const CRGBA black = CRGBA(255, 0, 0, 255); // TODO: RED FOR TES PURPOSES. OG : CRGBA(255, 255, 255, 255);
+    const CRGBA crossHairColor = CRGBA(255, 255, 255, 255);
     if (bDrawCircleCrossHair) { // 0x58E1E1
         RwRenderStateSet(rwRENDERSTATETEXTUREFILTER, RWRSTATE(rwFILTERLINEAR));
         RwRenderStateSet(rwRENDERSTATEZWRITEENABLE,  RWRSTATE(FALSE));
@@ -677,24 +693,24 @@ void CHud::DrawCrossHairs() {
             rect.bottom    = hairMultYOnScreen - 1.0f;
             rect.right  = hairMultXOnScreen + 1.0f;
             rect.top = hairMultYOnScreen + 1.0f;
-            CSprite2d::DrawRect(rect, black);
+            CSprite2d::DrawRect(rect, crossHairColor);
         }
 
         rect.left   = hairMultXOnScreen - SCREEN_STRETCH_X(64.0f * gunRadius / 2.0f);
         rect.bottom    = hairMultYOnScreen - SCREEN_STRETCH_Y(64.0f * gunRadius / 2.0f);
         rect.right  = rect.left + SCREEN_STRETCH_X(64.0f * gunRadius / 2.0f);
         rect.top = rect.bottom  + SCREEN_STRETCH_Y(64.0f * gunRadius / 2.0f);
-        Sprites[SPRITE_SITE_M16].Draw(rect, black); // left top
+        Sprites[SPRITE_SITE_M16].Draw(rect, crossHairColor); // left top
 
         rect.left   = hairMultXOnScreen + SCREEN_STRETCH_X(64.0f * gunRadius / 2.0f);
-        Sprites[SPRITE_SITE_M16].Draw(rect, black); // right top
+        Sprites[SPRITE_SITE_M16].Draw(rect, crossHairColor); // right top
 
         rect.left   = hairMultXOnScreen - SCREEN_STRETCH_X(64.0f * gunRadius / 2.0f);
         rect.bottom   += SCREEN_STRETCH_Y(64.0f * gunRadius);
-        Sprites[SPRITE_SITE_M16].Draw(rect, black); // left bottom
+        Sprites[SPRITE_SITE_M16].Draw(rect, crossHairColor); // left bottom
 
         rect.left   = hairMultXOnScreen + SCREEN_STRETCH_X(64.0f * gunRadius / 2.0f);
-        Sprites[SPRITE_SITE_M16].Draw(rect, black); // right bottom
+        Sprites[SPRITE_SITE_M16].Draw(rect, crossHairColor); // right bottom
         return;
     }
 
@@ -711,25 +727,25 @@ void CHud::DrawCrossHairs() {
             rect.bottom    = (SCREEN_HEIGHT / 2.0f)  - SCREEN_STRETCH_Y(64.0f / 2.0f);
             rect.right  = ((SCREEN_WIDTH / 2.0f)  - SCREEN_STRETCH_X(64.0f / 2.0f)) + SCREEN_STRETCH_X(64.0f / 2.0f);
             rect.top = ((SCREEN_HEIGHT / 2.0f) - SCREEN_STRETCH_Y(64.0f / 2.0f)) + SCREEN_STRETCH_Y(64.0f / 2.0f);
-            Sprites[SPRITE_SITE_M16].Draw(rect, black);
+            Sprites[SPRITE_SITE_M16].Draw(rect, crossHairColor);
 
             rect.left   = (SCREEN_WIDTH / 2.0f)   + SCREEN_STRETCH_X(64.0f / 2.0f); // top right
             rect.bottom    = (SCREEN_HEIGHT / 2.0f)  - SCREEN_STRETCH_Y(64.0f / 2.0f);
             rect.right  = ((SCREEN_WIDTH / 2.0f)  - SCREEN_STRETCH_X(64.0f / 2.0f)) + SCREEN_STRETCH_X(64.0f / 2.0f);
             rect.top = ((SCREEN_HEIGHT / 2.0f) - SCREEN_STRETCH_Y(64.0f / 2.0f)) + SCREEN_STRETCH_Y(64.0f / 2.0f);
-            Sprites[SPRITE_SITE_M16].Draw(rect, black);
+            Sprites[SPRITE_SITE_M16].Draw(rect, crossHairColor);
 
             rect.left   = (SCREEN_WIDTH / 2.0f)   - SCREEN_STRETCH_X(64.0f / 2.0f); // bottom left
             rect.bottom    = SCREEN_STRETCH_Y(64.0f) + ((SCREEN_HEIGHT / 2.0f) - SCREEN_STRETCH_Y(64.0f / 2.0f));
             rect.right  = ((SCREEN_WIDTH / 2.0f)  - SCREEN_STRETCH_X(64.0f / 2.0f)) + SCREEN_STRETCH_X(64.0f / 2.0f);
             rect.top = ((SCREEN_HEIGHT / 2.0f) - SCREEN_STRETCH_Y(64.0f / 2.0f)) + SCREEN_STRETCH_Y(64.0f / 2.0f);
-            Sprites[SPRITE_SITE_M16].Draw(rect, black);
+            Sprites[SPRITE_SITE_M16].Draw(rect, crossHairColor);
 
             rect.left   = (SCREEN_WIDTH / 2.0f)   + SCREEN_STRETCH_X(64.0f / 2.0f); // bottom right
             rect.bottom    = SCREEN_STRETCH_Y(64.0f) + ((SCREEN_HEIGHT / 2.0f) - SCREEN_STRETCH_Y(64.0f / 2.0f));
             rect.right  = ((SCREEN_WIDTH / 2.0f)  - SCREEN_STRETCH_X(64.0f / 2.0f)) + SCREEN_STRETCH_X(64.0f / 2.0f);
             rect.top = ((SCREEN_HEIGHT / 2.0f) - SCREEN_STRETCH_Y(64.0f / 2.0f)) + SCREEN_STRETCH_Y(64.0f / 2.0f);
-            Sprites[SPRITE_SITE_M16].Draw(rect, black);
+            Sprites[SPRITE_SITE_M16].Draw(rect, crossHairColor);
             return;
         }
     }
