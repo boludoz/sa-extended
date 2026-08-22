@@ -116,7 +116,7 @@ void BoneNode_c::QuatToEuler(const RtQuat& quat, CVector& outAngles) {
     const float w = quat.real;
 
     const float sinPitch = 2.0f * (x * z - y * w);
-    outAngles.y = RadiansToDegrees(std::asin(-sinPitch)); // Simplified from the original atan2 logic
+    outAngles.y = RadiansToDegrees(CGeneral::Asin(-sinPitch)); // Simplified from the original atan2 logic
     
     // Code simplified here, originally it was divided by some value, but it didn't change the result, so we can skip that step
     if (approxEqual(sinPitch, 1.f, 0.0001f)) { // Gimbal lock case: Yaw and Roll collapse into a single degree of freedom

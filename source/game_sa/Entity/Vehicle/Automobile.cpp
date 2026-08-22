@@ -793,7 +793,7 @@ void CAutomobile::ProcessControl()
             float adhesive = g_surfaceInfos.GetAdhesiveLimit(&colPoint);
             steerAngle = adhesive * traction * 4.0f * 4.0f / (speedForward * speedForward);
             steerAngle = std::min(steerAngle, 1.0f);
-            steerAngle = std::asin(steerAngle) / DegreesToRadians(m_pHandlingData->m_fSteeringLock);
+            steerAngle = CGeneral::Asin(steerAngle) / DegreesToRadians(m_pHandlingData->m_fSteeringLock);
             if (m_fSteerAngle < 0.0f && speedRight > 0.05f
                 || m_fSteerAngle > 0.0f && speedRight < -0.05f
                 || vehicleFlags.bIsHandbrakeOn
@@ -5695,7 +5695,7 @@ void CAutomobile::UpdateWheelMatrix(int32 nodeIndex, int32 flags) {
         const float tiltSign = ((bFrontWheel && m_pHandlingData->m_bAxleFReverse)
                              || (bRearWheel  && m_pHandlingData->m_bAxleRReverse))
                              ? -1.f : 1.f;
-        mat.RotateY(tiltSign * std::asin(std::clamp<float>(rhsSide * WHEEL_TILT_FACTOR * heightOffset, -1.f, 1.f)));
+        mat.RotateY(tiltSign * CGeneral::Asin(rhsSide * WHEEL_TILT_FACTOR * heightOffset));
     }
 
     mat.GetPosition() = posn;
@@ -7060,11 +7060,11 @@ void CAutomobile::PreRender() {
             if (m_pVehicleBeingTowed->GetTowHitchPos(vecDelta, true, this) && GetTowBarPos(vecTemp, true, m_pVehicleBeingTowed)) {
                 vecDelta -= vecTemp;
                 float fTempDist = DotProduct(vecDelta, GetForward());
-                fRotAngle += std::asin(fTempDist / 1.0f);
+                fRotAngle += CGeneral::Asin(fTempDist);
                 SetComponentRotation(m_aCarNodes[CAR_MISC_B], AXIS_X, fRotAngle, true);
 
                 fTempDist = DotProduct(vecDelta, GetRight());
-                fRotAngle = std::asin(-fTempDist / 1.0f);
+                fRotAngle = CGeneral::Asin(-fTempDist);
                 SetComponentRotation(m_aCarNodes[CAR_MISC_B], AXIS_Y, fRotAngle, false);
             }
         } else {
@@ -7121,7 +7121,7 @@ void CAutomobile::PreRender() {
 
         float fChassisRollAngle = 0.0f;
         if (GetUp().z > 0.0f && m_nGettingInFlags == 0 && m_nGettingOutFlags == 0) {
-            fChassisRollAngle = std::asin(GetRight().z);
+            fChassisRollAngle = CGeneral::Asin(GetRight().z);
             fChassisRollAngle = std::clamp(fChassisRollAngle, -DegreesToRadians(30.0f), DegreesToRadians(30.0f));
         }
 

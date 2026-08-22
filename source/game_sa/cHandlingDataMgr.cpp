@@ -346,10 +346,10 @@ void cHandlingDataMgr::ConvertDataToGameUnits(tHandlingData* h) {
 
 // 0x6F5240
 void cHandlingDataMgr::ConvertBikeDataToWorldUnits(tBikeHandlingData* bikeHandling) {
-    bikeHandling->m_fMaxLean = RadiansToDegrees(asin(bikeHandling->m_fMaxLean));
+    bikeHandling->m_fMaxLean = RadiansToDegrees(CGeneral::Asin(bikeHandling->m_fMaxLean));
     bikeHandling->m_fFullAnimLean = RadiansToDegrees(bikeHandling->m_fFullAnimLean);
-    bikeHandling->m_fWheelieAng = RadiansToDegrees(asin(bikeHandling->m_fWheelieAng));
-    bikeHandling->m_fStoppieAng = RadiansToDegrees(asin(bikeHandling->m_fStoppieAng));
+    bikeHandling->m_fWheelieAng = RadiansToDegrees(CGeneral::Asin(bikeHandling->m_fWheelieAng));
+    bikeHandling->m_fStoppieAng = RadiansToDegrees(CGeneral::Asin(bikeHandling->m_fStoppieAng));
 }
 
 // 0x6F5290

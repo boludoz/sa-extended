@@ -221,12 +221,12 @@ void CPlaceable::GetOrientation(float& x, float& y, float& z) {
         return;
     }
 
-    x = asinf(GetForward().z);
+    x = CGeneral::Asin(GetForward().z);
 
     float cosx = std::cosf(x);
     float cosy = GetUp().z / cosx;
-    y = std::acosf(cosy);
+    y = CGeneral::Acos(cosy);
 
     float cosz = GetForward().y / cosx;
-    z = std::acosf(cosz);
+    z = CGeneral::Acos(cosz);
 }
