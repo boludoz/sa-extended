@@ -99,10 +99,13 @@ void CMatrix::CopyOnlyMatrix(const CMatrix& matrix)
     memcpy(this, &matrix, sizeof(RwMatrix));
 }
 
-// update RwMatrix with attaching matrix. This doesn't check if attaching matrix is present, so use it only if you know it is present.
-// Using UpdateRW() is more safe since it perform this check.
+// update RwMatrix with attaching matrix.
 void CMatrix::Update()
 {
+    assert(m_pAttachMatrix);
+    if (!m_pAttachMatrix)
+        return;
+
     CMatrix::UpdateMatrix(m_pAttachMatrix);
 }
 
@@ -118,6 +121,10 @@ void CMatrix::UpdateRW()
 // update RwMatrix with this matrix
 void CMatrix::UpdateRwMatrix(RwMatrix* matrix) const
 {
+    assert(matrix);
+    if (!matrix)
+        return;
+
     *RwMatrixGetRight(matrix) = m_right;
     *RwMatrixGetUp(matrix) = m_forward;
     *RwMatrixGetAt(matrix) = m_up;
@@ -128,6 +135,10 @@ void CMatrix::UpdateRwMatrix(RwMatrix* matrix) const
 
 void CMatrix::UpdateMatrix(RwMatrix* rwMatrix)
 {
+    assert(rwMatrix);
+    if (!rwMatrix)
+        return;
+
     m_right = *RwMatrixGetRight(rwMatrix);
     m_forward = *RwMatrixGetUp(rwMatrix);
     m_up = *RwMatrixGetAt(rwMatrix);

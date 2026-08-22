@@ -160,7 +160,17 @@ int32 CStats::FindCriminalRatingNumber() {
 
 // 0x5591E0
 float CStats::GetPercentageProgress() {
-    return std::min(StatTypesFloat[STAT_PROGRESS_MADE] / 187.0f * 100.0f, 100.0f);
+    float Percentage;
+
+    if (GetStatValue(STAT_TOTAL_PROGRESS) == 0.0f) {
+        return 0.0f;
+    }
+
+    Percentage = GetStatValue(STAT_PROGRESS_MADE) / GetStatValue(STAT_TOTAL_PROGRESS) * 100.0f;
+    if (Percentage > 100.0f) {
+        return 100.0f;
+    }
+    return Percentage;
 }
 
 // 0x559230
