@@ -1560,7 +1560,7 @@ void CBike::PreRender() {
         matrix.Attach(RwFrameGetMatrix(m_aBikeNodes[BIKE_FORKS_REAR]), false);
         posn = matrix.GetPosition();
         if (m_fSwingArmLength > 0.0f) {
-            float fRotateAng = -CGeneral::Asin((m_aWheelSuspensionHeights[1] - m_aWheelOrigHeights[1]) / m_fSwingArmLength);
+            float fRotateAng = -asin((m_aWheelSuspensionHeights[1] - m_aWheelOrigHeights[1]) / m_fSwingArmLength);
             matrix.SetRotate(fRotateAng, 0.0f, 0.0f);
         } else {
             matrix.SetRotate(0.0f, 0.0f, 0.0f);

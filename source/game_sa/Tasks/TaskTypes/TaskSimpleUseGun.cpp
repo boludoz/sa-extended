@@ -747,32 +747,41 @@ void CTaskSimpleUseGun::SetMoveAnim(CPed* ped) {
 
 // 0x624F30
 void CTaskSimpleUseGun::StartAnim(CPed* ped) {
-    const auto tDuck = ped->bIsDucking
-        ? ped->GetIntelligence()->GetTaskDuck()
-        : nullptr;
+    CTaskSimpleDuck* tDuck = nullptr;
+    if (ped->bIsDucking) {
+        tDuck = ped->GetIntelligence()->GetTaskDuck(true);
+    }
 
     if (m_Anim) {
-        if (m_NextCmd == eGunCommand::END_NOW && m_LastCmd <= eGunCommand::FIREBURST) {
-            if (m_Anim->GetBlendDelta() > -8.f && m_Anim->GetBlendAmount() > 0.f) {
-                m_Anim->SetBlendDelta(-8.f);
-            }
+        if (m_NextCmd == eGunCommand::END_NOW
+            && m_Anim->GetBlendDelta() > -8.0f
+            && m_Anim->GetBlendAmount() > 0.0f
+            && m_LastCmd < eGunCommand::RELOAD)
+        {
+            m_Anim->SetBlendDelta(-8.0f);
         }
         m_Anim->SetDefaultDeleteCallback();
         m_Anim = nullptr;
     }
 
-    switch (m_NextCmd) {                      
+    switch (m_NextCmd) {
+    case eGunCommand::NONE:
+    case eGunCommand::END_LEISURE: {
+        RemoveStanceAnims(ped, 4.0f);
+        m_SkipAim = true;
+        m_LastCmd = m_NextCmd;
+        m_NextCmd = eGunCommand::NONE;
+        break;
+    }
     case eGunCommand::AIM:
     case eGunCommand::FIRE:
-    case eGunCommand::FIREBURST: { // 0x624FC1
+    case eGunCommand::FIREBURST: {
         if (m_NextCmd == eGunCommand::AIM) {
-            if (!m_MoveCmd.IsZero() && !m_WeaponInfo->flags.bMoveFire || tDuck && tDuck->IsTaskInUseByOtherTasks()) { // 0x624FC3 - Check if we can fire right now
-                switch (m_LastCmd) {
-                case eGunCommand::FIRE:
-                case eGunCommand::FIREBURST:
+            if ((!m_MoveCmd.IsZero() && !m_WeaponInfo->flags.bMoveFire) || (tDuck && tDuck->IsTaskInUseByOtherTasks())) {
+                if (m_LastCmd == eGunCommand::FIRE || m_LastCmd == eGunCommand::FIREBURST) {
                     m_LastCmd = eGunCommand::AIM;
                 }
-                return; // Nope, we can't fire right now, so continue aiming
+                return;
             }
         } else if (tDuck && tDuck->StopFireGun()) {
             return;
@@ -782,26 +791,33 @@ void CTaskSimpleUseGun::StartAnim(CPed* ped) {
             m_BurstShots = m_BurstLength;
         }
 
-        m_Anim = CAnimManager::BlendAnimation( // 0x62503A
+        AnimationId animId = (ped->bIsDucking && m_WeaponInfo->flags.bCrouchFire)
+            ? ANIM_ID_CROUCHFIRE
+            : ANIM_ID_FIRE;
+
+        m_Anim = CAnimManager::BlendAnimation(
             ped->GetRpClump(),
             m_WeaponInfo->m_eAnimGroup,
-            ped->bIsDucking && m_WeaponInfo->flags.bCrouchFire
-                ? ANIM_ID_CROUCHFIRE
-                : ANIM_ID_FIRE
+            animId,
+            8.0f
         );
 
-        if (m_LastCmd == eGunCommand::RELOAD) {
-            if (m_WeaponInfo->flags.bReload2Start) {
-                m_Anim->SetCurrentTime(m_WeaponInfo->GetAnimLoopStart(ped->bIsDucking));
-                m_Anim->SetFlag(ANIMATION_IS_PLAYING, false);
+        if (m_Anim) {
+            if (m_LastCmd == eGunCommand::RELOAD) {
+                if (m_WeaponInfo->flags.bReload2Start) {
+                    float loopStart = m_WeaponInfo->GetAnimLoopStart(ped->bIsDucking);
+                    m_Anim->SetCurrentTime(loopStart);
+                    m_Anim->SetFlag(ANIMATION_IS_PLAYING, false);
+                }
             }
+            m_Anim->SetFinishCallback(FinishGunAnimCB, this);
         }
 
-        m_Anim->SetFinishCallback(FinishGunAnimCB, this);
-
+        m_LastCmd = m_NextCmd;
+        m_NextCmd = eGunCommand::NONE;
         break;
     }
-    case eGunCommand::RELOAD: { // 0x6250E5
+    case eGunCommand::RELOAD: {
         if (tDuck && tDuck->StopFireGun()) {
             return;
         }
@@ -810,52 +826,64 @@ void CTaskSimpleUseGun::StartAnim(CPed* ped) {
             m_BurstShots = m_WeaponInfo->flags.bTwinPistol ? 2 : 1;
         }
 
-        if (m_BurstShots > 0) { // 0x625196 - Inverted
-            m_Anim = CAnimManager::BlendAnimation( // 0x62511C
+        if (m_BurstShots <= 0) {
+            m_LastCmd = m_NextCmd;
+            m_NextCmd = eGunCommand::NONE;
+        } else {
+            AnimationId animId = (ped->bIsDucking && m_WeaponInfo->flags.bCrouchFire)
+                ? ANIM_ID_CROUCHRELOAD
+                : ANIM_ID_RELOAD;
+
+            m_Anim = CAnimManager::BlendAnimation(
                 ped->GetRpClump(),
                 m_WeaponInfo->m_eAnimGroup,
-                ped->bIsDucking && m_WeaponInfo->flags.bCrouchFire
-                    ? ANIM_ID_CROUCHRELOAD
-                    : ANIM_ID_RELOAD
+                animId,
+                8.0f
             );
-            m_Anim->Start();
-            m_Anim->SetFinishCallback(FinishGunAnimCB, this);
 
-            m_BurstShots--;
-        } else {
+            if (m_Anim) {
+                m_Anim->Start();
+                m_Anim->SetFinishCallback(FinishGunAnimCB, this);
+            }
+
+            --m_BurstShots;
+            m_LastCmd = m_NextCmd;
             m_NextCmd = eGunCommand::NONE;
         }
-
         break;
     }
     case eGunCommand::PISTOLWHIP: {
-        if (tDuck && tDuck->StopFireGun()) {
-            return;
-        }
-        m_Anim = CAnimManager::BlendAnimation( // 0x6251DC
-            ped->GetRpClump(),
-            CTaskSimpleFight::m_aComboData[12].m_nAnimGroup,
-            ped->bIsDucking
-                ? ANIM_ID_FIGHT_2
-                : ANIM_ID_FIGHT_1
-        );
-        m_Anim->SetFinishCallback(FinishGunAnimCB, this);
-        break;
-    }
-    case eGunCommand::NONE:
-    case eGunCommand::END_LEISURE: { // 0x62520A [Moved here for readability]
-        RemoveStanceAnims(ped, 4.f);
-        m_IsFinished = true;
-        break;
-    }
-    case eGunCommand::END_NOW: { // 0x625214
-        RemoveStanceAnims(ped, 8.f);
-        m_IsFinished = true;
-        break;
-    }
-    }
+        if (!tDuck || !tDuck->IsTaskInUseByOtherTasks()) {
+            AnimationId animId = ped->bIsDucking ? ANIM_ID_FIGHT_2 : ANIM_ID_FIGHT_1;
+            m_Anim = CAnimManager::BlendAnimation(
+                ped->GetRpClump(),
+                CTaskSimpleFight::m_aComboData[12].m_nAnimGroup,
+                animId,
+                8.0f
+            );
 
-    m_LastCmd = std::exchange(m_NextCmd, eGunCommand::NONE);
+            if (m_Anim) {
+                m_Anim->SetFinishCallback(FinishGunAnimCB, this);
+            }
+
+            m_LastCmd = m_NextCmd;
+            m_NextCmd = eGunCommand::NONE;
+        }
+        break;
+    }
+    case eGunCommand::END_NOW: {
+        RemoveStanceAnims(ped, 8.0f);
+        m_SkipAim = true;
+        m_LastCmd = m_NextCmd;
+        m_NextCmd = eGunCommand::NONE;
+        break;
+    }
+    default: {
+        m_LastCmd = m_NextCmd;
+        m_NextCmd = eGunCommand::NONE;
+        break;
+    }
+    }
 }
 
 // 0x0x61E160
