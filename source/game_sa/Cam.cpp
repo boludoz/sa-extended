@@ -2273,12 +2273,12 @@ void CCam::Process_AimWeapon(const CVector& ThisCamsTarget, float TargetOrientat
             m_fVerticalAngle = settings.DefaultAlpha;
             if (pPed->bInVehicle && pPed->m_pVehicle) { // Drive-bys always start looking ahead
                 m_fHorizontalAngle = pPed->m_fCurrentRotation - HALF_PI - fAimAngleBeta;
-                m_fVerticalAngle  += CGeneral::Asin(pPed->m_pVehicle->GetMatrix().GetForward().z);
+                m_fVerticalAngle  += std::asin(std::clamp(pPed->m_pVehicle->GetMatrix().GetForward().z, -1.0f, 1.0f));
             } else if (!pPed->m_pTargetedObject) {
                 m_fHorizontalAngle = pPed->m_fCurrentRotation - HALF_PI + fAimAngleBeta;
                 if (pPed->bIsStanding) {
                     const auto groundNormalFwd = DotProduct(pPed->m_vecGroundNormal, pPed->GetMatrix().GetForward());
-                    m_fVerticalAngle -= CGeneral::Asin(groundNormalFwd);
+                    m_fVerticalAngle -= std::asin(std::clamp(groundNormalFwd, -1.0f, 1.0f));
                     if (weaponType == WEAPON_EXTINGUISHER) {
                         m_fVerticalAngle += CWeapon::ms_fExtinguisherAimAngle;
                     }
@@ -2516,7 +2516,7 @@ void CCam::Process_AimWeapon(const CVector& ThisCamsTarget, float TargetOrientat
             }
 
             if (isDriver) {
-                auto fTargetAlpha = CGeneral::Asin(pPed->m_pVehicle->GetMatrix().GetForward().z) + settings.DefaultAlpha;
+                auto fTargetAlpha = std::asin(std::clamp(pPed->m_pVehicle->GetMatrix().GetForward().z, -1.0f, 1.0f)) + settings.DefaultAlpha;
                 if (fTargetAlpha - m_fVerticalAngle > PI) {
                     fTargetAlpha -= TWO_PI;
                 } else if (fTargetAlpha - m_fVerticalAngle < -PI) {
@@ -4631,7 +4631,7 @@ void CCam::Process_FollowCar_SA(const CVector& ThisCamsTarget, float TargetOrien
     }
     auto fCamControlBetaSpeed = (fTargetBeta - m_fHorizontalAngle) / std::max(1.0f, CTimer::GetTimeStep());
 
-    auto fTargetAlpha = CGeneral::Asin(m_vecFront.z);
+    auto fTargetAlpha = std::asin(std::clamp(m_vecFront.z, -1.0f, 1.0f));
 
     if (fTempLength < fCamDistance && fCamDistance > fMinDistance) {
         fCamDistance = std::max(fMinDistance, fTempLength);
@@ -4657,7 +4657,7 @@ void CCam::Process_FollowCar_SA(const CVector& ThisCamsTarget, float TargetOrien
 
             // Difference between the camera's and the vehicle's heading
             auto fBetaDiff = std::abs(std::sin(m_fHorizontalAngle - (pVehicle->GetHeading() - HALF_PI)));
-            fBetaDiff = CGeneral::Asin(fBetaDiff);
+            fBetaDiff = std::asin(fBetaDiff);
 
             auto fVehicleDist = fBetaDiff > fCornerAngle
                 ? (bb.m_vecMax.x + STICK_DOWN_WIDTH_ADD) / std::cos(std::max(0.0f, HALF_PI - fBetaDiff))
@@ -5243,7 +5243,7 @@ void CCam::Process_FollowPed_SA(const CVector &ThisCamsTarget, float TargetOrien
             m_fVerticalAngle = 0.0f;
             if (pPed->bIsStanding) {
                 float fGroundNormalFwd = DotProduct(pPed->m_vecGroundNormal, pPed->GetMatrix().GetForward());
-                m_fVerticalAngle -= CGeneral::Asin(fGroundNormalFwd);
+                m_fVerticalAngle -= std::asin(std::min(1.0f, std::max(-1.0f, fGroundNormalFwd)));
             }
         }
 
@@ -5335,7 +5335,7 @@ void CCam::Process_FollowPed_SA(const CVector &ThisCamsTarget, float TargetOrien
         fTargetBeta += TWO_PI;
     float fCamControlBetaSpeed = (fTargetBeta - m_fHorizontalAngle) / std::max(1.0f, CTimer::GetTimeStep());
 
-    float fTargetAlpha = CGeneral::Asin(std::max(-1.0f, std::min(1.0f, m_vecFront.z)));
+    float fTargetAlpha = std::asin(std::max(-1.0f, std::min(1.0f, m_vecFront.z)));
 
 	static float HEADING_TOWARD_PLAYER_FOR_ALPHA = HALF_PI;
     static float HEADING_TOWARD_PLAYER_ALPHA_MAX = DegreesToRadians(20.0f);
@@ -5362,7 +5362,7 @@ void CCam::Process_FollowPed_SA(const CVector &ThisCamsTarget, float TargetOrien
             fGroundAlpha += SWIM_CAM_ALPHA_EXTRA;
         } else if (pPed->bIsStanding) {
             float fGroundNormalFwd = DotProduct(pPed->m_vecGroundNormal, pPed->GetMatrix().GetForward());
-            fGroundAlpha = -CGeneral::Asin(std::min(1.0f, std::max(-1.0f, fGroundNormalFwd)));
+            fGroundAlpha = -std::asin(std::min(1.0f, std::max(-1.0f, fGroundNormalFwd)));
         }
 
         static float FORCE_CAM_ALPHA_SPEED_MULT = 1.0f;
@@ -5783,20 +5783,20 @@ void CCam::Process_M16_1stPerson(const CVector& ThisCamsTarget, float TargetOrie
         float fCentreAlpha, fCentreBeta;
         switch ((int32)pPlayerPed->m_fTurretAngleA) { // m_nAttachLookDirn
         case 1:
-            fCentreAlpha = CGeneral::Asin(-pPlayerPed->m_pAttachedTo->GetMatrix().GetRight().z);
+            fCentreAlpha = std::asin(std::clamp<float>(-pPlayerPed->m_pAttachedTo->GetMatrix().GetRight().z, -1.0f, 1.0f));
             fCentreBeta  = pPlayerPed->m_pAttachedTo->GetHeading();
             break;
         case 2:
-            fCentreAlpha = CGeneral::Asin(-pPlayerPed->m_pAttachedTo->GetMatrix().GetForward().z);
+            fCentreAlpha = std::asin(std::clamp<float>(-pPlayerPed->m_pAttachedTo->GetMatrix().GetForward().z, -1.0f, 1.0f));
             fCentreBeta  = pPlayerPed->m_pAttachedTo->GetHeading() + HALF_PI;
             break;
         case 3:
-            fCentreAlpha = CGeneral::Asin(pPlayerPed->m_pAttachedTo->GetMatrix().GetRight().z);
+            fCentreAlpha = std::asin(std::clamp<float>(pPlayerPed->m_pAttachedTo->GetMatrix().GetRight().z, -1.0f, 1.0f));
             fCentreBeta  = pPlayerPed->m_pAttachedTo->GetHeading() - PI;
             break;
         default:
         case 0:
-            fCentreAlpha = CGeneral::Asin(pPlayerPed->m_pAttachedTo->GetMatrix().GetForward().z);
+            fCentreAlpha = std::asin(std::clamp<float>(pPlayerPed->m_pAttachedTo->GetMatrix().GetForward().z, -1.0f, 1.0f));
             fCentreBeta  = pPlayerPed->m_pAttachedTo->GetHeading() - HALF_PI;
             break;
         }

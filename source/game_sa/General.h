@@ -49,28 +49,6 @@ namespace CGeneral { // More like `Math` (Or `Meth`, given how bad the code is, 
     inline float GetATanOf(CVector2D point) { return GetATanOfXY(point.x, point.y); } // This just returns the heading most likely, so `point.Heading()` should work too [?]
 
     /*!
-     * @notsa
-     * @brief Safe arc-sine: clamps input to [-1.0, 1.0] and guards against NaN.
-     */
-    template<std::floating_point T = float>
-    inline T Asin(T value) {
-        if (std::isnan(value))
-            return static_cast<T>(0);
-        return std::asin(std::clamp<T>(value, static_cast<T>(-1.0), static_cast<T>(1.0)));
-    }
-
-    /*!
-     * @notsa
-     * @brief Safe arc-cosine: clamps input to [-1.0, 1.0] and guards against NaN.
-     */
-    template<std::floating_point T = float>
-    inline T Acos(T value) {
-        if (std::isnan(value))
-            return static_cast<T>(0);
-        return std::acos(std::clamp<T>(value, static_cast<T>(-1.0), static_cast<T>(1.0)));
-    }
-
-    /*!
      * @addr 0x53CDC0
      * @returns Get the octant the vector's heading lies in
      */

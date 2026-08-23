@@ -173,12 +173,12 @@ void CPedIK::PitchForSlope() {
                 RotateBone(BONE_SPINE, RadiansToDegrees(-m_fSlopePitch) * 0.75f);
                 m_pPed->bUpdateMatricesRequired = true;
 
-                RotateBone(BONE_R_THIGH, CGeneral::Asin(GetAnimHierarchyMatrix(BONE_R_THIGH)->up.z) * 30.0f * m_fSlopePitch);
-                RotateBone(BONE_R_CALF, std::max(-CGeneral::Asin(GetAnimHierarchyMatrix(BONE_R_THIGH)->up.z), 0.0f) * -30.0f * m_fSlopePitch);
-                RotateBone(BONE_R_FOOT, std::max(CGeneral::Asin(GetAnimHierarchyMatrix(BONE_R_FOOT)->up.z), 0.0f) * -30.0f * m_fSlopePitch);
-                RotateBone(BONE_L_THIGH, CGeneral::Asin(GetAnimHierarchyMatrix(BONE_L_THIGH)->up.z) * 30.0f * m_fSlopePitch);
-                RotateBone(BONE_L_CALF, std::max(-CGeneral::Asin(GetAnimHierarchyMatrix(BONE_L_THIGH)->up.z), 0.0f) * -30.0f * m_fSlopePitch);
-                RotateBone(BONE_L_FOOT, std::max(-CGeneral::Asin(GetAnimHierarchyMatrix(BONE_L_FOOT)->up.z), 0.0f) * -30.0f * m_fSlopePitch);
+                RotateBone(BONE_R_THIGH, std::asin(GetAnimHierarchyMatrix(BONE_R_THIGH)->up.z) * 30.0f * m_fSlopePitch);
+                RotateBone(BONE_R_CALF, std::max(-std::asin(GetAnimHierarchyMatrix(BONE_R_THIGH)->up.z), 0.0f) * -30.0f * m_fSlopePitch);
+                RotateBone(BONE_R_FOOT, std::max(std::asin(GetAnimHierarchyMatrix(BONE_R_FOOT)->up.z), 0.0f) * -30.0f * m_fSlopePitch);
+                RotateBone(BONE_L_THIGH, std::asin(GetAnimHierarchyMatrix(BONE_L_THIGH)->up.z) * 30.0f * m_fSlopePitch);
+                RotateBone(BONE_L_CALF, std::max(-std::asin(GetAnimHierarchyMatrix(BONE_L_THIGH)->up.z), 0.0f) * -30.0f * m_fSlopePitch);
+                RotateBone(BONE_L_FOOT, std::max(-std::asin(GetAnimHierarchyMatrix(BONE_L_FOOT)->up.z), 0.0f) * -30.0f * m_fSlopePitch);
 
                 CMatrix result(m_pPed->GetModellingMatrix(), false);
                 CMatrix translate;

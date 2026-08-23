@@ -939,7 +939,7 @@ void CTaskSimpleSwim::ProcessControlInput(CPlayerPed* ped) {
             m_fTurningRotationY += CTimer::GetTimeStep() * 0.04f * fRotation;
             m_fAimingRotation   += CTimer::GetTimeStep() * 0.08f * fRotation;
 
-            float fRotationX = (CGeneral::Asin(vecActiveCamFront.z) - m_fRotationX) * 10.0f;
+            float fRotationX = (std::asin(vecActiveCamFront.z) - m_fRotationX) * 10.0f;
             fRotationX = std::clamp(fRotationX, -1.0f, 1.0f); // originally min/max used
             if (m_fStateChanger == 0.0f || fRotationX > 0.0f) {
                 m_fRotationX += CTimer::GetTimeStepInSeconds() * fRotationX;
