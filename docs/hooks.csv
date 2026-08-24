@@ -2886,6 +2886,7 @@ CCarCtrl,ChooseGangCarModel,0x00421A40,1,0,S
 CCarCtrl,ChoosePoliceCarModel,0x00421980,1,0,S
 CCarCtrl,CreateCarForScript,0x00431F80,1,0,S
 CCarCtrl,FindMaxSteerAngle,0x00427FE0,1,0,S
+CCarCtrl,GenerateOneRandomCar,0x00430050,1,0,S
 CCarCtrl,GenerateRandomCars,0x004341C0,1,0,S
 CCarCtrl,GetNewVehicleDependingOnCarModel,0x00421440,0,1,S
 CCarCtrl,Init,0x004212E0,1,0,S
@@ -5572,9 +5573,14 @@ CTaskSimpleBeHit,GetTaskType,0x00000000,1,0,V
 CTaskSimpleBeHit,MakeAbortable,0x00000000,1,0,V
 CTaskSimpleBeHit,ProcessPed,0x00000000,1,0,V
 CTaskSimpleBeHit,StartAnim,0x00620910,1,0,S
-CTaskSimpleArrestPed,MakeAbortable,0x00000000,1,0,V
-CTaskSimpleArrestPed,ProcessPed,0x00000000,1,0,V
+CTaskSimpleArrestPed,Constructor,0x0068B620,1,0,S
+CTaskSimpleArrestPed,Destructor,0x0068B690,1,0,S
+CTaskSimpleArrestPed,GetTaskType,0x0068B680,1,0,V
+CTaskSimpleArrestPed,Clone,0x0068CD10,1,0,V
+CTaskSimpleArrestPed,MakeAbortable,0x0068B740,1,0,V
+CTaskSimpleArrestPed,ProcessPed,0x0068B8A0,1,0,V
 CTaskSimpleArrestPed,StartAnim,0x0068B7E0,1,0,S
+CTaskSimpleArrestPed,FinishAnimArrestPedCB,0x0068B7D0,1,0,S
 CTaskSimpleAnim,MakeAbortable,0x00000000,1,0,V
 CTaskSimpleAffectSecondaryBehaviour,Clone,0x00000000,1,0,V
 CTaskSimpleAffectSecondaryBehaviour,Constructor,0x00691270,1,0,S
