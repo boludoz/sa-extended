@@ -5548,158 +5548,234 @@ enum eUpdateWheelFlags {
 };
 
 // 0x6AA290
-void CAutomobile::UpdateWheelMatrix(int32 nodeIndex, int32 flags) {
-    if (!m_aCarNodes[nodeIndex])
+const float WHEELTILT_MULT    = -1.0f;
+const float WHEELSTEER_MULT   = 0.6f;
+const float WHEELTILT_HIATIAN = 0.6f;
+const float KART_WIDTH       = 3.0f;
+const float SA_WHEEL_SCALE = 0.7f;
+
+void CAutomobile::UpdateWheelMatrix(int32 nWheelIndex, int32 nOptionFlags) {
+    if (m_aCarNodes[nWheelIndex] == nullptr) {
         return;
+    }
 
-    constexpr float WHEEL_STEER_FACTOR = 0.5f;
-    constexpr float WHEEL_TILT_FACTOR  = 0.5f;
-    constexpr float DEFAULT_WHEEL_SCALE = 0.55f;
+    bool    bFrontWheel = false;
+    bool    bRearWheel  = false;
+    int32   nWheelNumber;
+    float   fRhsWheel;
+    float   fAckermanSteer = 0.0f;
+    CMatrix matrix;
+    CVector posn;
+    auto*   pModelInfo = (CVehicleModelInfo*)CModelInfo::GetModelInfo(this->GetModelIndex());
 
-    const auto& mi = *GetVehicleModelInfo();
-
-    bool bFrontWheel = false;
-    bool bRearWheel  = false;
-    int32 wheelNum   = 0;
-    float rhsSide    = 0.f; // -1 = left, +1 = right
-    float steerAngle = 0.f;
-
-    switch (nodeIndex) {
+    switch (nWheelIndex) {
     case CAR_WHEEL_LF:
-        wheelNum   = 0;
-        rhsSide    = -1.f;
-        bFrontWheel = true;
-        if (!m_pHandlingData->m_bSteerRearwheels)
-            steerAngle = m_fSteerAngle;
+        nWheelNumber = 0;
+        fRhsWheel    = -1.0f;
+        bFrontWheel  = true;
+        if (!m_pHandlingData->m_bSteerRearwheels) {
+            fAckermanSteer = m_fSteerAngle;
+        }
         break;
     case CAR_WHEEL_RF:
-        wheelNum   = 2;
-        rhsSide    = 1.f;
-        bFrontWheel = true;
-        if (!m_pHandlingData->m_bSteerRearwheels)
-            steerAngle = m_fSteerAngle;
+        nWheelNumber = 2;
+        fRhsWheel    = 1.0f;
+        bFrontWheel  = true;
+        if (!m_pHandlingData->m_bSteerRearwheels) {
+            fAckermanSteer = m_fSteerAngle;
+        }
         break;
     case CAR_WHEEL_LB:
     case CAR_WHEEL_LM:
-        wheelNum  = 1;
-        rhsSide   = -1.f;
-        bRearWheel = true;
-        if (m_pHandlingData->m_bSteerRearwheels)
-            steerAngle = -m_fSteerAngle;
-        else if (m_pHandlingData->m_bHbRearwheelSteer)
-            steerAngle = m_f2ndSteerAngle;
+        nWheelNumber = 1;
+        fRhsWheel    = -1.0f;
+        bRearWheel   = true;
+        if (m_pHandlingData->m_bSteerRearwheels) {
+            fAckermanSteer = -m_fSteerAngle;
+        } else if (m_pHandlingData->m_bHbRearwheelSteer) {
+            fAckermanSteer = m_f2ndSteerAngle;
+        }
         break;
     case CAR_WHEEL_RB:
     case CAR_WHEEL_RM:
-        wheelNum  = 3;
-        rhsSide   = 1.f;
-        bRearWheel = true;
-        if (m_pHandlingData->m_bSteerRearwheels)
-            steerAngle = -m_fSteerAngle;
-        else if (m_pHandlingData->m_bHbRearwheelSteer)
-            steerAngle = m_f2ndSteerAngle;
+        nWheelNumber = 3;
+        fRhsWheel    = 1.0f;
+        bRearWheel   = true;
+        if (m_pHandlingData->m_bSteerRearwheels) {
+            fAckermanSteer = -m_fSteerAngle;
+        } else if (m_pHandlingData->m_bHbRearwheelSteer) {
+            fAckermanSteer = m_f2ndSteerAngle;
+        }
         break;
     default:
+        assert(false);
         return;
     }
 
-    // Compute Ackermann steer angle with left/right flip
-    if (steerAngle != 0.f && !(flags & UPDATE_WHEEL_NO_STEER)) {
-        if (rhsSide < 0.f) {
+    if (fAckermanSteer != 0.0f && !(nOptionFlags & UPDATE_WHEEL_NO_STEER)) {
+        if (fRhsWheel < 0.0f) {
             if (bRearWheel) {
-                if (steerAngle > 0.f) steerAngle *= WHEEL_STEER_FACTOR;
+                if (fAckermanSteer > 0.0f) {
+                    fAckermanSteer *= WHEELSTEER_MULT;
+                }
             } else {
-                if (steerAngle < 0.f) steerAngle *= WHEEL_STEER_FACTOR;
+                if (fAckermanSteer < 0.0f) {
+                    fAckermanSteer *= WHEELSTEER_MULT;
+                }
             }
-            steerAngle += PI; // mirror left wheels
+            fAckermanSteer += PI;
         } else {
             if (bRearWheel) {
-                if (steerAngle < 0.f) steerAngle *= WHEEL_STEER_FACTOR;
+                if (fAckermanSteer < 0.0f) {
+                    fAckermanSteer *= WHEELSTEER_MULT;
+                }
             } else {
-                if (steerAngle > 0.f) steerAngle *= WHEEL_STEER_FACTOR;
+                if (fAckermanSteer > 0.0f) {
+                    fAckermanSteer *= WHEELSTEER_MULT;
+                }
             }
         }
     } else {
-        steerAngle = rhsSide < 0.f ? PI : 0.f;
+        if (fRhsWheel < 0.0f) {
+            fAckermanSteer = PI;
+        } else {
+            fAckermanSteer = 0.0f;
+        }
     }
 
-    CMatrix mat;
-    mat.Attach(RwFrameGetMatrix(m_aCarNodes[nodeIndex]), false);
-    CVector posn = mat.GetPosition();
-    posn.z = m_wheelPosition[wheelNum];
+    matrix.Attach(RwFrameGetMatrix(m_aCarNodes[nWheelIndex]), false);
+    posn   = matrix.GetPosition();
+    posn.z = m_wheelPosition[nWheelNumber];
 
-    // Determine scale
-    float scale = m_fWheelScale;
-    float width = 1.f;
-    if (mi.m_nWheelModelIndex == -1) {
-        // Wheels are part of the model; adjust for different front/rear sizes
-        if (bRearWheel)
-            scale *= mi.m_fWheelSizeRear / mi.m_fWheelSizeFront;
-        width = mi.m_fWheelSizeFront / (DEFAULT_WHEEL_SCALE * m_fWheelScale);
+    float fScale = m_fWheelScale;
+    float fWidth = 1.0f;
+    if (pModelInfo->m_nWheelModelIndex == -1) {
+        if (bRearWheel) {
+            fScale *= pModelInfo->m_fWheelSizeRear / pModelInfo->m_fWheelSizeFront;
+        }
+
+        fWidth = pModelInfo->m_fWheelSizeFront / (SA_WHEEL_SCALE * m_fWheelScale);
     } else {
-        scale = bRearWheel ? mi.m_fWheelSizeRear : mi.m_fWheelSizeFront;
+        if (bRearWheel) {
+            fScale = pModelInfo->m_fWheelSizeRear;
+        } else {
+            fScale = pModelInfo->m_fWheelSizeFront;
+        }
     }
 
-    // Special case: combine harvester middle wheels
-    if (m_nModelIndex == MODEL_COMBINE && (nodeIndex == CAR_WHEEL_LM || nodeIndex == CAR_WHEEL_RM)) {
-        constexpr float COMBINE_MIDDLE_WHEEL_SIZE = 1.7f;
-        constexpr float COMBINE_MIDDLE_WHEEL_POS  = 0.45f;
-        scale  = COMBINE_MIDDLE_WHEEL_SIZE / mi.m_fWheelSizeFront;
-        posn.z += COMBINE_MIDDLE_WHEEL_POS * (COMBINE_MIDDLE_WHEEL_SIZE - mi.m_fWheelSizeRear);
-        if (rhsSide < 0.f) steerAngle -= PI;
-        steerAngle *= 0.5f;
-        if (rhsSide < 0.f) steerAngle += PI;
-    } else if (m_nModelIndex == MODEL_STUNT && nodeIndex == CAR_WHEEL_LF) {
-        steerAngle = 0.f;
+    if (GetModelIndex() == MODEL_COMBINE && (nWheelIndex == CAR_WHEEL_LM || nWheelIndex == CAR_WHEEL_RM)) {
+        static float COMBINE_MIDDLE_WHEEL_SIZE = 1.7f;
+        static float COMBINE_MIDDLE_WHEEL_POS  = 0.45f;
+
+        fScale = COMBINE_MIDDLE_WHEEL_SIZE / pModelInfo->m_fWheelSizeFront;
+        posn.z += COMBINE_MIDDLE_WHEEL_POS * (COMBINE_MIDDLE_WHEEL_SIZE - pModelInfo->m_fWheelSizeRear);
+        if (fRhsWheel < 0.0f) {
+            fAckermanSteer -= PI;
+        }
+        fAckermanSteer *= 0.5f;
+        if (fRhsWheel < 0.0f) {
+            fAckermanSteer += PI;
+        }
+    } else if (GetModelIndex() == MODEL_STUNT && nWheelIndex == CAR_WHEEL_LF) {
+        fAckermanSteer = 0.0f;
     }
 
-    // Width flags (monster trucks and quads ignore them)
     if (IsSubMonsterTruck() || IsSubQuad()) {
-        width = 1.f;
+        fWidth = 1.0f;
     } else if (bRearWheel) {
-        if      (m_pHandlingData->m_bWheelRNarrow2) width *= 0.65f;
-        else if (m_pHandlingData->m_bWheelRNarrow)  width *= 0.8f;
-        else if (m_pHandlingData->m_bWheelRWide)    width *= 1.1f;
-        else if (m_pHandlingData->m_bWheelRWide2)   width *= 1.25f;
+        if (m_pHandlingData->m_bWheelRNarrow2) {
+            fWidth *= 0.65f;
+        } else if (m_pHandlingData->m_bWheelRNarrow) {
+            fWidth *= 0.8f;
+        } else if (m_pHandlingData->m_bWheelRWide) {
+            fWidth *= 1.1f;
+        } else if (m_pHandlingData->m_bWheelRWide2) {
+            fWidth *= 1.25f;
+        }
     } else if (bFrontWheel) {
-        if      (m_pHandlingData->m_bWheelFNarrow2) width *= 0.65f;
-        else if (m_pHandlingData->m_bWheelFNarrow)  width *= 0.8f;
-        else if (m_pHandlingData->m_bWheelFWide)    width *= 1.1f;
-        else if (m_pHandlingData->m_bWheelFWide2)   width *= 1.25f;
+        if (m_pHandlingData->m_bWheelFNarrow2) {
+            fWidth *= 0.65f;
+        } else if (m_pHandlingData->m_bWheelFNarrow) {
+            fWidth *= 0.8f;
+        } else if (m_pHandlingData->m_bWheelFWide) {
+            fWidth *= 1.1f;
+        } else if (m_pHandlingData->m_bWheelFWide2) {
+            fWidth *= 1.25f;
+        }
     }
 
-    if (m_nModelIndex == MODEL_KART)
-        width *= 1.5f;
+    if (GetModelIndex() == MODEL_KART) {
+        fWidth *= KART_WIDTH;
+    }
 
-    mat.SetScale(width * scale, scale, scale);
+    matrix.SetScale(fWidth * fScale, fScale, fScale);
 
     if (IsSubHeli()) {
-        mat.Rotate({0.f, 0.f, steerAngle});
-    } else if (m_damageManager.GetWheelStatus((eCarWheel)wheelNum) == eCarWheelStatus::WHEEL_STATUS_BURST) {
-        mat.Rotate({rhsSide * m_wheelRotation[wheelNum], 0.f, steerAngle + 0.3f * std::sin(rhsSide * m_wheelRotation[wheelNum])});
+        matrix.Rotate(CVector(0.0f, 0.0f, fAckermanSteer));
+    } else if (m_damageManager.GetWheelStatus((eCarWheel)nWheelNumber) == eCarWheelStatus::WHEEL_STATUS_BURST) {
+        matrix.Rotate(CVector(fRhsWheel * m_wheelRotation[nWheelNumber], 0.0f, fAckermanSteer + 0.3f * std::sin(fRhsWheel * m_wheelRotation[nWheelNumber])));
     } else {
-        mat.Rotate({rhsSide * m_wheelRotation[wheelNum], 0.f, steerAngle});
+        matrix.Rotate(CVector(fRhsWheel * m_wheelRotation[nWheelNumber], 0.0f, fAckermanSteer));
     }
 
     if (autoFlags.bIsMonsterTruck || m_pHandlingData->m_bHydraulicInst
-     || (m_pHandlingData->m_bAxleFSolid && bFrontWheel)
-     || (m_pHandlingData->m_bAxleRSolid  && bRearWheel)) {
-        // Solid axle: tilt based on height difference between opposite wheels
-        const auto oppositeWheel = wheelNum > 1 ? wheelNum - 2 : wheelNum + 2;
-        const auto tilt = m_wheelPosition[wheelNum] - m_wheelPosition[oppositeWheel];
-        mat.RotateY(std::atan2(-rhsSide * tilt, 2.f * std::abs(posn.y)));
-    } else if (!(flags & UPDATE_WHEEL_NO_HOVER_TILT)
-            && !(bFrontWheel && m_pHandlingData->m_bAxleFNotlit)
-            && !(bRearWheel  && m_pHandlingData->m_bAxleRNotlit)) {
-        const auto heightOffset = posn.z + m_fFrontHeightAboveRoad - (bFrontWheel ? mi.m_fWheelSizeFront : mi.m_fWheelSizeRear) * 0.5f;
-        const float tiltSign = ((bFrontWheel && m_pHandlingData->m_bAxleFReverse)
-                             || (bRearWheel  && m_pHandlingData->m_bAxleRReverse))
-                             ? -1.f : 1.f;
-        mat.RotateY(tiltSign * std::asin(std::clamp<float>(rhsSide * WHEEL_TILT_FACTOR * heightOffset, -1.f, 1.f)));
+        || (m_pHandlingData->m_bAxleFSolid && bFrontWheel) || (m_pHandlingData->m_bAxleRSolid && bRearWheel)) {
+        int32 nOppositeWheel;
+        if (nWheelNumber > 1) {
+            nOppositeWheel = nWheelNumber - 2;
+        } else {
+            nOppositeWheel = nWheelNumber + 2;
+        }
+
+        float fTiltAngle = m_wheelPosition[nWheelNumber] - m_wheelPosition[nOppositeWheel];
+        fTiltAngle       = std::atan2(-1.0f * fRhsWheel * fTiltAngle, 2.0f * std::abs(posn.y));
+        matrix.RotateY(fTiltAngle);
+    } else {
+        if ((CCheat::IsActive(CHEAT_CARS_ON_WATER) || GetModelIndex() == MODEL_VORTEX)
+            && m_fWheelsSuspensionCompressionPrev[nWheelNumber] < 1.0f && !vehicleFlags.bIsDrowning) {
+            if (!(nOptionFlags & UPDATE_WHEEL_NO_HOVER_TILT)) {
+                matrix.RotateY(-HALF_PI * fRhsWheel);
+            }
+
+            if (!(nOptionFlags & UPDATE_WHEEL_NO_HOVER_EFFECTS)) {
+                FxPrtMult_c fxMultsWater(1.0f, 1.0f, 1.0f, 0.2f, 0.5f, 0.0f, 0.05f);
+
+                CVector pos = m_wheelColPoint[nWheelNumber].m_vecPoint;
+                CVector vel = 0.5f * m_vecMoveSpeed + fRhsWheel * 1.0f * GetRight();
+
+                if (g_surfaceInfos.IsWater(m_wheelColPoint[nWheelNumber].m_nSurfaceTypeB)) {
+                    if (((CTimer::GetFrameCounter() - 1) & 1) != 0) {
+                        vel.z += 2.0f;
+                        if (g_fx.m_WaterSplash) {
+                            g_fx.m_WaterSplash->AddParticle(pos, vel, 0.0f, fxMultsWater);
+                        }
+                    } else {
+                        if (g_fx.m_SmokeHuge) {
+                            g_fx.m_SmokeHuge->AddParticle(pos, vel, 0.0f, fxMultsWater);
+                        }
+                    }
+                } else if (g_surfaceInfos.IsSand(m_wheelColPoint[nWheelNumber].m_nSurfaceTypeB)) {
+                    FxPrtMult_c fxMultsSand(0.81f, 0.67f, 0.57f, 0.35f, 0.5f, 0.0f, 0.05f);
+                    if (g_fx.m_Sand) {
+                        g_fx.m_Sand->AddParticle(pos, vel, 0.0f, fxMultsSand);
+                    }
+                }
+            }
+        } else if (!(nOptionFlags & UPDATE_WHEEL_NO_TILT)
+                   && !(bFrontWheel && m_pHandlingData->m_bAxleFNotlit)
+                   && !(bRearWheel && m_pHandlingData->m_bAxleRNotlit)) {
+            float fNewOffset = posn.z + m_fFrontHeightAboveRoad - pModelInfo->GetWheelSize(bFrontWheel) * 0.5f;
+
+            if ((bFrontWheel && m_pHandlingData->m_bAxleFReverse) || (bRearWheel && m_pHandlingData->m_bAxleRReverse)) {
+                matrix.RotateY(-std::asin(std::clamp<float>(fRhsWheel * WHEELTILT_MULT * fNewOffset, -1.0f, 1.0f)));
+            } else {
+                matrix.RotateY(std::asin(std::clamp<float>(fRhsWheel * WHEELTILT_MULT * fNewOffset, -1.0f, 1.0f)));
+            }
+        }
     }
 
-    mat.GetPosition() = posn;
-    mat.UpdateRW();
+    matrix.SetTranslateOnly(posn);
+    matrix.UpdateRW();
 }
 
 // 0x6ADEF0
