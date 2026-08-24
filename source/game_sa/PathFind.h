@@ -103,14 +103,16 @@ public:
     }
 
     float OneWayLaneOffset() const {
+        if (m_numOppositeDirLanes && m_numSameDirLanes) {
+            return 0.5f;
+        }
         if (m_numOppositeDirLanes) {
-            return 0.5f - (float)m_numSameDirLanes / 2.f;
+            return 0.5f - (float)m_numOppositeDirLanes / 2.f;
         }        
         if (m_numSameDirLanes) {
-            // 0.011574074 = 1 / 16.f / 5.4f
-            return 0.5f - GetNodePathWidth() / 5.4f / 2.f;
+            return 0.5f - (float)m_numSameDirLanes / 2.f;
         }
-        return 0.5f - (float)m_numOppositeDirLanes / 2.f;
+        return 0.5f;
     }
 
     /// Get uncompressed world position

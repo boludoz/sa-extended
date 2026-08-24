@@ -959,10 +959,10 @@ void CCarCtrl::GenerateOneRandomCar()
     const auto& oldLinkRef = ThePaths.GetCarPathLink(pNewVehicle->m_autoPilot.OldLink);
     const auto& newLinkRef = ThePaths.GetCarPathLink(pNewVehicle->m_autoPilot.NewLink);
 
-    OldDirX = (float)(oldLinkRef.m_dir.x) * (float)pNewVehicle->m_autoPilot.InvertDirOldLink * 0.01f;
-    OldDirY = (float)(oldLinkRef.m_dir.y) * (float)pNewVehicle->m_autoPilot.InvertDirOldLink * 0.01f;
-    NewDirX = (float)(newLinkRef.m_dir.x) * (float)pNewVehicle->m_autoPilot.InvertDirNewLink * 0.01f;
-    NewDirY = (float)(newLinkRef.m_dir.y) * (float)pNewVehicle->m_autoPilot.InvertDirNewLink * 0.01f;
+    OldDirX = (float)(oldLinkRef.m_dir.x) * (float)pNewVehicle->m_autoPilot.InvertDirOldLink;
+    OldDirY = (float)(oldLinkRef.m_dir.y) * (float)pNewVehicle->m_autoPilot.InvertDirOldLink;
+    NewDirX = (float)(newLinkRef.m_dir.x) * (float)pNewVehicle->m_autoPilot.InvertDirNewLink;
+    NewDirY = (float)(newLinkRef.m_dir.y) * (float)pNewVehicle->m_autoPilot.InvertDirNewLink;
 
     OldLaneOffset = (oldLinkRef.OneWayLaneOffset() + (float)pNewVehicle->m_autoPilot.OldLane) * 5.4f;
     NewLaneOffset = (newLinkRef.OneWayLaneOffset() + (float)pNewVehicle->m_autoPilot.NewLane) * 5.4f;
