@@ -3209,32 +3209,56 @@ void CVehicle::ProcessWheel(CVector& wheelFwd, CVector& wheelRight,
     if (bDriving && thrust == 0.0f)
         bDriving = false;
 
-    adhesion *= CTimer::GetTimeStep();
+    float timeStep = CTimer::GetTimeStep();
+    adhesion *= timeStep;
+
     if (*wheelState != WHEEL_STATE_NORMAL) {
         bAlreadySkidding = true;
         adhesion *= m_pHandlingData->m_fTractionLoss;
         if (*wheelState == WHEEL_STATE_SPINNING) {
             if (GetStatus() == STATUS_PLAYER || GetStatus() == STATUS_REMOTE_CONTROLLED)
-                adhesion *= (1.0f - fabs(m_GasPedal) * WS_ALREADY_SPINNING_LOSS);
+                adhesion *= (1.0f - std::fabs(m_GasPedal) * WS_ALREADY_SPINNING_LOSS);
         }
     }
 
     *wheelState = WHEEL_STATE_NORMAL;
 
+    // RAGE / GTA IV progressive slip curve parameters
+    // GTA IV uses a wider slip angle envelope for realistic, progressive breakaway and non-arcade feel
+    constexpr float sfTractionPeakAngle = 1.20f;
+    constexpr float sfTractionMinAngle = 2.85f;
+    constexpr float sfTractionMinAngleInv = 1.0f / sfTractionMinAngle;
+
+    float speedAlongFwdAbs = std::max(0.15f, std::fabs(contactSpeedFwd));
+    float lateralSlipAngle = std::atan2(-contactSpeedRight, speedAlongFwdAbs);
+
+    // Lateral slip ratio normalized by min slip angle
+    float lateralSlipRatio = lateralSlipAngle * sfTractionMinAngleInv;
+
+    // Longitudinal slip ratio
+    float longSlipRatio = 0.0f;
+
     if (contactSpeedRight != 0.0f) {
-        right = -(contactSpeedRight / wheelsOnGround);
+        right = -(contactSpeedRight / static_cast<float>(wheelsOnGround));
         if (wheelStatus == WHEEL_STATUS_BURST) {
             float fwdspeed = std::min(contactSpeedFwd, fBurstSpeedMax);
-            right += fwdspeed * CGeneral::GetRandomNumberInRange(-fBurstTyreMod, fBurstTyreMod) ;
+            right += fwdspeed * CGeneral::GetRandomNumberInRange(-fBurstTyreMod, fBurstTyreMod);
         }
+    }
+
+    // GTA IV Handbrake / Drift physics: smooth rear lateral relaxation with progressive breakaway
+    bool isRearWheel = (wheelId == CAR_WHEEL_REAR_LEFT || wheelId == CAR_WHEEL_REAR_RIGHT);
+    if (vehicleFlags.bIsHandbrakeOn && isRearWheel) {
+        lateralSlipRatio *= 1.60f; // Smooth, controllable rear swing in GTA IV style
     }
 
     if (bDriving) {
         fwd = thrust;
+        longSlipRatio = (thrust - (contactSpeedFwd / static_cast<float>(wheelsOnGround))) / std::max(adhesion, 0.0001f);
         right = std::clamp(right, -adhesion, adhesion);
     }
     else if (contactSpeedFwd != 0.0f) {
-        fwd = -contactSpeedFwd / wheelsOnGround;
+        fwd = -contactSpeedFwd / static_cast<float>(wheelsOnGround);
         if (!bBraking && std::fabs(m_GasPedal) < 0.01f) {
             if (IsBike())
                 brake = gHandlingDataMgr.fWheelFriction * 0.6f / (m_pHandlingData->m_fMass + 200.0f);
@@ -3253,13 +3277,45 @@ void CVehicle::ProcessWheel(CVector& wheelFwd, CVector& wheelRight,
             if (std::fabs(contactSpeedFwd) > 0.005f) {
                 *wheelState = WHEEL_STATE_FIXED;
             }
+            longSlipRatio = (contactSpeedFwd > 0.0f ? 1.0f : -1.0f) * (brake / std::max(adhesion, 0.0001f));
         } else {
             fwd = std::clamp(fwd, -brake, brake);
+            longSlipRatio = (fwd - (contactSpeedFwd / static_cast<float>(wheelsOnGround))) / std::max(adhesion, 0.0001f);
         }
     }
 
+    // RAGE Friction Ellipse: Combined total slip magnitude
+    float totalSlipRatio = std::sqrt(lateralSlipRatio * lateralSlipRatio + longSlipRatio * longSlipRatio);
+    float tractionLoss = m_pHandlingData->m_fTractionLoss;
+    if (bAlreadySkidding) {
+        tractionLoss = 1.0f;
+    } else if (*wheelState == WHEEL_STATE_SPINNING) {
+        if (GetStatus() == STATUS_PLAYER || GetStatus() == STATUS_REMOTE_CONTROLLED) {
+            tractionLoss = tractionLoss * (1.0f - std::fabs(m_GasPedal) * WS_ALREADY_SPINNING_LOSS);
+        }
+    }
+
+    // GTA IV Pacejka-style smooth progressive traction coefficient evaluation
+    float tractionCoeff = 1.0f;
+    float absTotalSlip = totalSlipRatio * sfTractionMinAngle;
+    if (absTotalSlip < sfTractionPeakAngle * tractionLoss) {
+        // Progressive ramp to peak grip
+        tractionCoeff = absTotalSlip / (sfTractionPeakAngle * tractionLoss);
+    } else if (absTotalSlip < sfTractionMinAngle * tractionLoss) {
+        // Smooth parabolic-like transition from peak to kinetic sliding friction
+        float t = (absTotalSlip - sfTractionPeakAngle * tractionLoss) / ((sfTractionMinAngle - sfTractionPeakAngle) * tractionLoss);
+        // Smoothstep curve: 3t^2 - 2t^3
+        float smoothT = t * t * (3.0f - 2.0f * t);
+        tractionCoeff = 1.0f + (tractionLoss - 1.0f) * smoothT;
+    } else {
+        // Kinetic sliding friction
+        tractionCoeff = tractionLoss;
+    }
+
     float speedSq = right * right + fwd * fwd;
-    if (speedSq > adhesion * adhesion) {
+    float maxAdhesion = adhesion * std::max(0.2f, tractionCoeff);
+
+    if (speedSq > maxAdhesion * maxAdhesion) {
         if (*wheelState != WHEEL_STATE_FIXED) {
             float tractionLimit = WS_TRAC_FRAC_LIMIT;
             if (contactSpeedFwd > 0.15f && (!wheelId || wheelId == CAR_WHEEL_FRONT_RIGHT)) {
@@ -3270,23 +3326,15 @@ void CVehicle::ProcessWheel(CVector& wheelFwd, CVector& wheelRight,
             else
                 *wheelState = WHEEL_STATE_SKIDDING;
         }
-        float tractionLoss = m_pHandlingData->m_fTractionLoss;
-        if (bAlreadySkidding) {
-            tractionLoss = 1.0f;
-        } else if (*wheelState == WHEEL_STATE_SPINNING) {
-            if (GetStatus() == STATUS_PLAYER || GetStatus() == STATUS_REMOTE_CONTROLLED) {
-                tractionLoss = tractionLoss * (1.0f - std::fabs(m_GasPedal) * WS_ALREADY_SPINNING_LOSS);
-            }
-        }
-        float l = sqrt(speedSq);
-        fwd *= adhesion * tractionLoss / l;
-        right *= adhesion * tractionLoss / l;
+        float l = std::sqrt(speedSq);
+        fwd *= maxAdhesion / l;
+        right *= maxAdhesion / l;
     }
 
     if (fwd != 0.0f || right != 0.0f) {
         bool separateTurnForce = false;
         CVector totalSpeed = fwd * wheelFwd + right * wheelRight;
-        CVector turnDirection  = totalSpeed;
+        CVector turnDirection = totalSpeed;
 
         if (m_pHandlingData->m_fSuspensionAntiDiveMultiplier > 0.0f) {
             if (bBraking) {

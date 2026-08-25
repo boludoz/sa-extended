@@ -99,6 +99,14 @@ float cTransmission::CalculateDriveAcceleration(const float& gasPedal, uint8& cu
     if (currentVelocity < m_MaxReverseVelocity)
         return 0.0f;
 
+    // GTA V Engine Braking Resistance when off-throttle
+    if (std::fabs(gasPedal) < 0.01f && currentVelocity > 0.05f && currentGear >= 1)
+    {
+        float gearFactor = static_cast<float>(currentGear) / static_cast<float>(m_nNumberOfGears + 1);
+        float engineResistance = -0.025f * gearFactor * m_EngineAcceleration * CTimer::GetTimeStep();
+        return engineResistance;
+    }
+
     while (currentVelocity <= m_MaxVelocity)
     {
         m_Velocity = currentVelocity;

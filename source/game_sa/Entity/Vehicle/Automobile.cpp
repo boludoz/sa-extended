@@ -780,8 +780,39 @@ void CAutomobile::ProcessControl()
             }
         }
 
+        // GTA IV Aerodynamic Downforce: subtle, realistic aerodynamic stability rather than arcade glue
+        float speedSq = m_vecMoveSpeed.SquaredMagnitude();
+        if (speedSq > 0.01f && m_nNumContactWheels > 2 && !IsInAir()) {
+            float downforceMult = 0.016f;
+            if (m_pHandlingData->m_fMass > 2200.0f) {
+                downforceMult = 0.010f;
+            }
+            float downforce = speedSq * m_fMass * downforceMult * CTimer::GetTimeStep();
+            ApplyMoveForce(-GetUp() * downforce);
+        }
+
+        // GTA IV Dynamic Weight Transfer & Body Inertia:
+        // Calculates longitudinal and lateral load transfer for authentic chassis pitch and roll
+        if (m_nNumContactWheels > 2 && !IsInAir()) {
+            float speedDelta = (speedForward - m_PrevSpeed);
+            // Longitudinal weight transfer (Braking dive & Acceleration squat)
+            if (std::fabs(speedDelta) > 0.0005f) {
+                float pitchMoment = -speedDelta * m_fMass * 0.08f;
+                pitchMoment = std::clamp(pitchMoment, -m_fMass * 0.35f, m_fMass * 0.35f);
+                ApplyTurnForce(GetUp() * pitchMoment, GetForward());
+            }
+
+            // Lateral weight transfer (Chassis roll into corners)
+            float speedRight = DotProduct(m_vecMoveSpeed, GetRight());
+            if (std::fabs(speedRight) > 0.005f) {
+                float rollMoment = speedRight * m_fMass * 0.06f;
+                rollMoment = std::clamp(rollMoment, -m_fMass * 0.30f, m_fMass * 0.30f);
+                ApplyTurnForce(GetUp() * rollMoment, GetRight());
+            }
+        }
+
         float steerAngle = 1.0f; // todo: Repeated branch in conditional chain
-        if (speedForward <= 0.01f || m_WheelCounts[CAR_WHEEL_FRONT_LEFT] <= 0.0f && m_WheelCounts[CAR_WHEEL_REAR_LEFT] <= 0.0f)
+        if (speedForward <= 0.01f || (m_WheelCounts[CAR_WHEEL_FRONT_LEFT] <= 0.0f && m_WheelCounts[CAR_WHEEL_REAR_LEFT] <= 0.0f))
             steerAngle = 1.0f;
         else if (GetStatus() != STATUS_PLAYER)
             steerAngle = 1.0f;
@@ -791,11 +822,21 @@ void CAutomobile::ProcessControl()
             colPoint.m_nSurfaceTypeB = SURFACE_TARMAC;
             float speedRight = DotProduct(m_vecMoveSpeed, GetRight());
             float adhesive = g_surfaceInfos.GetAdhesiveLimit(&colPoint);
+
+            // GTA IV speed-dependent steering lock reduction curve:
+            // Smoothly attenuates maximum steering angle at high speeds to prevent twitchy arcade turns
+            float speedScale = std::max(1.0f, speedForward * 40.0f);
+            float highSpeedSteerLimit = 1.0f / (1.0f + 0.00065f * speedScale * speedScale);
+            highSpeedSteerLimit = std::clamp(highSpeedSteerLimit, 0.32f, 1.0f);
+
             steerAngle = adhesive * traction * 4.0f * 4.0f / (speedForward * speedForward);
             steerAngle = std::min(steerAngle, 1.0f);
             steerAngle = std::asin(steerAngle) / DegreesToRadians(m_pHandlingData->m_fSteeringLock);
-            if (m_fSteerAngle < 0.0f && speedRight > 0.05f
-                || m_fSteerAngle > 0.0f && speedRight < -0.05f
+            steerAngle = std::min(steerAngle, highSpeedSteerLimit);
+
+            // GTA IV Counter-steer Drift Assist: full steering authority when countersteering into a drift
+            bool isCounterSteering = (m_fSteerAngle < 0.0f && speedRight > 0.03f) || (m_fSteerAngle > 0.0f && speedRight < -0.03f);
+            if (isCounterSteering
                 || vehicleFlags.bIsHandbrakeOn
                 || steerAngle > 1.0f)
             {
@@ -1549,6 +1590,12 @@ void CAutomobile::ProcessSuspension() {
                 suspensionBias = 1.0f - suspensionBias;
 
             float fSuspensionForceLevel = m_pHandlingData->m_fSuspensionForceLevel;
+            // GTA V Progressive Bump Stop: increase spring force near maximum compression
+            if (springLength[i] < 0.20f) {
+                float bumpOver = (0.20f - springLength[i]) / 0.20f;
+                fSuspensionForceLevel *= (1.0f + bumpOver * 2.2f);
+            }
+
             if (handlingFlags.bHydraulicGeom && handlingFlags.bHydraulicInst) {
                 if (handlingFlags.bNpcNeutralHandl && GetStatus() == STATUS_PHYSICS) {
                     suspensionBias = 0.5f;
@@ -1581,6 +1628,41 @@ void CAutomobile::ProcessSuspension() {
                     m_wheelColPoint[i].m_vecNormal,
                     wheelSpringForceDampingLimits[i]
                 );
+        }
+
+        // GTA IV Anti-Roll Bar (ARB) Implementation
+        // Calculates compression difference between opposite wheels on front and rear axles
+        // and transfers restorative force with organic compliance for authentic GTA IV body roll
+        if (numWheelLoops == 1 && !autoFlags.bIsMonsterTruck) {
+            float timeStep = std::min(3.0f, CTimer::GetTimeStep());
+
+            // Front Axle ARB (tuned for authentic GTA IV chassis lean)
+            if (springLength[CAR_WHEEL_FRONT_LEFT] < 1.0f && springLength[CAR_WHEEL_FRONT_RIGHT] < 1.0f) {
+                float compLeft = 1.0f - springLength[CAR_WHEEL_FRONT_LEFT];
+                float compRight = 1.0f - springLength[CAR_WHEEL_FRONT_RIGHT];
+                float rollDiffFront = compRight - compLeft;
+                float arbConstantFront = m_pHandlingData->m_fSuspensionForceLevel * 0.24f * m_fMass * 0.016f * timeStep;
+                float arbForceFront = rollDiffFront * arbConstantFront;
+
+                if (contactPoints[CAR_WHEEL_FRONT_LEFT].Magnitude() > 0.001f)
+                    ApplyForce(-arbForceFront * GetUp(), contactPoints[CAR_WHEEL_FRONT_LEFT], true);
+                if (contactPoints[CAR_WHEEL_FRONT_RIGHT].Magnitude() > 0.001f)
+                    ApplyForce(arbForceFront * GetUp(), contactPoints[CAR_WHEEL_FRONT_RIGHT], true);
+            }
+
+            // Rear Axle ARB
+            if (springLength[CAR_WHEEL_REAR_LEFT] < 1.0f && springLength[CAR_WHEEL_REAR_RIGHT] < 1.0f) {
+                float compLeft = 1.0f - springLength[CAR_WHEEL_REAR_LEFT];
+                float compRight = 1.0f - springLength[CAR_WHEEL_REAR_RIGHT];
+                float rollDiffRear = compRight - compLeft;
+                float arbConstantRear = m_pHandlingData->m_fSuspensionForceLevel * 0.18f * m_fMass * 0.016f * timeStep;
+                float arbForceRear = rollDiffRear * arbConstantRear;
+
+                if (contactPoints[CAR_WHEEL_REAR_LEFT].Magnitude() > 0.001f)
+                    ApplyForce(-arbForceRear * GetUp(), contactPoints[CAR_WHEEL_REAR_LEFT], true);
+                if (contactPoints[CAR_WHEEL_REAR_RIGHT].Magnitude() > 0.001f)
+                    ApplyForce(arbForceRear * GetUp(), contactPoints[CAR_WHEEL_REAR_RIGHT], true);
+            }
         }
 
         CVector contactSpeeds[4]{};
@@ -4584,7 +4666,8 @@ void CAutomobile::ProcessCarWheelPair(eCarWheel leftWheel, eCarWheel rightWheel,
                 traction *= m_fTireTemperature;
             }
         } else {
-            brake = 20'000.0f;
+            // GTA V Handbrake force: strong progressive braking force that allows smooth drifting
+            brake = std::max(brake, m_pHandlingData->m_fBrakeDeceleration * 3.5f * CTimer::GetTimeStep());
         }
     }
 
