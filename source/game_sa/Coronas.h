@@ -44,6 +44,9 @@ public:
     static void Update();
     // Renders the registered coronas
     static void Render();
+    static void RenderDistant2dEffects();
+    static void RegisterDistantEntity2dEffects(CEntity* entity);
+    static void UpdateDistant2dEffects();
 
     // Renders registered coronas reflections on a wet roads ground
     static void RenderReflections();

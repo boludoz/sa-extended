@@ -1,6 +1,25 @@
 #include "StdInc.h"
 #include <reversiblebugfixes/Bugs.hpp>
 #include "Coronas.h"
+#include "Pools/Pools.h"
+#include "Plugins/TwoDEffectPlugin/2dEffect.h"
+#include "ModelInfo.h"
+#include "TrafficLights.h"
+#include <unordered_set>
+#include <vector>
+
+struct CDistantLamppost {
+    CVector pos;
+    RwRGBA  color;
+    float   size;
+    uint8   flashType;
+    bool    atNight;
+    bool    atDay;
+};
+
+static std::vector<CDistantLamppost> s_aDistantLampposts;
+static std::unordered_set<uint64_t>  s_RegisteredLightKeys;
+static uint32                        s_nLastPoolScanFrame = 0;
 
 constexpr std::array<const char[26], eCoronaType::CORONATYPE_COUNT> aCoronaSpriteNames = {
     "coronastar",
@@ -184,6 +203,12 @@ void CCoronas::Update() {
             corona.Update();
         }
     }
+
+    const uint32 currentFrame = CTimer::GetFrameCounter();
+    if (currentFrame - s_nLastPoolScanFrame >= 15) {
+        s_nLastPoolScanFrame = currentFrame;
+        UpdateDistant2dEffects();
+    }
 }
 
 // 0x6FAEC0
@@ -251,13 +276,19 @@ void CCoronas::Render() {
             RwRenderStateSet(rwRENDERSTATEZTESTENABLE,   RWRSTATE(TRUE));
             RwRenderStateSet(rwRENDERSTATETEXTURERASTER, RWRSTATE(RwTextureGetRaster(c.m_pTexture)));
 
-            //< 0x6FB122
-            const auto scale = std::min(40.f, onScrPos.z) * CWeather::Foggyness / 40.f + 1.f;
+            // GTA V Screen-space expansion & weather atmospheric scattering
+            const auto screenSpaceExpansion = std::max(1.0f, onScrPos.z * 0.0075f);
+            const auto weatherAtmosphere    = std::min(60.f, onScrPos.z) * (CWeather::Foggyness * 1.5f + CWeather::Rain * 0.5f) / 60.f + 1.f;
 
-            // NOP - The coordinates are later overwritten
-            //if (c.m_dwId == 1) {
-            //    scrPos.z = RwCameraGetFarClipPlane(Scene.m_pRwCamera) * 0.95f;
-            //}
+            // GTA V Directional Ramp-up Glare (scaleRampUpFactor)
+            float rampUpFactor = 1.0f;
+            if (c.m_fAngle > 0.75f) {
+                const float rampUpBlend = std::clamp((c.m_fAngle - 0.75f) / 0.25f, 0.0f, 1.0f);
+                rampUpFactor            = 1.0f + rampUpBlend * 0.50f;
+            }
+
+            const auto finalIntensity = static_cast<int16>(std::clamp(static_cast<float>(intensity) * (1.0f + (rampUpFactor - 1.0f) * 0.4f), 0.0f, 255.0f));
+            const auto finalSize      = onScrSize * c.m_fSize * screenSpaceExpansion * rampUpFactor * CVector2D{ 1.f, weatherAtmosphere };
 
             //< 0x6FB24E
             if (CSprite::CalcScreenCoors(
@@ -268,29 +299,54 @@ void CCoronas::Render() {
                     true,
                     true
                 )) {
+                // Primary rich chromatic halo / aura
                 CSprite::RenderOneXLUSprite_Rotate_Aspect(
                     onScrPos,
-                    onScrSize * c.m_fSize * CVector2D{ 1.f, scale },
-                    LerpColorC(c.m_Color.r, 1.f / scale),
-                    LerpColorC(c.m_Color.g, 1.f / scale),
-                    LerpColorC(c.m_Color.b, 1.f / scale),
-                    intensity,
+                    finalSize,
+                    LerpColorC(c.m_Color.r, 1.f / weatherAtmosphere),
+                    LerpColorC(c.m_Color.g, 1.f / weatherAtmosphere),
+                    LerpColorC(c.m_Color.b, 1.f / weatherAtmosphere),
+                    finalIntensity,
                     rz * 20.f,
                     0.f,
                     255
                 );
+
+                // GTA V Specular Hot Core (HDR specular blooming effect)
+                if (c.m_bDrawWithWhiteCore || (c.m_dwId >= 1 && c.m_dwId <= 5)) {
+                    CSprite::RenderOneXLUSprite_Rotate_Aspect(
+                        onScrPos,
+                        finalSize * 0.35f,
+                        255,
+                        255,
+                        255,
+                        static_cast<int16>(finalIntensity * 0.85f),
+                        rz * 20.f,
+                        0.f,
+                        255
+                    );
+                }
             }
         }
 
-        //< 0x6FB2F3 - Render flare
+        //< 0x6FB2F3 - Render flare (GTA V 1:1 Lens Flare System with Anamorphic Streaks, Chromatic Rings & Ghost Artefacts)
         if (c.m_nFlareType != FLARETYPE_NONE) {
             RwRenderStateSet(rwRENDERSTATEZTESTENABLE, RWRSTATE(FALSE));
             RwRenderStateSet(rwRENDERSTATETEXTURERASTER, RWRSTATE(RwTextureGetRaster(gpCoronaTexture[CORONATYPE_SHINYSTAR])));
 
             //< 0x6FB35B
-            const auto colorVariationMult = CGeneral::GetRandomNumberInRange(0.7f, 1.f) * (float)c.m_FadedIntensity;
+            const auto colorVariationMult = CGeneral::GetRandomNumberInRange(0.85f, 1.f) * (float)c.m_FadedIntensity;
 
-            //< 0x6FB2FC [Moved here]
+            // Screen edge fade & optical axis calculation (GTA V LensFlare.cpp:500-610)
+            const auto screenCenter     = rasterSize * 0.5f;
+            const auto screenCenterVec  = (CVector2D{ onScrPos } - screenCenter);
+            const auto screenCenterDist = screenCenterVec.Magnitude() / (rasterSize.y * 0.5f);
+            const auto screenEdgeFade   = std::clamp(1.0f - (screenCenterDist - 0.75f) / 0.35f, 0.0f, 1.0f);
+
+            // Vector along the optical axis through lens center
+            const auto flareAxisDir = screenCenterVec.Normalized();
+
+            //< 0x6FB2FC
             auto it = [&] {
                 switch (c.m_nFlareType) {
                 case FLARETYPE_SUN:        return &SunFlareDef[0];
@@ -300,34 +356,74 @@ void CCoronas::Render() {
             }();
 
             //< 0x6FB46C
-            for (; it->Sprite; it++) {
-                CEntity* hitEntity;
-                CColPoint hitCP;
-                if (!CWorld::ProcessLineOfSight(
-                        covidPos,
-                        TheCamera.GetPosition(),
-                        hitCP,
-                        hitEntity,
-                        false,
-                        true,
-                        true,
-                        false,
-                        false,
-                        false,
-                        false,
-                        true
-                    )) { //< 0x6FB409
-                    CRGBA color = {
-                        static_cast<uint8>(static_cast<float>(c.m_Color.r) * colorVariationMult * it->ColorMult.x),
-                        static_cast<uint8>(static_cast<float>(c.m_Color.g) * colorVariationMult * it->ColorMult.y),
-                        static_cast<uint8>(static_cast<float>(c.m_Color.b) * colorVariationMult * it->ColorMult.z),
+            CEntity* hitEntity;
+            CColPoint hitCP;
+            const bool bLightVisible = !CWorld::ProcessLineOfSight(
+                covidPos,
+                TheCamera.GetPosition(),
+                hitCP,
+                hitEntity,
+                false,
+                true,
+                true,
+                false,
+                false,
+                false,
+                false,
+                true
+            );
+
+            if (bLightVisible) {
+                // 1. GTA V Anamorphic Lens Flare Horizontal Streak (FT_ANIMORPHIC)
+                if (c.m_nFlareType == FLARETYPE_SUN || c.m_nFlareType == FLARETYPE_HEADLIGHTS) {
+                    const float streakWidth  = rasterSize.x * (c.m_nFlareType == FLARETYPE_SUN ? 0.95f : 0.45f) * screenEdgeFade;
+                    const float streakHeight = 9.0f * (c.m_nFlareType == FLARETYPE_SUN ? 1.5f : 1.0f);
+                    const RwRGBA streakColor = {
+                        static_cast<RwUInt8>(std::clamp(static_cast<float>(c.m_Color.r) * 0.75f * screenEdgeFade, 0.f, 255.f)),
+                        static_cast<RwUInt8>(std::clamp(static_cast<float>(c.m_Color.g) * 0.90f * screenEdgeFade, 0.f, 255.f)),
+                        static_cast<RwUInt8>(std::clamp(static_cast<float>(c.m_Color.b) * 1.25f * screenEdgeFade, 0.f, 255.f)),
                         255
                     };
                     CSprite::RenderBufferedOneXLUSprite2D(
-                        lerp(rasterSize / 2.f, CVector2D{ onScrPos }, it->Position),
-                        CVector2D{ it->Size, it->Size } * 4.f,
+                        CVector2D{ onScrPos },
+                        CVector2D{ streakWidth, streakHeight },
+                        streakColor,
+                        static_cast<int16>(220.0f * screenEdgeFade),
+                        255
+                    );
+                }
+
+                // 2. GTA V Multi-Element Ghost Artefacts (FT_ARTEFACT)
+                for (; it->Sprite; it++) {
+                    const RwRGBA color = {
+                        static_cast<RwUInt8>(std::clamp(static_cast<float>(c.m_Color.r) * colorVariationMult * it->ColorMult.x * screenEdgeFade, 0.0f, 255.0f)),
+                        static_cast<RwUInt8>(std::clamp(static_cast<float>(c.m_Color.g) * colorVariationMult * it->ColorMult.y * screenEdgeFade, 0.0f, 255.0f)),
+                        static_cast<RwUInt8>(std::clamp(static_cast<float>(c.m_Color.b) * colorVariationMult * it->ColorMult.z * screenEdgeFade, 0.0f, 255.0f)),
+                        255
+                    };
+                    CSprite::RenderBufferedOneXLUSprite2D(
+                        lerp(screenCenter, CVector2D{ onScrPos }, it->Position),
+                        CVector2D{ it->Size, it->Size } * 4.5f,
                         color,
-                        255,
+                        static_cast<int16>(255.0f * screenEdgeFade),
+                        255
+                    );
+                }
+
+                // 3. GTA V Secondary Chromatic Dispersion Rings (FT_CHROMATIC)
+                if (c.m_nFlareType == FLARETYPE_SUN) {
+                    const CVector2D ringPos = lerp(screenCenter, CVector2D{ onScrPos }, -0.45f);
+                    const RwRGBA ringColor = {
+                        static_cast<RwUInt8>(std::clamp(220.0f * screenEdgeFade, 0.f, 255.f)),
+                        static_cast<RwUInt8>(std::clamp(140.0f * screenEdgeFade, 0.f, 255.f)),
+                        static_cast<RwUInt8>(std::clamp(255.0f * screenEdgeFade, 0.f, 255.f)),
+                        255
+                    };
+                    CSprite::RenderBufferedOneXLUSprite2D(
+                        ringPos,
+                        CVector2D{ 120.0f, 120.0f } * (1.0f + screenCenterDist * 0.4f),
+                        ringColor,
+                        static_cast<int16>(160.0f * screenEdgeFade),
                         255
                     );
                 }
@@ -336,27 +432,240 @@ void CCoronas::Render() {
             RwRenderStateSet(rwRENDERSTATEZTESTENABLE, RWRSTATE(TRUE));
 
             //< 0x6FB483
-            if (c.m_nFlareType == FLARETYPE_HEADLIGHTS && CWeather::HeadLightsSpectrum != 0.f && CGame::CanSeeOutSideFromCurrArea()) {
+            if (c.m_nFlareType == FLARETYPE_HEADLIGHTS && CWeather::HeadLightsSpectrum != 0.f && CGame::CanSeeOutSideFromCurrArea() && bLightVisible) {
                 for (auto it = HeadLightsFlareDef; it->Sprite; it++) {
                     const auto RenderFlareSprite = [&,
-                                                    spriteIntensity = (int16)((float)intensity * it->IntensityMult)](RwRGBA clr, float posOffset) {
+                                                    spriteIntensity = (int16)((float)intensity * it->IntensityMult * screenEdgeFade)](RwRGBA clr, float posOffset) {
                         CSprite::RenderBufferedOneXLUSprite2D(
                             lerp(rasterSize / 2.f, CVector2D{ onScrPos }, it->Position + posOffset),
-                            CVector2D{ it->Size, it->Size },
+                            CVector2D{ it->Size, it->Size } * 1.25f,
                             clr,
                             spriteIntensity,
                             255
                         );
                     };
-                    RenderFlareSprite({ LerpColorC(c.m_Color.r, it->ColorMult.x * CWeather::HeadLightsSpectrum), 0, 0, 255 }, +0.05f); // 0x6FB561
-                    RenderFlareSprite({ 0, 0, LerpColorC(c.m_Color.b, it->ColorMult.z * CWeather::HeadLightsSpectrum), 255 }, -0.05f); // 0x6FB5EA
+                    RenderFlareSprite({ LerpColorC(c.m_Color.r, it->ColorMult.x * CWeather::HeadLightsSpectrum), 0, 0, 255 }, +0.035f); // 0x6FB561
+                    RenderFlareSprite({ 0, 0, LerpColorC(c.m_Color.b, it->ColorMult.z * CWeather::HeadLightsSpectrum), 255 }, -0.035f); // 0x6FB5EA
                 }
             }
         }
     }
     CSprite::FlushSpriteBuffer();
 
+    RenderDistant2dEffects();
+
     /* NOTE/BUG: Renderstates not restored? */
+}
+
+void CCoronas::RegisterDistantEntity2dEffects(CEntity* entity) {
+    if (!entity) {
+        return;
+    }
+
+    if (CTrafficLights::IsMITrafficLight(entity->m_nModelIndex)) {
+        return;
+    }
+
+    auto* mi = CModelInfo::GetModelInfo(entity->m_nModelIndex);
+    if (!mi || mi->m_n2dfxCount == 0) {
+        return;
+    }
+
+    const auto& entityPos = entity->GetPosition();
+    if (entityPos.IsZero()) {
+        return;
+    }
+
+    for (int32 i = 0; i < (int32)mi->m_n2dfxCount; ++i) {
+        auto* effect = mi->Get2dEffect(i);
+        if (!effect || effect->m_Type != e2dEffectType::EFFECT_LIGHT) {
+            continue;
+        }
+
+        const auto& light = effect->light;
+        if (light.m_nCoronaFlashType == e2dCoronaFlashType::FLASH_TRAFFICLIGHT) {
+            continue;
+        }
+
+        const CVector worldPos = entity->TransformFromObjectSpace(effect->m_Pos);
+        if (worldPos.z < -20.0f || worldPos.z > 1500.0f) {
+            continue;
+        }
+
+        // Spatial grid hash key with 1.0m cell precision
+        const int32 kx = static_cast<int32>(std::floor(worldPos.x + 4000.0f));
+        const int32 ky = static_cast<int32>(std::floor(worldPos.y + 4000.0f));
+        const int32 kz = static_cast<int32>(std::floor(worldPos.z + 500.0f));
+        const uint64_t key = (static_cast<uint64_t>(kx & 0x3FFF))
+                           | (static_cast<uint64_t>(ky & 0x3FFF) << 14)
+                           | (static_cast<uint64_t>(kz & 0x3FFF) << 28)
+                           | (static_cast<uint64_t>(i & 0xFF) << 42);
+
+        if (s_RegisteredLightKeys.insert(key).second) {
+            s_aDistantLampposts.emplace_back(
+                worldPos,
+                light.m_color,
+                (light.m_fCoronaSize > 0.05f) ? light.m_fCoronaSize : 1.0f,
+                static_cast<uint8>(light.m_nCoronaFlashType),
+                static_cast<bool>(light.m_bAtNight),
+                static_cast<bool>(light.m_bAtDay)
+            );
+        }
+    }
+}
+
+void CCoronas::UpdateDistant2dEffects() {
+    if (auto* bp = GetBuildingPool()) {
+        for (size_t i = 0; i < bp->GetSize(); ++i) {
+            if (auto* ent = bp->GetAt(static_cast<int32>(i))) {
+                RegisterDistantEntity2dEffects(ent);
+            }
+        }
+    }
+    if (auto* dp = GetDummyPool()) {
+        for (size_t i = 0; i < dp->GetSize(); ++i) {
+            if (auto* ent = dp->GetAt(static_cast<int32>(i))) {
+                RegisterDistantEntity2dEffects(ent);
+            }
+        }
+    }
+    if (auto* op = GetObjectPool()) {
+        for (size_t i = 0; i < op->GetSize(); ++i) {
+            if (auto* ent = op->GetAt(static_cast<int32>(i))) {
+                RegisterDistantEntity2dEffects(ent);
+            }
+        }
+    }
+}
+
+void CCoronas::RenderDistant2dEffects() {
+    if (!CGame::CanSeeOutSideFromCurrArea()) {
+        return;
+    }
+
+    const bool isNight = CClock::GetIsTimeInRange(20, 7) || (CWeather::Foggyness > 0.35f) || (CWeather::Rain > 0.4f);
+    const auto& camPos = TheCamera.GetPosition();
+    const float farClip = std::max(2500.0f, CDraw::GetFarClipZ() * 2.0f);
+    const float minLODDistSq = 25.0f * 25.0f;
+    const float farClipSq = farClip * farClip;
+    const uint32 timeMs = CTimer::GetTimeInMS();
+
+    RwRenderStateSet(rwRENDERSTATEZWRITEENABLE,      RWRSTATE(FALSE));
+    RwRenderStateSet(rwRENDERSTATEVERTEXALPHAENABLE, RWRSTATE(TRUE));
+    RwRenderStateSet(rwRENDERSTATESRCBLEND,          RWRSTATE(rwBLENDONE));
+    RwRenderStateSet(rwRENDERSTATEDESTBLEND,         RWRSTATE(rwBLENDONE));
+    RwRenderStateSet(rwRENDERSTATEZTESTENABLE,       RWRSTATE(TRUE));
+
+    if (gpCoronaTexture[CORONATYPE_SHINYSTAR]) {
+        RwRenderStateSet(rwRENDERSTATETEXTURERASTER, RWRSTATE(RwTextureGetRaster(gpCoronaTexture[CORONATYPE_SHINYSTAR])));
+    }
+
+    const size_t numLights = s_aDistantLampposts.size();
+    for (size_t idx = 0; idx < numLights; ++idx) {
+        const auto& light = s_aDistantLampposts[idx];
+
+        // Native day/night filter
+        if (light.atNight && !light.atDay && !isNight) {
+            continue;
+        }
+        if (light.atDay && !light.atNight && isNight) {
+            continue;
+        }
+
+        const float dx = camPos.x - light.pos.x;
+        const float dy = camPos.y - light.pos.y;
+        const float dz = camPos.z - light.pos.z;
+        const float distSq = dx * dx + dy * dy + dz * dz;
+
+        if (distSq < minLODDistSq || distSq > farClipSq) {
+            continue;
+        }
+
+        // Native flash & blinking types
+        float blinkFade = 1.0f;
+        if (light.flashType != static_cast<uint8>(e2dCoronaFlashType::FLASH_DEFAULT)) {
+            const uint32 seed = static_cast<uint32>(idx * 1337);
+            switch (static_cast<e2dCoronaFlashType>(light.flashType)) {
+            case e2dCoronaFlashType::FLASH_RANDOM:
+            case e2dCoronaFlashType::FLASH_RANDOM_WHEN_WET:
+                blinkFade = (((timeMs / 500 + seed) & 1) == 0) ? 1.0f : 0.0f;
+                break;
+            case e2dCoronaFlashType::FLASH_5ON_5OFF:
+            case e2dCoronaFlashType::FLASH_6ON_4OFF:
+            case e2dCoronaFlashType::FLASH_4ON_6OFF: {
+                const uint32 period = 10000;
+                const uint32 phase = (seed % 1000) * 10;
+                blinkFade = (((timeMs + phase) % period) < 5000) ? 1.0f : 0.0f;
+                break;
+            }
+            case e2dCoronaFlashType::FLASH_ANIM_SPEED_1X:
+            case e2dCoronaFlashType::FLASH_ANIM_SPEED_2X:
+            case e2dCoronaFlashType::FLASH_ANIM_SPEED_4X: {
+                const uint32 speedDiv = (static_cast<e2dCoronaFlashType>(light.flashType) == e2dCoronaFlashType::FLASH_ANIM_SPEED_4X) ? 250 : (static_cast<e2dCoronaFlashType>(light.flashType) == e2dCoronaFlashType::FLASH_ANIM_SPEED_2X ? 500 : 1000);
+                blinkFade = (((timeMs / speedDiv + idx) & 1) == 0) ? 1.0f : 0.0f;
+                break;
+            }
+            default:
+                break;
+            }
+        }
+
+        if (blinkFade <= 0.01f) {
+            continue;
+        }
+
+        CVector onScrPos;
+        CVector2D onScrSize;
+        if (!CSprite::CalcScreenCoors(light.pos, &onScrPos, &onScrSize.x, &onScrSize.y, true, true)) {
+            continue;
+        }
+
+        if (onScrPos.z <= 1.0f || onScrPos.z > farClip) {
+            continue;
+        }
+
+        float renderWidth  = light.size * onScrSize.x * 0.70f;
+        float renderHeight = light.size * onScrSize.y * 0.70f;
+
+        // Clamp screen size so distant lights remain crisp, subtle pinpoints instead of huge blobs
+        renderWidth  = std::clamp(renderWidth,  1.2f, 18.0f);
+        renderHeight = std::clamp(renderHeight, 1.2f, 18.0f);
+
+        if (renderHeight < 0.35f) {
+            continue;
+        }
+
+        // Atmospheric distance attenuation (smoothes out distant lights so they don't overpower the horizon)
+        const float distanceAttenuation = 1.0f / (1.0f + onScrPos.z * 0.00065f);
+
+        // Smooth fade transitions
+        float distFade = 1.0f;
+        if (onScrPos.z < 80.0f) {
+            distFade = std::clamp((onScrPos.z - 40.0f) / 40.0f, 0.0f, 1.0f);
+        } else if (onScrPos.z > farClip - 400.0f) {
+            distFade = std::clamp((farClip - onScrPos.z) / 400.0f, 0.0f, 1.0f);
+        }
+
+        const float finalAlphaFloat = static_cast<float>(light.color.alpha) * 0.65f * distFade * distanceAttenuation * blinkFade;
+        const auto alpha = static_cast<int16>(std::clamp(finalAlphaFloat, 0.0f, 255.0f));
+        if (alpha <= 2) {
+            continue;
+        }
+
+        const float fColourFogMult = std::min(40.0f, onScrPos.z) * CWeather::Foggyness * 0.025f + 1.0f;
+        const float invFarClip = 1.0f / onScrPos.z;
+
+        CSprite::RenderBufferedOneXLUSprite_Rotate_Aspect(
+            onScrPos.x, onScrPos.y, onScrPos.z,
+            renderWidth, renderHeight * fColourFogMult,
+            static_cast<uint8>(static_cast<float>(light.color.red) / fColourFogMult),
+            static_cast<uint8>(static_cast<float>(light.color.green) / fColourFogMult),
+            static_cast<uint8>(static_cast<float>(light.color.blue) / fColourFogMult),
+            alpha, invFarClip * 20.0f, 0.0f, 0xFF
+        );
+    }
+
+    CSprite::FlushSpriteBuffer();
 }
 
 // 0x6FB630
@@ -415,16 +724,17 @@ void CCoronas::RenderReflections() {
         const auto LerpColorC = [t = (s_DebugSettings.AlwaysRenderWetRoadReflections ? 1.f : CWeather::WetRoads)
                                      * c.CalculateIntensity(onScrPos.z, clampedFarClip)
                                      * invLerp(20.f, 0.f, c.m_fHeightAboveGround)
-                                     * 230.f](uint8 cc) {
+                                     * 240.f](uint8 cc) {
             return (uint8)((uint16)((float)cc * t) >> 8 & 0xFF); // divide by 256
         };
+        const auto verticalStretch = 2.6f + std::min(2.0f, onScrPos.z * 0.04f);
         CSprite::RenderBufferedOneXLUSprite(
             { onScrPos.x, onScrPos.y, notsa::bugfixes::PS2CoronaRendering ? onScrPos.z : RwIm2DGetNearScreenZMacro() },
-            onScrSize * CVector2D{ 0.75f, 2.f } * c.m_fSize,
+            onScrSize * CVector2D{ 0.85f, verticalStretch } * c.m_fSize,
             LerpColorC(c.m_Color.r),
             LerpColorC(c.m_Color.g),
             LerpColorC(c.m_Color.b),
-            128,
+            140,
             1.f / RwCameraGetNearClipPlane(Scene.m_pRwCamera),
             255
         );

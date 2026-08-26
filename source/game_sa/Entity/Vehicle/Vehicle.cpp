@@ -4960,15 +4960,34 @@ void CVehicle::DoVehicleLights(CMatrix& matVehicle, eVehicleLightsFlags nLightFl
     }
 
     //
-    // Light the world in front of / behind us
+    // Light the world in front of / behind us (GTA V Tuned Maximum Quality)
     //
     if (headR || headL) {
+        const float headlightIntensityMult = (m_pDriver && m_pDriver->IsPlayer()) ? 1.35f : 1.0f;
+        const float headlightDistanceMult  = (m_pDriver && m_pDriver->IsPlayer()) ? 1.30f : 1.0f;
+        const bool  foggy                  = (CWeather::Foggyness > 0.1f || m_vecMoveSpeed.SquaredMagnitude2D() < 0.2025f);
+        const bool  halogen                = m_pHandlingData && m_pHandlingData->m_bHalogenLights;
+
+        const float colR = halogen ? 1.0f : 0.88f;
+        const float colG = halogen ? 0.95f : 0.94f;
+        const float colB = halogen ? 0.85f : 1.0f;
+
         CPointLights::AddLight(
-            PLTYPE_DIRECTIONAL, GetPosition(), matVehicle.GetForward(), 20.0f,
-            1.0f, 1.0f, 1.0f,
-            m_vecMoveSpeed.SquaredMagnitude2D() < 0.2025f // Only fogs up when driving slowly
+            PLTYPE_DIRECTIONAL, GetPosition(), matVehicle.GetForward(), 24.0f * headlightDistanceMult,
+            colR * headlightIntensityMult, colG * headlightIntensityMult, colB * headlightIntensityMult,
+            foggy ? 1 : 0
         );
+
+        if (headL) {
+            DoHeadLightBeam(DUMMY_LIGHT_FRONT_MAIN, matVehicle, false);
+        }
+        if (headR) {
+            DoHeadLightBeam(DUMMY_LIGHT_FRONT_MAIN, matVehicle, true);
+        }
     }
+
+    // Process Extra Lights (fog lights, roof lights, auxiliary light bars) adapted from GTA V
+    DoExtraLightsEffect(headL, headR, (headL || headR), 1.0f, 1.0f, 1.0f, matVehicle);
 
     if ((rearR || rearL) && m_BrakePedal > 0.0f && !vehicleFlags.bIsHandbrakeOn && m_pDriver) {
         CPointLights::AddLight(
@@ -4976,6 +4995,138 @@ void CVehicle::DoVehicleLights(CMatrix& matVehicle, eVehicleLightsFlags nLightFl
             fBrakeLightRed, fBrakeLightGreen, fBrakeLightBlue,
             0, false, this
         );
+    }
+}
+
+// GTA V Adapted Extra Lights Effect for RenderWare D3D9
+void CVehicle::DoExtraLightsEffect(bool leftOn, bool rightOn, bool doLight, float fade, float daynightFade, float coronaFade, CMatrix& matVehicle) {
+    const auto* vehStruct = GetVehicleModelInfo()->m_pVehicleStruct;
+    if (!vehStruct || !vehStruct->IsDummyActive(DUMMY_LIGHT_FRONT_SECONDARY)) {
+        return;
+    }
+
+    const auto& dummyPos = vehStruct->m_avDummyPos[DUMMY_LIGHT_FRONT_SECONDARY];
+    if (dummyPos.IsZero()) {
+        return;
+    }
+
+    const float alphaFadeLOD  = GetRwObject() ? (static_cast<float>(CVisibilityPlugins::GetClumpAlpha(GetRpClump())) / 255.0f) : 1.0f;
+    const bool isDriverPlayer = (m_pDriver && m_pDriver->IsPlayer());
+
+    // GTA V Headlight tuning multipliers
+    float headlightIntensityMult = 1.0f;
+    float headlightDistanceMult  = 1.0f;
+    if (isDriverPlayer) {
+        headlightIntensityMult = 1.35f;
+        headlightDistanceMult  = 1.30f;
+    }
+
+    const bool halogen = m_pHandlingData && m_pHandlingData->m_bHalogenLights;
+    const bool isTrain = IsSubTrain() && m_nModelIndex != MODEL_TRAM;
+
+    // Light colors (Halogen warm vs Xenon crisp ice-blue/white)
+    CVector lightColor;
+    uint8   starR, starG, starB;
+    uint8   lineR, lineG, lineB;
+
+    if (halogen) {
+        lightColor = CVector(1.0f, 0.95f, 0.85f);
+        starR = 255; starG = 240; starB = 200;
+        lineR = 175; lineG = 165; lineB = 145;
+    } else {
+        lightColor = CVector(0.88f, 0.94f, 1.0f);
+        starR = 210; starG = 230; starB = 255;
+        lineR = 150; lineG = 170; lineB = 215;
+    }
+
+    const float coronaRange = TheCamera.m_fLODDistMultiplier * 160.0f;
+
+    const auto DoSingleExtraLightCorona = [&](bool isRight, bool lightOn) {
+        if (!lightOn) {
+            return;
+        }
+
+        CVector lightPos = dummyPos + GetForwardVector() * 0.05f;
+        if (!isRight) {
+            lightPos.x -= 2.0f * dummyPos.x;
+        }
+
+        CVector    lightPosWorld = matVehicle.TransformPoint(lightPos);
+        CVector    toCam         = TheCamera.GetPosition() - lightPosWorld;
+        const auto camDist       = toCam.NormaliseAndMag();
+        const auto facing        = DotProduct(toCam, matVehicle.GetForward());
+
+        if (facing <= 0.0f) {
+            return;
+        }
+        if (TheCamera.GetActiveCam().m_nMode == MODE_1STPERSON && this == FindPlayerVehicle(-1, false)) {
+            return; // Don't dazzle the player in 1st person
+        }
+
+        const auto brightness = std::sqrt(facing);
+
+        // Beam glare line when looking directly into the spotlight
+        if (brightness > (isTrain ? 0.85f : 0.9f) && camDist < 45.0f) {
+            CCoronas::RegisterCorona(
+                reinterpret_cast<uint32>(this) + (isRight ? 27 : 26), this,
+                lineR, lineG, lineB, 255,
+                lightPos, isTrain ? 0.35f : 0.09f, coronaRange,
+                CORONATYPE_HEADLIGHTLINE, FLARETYPE_NONE, CORREFL_NONE, LOSCHECK_OFF, TRAIL_OFF,
+                brightness, false, 0.3f, false, 15.0f, false, false
+            );
+        }
+
+        // Corona star flare with distance falloff & intensity
+        float starIntensity = (brightness * 0.5f + 0.35f) * fade * coronaFade * alphaFadeLOD;
+        float starSize      = (1.0f - camDist * 0.00625f) * brightness * g_fHeadlightCoronastarAlpha * 1.2f;
+        if (isTrain) {
+            starIntensity = std::min(starIntensity * 2.0f, 1.0f);
+            starSize *= 4.0f;
+        }
+
+        const auto r = static_cast<uint8>(std::clamp(static_cast<float>(starR) * starIntensity, 0.0f, 255.0f));
+        const auto g = static_cast<uint8>(std::clamp(static_cast<float>(starG) * starIntensity, 0.0f, 255.0f));
+        const auto b = static_cast<uint8>(std::clamp(static_cast<float>(starB) * starIntensity, 0.0f, 255.0f));
+
+        CCoronas::RegisterCorona(
+            reinterpret_cast<uint32>(this) + (isRight ? 23 : 22), this,
+            r, g, b, 140,
+            lightPos, starSize, coronaRange,
+            CORONATYPE_HEADLIGHT, FLARETYPE_NONE, CORREFL_SIMPLE, LOSCHECK_OFF, TRAIL_OFF,
+            brightness, false, 0.5f, false, 15.0f, false, false
+        );
+    };
+
+    DoSingleExtraLightCorona(true, rightOn);
+    DoSingleExtraLightCorona(false, leftOn);
+
+    if (doLight && (leftOn || rightOn)) {
+        const float intensity  = 1.0f * headlightIntensityMult * fade;
+        const float falloffMax = 28.0f * headlightDistanceMult;
+        const bool  foggy      = (CWeather::Foggyness > 0.1f || m_vecMoveSpeed.SquaredMagnitude2D() < 0.2025f);
+
+        // Emit directional illumination
+        CPointLights::AddLight(
+            PLTYPE_DIRECTIONAL, GetPosition() + matVehicle.GetForward() * (dummyPos.y + 0.5f) + CVector(0.0f, 0.0f, dummyPos.z),
+            matVehicle.GetForward(), falloffMax,
+            lightColor.x * intensity, lightColor.y * intensity, lightColor.z * intensity,
+            foggy ? 1 : 0, false, this
+        );
+
+        // Ground shadow reflection for auxiliary lights
+        if (leftOn && rightOn) {
+            DoHeadLightReflectionTwin(matVehicle);
+        } else {
+            DoHeadLightReflectionSingle(matVehicle, rightOn);
+        }
+
+        // Volumetric 3D light shafts
+        if (leftOn) {
+            DoHeadLightBeam(DUMMY_LIGHT_FRONT_SECONDARY, matVehicle, false);
+        }
+        if (rightOn) {
+            DoHeadLightBeam(DUMMY_LIGHT_FRONT_SECONDARY, matVehicle, true);
+        }
     }
 }
 

@@ -663,6 +663,7 @@ public:
     void DoHeadLightReflectionTwin(CMatrix& matrix);
     void DoHeadLightReflection(CMatrix& matrix, uint32 flags, bool left, bool right);
     bool DoTailLightEffect(int32 lightId, CMatrix& matVehicle, bool isRight, bool forcedOff, uint32 nLightFlags, bool lightsOn);
+    void DoExtraLightsEffect(bool leftOn, bool rightOn, bool doLight, float fade, float daynightFade, float coronaFade, CMatrix& matVehicle);
     void DoVehicleLights(CMatrix& matVehicle, eVehicleLightsFlags nLightFlags);
 
     void FillVehicleWithPeds(bool bSetClothesToAfro);

@@ -19,6 +19,7 @@
 #include "LoadingScreen.h"
 #include "Garages.h"
 #include "Glass.h"
+#include "Coronas.h"
 
 #define CHECK_ARG_COUNT(_l, _expected, _n) \
     do { \
@@ -1084,6 +1085,8 @@ CEntity* CFileLoader::LoadObjectInstance(CFileObjectInstance* objInstance, const
         if (cm->GetBoundingBox().m_vecMin.z + newEntity->GetPosition().z < 0.0f)
             newEntity->m_bUnderwater = true;
     }
+
+    CCoronas::RegisterDistantEntity2dEffects(newEntity);
 
     return newEntity;
 }
