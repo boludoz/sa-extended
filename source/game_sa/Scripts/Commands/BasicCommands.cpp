@@ -218,11 +218,13 @@ bool AreTextLabelsEqual(std::string_view a, std::string_view b) {
 
 template<size_t MaxNumToCopy>
 void SetTextLabel(scm::StringRef dst, scm::StringRef src) {
-    assert(dst.Cap >= src.Cap);
-    assert(dst.Cap >= MaxNumToCopy);
-    assert(src.IsNullTerminated());
-
-    strncpy(dst.Data, src.Data, MaxNumToCopy);
+    const size_t copyLen = std::min({ static_cast<size_t>(src.Length), MaxNumToCopy, static_cast<size_t>(dst.Cap) });
+    if (copyLen > 0) {
+        memcpy(dst.Data, src.Data, copyLen);
+    }
+    if (copyLen < dst.Cap) {
+        dst.Data[copyLen] = '\0';
+    }
 }
 };
 
