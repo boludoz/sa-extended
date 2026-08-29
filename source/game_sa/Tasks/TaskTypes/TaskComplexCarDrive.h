@@ -41,7 +41,7 @@ public:
     float                             m_CruiseSpeed{};
     eModelID                          m_DesiredCarModel{ MODEL_INVALID };
     notsa::WEnumS32<eCarDrivingStyle> m_CarDrivingStyle{ DRIVING_STYLE_STOP_FOR_CARS };
-    bool                              m_bAsDriver{};
+    bool                              m_bAsDriver{ true };
     eCarDrivingStyle                  m_OriginalDrivingStyle{};
     int8                              m_OriginalMission{};
     uint8                             m_OriginalSpeed{};

@@ -42,7 +42,8 @@ CTaskComplexCarDrive::CTaskComplexCarDrive(CVehicle* vehicle, float speed, eMode
     m_CruiseSpeed{speed},
     m_DesiredCarModel{carModelIndexToCreate},
     m_Veh{vehicle},
-    m_CarDrivingStyle{carDrivingStyle}
+    m_CarDrivingStyle{carDrivingStyle},
+    m_bAsDriver{true}
 {
     CEntity::SafeRegisterRef(m_Veh);
 }

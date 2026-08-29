@@ -1702,7 +1702,7 @@ void CCarCtrl::SlowCarDownForObject(CEntity* entity, CVehicle* vehicle, float* a
     if (entityHeading > 0.0f && entityHeading < 20.0f) {
         if (entity->GetColModel()->GetBoundRadius() + vehicle->GetColModel()->GetBoundingBox().m_vecMax.x > fabs(DotProduct(entityDir, vehicle->GetMatrix().GetRight()))) {
             if (entityHeading >= 7.0f) {
-                *arg3 = std::min(*arg3, (1.0f - (entityHeading - 7.0f) / 13.0f)) * arg4; // Original code multiplies by 0.07692308, which is the recp. of 13
+                *arg3 = std::min(*arg3, (1.0f - (entityHeading - 7.0f) * (1.0f / 13.0f)) * arg4);
             } else {
                 *arg3 = 0.0f;
             }
