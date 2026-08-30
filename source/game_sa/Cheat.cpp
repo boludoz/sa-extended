@@ -1,5 +1,3 @@
-#define USE_ADDITIONAL_CHEATS 1
-
 #include "StdInc.h"
 
 #include "Cheat.h"

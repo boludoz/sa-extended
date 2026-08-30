@@ -290,11 +290,10 @@ void CCam::InjectHooks() {
     RH_ScopedInstall(Process_SpecialFixedForSyphon, 0x517500);
     RH_ScopedInstall(Process_WheelCam, 0x512110);
 
-    RH_ScopedInstall(ClipAlpha, 0x509C30);
-    RH_ScopedInstall(ClipBeta, 0x509B80);
+    RH_ScopedInstall(ClipAlpha, 0x509BE0);
+    RH_ScopedInstall(ClipBeta, 0x509C50);
     RH_ScopedInstall(GetWeaponFirstPersonOn, 0x509DC0);
     RH_ScopedGlobalInstall(MakeAngleLessThan180, 0x509BE0);
-    RH_ScopedGlobalInstall(ConvertPedNode2BoneTag, 0x509A90);
     RH_ScopedGlobalInstall(IsLampPost, 0x509A30);
     RH_ScopedGlobalInstall(WellBufferMe, 0x509AE0);
     RH_ScopedGlobalInstall(FTrunc, 0x50A0A0);
@@ -982,7 +981,7 @@ bool CCam::GetWeaponFirstPersonOn() {
     return m_pCamTargetEntity && m_pCamTargetEntity->GetIsTypePed() && m_pCamTargetEntity->AsPed()->GetActiveWeapon().m_IsFirstPersonWeaponModeSelected;
 }
 
-// 0x509C30 -- alpha = vertical angle
+// 0x509BE0 -- alpha = vertical angle
 void CCam::ClipAlpha() {
     while (m_fVerticalAngle >= TWO_PI) {
         m_fVerticalAngle -= TWO_PI;
@@ -992,7 +991,7 @@ void CCam::ClipAlpha() {
     }
 }
 
-// 0x509B80 -- beta = horizontal angle
+// 0x509C50 -- beta = horizontal angle
 void CCam::ClipBeta() {
     if (m_fHorizontalAngle > PI) {
         m_fHorizontalAngle -= TWO_PI;
@@ -1854,7 +1853,7 @@ void CCam::Process_1rstPersonPedOnPC(const CVector& ThisCamsTarget, float Target
 
         // Offset the head bone towards eye height in head space, so it follows looking up/down
         const auto hier = GetAnimHierarchyFromSkinClump(m_pCamTargetEntity->GetRpClump());
-        auto&      mat  = RpHAnimHierarchyGetMatrixArray(hier)[RpHAnimIDGetIndex(hier, ConvertPedNode2BoneTag(2))];
+        auto&      mat  = RpHAnimHierarchyGetMatrixArray(hier)[RpHAnimIDGetIndex(hier, ConvertPedNode2BoneTag(PED_NODE_HEAD))];
 
         CVector posn = vecHeadCamOffset;
         RwV3dTransformPoint(&posn, &posn, &mat);
@@ -6295,31 +6294,6 @@ void CCam::ApplyUnderwaterMotionBlur() {
         UNDERWATER_CAM_BLUR,
         eMotionBlurType::LIGHT_SCENE
     );
-}
-
-// 0x4D58A0
-int32 ConvertPedNode2BoneTag(int32 simpleId) {
-    const auto map = notsa::make_mapping<int32, int32>({
-        { 1,  3 },
-        { 2,  5 },
-        { 3,  32},
-        { 4,  22},
-        { 5,  34},
-        { 6,  24},
-        { 7,  41},
-        { 8,  51},
-        { 9,  43},
-        { 10, 53},
-        { 11, 52},
-        { 12, 42},
-        { 13, 33},
-        { 14, 23},
-        { 15, 31},
-        { 16, 21},
-        { 17, 4 },
-        { 18, 8 },
-    });
-    return notsa::find_value_or(map, simpleId, -1);
 }
 
 // 0x509A30

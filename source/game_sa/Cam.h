@@ -215,5 +215,4 @@ private:
 
 VALIDATE_SIZE(CCam, 0x238);
 
-int32 ConvertPedNode2BoneTag(int32 simpleId);
 bool  IsLampPost(eModelID modelId);

@@ -82,6 +82,14 @@ void RpAnimBlendClumpGiveAssociations(RpClump* clump, CAnimBlendAssociation* ass
  * @param clump The clump with the frames
  * @param outFrameData Array to be filled
 */
+enum ePedNode : int32;
+
+// 0x4D58A0
+eBoneTag32 ConvertPedNode2BoneTag(ePedNode pedNode);
+
+// 0x4D5970
+const char* ConvertBoneTag2BoneName(eBoneTag32 boneTag);
+
 void RpAnimBlendClumpFillFrameArray(RpClump* clump, AnimBlendFrameData** outFrameData);
 
 /*!
