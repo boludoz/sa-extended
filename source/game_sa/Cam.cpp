@@ -164,12 +164,12 @@ static inline auto& DWCineyCamLastFov = StaticRef<float>(0xB6EC0C);
 
 //! Wrap an angle into [-pi, pi)
 // 0x509BE0
-static void MakeAngleLessThan180(float& angle) {
-    for (; angle >= PI; angle -= TWO_PI) {
-        ;
+void MakeAngleLessThan180(float& AngleToChange) {
+    while (AngleToChange >= (PI)) {
+        AngleToChange -= 2.0f * PI;
     }
-    for (; angle < -PI; angle += TWO_PI) {
-        ;
+    while (AngleToChange < (-PI)) {
+        AngleToChange += 2.0f * PI;
     }
 }
 
@@ -290,7 +290,6 @@ void CCam::InjectHooks() {
     RH_ScopedInstall(Process_SpecialFixedForSyphon, 0x517500);
     RH_ScopedInstall(Process_WheelCam, 0x512110);
 
-    RH_ScopedInstall(ClipAlpha, 0x509BE0);
     RH_ScopedInstall(ClipBeta, 0x509C50);
     RH_ScopedInstall(GetWeaponFirstPersonOn, 0x509DC0);
     RH_ScopedGlobalInstall(MakeAngleLessThan180, 0x509BE0);
@@ -981,15 +980,15 @@ bool CCam::GetWeaponFirstPersonOn() {
     return m_pCamTargetEntity && m_pCamTargetEntity->GetIsTypePed() && m_pCamTargetEntity->AsPed()->GetActiveWeapon().m_IsFirstPersonWeaponModeSelected;
 }
 
-// 0x509BE0 -- alpha = vertical angle
-void CCam::ClipAlpha() {
-    while (m_fVerticalAngle >= TWO_PI) {
-        m_fVerticalAngle -= TWO_PI;
-    }
-    while (m_fVerticalAngle < 0.0f) {
-        m_fVerticalAngle += TWO_PI;
-    }
-}
+// Inlined, but not is 0x509BE0 (see args), that is MakeAngleLessThan180.
+// void CCam::ClipAlpha() {
+//     while (m_fVerticalAngle >= TWO_PI) {
+//         m_fVerticalAngle -= TWO_PI;
+//     }
+//     while (m_fVerticalAngle < 0.0f) {
+//         m_fVerticalAngle += TWO_PI;
+//     }
+// }
 
 // 0x509C50 -- beta = horizontal angle
 void CCam::ClipBeta() {
@@ -6001,16 +6000,23 @@ void CCam::Process_Rocket(const CVector& target, float orientation, float speedV
     
     if (!amountMouseMoved.IsZero()) {
         m_fHorizontalAngle += -3.0f * amountMouseMoved.x * fov * CCamera::m_fMouseAccelHorzntl;
-        m_fVerticalAngle += +4.0f * amountMouseMoved.y * fov * CCamera::m_fMouseAccelVertical;
+        m_fVerticalAngle   += +4.0f * amountMouseMoved.y * fov * CCamera::m_fMouseAccelVertical;
     } else {
-        const auto hv  = (float)-pad1->LookAroundLeftRight(targetPed);
-        const auto vv  = (float)pad1->LookAroundUpDown(targetPed);
+        const auto hv = (float)-pad1->LookAroundLeftRight(targetPed);
+        const auto vv = (float)pad1->LookAroundUpDown(targetPed);
 
         m_fHorizontalAngle += sq(hv) / 10000.0f * fov / 17.5f * CTimer::GetTimeStep() * (hv < 0.0f ? -1.0f : 1.0f);
         m_fVerticalAngle   += sq(vv) / 22500.0f * fov / 14.0f * CTimer::GetTimeStep() * (vv < 0.0f ? -1.0f : 1.0f);
     }
     ClipBeta();
-    ClipAlpha();
+
+    constexpr float maxRotationUp   = DegreesToRadians(60.0f);
+    constexpr float maxRotationDown = DegreesToRadians(89.5f);
+    if (m_fVerticalAngle > maxRotationUp) {
+        m_fVerticalAngle = maxRotationUp;
+    } else if (m_fVerticalAngle < -maxRotationDown) {
+        m_fVerticalAngle = -maxRotationDown;
+    }
 
     m_vecFront.Set(
         -(std::cos(m_fHorizontalAngle) * std::cos(m_fVerticalAngle)),
