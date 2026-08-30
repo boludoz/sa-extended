@@ -24,15 +24,30 @@ public:
     static constexpr auto NUM_GAME_CHEATS = 92;
     static_assert(NUM_GAME_CHEATS <= TOTAL_CHEATS);
 
-    static inline auto& m_aCheatFunctions = StaticRef<void (*[NUM_GAME_CHEATS])()>(0x8A5B58);
-    static inline auto& m_aCheatHashKeys = StaticRef<int32[NUM_GAME_CHEATS]>(0x8A5CC8);
-    static inline auto& m_CheatString = StaticRef<char[CHEAT_STRING_SIZE]>(0x969110);
-    static inline auto& m_aCheatsActive = StaticRef<bool[NUM_GAME_CHEATS]>(0x969130);
-    static inline auto& m_bHasPlayerCheated = StaticRef<bool>(0x96918C);
+#ifdef USE_ADDITIONAL_CHEATS
+    static constexpr auto NUM_NOTSA_CHEATS = (CHEAT_REAL_INVINCIBILITY - TOTAL_CHEATS);
+#endif
 
-    // Android
+    // var: sa 0x96918C
+    static bool m_bHasPlayerCheated;
+
+    // var: sa 0x969130
+    static bool m_aCheatsActive[NUM_GAME_CHEATS];
+
+    // var: sa 0x969110
+    static char m_CheatString[CHEAT_STRING_SIZE];
+
+    // var: sa 0x8A5B58
+    static void (*m_aCheatFunctions[NUM_GAME_CHEATS])();
+
+    // var: sa 0x8A5CC8
+    static uint32 m_aCheatHashKeys[NUM_GAME_CHEATS];
+
+#ifdef USE_ADDITIONAL_CHEATS
+    static int32 m_nLastScriptBypasstime;
     static bool m_bShowMappings;
-    static uint32 m_nLastScriptBypassTime;
+    static inline bool m_aNotsaCheatsActive[NUM_NOTSA_CHEATS]{};
+#endif
 
 public:
     static void InjectHooks();
@@ -107,7 +122,6 @@ public:
     static void WeaponCheat1();
     static void WeaponCheat2();
     static void WeaponCheat3();
-    static void WeaponCheat4();
     static void WeaponSkillsCheat();
 
     static void CloudyWeatherCheat();
@@ -117,8 +131,8 @@ public:
     static void SunnyWeatherCheat();
     static bool IsZoneStreamingAllowed();
 
-
 #ifdef USE_ADDITIONAL_CHEATS
+    static void WeaponCheat4();
     static void TimeTravelCheat();
     static void TheGamblerCheat();
     static void BigHeadCheat();
@@ -139,9 +153,43 @@ public:
     static void ProcessWeaponSlotCheats();
 #endif
 
-    static bool IsActive(eCheats cheat) { return m_aCheatsActive[cheat]; };
-    static bool IsAnyActive(std::initializer_list<eCheats> cheats) { return rng::any_of(cheats, IsActive); };
-    static void Toggle(eCheats cheat)  { m_aCheatsActive[cheat] ^= true; }
-    static void Enable(eCheats cheat)  { m_aCheatsActive[cheat] = true; }
-    static void Disable(eCheats cheat) { m_aCheatsActive[cheat] = false; }
+    static bool IsActive(eCheats cheat) {
+        if (cheat < NUM_GAME_CHEATS) {
+            return m_aCheatsActive[cheat];
+        }
+#ifdef USE_ADDITIONAL_CHEATS
+        if (cheat > TOTAL_CHEATS && cheat <= CHEAT_REAL_INVINCIBILITY) {
+            return m_aNotsaCheatsActive[cheat - (TOTAL_CHEATS + 1)];
+        }
+#endif
+        return false;
+    }
+    static bool IsAnyActive(std::initializer_list<eCheats> cheats) { return rng::any_of(cheats, IsActive); }
+    static void Toggle(eCheats cheat) {
+        if (cheat < NUM_GAME_CHEATS) {
+            m_aCheatsActive[cheat] ^= true;
+#ifdef USE_ADDITIONAL_CHEATS
+        } else if (cheat > TOTAL_CHEATS && cheat <= CHEAT_REAL_INVINCIBILITY) {
+            m_aNotsaCheatsActive[cheat - (TOTAL_CHEATS + 1)] ^= true;
+#endif
+        }
+    }
+    static void Enable(eCheats cheat) {
+        if (cheat < NUM_GAME_CHEATS) {
+            m_aCheatsActive[cheat] = true;
+#ifdef USE_ADDITIONAL_CHEATS
+        } else if (cheat > TOTAL_CHEATS && cheat <= CHEAT_REAL_INVINCIBILITY) {
+            m_aNotsaCheatsActive[cheat - (TOTAL_CHEATS + 1)] = true;
+#endif
+        }
+    }
+    static void Disable(eCheats cheat) {
+        if (cheat < NUM_GAME_CHEATS) {
+            m_aCheatsActive[cheat] = false;
+#ifdef USE_ADDITIONAL_CHEATS
+        } else if (cheat > TOTAL_CHEATS && cheat <= CHEAT_REAL_INVINCIBILITY) {
+            m_aNotsaCheatsActive[cheat - (TOTAL_CHEATS + 1)] = false;
+#endif
+        }
+    }
 };

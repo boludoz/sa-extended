@@ -1,4 +1,6 @@
-﻿#include "StdInc.h"
+#define USE_ADDITIONAL_CHEATS 1
+
+#include "StdInc.h"
 
 #include "Cheat.h"
 #include "PedType.h"
@@ -19,112 +21,253 @@
  *
  */
 
-bool CCheat::m_bShowMappings;
-uint32 CCheat::m_nLastScriptBypassTime;
 
-// NOTSA
-struct Cheat {
-    DWORD   installAddress;
-    void*   method;
-    const   std::string methodName;
-    uint32  hash;
-    eCheats type;
+// var: sa 0x96918C
+bool CCheat::m_bHasPlayerCheated;
+
+#ifdef USE_ADDITIONAL_CHEATS
+int32 CCheat::m_nLastScriptBypasstime;
+bool CCheat::m_bShowMappings;
+#endif
+
+// var: sa 0x969130
+bool CCheat::m_aCheatsActive[NUM_GAME_CHEATS];
+
+// var: sa 0x969110
+char CCheat::m_CheatString[30];
+
+// var: sa 0x8A5B58
+void (*CCheat::m_aCheatFunctions[NUM_GAME_CHEATS])() = {
+    CCheat::WeaponCheat1,
+    CCheat::WeaponCheat2,
+    CCheat::WeaponCheat3,
+    CCheat::MoneyArmourHealthCheat,
+    CCheat::WantedLevelUpCheat,
+    CCheat::WantedLevelDownCheat,
+    CCheat::SunnyWeatherCheat,
+    CCheat::ExtraSunnyWeatherCheat,
+    CCheat::CloudyWeatherCheat,
+    CCheat::RainyWeatherCheat,
+    CCheat::FoggyWeatherCheat,
+    nullptr, // FASTER_CLOCK
+    CCheat::FastTimeCheat,
+    CCheat::SlowTimeCheat,
+    CCheat::MayhemCheat,
+    CCheat::EverybodyAttacksPlayerCheat,
+    nullptr, // EVERYONE_ARMED
+    CCheat::TankCheat,
+    CCheat::StockCarCheat,
+    CCheat::StockCar2Cheat,
+    CCheat::StockCar3Cheat,
+    CCheat::StockCar4Cheat,
+    CCheat::HearseCheat,
+    CCheat::LovefistCheat,
+    CCheat::TrashmasterCheat,
+    CCheat::GolfcartCheat,
+    CCheat::BlowUpCarsCheat,
+    nullptr, // INVISIBLE_CAR
+    nullptr, // PERFECT_HANDLING
+    CCheat::SuicideCheat,
+    nullptr, // BGREEN_LIGHTS
+    nullptr, // AGGRESSIVE_DRIVERS
+    CCheat::PinkCarsCheat,
+    CCheat::BlackCarsCheat,
+    nullptr, // CARS_ON_WATER
+    nullptr, // BOATS_FLY
+    CCheat::FatCheat,
+    CCheat::MuscleCheat,
+    CCheat::SkinnyCheat,
+    CCheat::ElvisLivesCheat,
+    CCheat::VillagePeopleCheat,
+    CCheat::BeachPartyCheat,
+    CCheat::GangsCheat,
+    CCheat::GangLandCheat,
+    CCheat::NinjaCheat,
+    CCheat::LoveConquersAllCheat,
+    CCheat::AllCarsAreShitCheat,
+    CCheat::AllCarsAreGreatCheat,
+    nullptr, // CARS_FLY
+    nullptr, // HUGE_BUNNY_HOP
+    CCheat::FlyboyCheat,
+    CCheat::VortexCheat,
+    nullptr, // SMASH_N_BOOM
+    nullptr, // ALL_CARS_HAVE_NITRO
+    nullptr, // CARS_FLOAT_AWAY_WHEN_HIT
+    CCheat::MidnightCheat,
+    CCheat::DuskCheat,
+    CCheat::StormCheat,
+    CCheat::SandstormCheat,
+    CCheat::PredatorCheat,
+    nullptr, // MEGAJUMP
+    nullptr, // INFINITE_HEALTH
+    nullptr, // INFINITE_OXYGEN
+    CCheat::ParachuteCheat,
+    CCheat::JetpackCheat,
+    CCheat::NotWantedCheat,
+    CCheat::WantedCheat,
+    nullptr, // MEGA_PUNCH
+    nullptr, // NEVER_GET_HUNGRY
+    CCheat::RiotCheat,
+    CCheat::FunhouseCheat,
+    CCheat::AdrenalineCheat,
+    nullptr, // INFINITE_AMMO
+    CCheat::DrivebyCheat,
+    nullptr, // REDUCED_TRAFFIC
+    CCheat::CountrysideInvasionCheat,
+    nullptr, // WANNA_BE_IN_MY_GANG
+    nullptr, // NO_ONE_CAN_STOP_US
+    nullptr, // ROCKET_MAYHEM
+    nullptr, // MAX_RESPECT
+    nullptr, // MAX_SEX_APPEAL
+    CCheat::StaminaCheat,
+    CCheat::WeaponSkillsCheat,
+    CCheat::VehicleSkillsCheat,
+    CCheat::ApacheCheat,
+    CCheat::QuadCheat,
+    CCheat::TankerCheat,
+    CCheat::DozerCheat,
+    CCheat::StuntPlaneCheat,
+    CCheat::MonsterTruckCheat,
+    nullptr, // PROSTITUTES_PAY_YOU
+    nullptr, // ALL_TAXIS_NITRO
 };
 
-const auto cheats = std::to_array<Cheat>({
-        { 0x4385b0,  CCheat::WeaponCheat1, "WeaponCheat1", 0xde4b237d, CHEAT_WEAPON_SET1 },
-        { 0x438890,  CCheat::WeaponCheat2, "WeaponCheat2", 0xb22a28d1, CHEAT_WEAPON_SET2 },
-        { 0x438b30,  CCheat::WeaponCheat3, "WeaponCheat3", 0x5a783fae, CHEAT_WEAPON_SET3 },
-        { 0x438e40,  CCheat::MoneyArmourHealthCheat, "MoneyArmourHealthCheat", 0xeeccea2b, CHEAT_HEALTH_ARMOR_250K },
-        { 0x438e90,  CCheat::WantedLevelUpCheat, "WantedLevelUpCheat", 0x42af1e28, CHEAT_WANTED_LEVEL_2STARS },
-        { 0x438f20,  CCheat::WantedLevelDownCheat, "WantedLevelDownCheat", 0x555fc201, CHEAT_CLEAR_WANTED_LEVEL },
-        { 0x438f40,  CCheat::SunnyWeatherCheat, "SunnyWeatherCheat", 0x2a845345, CHEAT_SUNNY_WEATHER },
-        { 0x438f50,  CCheat::ExtraSunnyWeatherCheat, "ExtraSunnyWeatherCheat", 0xe1ef01ea, CHEAT_VERY_SUNNY_WEATHER },
-        { 0x438f60,  CCheat::CloudyWeatherCheat, "CloudyWeatherCheat", 0x771b83fc, CHEAT_OVERCAST_WEATHER },
-        { 0x438f70,  CCheat::RainyWeatherCheat, "RainyWeatherCheat", 0x5bf12848, CHEAT_RAINY_WEATHER },
-        { 0x438f80,  CCheat::FoggyWeatherCheat, "FoggyWeatherCheat", 0x44453a17, CHEAT_FOGGY_WEATHER },
-        { 0x0, nullptr, "", 0xfcff1d08, CHEAT_FASTER_CLOCK },
-        { 0x438f90,  CCheat::FastTimeCheat, "FastTimeCheat", 0xb69e8532, CHEAT_FASTER_GAMEPLAY },
-        { 0x438fc0,  CCheat::SlowTimeCheat, "SlowTimeCheat", 0x8b828076, CHEAT_SLOWER_GAMEPLAY },
-        { 0x439b20,  CCheat::MayhemCheat, "MayhemCheat", 0xdd6ed9e9, CHEAT_PEDS_ATTACK_OTHER_WITH_GOLFCLUB },
-        { 0x439c70,  CCheat::EverybodyAttacksPlayerCheat, "EverybodyAttacksPlayerCheat", 0xa290fd8c, CHEAT_HAVE_ABOUNTY_ON_YOUR_HEAD },
-        { 0x0, nullptr, "", 0x3484b5a7, CHEAT_EVERYONE_ARMED },
-        { 0x43a4a0,  CCheat::TankCheat, "TankCheat", 0x43db914e, CHEAT_SPAWN_RHINO },
-        { 0x43a4b0,  CCheat::StockCarCheat, "StockCarCheat", 0xdbc0dd65, CHEAT_SPAWN_BLOODRINGBANGER },
-        { 0x43a4c0,  CCheat::StockCar2Cheat, "StockCar2Cheat", 0x00000000, CHEAT_SPAWN_RANCHER },
-        { 0x43a4d0,  CCheat::StockCar3Cheat, "StockCar3Cheat", 0xd08a30fe, CHEAT_SPAWN_HOTRINGA },
-        { 0x43a4e0,  CCheat::StockCar4Cheat, "StockCar4Cheat", 0x37bf1b4e, CHEAT_SPAWN_HOTRINGB },
-        { 0x43a4f0,  CCheat::HearseCheat, "HearseCheat", 0xb5d40866, CHEAT_SPAWN_ROMERO },
-        { 0x43a500,  CCheat::LovefistCheat, "LovefistCheat", 0xe63b0d99, CHEAT_SPAWN_STRETCH },
-        { 0x43a510,  CCheat::TrashmasterCheat, "TrashmasterCheat", 0x675b8945, CHEAT_SPAWN_TRASHMASTER },
-        { 0x43a520,  CCheat::GolfcartCheat, "GolfcartCheat", 0x4987d5ee, CHEAT_SPAWN_CADDY },
-        { 0x439d80,  CCheat::BlowUpCarsCheat, "BlowUpCarsCheat", 0x2e8f84e8, CHEAT_BLOW_UP_ALL_CARS },
-        { 0x0, nullptr, "", 0x1a9aa3d6, CHEAT_INVISIBLE_CAR },
-        { 0x0, nullptr, "", 0xe842f3bc, CHEAT_PERFECT_HANDLING },
-        { 0x438ff0,  CCheat::SuicideCheat, "SuicideCheat", 0x0d5c6a4e, CHEAT_SUICIDE },
-        { 0x0, nullptr, "", 0x74d4fcb1, CHEAT_BGREEN_LIGHTS_CHEAT },
-        { 0x0, nullptr, "", 0xb01d13b8, CHEAT_AGGRESSIVE_DRIVERS },
-        { 0x4390d0,  CCheat::PinkCarsCheat, "PinkCarsCheat", 0x66516ebc, CHEAT_PINK_TRAFFIC },
-        { 0x4390f0,  CCheat::BlackCarsCheat, "BlackCarsCheat", 0x4b137e45, CHEAT_BLACK_TRAFFIC },
-        { 0x0, nullptr, "", 0x00000000, CHEAT_CARS_ON_WATER },
-        { 0x0, nullptr, "", 0x78520e33, CHEAT_BOATS_FLY },
-        { 0x439110,  CCheat::FatCheat, "FatCheat", 0x3a577325, CHEAT_FAT_PLAYER },
-        { 0x439150,  CCheat::MuscleCheat, "MuscleCheat", 0xd4966d59, CHEAT_MAX_MUSCLE },
-        { 0x439190,  CCheat::SkinnyCheat, "SkinnyCheat", 0x5fd1b49d, CHEAT_SKINNY_PLAYER },
-        { 0x4391d0,  CCheat::ElvisLivesCheat, "ElvisLivesCheat", 0xa7613f99, CHEAT_ELVIS_IS_EVERYWHERE },
-        { 0x439dd0,  CCheat::VillagePeopleCheat, "VillagePeopleCheat", 0x1792d871, CHEAT_PEDS_ATTACK_YOU_WITH_ROCKETS },
-        { 0x439230,  CCheat::BeachPartyCheat, "BeachPartyCheat", 0xcbc579df, CHEAT_BEACH_PARTY },
-        { 0x439360,  CCheat::GangsCheat, "GangsCheat", 0x4fedccff, CHEAT_GANGMEMBERS_EVERYWHERE },
-        { 0x4393d0,  CCheat::GangLandCheat, "GangLandCheat", 0x44b34866, CHEAT_GANGS_CONTROLS_THE_STREETS },
-        { 0x439e50,  CCheat::NinjaCheat, "NinjaCheat", 0x2ef877db, CHEAT_NINJA_THEME },
-        { 0x4393f0,  CCheat::LoveConquersAllCheat, "LoveConquersAllCheat", 0x2781e797, CHEAT_SLUT_MAGNET },
-        { 0x4394b0,  CCheat::AllCarsAreShitCheat, "AllCarsAreShitCheat", 0x2bc1a045, CHEAT_CHEAP_TRAFFIC },
-        { 0x4394e0,  CCheat::AllCarsAreGreatCheat, "AllCarsAreGreatCheat", 0xb2afe368, CHEAT_FAST_TRAFFIC },
-        { 0x0, nullptr, "", 0xfa8dd45b, CHEAT_CARS_FLY },
-        { 0x0, nullptr, "", 0x8ded75bd, CHEAT_HUGE_BUNNY_HOP },
-        { 0x43a530,  CCheat::FlyboyCheat, "FlyboyCheat", 0x1a5526bc, CHEAT_SPAWN_HYDRA },
-        { 0x43a540,  CCheat::VortexCheat, "VortexCheat", 0xa48a770b, CHEAT_SPAWN_VORTEX },
-        { 0x0, nullptr, "", 0xb07d3b32, CHEAT_SMASH_N_BOOM },
-        { 0x0, nullptr, "", 0x80c1e54b, CHEAT_ALL_CARS_HAVE_NITRO },
-        { 0x0, nullptr, "", 0x5dad0087, CHEAT_CARS_FLOAT_AWAY_WHEN_HIT },
-        { 0x439510,  CCheat::MidnightCheat, "MidnightCheat", 0x7f80b950, CHEAT_ALWAYS_MIDNIGHT },
-        { 0x439540,  CCheat::DuskCheat, "DuskCheat", 0x6c0fa650, CHEAT_STOP_GAME_CLOCK_ORANGE_SKY },
-        { 0x439570,  CCheat::StormCheat, "StormCheat", 0xf46f2fa4, CHEAT_THUNDER_STORM },
-        { 0x439590,  CCheat::SandstormCheat, "SandstormCheat", 0x70164385, CHEAT_SAND_STORM },
-        { 0x4395a0,  CCheat::PredatorCheat, "PredatorCheat", 0x00000000, CHEAT_UNUSED },
-        { 0x0, nullptr, "", 0x885d0b50, CHEAT_MEGAJUMP },
-        { 0x0, nullptr, "", 0x151bdcb3, CHEAT_INFINITE_HEALTH },
-        { 0x0, nullptr, "", 0xadfa640a, CHEAT_INFINITE_OXYGEN },
-        { 0x4395b0,  CCheat::ParachuteCheat, "ParachuteCheat", 0xe57f96ce, CHEAT_GET_PARACHUTE },
-        { 0x439600,  CCheat::JetpackCheat, "JetpackCheat", 0x040cf761, CHEAT_GET_JETPACK },
-        { 0x4396c0,  CCheat::NotWantedCheat, "NotWantedCheat", 0xe1b33eb9, CHEAT_I_DO_AS_I_PLEASE },
-        { 0x4396f0,  CCheat::WantedCheat, "WantedCheat", 0xfeda77f7, CHEAT_SIX_WANTED_STARS },
-        { 0x0, nullptr, "", 0x8ca870dd, CHEAT_MEGA_PUNCH },
-        { 0x0, nullptr, "", 0x9a629401, CHEAT_NEVER_GET_HUNGRY },
-        { 0x439710,  CCheat::RiotCheat, "RiotCheat", 0xf53ef5a5, CHEAT_RIOT_MODE },
-        { 0x439720,  CCheat::FunhouseCheat, "FunhouseCheat", 0xf2aa0c1d, CHEAT_FUNHOUSE_THEME },
-        { 0x439880,  CCheat::AdrenalineCheat, "AdrenalineCheat", 0xf36345a8, CHEAT_ADRENALINE_MODE },
-        { 0x0, nullptr, "", 0x8990d5e1, CHEAT_INFINITE_AMMO },
-        { 0x4398d0,  CCheat::DrivebyCheat, "DrivebyCheat", 0xb7013b1b, CHEAT_WEAPON_AIMING_WHILE_DRIVING },
-        { 0x0, nullptr, "", 0xcaec94ee, CHEAT_REDUCED_TRAFFIC },
-        { 0x439f60,  CCheat::CountrysideInvasionCheat, "CountrysideInvasionCheat", 0x31f0c3cc, CHEAT_COUNTRY_TRAFFIC },
-        { 0x0, nullptr, "", 0xb3b3e72a, CHEAT_WANNA_BE_IN_MY_GANG },
-        { 0x0, nullptr, "", 0xc25cdbff, CHEAT_NO_ONE_CAN_STOP_US },
-        { 0x0, nullptr, "", 0xd5cf4eff, CHEAT_ROCKET_MAYHEM },
-        { 0x0, nullptr, "", 0x680416b1, CHEAT_MAX_RESPECT },
-        { 0x0, nullptr, "", 0xcf5fda18, CHEAT_MAX_SEX_APPEAL },
-        { 0x439930,  CCheat::StaminaCheat, "StaminaCheat", 0xf01286e9, CHEAT_MAX_STAMINA },
-        { 0x439940,  CCheat::WeaponSkillsCheat, "WeaponSkillsCheat", 0xa841cc0a, CHEAT_HITMAN_LEVEL_FOR_ALL_WEAPONS },
-        { 0x4399d0,  CCheat::VehicleSkillsCheat, "VehicleSkillsCheat", 0x31ea09cf, CHEAT_MAX_DRIVING_SKILLS },
-        { 0x43a550,  CCheat::ApacheCheat, "ApacheCheat", 0xe958788a, CHEAT_SPAWN_HUNTER },
-        { 0x43a560,  CCheat::QuadCheat, "QuadCheat", 0x02c83a7c, CHEAT_SPAWN_QUAD },
-        { 0x43a570,  CCheat::TankerCheat, "TankerCheat", 0xe49c3ed4, CHEAT_SPAWN_TANKER_TRUCK },
-        { 0x43a660,  CCheat::DozerCheat, "DozerCheat", 0x171ba8cc, CHEAT_SPAWN_DOZER },
-        { 0x43a670,  CCheat::StuntPlaneCheat, "StuntPlaneCheat", 0x86988dae, CHEAT_SPAWN_STUNT_PLANE },
-        { 0x43a680,  CCheat::MonsterTruckCheat, "MonsterTruckCheat", 0x2bdd2fa1, CHEAT_SPAWN_MONSTER },
-        { 0x0, nullptr, "", 0x86988dae, CHEAT_PROSTITUTES_PAY_YOU },
-        { 0x0, nullptr, "", 0x2bdd2fa1, CHEAT_ALL_TAXIS_NITRO },
-});
+// index 34 is the cars driving on water cheat (add the hash from silentpatch)
+// var: sa 0x8A5CC8
+uint32 CCheat::m_aCheatHashKeys[NUM_GAME_CHEATS] = {
+    0xDE4B237D, 0xB22A28D1, 0x5A783FAE, 0xEECCEA2B, 0x42AF1E28, 0x555FC201, 0x2A845345, 0xE1EF01EA, 0x771B83FC,
+    0x5BF12848, 0x44453A17, 0xFCFF1D08, 0xB69E8532, 0x8B828076, 0xDD6ED9E9, 0xA290FD8C, 0x3484B5A7, 0x43DB914E,
+    0xDBC0DD65,
+    0x00000000,  // STOCKCAR2_CHEAT
+    0xD08A30FE, 0x37BF1B4E, 0xB5D40866, 0xE63B0D99, 0x675B8945, 0x4987D5EE, 0x2E8F84E8, 0x1A9AA3D6, 0xE842F3BC,
+    0x0D5C6A4E, 0x74D4FCB1, 0xB01D13B8, 0x66516EBC, 0x4B137E45,
+#ifdef FIX_BUGS
+    0xE5FC92C3,  // BACKTOTHEFUTURE_CHEAT: "SeaRoader" hash from SilentPatch
+#else
+    0x00000000,  // BACKTOTHEFUTURE_CHEAT
+#endif
+    0x78520E33, 0x3A577325, 0xD4966D59, 0x5FD1B49D, 0xA7613F99, 0x1792D871, 0xCBC579DF, 0x4FEDCCFF, 0x44B34866,
+    0x2EF877DB, 0x2781E797, 0x2BC1A045, 0xB2AFE368, 0xFA8DD45B, 0x8DED75BD, 0x1A5526BC, 0xA48A770B, 0xB07D3B32,
+    0x80C1E54B, 0x5DAD0087, 0x7F80B950, 0x6C0FA650, 0xF46F2FA4, 0x70164385,
+    0x00000000,  // PREDATOR_CHEAT
+    0x885D0B50, 0x151BDCB3, 0xADFA640A, 0xE57F96CE, 0x040CF761, 0xE1B33EB9, 0xFEDA77F7, 0x8CA870DD, 0x9A629401,
+    0xF53EF5A5, 0xF2AA0C1D, 0xF36345A8, 0x8990D5E1, 0xB7013B1B, 0xCAEC94EE, 0x31F0C3CC, 0xB3B3E72A, 0xC25CDBFF,
+    0xD5CF4EFF, 0x680416B1, 0xCF5FDA18, 0xF01286E9, 0xA841CC0A, 0x31EA09CF, 0xE958788A, 0x02C83A7C, 0xE49C3ED4,
+    0x171BA8CC, 0x86988DAE, 0x2BDD2FA1,
+    0x00000000,  // PIMP_CHEAT
+    0x00000000,  // TAXINITRO_CHEAT
+};
+
+// 0x438480
+#ifdef USE_ADDITIONAL_CHEATS
+struct MobileCheatEntry {
+    uint32  m_nHash;
+    eCheats m_nCheat;
+};
+
+static constexpr MobileCheatEntry aMobileCheats[] = {
+    // Money, Health, Armor
+    { 0xE1614CCB, CHEAT_REAL_INVINCIBILITY },              // "GONPXWR"
+    { 0x3ADFFFA8, CHEAT_INFINITE_OXYGEN },                 // "POOOJOX"
+    { 0x12D59071, CHEAT_HEALTH_ARMOR_250K },               // "PJYNQCQ"
+    // Weapons
+    { 0x42EDF90A, CHEAT_WEAPON_SET1 },                     // "BEFWKSBQ"
+    { 0xCDE9F55B, CHEAT_WEAPON_SET2 },                     // "SHHIHJJG"
+    { 0xC3A29663, CHEAT_WEAPON_SET3 },                     // "GOIZSSX"
+    { 0x48642074, CHEAT_WEAPON_SET4 },                     // "BIEUHQY"
+    { 0x2301C349, CHEAT_HITMAN_LEVEL_FOR_ALL_WEAPONS },    // "SDWBWHE"
+    { 0xD12EF2EB, CHEAT_INFINITE_AMMO },                   // "NECUMZ"
+    { 0x132A0F27, CHEAT_SUICIDE },                         // "SLOTSFK"
+    // Vehicles
+    { 0x6BCC38EB, CHEAT_PERFECT_HANDLING },                // "DLNNHZJ"
+    { 0x31EA09CF, CHEAT_MAX_DRIVING_SKILLS },              // "VQIMAHA"
+    { 0x1437E993, CHEAT_SMASH_N_BOOM },                    // "BXBTUBTI"
+    { 0x56B01D89, CHEAT_WEAPON_AIMING_WHILE_DRIVING },     // "RYSMRM"
+    { 0xC979142B, CHEAT_WEAPON_AIMING_WHILE_DRIVING },     // "IWANTTODRIVEBY"
+    { 0xF9ACF74C, CHEAT_WEAPON_AIMING_WHILE_DRIVING },     // "IWANTDRIVEBY"
+    { 0x6E4CACD5, CHEAT_WEAPON_AIMING_WHILE_DRIVING },     // "DRIVEBY"
+    { 0x68098ED7, CHEAT_BGREEN_LIGHTS_CHEAT },             // "ENQCFMA"
+    { 0x9CED655E, CHEAT_AGGRESSIVE_DRIVERS },              // "IOKXTFJ"
+    { 0xDED59DF1, CHEAT_CARS_FLY },                        // "DOTBSFK"
+    { 0xC9993735, CHEAT_BOATS_FLY },                       // "PTHSEOT"
+    { 0xD52392AD, CHEAT_ALL_CARS_HAVE_NITRO },             // "WUSDOTO"
+    { 0xF01286E9, CHEAT_ALL_TAXIS_NITRO },                 // "VKYPQCF"
+    { 0xC5CE5AB5, CHEAT_CARS_ON_WATER },                   // "GKPNMQ"
+    { 0x765D7A6D, CHEAT_BLOW_UP_ALL_CARS },                // "BKFONFE"
+    { 0xA81A5482, CHEAT_CARS_FLOAT_AWAY_WHEN_HIT },        // "JBVIJXA"
+    { 0x65AD3F35, CHEAT_PINK_TRAFFIC },                    // "GYKVYTR"
+    { 0x4BC59B1F, CHEAT_BLACK_TRAFFIC },                   // "GOYDVAO"
+    { 0x05FB6B3C, CHEAT_SPAWN_RHINO },                     // "AYNVQVK"
+    { 0x4166529E, CHEAT_GET_JETPACK },                     // "CDGUDEP"
+    { 0x2BDD2FA1, CHEAT_SPAWN_MONSTER },                   // "AGBDLCID"
+    { 0x5B8EF3FE, CHEAT_GET_PARACHUTE },                   // "GSUMLEG"
+    { 0x99CF7EC2, CHEAT_SPAWN_BLOODRINGBANGER },           // "BIGLWCDD"
+    { 0x4CE89DD5, CHEAT_SPAWN_CADDY },                     // "DAHESZY"
+    { 0x171BA8CC, CHEAT_SPAWN_DOZER },                     // "EEGCYXT"
+    { 0xD2A85D8B, CHEAT_SPAWN_HOTRINGA },                  // "BGJPSYC"
+    { 0x2B9B8339, CHEAT_SPAWN_HOTRINGB },                  // "BIEAVBAY"
+    { 0x860428E8, CHEAT_SPAWN_HYDRA },                     // "AWPTMIIQ"
+    { 0x9E2897FA, CHEAT_SPAWN_STRETCH },                   // "IXSMWCQ"
+    { 0x6DAFE294, CHEAT_SPAWN_ROMERO },                    // "PSPNATX"
+    { 0x02C83A7C, CHEAT_SPAWN_QUAD },                      // "AKJJYGLC"
+    { 0x6272855B, CHEAT_SPAWN_RANCHER },                   // "HPGPIJZ"
+    { 0x86988DAE, CHEAT_SPAWN_STUNT_PLANE },               // "URKQSRK"
+    { 0xE49C3ED4, CHEAT_SPAWN_TANKER_TRUCK },              // "AMOMHRER"
+    { 0x8D284EBD, CHEAT_SPAWN_TRASHMASTER },               // "QPOLSVK"
+    { 0xA48A770B, CHEAT_SPAWN_VORTEX },                    // "KGGGDKP"
+    // Stats
+    { 0xF1BA89BC, CHEAT_MAX_STAMINA },                     // "AEZLCKXU"
+    { 0x1ED903DD, CHEAT_NEVER_GET_HUNGRY },                // "KBTMUVH"
+    { 0x8CCA8D6B, CHEAT_FAT_PLAYER },                      // "AESHXWQI"
+    { 0x0D9DDD15, CHEAT_MAX_MUSCLE },                      // "SGVDSQW"
+    { 0x5FD1B49D, CHEAT_SKINNY_PLAYER },                   // "KVGYZQK"
+    { 0x4C53B1F1, CHEAT_MAX_RESPECT },                     // "MTGIISR"
+    { 0xE60DEED4, CHEAT_MAX_SEX_APPEAL },                  // "APGZLQR"
+    { 0xFA300554, CHEAT_THE_GAMBLER },                     // "AFJKBNRP"
+    // Wanted
+    { 0xD9944593, CHEAT_WANTED_LEVEL_2STARS },             // "NCBXXDX"
+    { 0xAA5FE043, CHEAT_CLEAR_WANTED_LEVEL },              // "KDTZNHON"
+    { 0x7607D7B8, CHEAT_SIX_WANTED_STARS },                // "GWJZWCB"
+    { 0x26079684, CHEAT_I_DO_AS_I_PLEASE },                // "BYKGOAB"
+    // Gameplay, Weather, Peds
+    { 0x9BC9E237, CHEAT_FASTER_CLOCK },                    // "OWAKIJ"
+    { 0x08AC509B, CHEAT_FASTER_GAMEPLAY },                 // "EHWBWDS"
+    { 0x9701CFB4, CHEAT_SLOWER_GAMEPLAY },                 // "FNJFCZC"
+    { 0x34F5060A, CHEAT_ADRENALINE_MODE },                 // "SLSNRKKK"
+    { 0xF77AE750, CHEAT_STOP_GAME_CLOCK_ORANGE_SKY },      // "KTGDLXY"
+    { 0x045A0CAD, CHEAT_TIME_TRAVEL },                     // "YACKMWS"
+    { 0x7EABE709, CHEAT_ALWAYS_MIDNIGHT },                 // "AWUJNBB"
+    { 0x1CA1A783, CHEAT_SUNNY_WEATHER },                   // "AAEXPPQC"
+    { 0x182BBB8E, CHEAT_VERY_SUNNY_WEATHER },              // "HTRTTVJ"
+    { 0x90668987, CHEAT_OVERCAST_WEATHER },                // "VBWEMQX"
+    { 0xFAF7CFF1, CHEAT_RAINY_WEATHER },                   // "TAVPIER"
+    { 0x4C40B7BC, CHEAT_THUNDER_STORM },                   // "EAKILHM"
+    { 0xD83323B0, CHEAT_FOGGY_WEATHER },                   // "EGCEBVM"
+    { 0x62AB7CD3, CHEAT_SAND_STORM },                      // "JBWDWWO"
+    { 0x7A7365B6, CHEAT_REDUCED_TRAFFIC },                 // "DEHDRX"
+    { 0xB6BD1EF8, CHEAT_COUNTRY_TRAFFIC },                 // "JTBCSN"
+    { 0x7FF6FDAD, CHEAT_FAST_TRAFFIC },                    // "FRIUBIL"
+    { 0x17E2371C, CHEAT_GANGMEMBERS_EVERYWHERE },          // "EAMLJNN"
+    { 0x4551B5B2, CHEAT_WANNA_BE_IN_MY_GANG },             // "JEZRPI"
+    { 0xF187CB21, CHEAT_NO_ONE_CAN_STOP_US },              // "AWIOMPH"
+    { 0x76F94A7B, CHEAT_ROCKET_MAYHEM },                   // "QAONHOH"
+    { 0x60299030, CHEAT_GANGS_CONTROLS_THE_STREETS },      // "HAPOHXR"
+    { 0x5AE74D6E, CHEAT_FUNHOUSE_THEME },                  // "HDLIWGB"
+    { 0x9321FFA4, CHEAT_BEACH_PARTY },                     // "BWCMMTD"
+    { 0xD0C58345, CHEAT_EVERYONE_ARMED },                  // "GDNXHDK"
+    { 0xBB9E7E86, CHEAT_HAVE_ABOUNTY_ON_YOUR_HEAD },       // "FARYJHZ"
+    { 0x7222BA4B, CHEAT_RIOT_MODE },                       // "NJXPCYE"
+    { 0x73A8AA87, CHEAT_PEDS_ATTACK_OTHER_WITH_GOLFCLUB }, // "AKOZBCH"
+    { 0x9AD03DD3, CHEAT_PEDS_ATTACK_YOU_WITH_ROCKETS },    // "ERFBFNI"
+    { 0xB5DFCBC6, CHEAT_SLUT_MAGNET },                     // "BNIZWSBT"
+    { 0xEB788F38, CHEAT_ELVIS_IS_EVERYWHERE },             // "LNHVOAE"
+    { 0x1CB6F385, CHEAT_NINJA_THEME },                     // "AAUSQP"
+    { 0x091A31D0, CHEAT_CHEAP_TRAFFIC },                   // "OAXCCRI"
+    { 0x92A93BA7, CHEAT_HUGE_BUNNY_HOP },                  // "TDBKCEH"
+    { 0xFFD40169, CHEAT_MEGAJUMP },                        // "BFMANNZP"
+    { 0x0A8FBE7C, CHEAT_MEGA_PUNCH },                      // "LRMYOJM"
+};
+#endif
 
 // 0x438480
 void CCheat::AddToCheatString(char LastPressedKey) {
@@ -132,43 +275,85 @@ void CCheat::AddToCheatString(char LastPressedKey) {
         return;
     }
 
-    // Shift stuff to the right
-    for (auto i = CHEAT_STRING_SIZE - 1 - 1; i >= 1; --i) {
-        m_CheatString[i] = m_CheatString[i - 1];
+    LastPressedKey = (char)toupper((uint8)LastPressedKey);
+
+    char testStr[CHEAT_STRING_SIZE];
+
+    for (int32 i = CHEAT_STRING_SIZE - 2; i >= 0; --i) {
+        m_CheatString[i + 1] = m_CheatString[i];
     }
     m_CheatString[0] = LastPressedKey;
-    m_CheatString[CHEAT_STRING_SIZE - 1] = 0;
+    m_CheatString[CHEAT_STRING_SIZE - 1] = '\0';
 
-    const auto strLen = (int32)strlen(m_CheatString);
-    if (strLen < CHEAT_MIN_HASH_SIZE) {
-        return;
-    }
+    uint32 len = (uint32)strlen(m_CheatString);
+    if (len >= CHEAT_MIN_HASH_SIZE) {
+        strcpy(testStr, m_CheatString);
+        for (int32 i = len; i >= CHEAT_MIN_HASH_SIZE; --i) {
+            uint32 hashKey = CKeyGen::GetKey(testStr);
+            for (int32 j = 0; j < NUM_GAME_CHEATS; ++j) {
+                if (m_aCheatHashKeys[j] == (int32)hashKey) {
+                    if (m_aCheatsActive[j]) {
+                        CHud::SetHelpMessage(TheText.Get("CHEAT8"), true, false, false);
+                    } else {
+                        CHud::SetHelpMessage(TheText.Get("CHEAT1"), true, false, false);
+                    }
+                    CStats::IncrementStat(STAT_TIMES_CHEATED, 1.0f);
+                    m_bHasPlayerCheated = true;
+                    ApplyCheat((eCheats)j);
+                    m_CheatString[0] = '\0';
+                    return;
+                }
+            }
+#ifdef USE_ADDITIONAL_CHEATS
+            for (const auto& mobileCheat : aMobileCheats) {
+                if (mobileCheat.m_nHash == hashKey) {
+                    if (IsActive(mobileCheat.m_nCheat)) {
+                        CHud::SetHelpMessage(TheText.Get("CHEAT8"), true, false, false);
+                    } else {
+                        CHud::SetHelpMessage(TheText.Get("CHEAT1"), true, false, false);
+                    }
+                    CStats::IncrementStat(STAT_TIMES_CHEATED, 1.0f);
+                    m_bHasPlayerCheated = true;
+                    ApplyCheat(mobileCheat.m_nCheat);
+                    m_CheatString[0] = '\0';
+                    return;
+                }
+            }
+            // Android leaked & debug cheats
+            switch (hashKey) {
+            case 0x0C735788: // "BYIXZIY" -> Script Bypass
+                CHud::SetHelpMessage(TheText.Get("CHEAT1"), true, false, false);
+                CStats::IncrementStat(STAT_TIMES_CHEATED, 1.0f);
+                m_bHasPlayerCheated = true;
+                ScriptBypassCheat();
+                m_CheatString[0] = '\0';
+                return;
+            case 0x7FBD1F6D: // "KRRIHBT" -> Show Mappings
+                CHud::SetHelpMessage(TheText.Get("CHEAT1"), true, false, false);
+                CStats::IncrementStat(STAT_TIMES_CHEATED, 1.0f);
+                m_bHasPlayerCheated = true;
+                ShowMappingsCheat();
+                m_CheatString[0] = '\0';
+                return;
+            case 0xF0A6B85C: // "MIZYXHZ" -> Show Tap To Target
+                ToggleShowTapToTarget();
+                CHud::SetHelpMessage(TheText.Get("CHEAT1"), true, false, false);
+                CStats::IncrementStat(STAT_TIMES_CHEATED, 1.0f);
+                m_bHasPlayerCheated = true;
+                m_CheatString[0] = '\0';
+                return;
+            case 0xFD5AE965: // "JQFUDUB" -> Show Targeting
+                ToggleShowTargeting();
+                CHud::SetHelpMessage(TheText.Get("CHEAT1"), true, false, false);
+                CStats::IncrementStat(STAT_TIMES_CHEATED, 1.0f);
+                m_bHasPlayerCheated = true;
+                m_CheatString[0] = '\0';
+                return;
+            }
+#endif
 
-    // Work on a copy: the search chops characters off the end, and the real buffer has to
-    // survive intact so the next keypress still sees the whole history.
-    char buf[CHEAT_STRING_SIZE];
-    strcpy(buf, m_CheatString);
-
-    // Longest first, one character shorter each time, down to CHEAT_MIN_HASH_SIZE. Going the
-    // other way round makes a short cheat that is a suffix of a longer one shadow it.
-    for (auto len = strLen; len >= CHEAT_MIN_HASH_SIZE; buf[--len] = '\0') {
-        const auto hash = (int32)CKeyGen::GetKey(buf);
-
-        // First match wins
-        const auto it = rng::find(m_aCheatHashKeys, hash);
-        if (it == rng::end(m_aCheatHashKeys)) {
-            continue;
+            testStr[i - 1] = '\0';
         }
-        const auto cheat = (eCheats)rng::distance(rng::begin(m_aCheatHashKeys), it);
-
-        CHud::SetHelpMessage(TheText.Get(m_aCheatsActive[cheat] ? "CHEAT8" : "CHEAT1"), true, false, false);
-        CStats::IncrementStat(STAT_TIMES_CHEATED, 1.0f);
-
-        m_bHasPlayerCheated = true;
-        ApplyCheat(cheat);
-
-        m_CheatString[0] = '\0';
-        return;
     }
 }
 
@@ -176,12 +361,28 @@ void CCheat::AddToCheatString(char LastPressedKey) {
 // unknown name
 // 0x438370
 void CCheat::ApplyCheat(eCheats cheat) {
-    auto func = m_aCheatFunctions[cheat];
-    if (func) {
-        return func();
-    } else {
-        return Toggle(cheat);
+#ifdef USE_ADDITIONAL_CHEATS
+    if (cheat == CHEAT_WEAPON_SET4) {
+        return WeaponCheat4();
     }
+    if (cheat == CHEAT_TIME_TRAVEL) {
+        return TimeTravelCheat();
+    }
+    if (cheat == CHEAT_THE_GAMBLER) {
+        return TheGamblerCheat();
+    }
+    if (cheat == CHEAT_REAL_INVINCIBILITY) {
+        return TogglePlayerInvincibility();
+    }
+#endif
+
+    if (cheat < NUM_GAME_CHEATS) {
+        auto func = m_aCheatFunctions[cheat];
+        if (func) {
+            return func();
+        }
+    }
+    return Toggle(cheat);
 }
 
 // 0x438450
@@ -189,6 +390,9 @@ void CCheat::ResetCheats() {
     ZoneScoped;
 
     memset(&m_aCheatsActive, 0, sizeof(m_aCheatsActive));
+#ifdef USE_ADDITIONAL_CHEATS
+    memset(&m_aNotsaCheatsActive, 0, sizeof(m_aNotsaCheatsActive));
+#endif
     CWeather::ReleaseWeather();
     CTimer::ResetTimeScale();
     m_CheatString[0] = '\0';
@@ -199,9 +403,9 @@ void CCheat::ResetCheats() {
 void CCheat::DoCheats() {
     ZoneScoped;
 
-    for (auto key = 0; key < 256; ++key) {
-        if (CPad::GetPad(0)->IsStandardKeyJustPressed(key)) {
-            AddToCheatString(key);
+    for (int32 i = 0; i < 256; ++i) {
+        if (CPad::NewKeyState.standardKeys[i] != 0 && CPad::OldKeyState.standardKeys[i] == 0) {
+            AddToCheatString((char)i);
         }
     }
 }
@@ -316,7 +520,7 @@ void CCheat::DrivebyCheat() {
     Toggle(CHEAT_WEAPON_AIMING_WHILE_DRIVING);
 
     CPlayerPed *player = FindPlayerPed();
-    if (IsActive(CHEAT_WEAPON_AIMING_WHILE_DRIVING) && player->m_aWeapons[WEAPON_KNIFE].m_Type == WEAPON_UNARMED) {
+    if (IsActive(CHEAT_WEAPON_AIMING_WHILE_DRIVING) && player->GetWeaponInSlot(eWeaponSlot::SMG).m_Type == WEAPON_UNARMED) {
         player->GiveDelayedWeapon(WEAPON_MICRO_UZI, 150);
         player->SetCurrentWeapon(WEAPON_MICRO_UZI);
     }
@@ -949,25 +1153,31 @@ void CCheat::WeaponCheat3() {
     std::ranges::for_each(weapons, [](auto model) { CStreaming::SetModelIsDeletable(model); });
 }
 
-// todo: add WEAPON_NIGHTVISION, WEAPON_INFRARED
+#ifdef USE_ADDITIONAL_CHEATS
 // Android
 void CCheat::WeaponCheat4() {
-    const eModelID weapons[] = { MODEL_MINIGUN, MODEL_GUN_DILDO2 };
+    static bool bNVGoggles = false;
+
+    const eModelID gogglesModel = bNVGoggles ? MODEL_NVGOGGLES : MODEL_IRGOGGLES;
+    const eWeaponType gogglesWeapon = bNVGoggles ? WEAPON_NIGHTVISION : WEAPON_INFRARED;
+
+    const eModelID weapons[] = { MODEL_MINIGUN, MODEL_GUN_DILDO2, gogglesModel };
     std::ranges::for_each(weapons, [](auto model) { CStreaming::RequestModel(model, STREAMING_GAME_REQUIRED); });
     CStreaming::LoadAllRequestedModels(false);
 
-    auto* player = FindPlayerPed(0);
-    player->GiveWeapon(WEAPON_MINIGUN, 500, true);
-    player->GiveWeapon(WEAPON_DILDO2, 0, true);
-
-    auto* player1 = FindPlayerPed(1);
-    if (player1) {
-        player->GiveWeapon(WEAPON_MINIGUN, 500, true);
-        player->GiveWeapon(WEAPON_DILDO2, 0, true);
+    for (int32 playerId : { 0, 1 }) {
+        if (auto* player = FindPlayerPed(playerId)) {
+            player->GiveWeapon(WEAPON_DILDO2, 1, true);
+            player->GiveWeapon(WEAPON_MINIGUN, 500, true);
+            player->GiveWeapon(gogglesWeapon, 1, true);
+        }
     }
 
     std::ranges::for_each(weapons, [](auto model) { CStreaming::SetModelIsDeletable(model); });
+
+    bNVGoggles = !bNVGoggles;
 }
+#endif
 
 // 0x439940
 void CCheat::WeaponSkillsCheat() {
@@ -1038,6 +1248,7 @@ bool CCheat::IsZoneStreamingAllowed() {
         || IsActive(CHEAT_COUNTRY_TRAFFIC);
 }
 
+#ifdef USE_ADDITIONAL_CHEATS
 // Android
 void CCheat::TimeTravelCheat() {
     CClock::SetGameClock(CClock::GetGameClockHours() + 4, CClock::GetGameClockMinutes(), CClock::GetGameClockDays());
@@ -1080,7 +1291,7 @@ void CCheat::ShowMappingsCheat() {
 
 // Android
 void CCheat::ScriptBypassCheat() {
-    m_nLastScriptBypassTime = CTimer::GetTimeInMS();
+    m_nLastScriptBypasstime = CTimer::GetTimeInMS();
 }
 
 void CCheat::ProcessAllCheats() {
@@ -1180,6 +1391,7 @@ void CCheat::WeaponSlotCheat() {
     // SLOT_EQUIPMENT       "NIGHT-VISION GOGGLES" "FIRE EXTINGUISHER" "SPRAY CAN" "PARACHUTE" "CAMERA" "THERMAL GOGGLES"
     // SLOT_OTHER           "VIBRA2" "DILDO1" "CANE" "DILDO2" "FLOWERS" "VIBRA1"
 }
+#endif
 
 void CCheat::InjectHooks() {
     RH_ScopedClass(CCheat);
@@ -1193,18 +1405,70 @@ void CCheat::InjectHooks() {
     RH_ScopedInstall(ApplyCheat, 0x438370);
     RH_ScopedInstall(VehicleCheat, 0x43A0B0);
 
-    for (auto& cheat: cheats) {
-        if (cheat.installAddress == 0x0) {
-            continue;
-        }
-
-        RH_ScopedNamedGlobalInstall(cheat.method, cheat.methodName, cheat.installAddress);
-
-        for (auto& cheatFunc: CCheat::m_aCheatFunctions) {
-            if (reinterpret_cast<unsigned long>(cheatFunc) == cheat.installAddress) {
-                cheatFunc = static_cast<void (*)()>(cheat.method);
-            }
-        }
-    }
+    RH_ScopedInstall(WeaponCheat1, 0x4385B0);
+    RH_ScopedInstall(WeaponCheat2, 0x438890);
+    RH_ScopedInstall(WeaponCheat3, 0x438B30);
+    RH_ScopedInstall(MoneyArmourHealthCheat, 0x438E40);
+    RH_ScopedInstall(WantedLevelUpCheat, 0x438E90);
+    RH_ScopedInstall(WantedLevelDownCheat, 0x438F20);
+    RH_ScopedInstall(SunnyWeatherCheat, 0x438F40);
+    RH_ScopedInstall(ExtraSunnyWeatherCheat, 0x438F50);
+    RH_ScopedInstall(CloudyWeatherCheat, 0x438F60);
+    RH_ScopedInstall(RainyWeatherCheat, 0x438F70);
+    RH_ScopedInstall(FoggyWeatherCheat, 0x438F80);
+    RH_ScopedInstall(FastTimeCheat, 0x438F90);
+    RH_ScopedInstall(SlowTimeCheat, 0x438FC0);
+    RH_ScopedInstall(SuicideCheat, 0x438FF0);
+    RH_ScopedInstall(PinkCarsCheat, 0x4390D0);
+    RH_ScopedInstall(BlackCarsCheat, 0x4390F0);
+    RH_ScopedInstall(FatCheat, 0x439110);
+    RH_ScopedInstall(MuscleCheat, 0x439150);
+    RH_ScopedInstall(SkinnyCheat, 0x439190);
+    RH_ScopedInstall(ElvisLivesCheat, 0x4391D0);
+    RH_ScopedInstall(BeachPartyCheat, 0x439230);
+    RH_ScopedInstall(GangsCheat, 0x439360);
+    RH_ScopedInstall(GangLandCheat, 0x4393D0);
+    RH_ScopedInstall(LoveConquersAllCheat, 0x4393F0);
+    RH_ScopedInstall(AllCarsAreShitCheat, 0x4394B0);
+    RH_ScopedInstall(AllCarsAreGreatCheat, 0x4394E0);
+    RH_ScopedInstall(MidnightCheat, 0x439510);
+    RH_ScopedInstall(DuskCheat, 0x439540);
+    RH_ScopedInstall(StormCheat, 0x439570);
+    RH_ScopedInstall(SandstormCheat, 0x439590);
+    RH_ScopedInstall(PredatorCheat, 0x4395A0);
+    RH_ScopedInstall(ParachuteCheat, 0x4395B0);
+    RH_ScopedInstall(JetpackCheat, 0x439600);
+    RH_ScopedInstall(NotWantedCheat, 0x4396C0);
+    RH_ScopedInstall(WantedCheat, 0x4396F0);
+    RH_ScopedInstall(RiotCheat, 0x439710);
+    RH_ScopedInstall(FunhouseCheat, 0x439720);
+    RH_ScopedInstall(AdrenalineCheat, 0x439880);
+    RH_ScopedInstall(DrivebyCheat, 0x4398D0);
+    RH_ScopedInstall(StaminaCheat, 0x439930);
+    RH_ScopedInstall(WeaponSkillsCheat, 0x439940);
+    RH_ScopedInstall(VehicleSkillsCheat, 0x4399D0);
+    RH_ScopedInstall(MayhemCheat, 0x439B20);
+    RH_ScopedInstall(EverybodyAttacksPlayerCheat, 0x439C70);
+    RH_ScopedInstall(BlowUpCarsCheat, 0x439D80);
+    RH_ScopedInstall(VillagePeopleCheat, 0x439DD0);
+    RH_ScopedInstall(NinjaCheat, 0x439E50);
+    RH_ScopedInstall(CountrysideInvasionCheat, 0x439F60);
+    RH_ScopedInstall(TankCheat, 0x43A4A0);
+    RH_ScopedInstall(StockCarCheat, 0x43A4B0);
+    RH_ScopedInstall(StockCar2Cheat, 0x43A4C0);
+    RH_ScopedInstall(StockCar3Cheat, 0x43A4D0);
+    RH_ScopedInstall(StockCar4Cheat, 0x43A4E0);
+    RH_ScopedInstall(HearseCheat, 0x43A4F0);
+    RH_ScopedInstall(LovefistCheat, 0x43A500);
+    RH_ScopedInstall(TrashmasterCheat, 0x43A510);
+    RH_ScopedInstall(GolfcartCheat, 0x43A520);
+    RH_ScopedInstall(FlyboyCheat, 0x43A530);
+    RH_ScopedInstall(VortexCheat, 0x43A540);
+    RH_ScopedInstall(ApacheCheat, 0x43A550);
+    RH_ScopedInstall(QuadCheat, 0x43A560);
+    RH_ScopedInstall(TankerCheat, 0x43A570);
+    RH_ScopedInstall(DozerCheat, 0x43A660);
+    RH_ScopedInstall(StuntPlaneCheat, 0x43A670);
+    RH_ScopedInstall(MonsterTruckCheat, 0x43A680);
 }
 
