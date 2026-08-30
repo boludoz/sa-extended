@@ -852,6 +852,10 @@ bool CBike::BurstTyre(uint8 tyreComponentId, bool bPhysicalEffect) {
     bool bBurstTyre = false;
     if (m_nWheelStatus[tyreComponentId] == eCarWheelStatus::WHEEL_STATUS_OK) {
         m_nWheelStatus[tyreComponentId] = eCarWheelStatus::WHEEL_STATUS_BURST;
+
+#ifdef FIX_BUGS
+        CStats::IncrementStat(STAT_TIRES_POPPED_WITH_GUNFIRE, 1);
+#endif
         m_vehicleAudio.AddAudioEvent(AE_TYRE_BURST);
 
         if (GetStatus() == STATUS_SIMPLE) {
@@ -866,29 +870,33 @@ bool CBike::BurstTyre(uint8 tyreComponentId, bool bPhysicalEffect) {
         bBurstTyre = true;
     }
 
-    if (!m_pDriver) {
-        return bBurstTyre;
-    }
-
-    if (tyreComponentId == 0) {
-        if (m_aRatioHistory[0] >= 1.0f && m_aRatioHistory[1] >= 1.0f) {
-            return bBurstTyre;
-        }
-    } else if (tyreComponentId != 1 || (m_aRatioHistory[2] >= 1.0f && m_aRatioHistory[3] >= 1.0f)) {
-        return bBurstTyre;
-    }
-
-    const auto fSpeed = m_vecMoveSpeed.Magnitude();
-    if (fSpeed > fBikeBurstFallSpeed && (GetStatus() != STATUS_PLAYER || fSpeed > fBikeBurstFallSpeedPlayer)) {
-        if (tyreComponentId == 0) {
-            CEventKnockOffBike event(this, m_vecMoveSpeed, m_vecLastCollisionImpactVelocity, 0.0f, 0.0f, KNOCK_OFF_TYPE_FALL, 0, 0, nullptr, true, false);
-            m_pDriver->GetEventGroup().Add(&event);
-            if (m_apPassengers[0]) {
-                CEventKnockOffBike passEvent(this, m_vecMoveSpeed, m_vecLastCollisionImpactVelocity, 0.0f, 0.0f, KNOCK_OFF_TYPE_FALL, 0, 0, nullptr, false, false);
-                m_apPassengers[0]->GetEventGroup().Add(&passEvent);
+    if (m_pDriver) {
+#ifdef FIX_BUGS
+        if ((tyreComponentId == 0 && (m_aRatioHistory[0] < 1.0f || m_aRatioHistory[1] < 1.0f)) ||
+            (tyreComponentId == 1 && (m_aRatioHistory[2] < 1.0f || m_aRatioHistory[3] < 1.0f)))
+#else
+        if ((tyreComponentId == CAR_PIECE_WHEEL_LF && (m_aRatioHistory[0] < 1.0f || m_aRatioHistory[1] < 1.0f)) ||
+            (tyreComponentId == CAR_PIECE_WHEEL_RL && (m_aRatioHistory[2] < 1.0f || m_aRatioHistory[3] < 1.0f)))
+#endif
+        {
+            const auto fSpeed = m_vecMoveSpeed.Magnitude();
+            if (fSpeed > fBikeBurstFallSpeed && (GetStatus() != STATUS_PLAYER || fSpeed > fBikeBurstFallSpeedPlayer)) {
+#ifdef FIX_BUGS
+                if (tyreComponentId == 0)
+#else
+                if (tyreComponentId == CAR_PIECE_WHEEL_LF)
+#endif
+                {
+                    CEventKnockOffBike event(this, m_vecMoveSpeed, m_vecLastCollisionImpactVelocity, 0.0f, 0.0f, KNOCK_OFF_TYPE_SKIDBACKFRONT, 0, 0, nullptr, true, false);
+                    m_pDriver->GetEventGroup().Add(&event);
+                    if (m_apPassengers[0]) {
+                        CEventKnockOffBike passEvent(this, m_vecMoveSpeed, m_vecLastCollisionImpactVelocity, 0.0f, 0.0f, KNOCK_OFF_TYPE_SKIDBACKFRONT, 0, 0, nullptr, false, false);
+                        m_apPassengers[0]->GetEventGroup().Add(&passEvent);
+                    }
+                } else {
+                    ApplyTurnForce(2.0f * fBikeBurstForceMult * m_fTurnMass * GetRight(), GetForward());
+                }
             }
-        } else {
-            ApplyTurnForce(2.0f * fBikeBurstForceMult * m_fTurnMass * GetRight(), GetForward());
         }
     }
 
