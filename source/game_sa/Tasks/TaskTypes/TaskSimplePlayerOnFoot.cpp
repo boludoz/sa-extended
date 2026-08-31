@@ -158,7 +158,7 @@ void CTaskSimplePlayerOnFoot::ProcessPlayerWeapon(CPlayerPed* player) {
             playerData->m_LastHSMissileTarget = nullptr;
         }
     } else {
-        if (pad->GetEnterTargeting() || TheCamera.m_bJustJumpedOutOf1stPersonBecauseOfTarget || pad->GetTarget() && m_nFrameCounter < (CTimer::GetFrameCounter() - 1)) {
+        if (pad->GetEnterTargeting() || TheCamera.m_bJustJumpedOutOf1stPersonBecauseOfTarget || (pad->GetTarget() && m_nFrameCounter < (CTimer::GetFrameCounter() - 1))) {
             auto weaponMode = eCamMode::MODE_NONE;
             switch (weaponType) {
             case WEAPON_RLAUNCHER: {
@@ -180,13 +180,14 @@ void CTaskSimplePlayerOnFoot::ProcessPlayerWeapon(CPlayerPed* player) {
                 break;
             }
             default: {
-                weaponMode = MODE_M16_1STPERSON;
                 break;
             }
             }
-            TheCamera.SetNewPlayerWeaponMode(weaponMode, 0, 0);
-            player->SetPedState(PEDSTATE_SNIPER_MODE);
-            return;
+            if (weaponMode != eCamMode::MODE_NONE) {
+                TheCamera.SetNewPlayerWeaponMode(weaponMode, 0, 0);
+                player->SetPedState(PEDSTATE_SNIPER_MODE);
+                return;
+            }
         }
 
         if (!TheCamera.Using1stPersonWeaponMode()) {

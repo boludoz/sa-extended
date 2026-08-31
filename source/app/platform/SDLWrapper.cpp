@@ -29,8 +29,9 @@ void ProcessEvents() {
     // Now process events
     const auto* const imCtx = ImGui::GetCurrentContext();
     const auto* const imIO  = imCtx ? &imCtx->IO : nullptr;
+    const bool uiActive     = notsa::ui::UIRenderer::GetSingleton().IsActive();
     for (SDL_Event e; SDL_PollEvent(&e);) {
-        if (imIO) {
+        if (imIO && uiActive) {
             ImGui_ImplSDL3_ProcessEvent(&e);
         }
 
@@ -51,7 +52,7 @@ void ProcessEvents() {
             continue;
         }
         case SDL_EVENT_MOUSE_MOTION: {
-            if (notsa::ui::UIRenderer::GetSingleton().IsActive()) {
+            if (uiActive) {
                 break;
             }
             static CVector2D s_MousePos{};
@@ -70,7 +71,7 @@ void ProcessEvents() {
         }
         }
 
-        if (CPad::ProcessEvent(e, imIO && imIO->WantCaptureMouse, imIO && imIO->WantCaptureKeyboard)) {
+        if (CPad::ProcessEvent(e, uiActive && imIO && imIO->WantCaptureMouse, uiActive && imIO && imIO->WantCaptureKeyboard)) {
             continue;
         }
 

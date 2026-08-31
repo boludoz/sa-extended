@@ -5,7 +5,7 @@
 #include "TaskSimpleGetUp.h"
 #include "TaskSimpleDuck.h"
 #include "TaskSimpleFight.h"
-
+ 
 void CTaskSimpleUseGun::InjectHooks() {
     RH_ScopedVirtualClass(CTaskSimpleUseGun, 0x86D724, 9);
     RH_ScopedCategory("Tasks/TaskTypes");
@@ -156,13 +156,15 @@ void CTaskSimpleUseGun::RemoveStanceAnims(CPed* ped, float x) {
     }
 
     const auto DoBlendAnimAndStart = [ped](AnimationId animId) {
-        const auto animWalk = CAnimManager::BlendAnimation(ped->GetRpClump(), ped->m_nAnimGroup, animId);
-        animWalk->SetFlag(ANIMATION_IS_PLAYING);
+        const auto animWalk = CAnimManager::BlendAnimation(ped->GetRpClump(), ped->m_nAnimGroup, animId, 4.0f);
+        if (animWalk) {
+            animWalk->SetFlag(ANIMATION_IS_PLAYING);
+        }
     };
 
     if (ped->IsPlayer()) {
         if (const auto pad = ped->AsPlayer()->GetPadFromPlayer()) {
-            if (std::abs(pad->GetPedWalkUpDown()) > 50 || std::abs(pad->GetPedWalkLeftRight()) > 50) { // NOTSA: They didn't use abs ;)
+            if (std::abs(pad->GetPedWalkUpDown()) > 50 || std::abs(pad->GetPedWalkLeftRight()) > 50) {
                 DoBlendAnimAndStart(ANIM_ID_WALK);
 
                 ped->SetMoveState(PEDMOVE_WALK);
@@ -171,6 +173,7 @@ void CTaskSimpleUseGun::RemoveStanceAnims(CPed* ped, float x) {
                 if (const auto pd = ped->GetPlayerData()) {
                     pd->m_fMoveBlendRatio = 1.f;
                 }
+                return;
             }
         }
     }
@@ -327,7 +330,7 @@ void CTaskSimpleUseGun::AimGun(CPed* ped) {
         }
     } else if (ped->m_pedIK.bUseArm) { // 0x61EFB4 - Process player free-aiming
         const auto pd = ped->GetPlayerData();
-        if (pd && pd->m_bFreeAiming && CVector2D{ m_TargetPos }.IsZero() && notsa::contains({ MODE_AIMWEAPON, MODE_AIMWEAPON_ATTACHED }, TheCamera.m_aCams[0].m_nMode)) { // Aim to in front of us
+        if (pd && pd->m_bFreeAiming && CVector2D{ m_TargetPos }.IsZero() && notsa::contains({ MODE_AIMWEAPON, MODE_AIMWEAPON_ATTACHED }, TheCamera.GetActiveCam().m_nMode)) { // Aim to in front of us
             CVector origin, target;
             TheCamera.Find3rdPersonCamTargetVector(20.f, ped->GetPosition() + CVector{0.f, 0.f, 0.7f}, origin, target);
 
@@ -648,7 +651,7 @@ void CTaskSimpleUseGun::SetMoveAnim(CPed* ped) {
             : DoBlendAnim(ANIM_ID_GUN_STAND, 8.f);
 
         const auto resetPlayTime = moveAnim && moveAnim->GetBlendAmount() > 0.95f;
-        for (const auto anim : { animGunMoveBwd, animGunMoveL, animGunMoveR, animGunMoveBwd }) {
+        for (const auto anim : { animGunMoveBwd, animGunMoveL, animGunMoveR, animGunMoveFwd }) {
             if (anim) {
                 anim->SetFlag(ANIMATION_IS_PLAYING, false);
                 if (resetPlayTime) {
@@ -657,11 +660,7 @@ void CTaskSimpleUseGun::SetMoveAnim(CPed* ped) {
             }
         }
 
-        if (!notsa::IsFixBugs()) {
-            m_MoveCmd = { 0.f, 0.f }; // BUG: At high FPS, m_MoveCmd can never accumulate past the 0.1 threshold, preventing movement while aiming
-        }
         m_HasMoveControl = false;
-
         return; // 0x61E5F3
     }
 
@@ -768,22 +767,25 @@ void CTaskSimpleUseGun::StartAnim(CPed* ped) {
     case eGunCommand::NONE:
     case eGunCommand::END_LEISURE: {
         RemoveStanceAnims(ped, 4.0f);
-        m_SkipAim = true;
+        m_IsFinished = true;
         m_LastCmd = m_NextCmd;
         m_NextCmd = eGunCommand::NONE;
         break;
     }
-    case eGunCommand::AIM:
+    case eGunCommand::AIM: {
+        if ((!m_MoveCmd.IsZero() && !m_WeaponInfo->flags.bMoveFire) || (tDuck && tDuck->IsTaskInUseByOtherTasks())) {
+            if (m_LastCmd == eGunCommand::FIRE || m_LastCmd == eGunCommand::FIREBURST) {
+                m_LastCmd = eGunCommand::AIM;
+            }
+            return;
+        }
+        m_LastCmd = m_NextCmd;
+        m_NextCmd = eGunCommand::NONE;
+        break;
+    }
     case eGunCommand::FIRE:
     case eGunCommand::FIREBURST: {
-        if (m_NextCmd == eGunCommand::AIM) {
-            if ((!m_MoveCmd.IsZero() && !m_WeaponInfo->flags.bMoveFire) || (tDuck && tDuck->IsTaskInUseByOtherTasks())) {
-                if (m_LastCmd == eGunCommand::FIRE || m_LastCmd == eGunCommand::FIREBURST) {
-                    m_LastCmd = eGunCommand::AIM;
-                }
-                return;
-            }
-        } else if (tDuck && tDuck->StopFireGun()) {
+        if (tDuck && tDuck->StopFireGun()) {
             return;
         }
 
@@ -873,7 +875,7 @@ void CTaskSimpleUseGun::StartAnim(CPed* ped) {
     }
     case eGunCommand::END_NOW: {
         RemoveStanceAnims(ped, 8.0f);
-        m_SkipAim = true;
+        m_IsFinished = true;
         m_LastCmd = m_NextCmd;
         m_NextCmd = eGunCommand::NONE;
         break;

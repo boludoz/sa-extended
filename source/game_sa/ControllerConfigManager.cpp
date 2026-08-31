@@ -967,13 +967,13 @@ constexpr inline bool CheckMouseButton(KeyCode& key) {
     bool result = false;
     if constexpr (CheckType == eMouseCheckType::JUST_UP) {
         switch (key) {
-        case rsMOUSE_LEFT_BUTTON:       result = pad->IsMouseLButtonPressed(); break;
-        case rsMOUSE_MIDDLE_BUTTON:     result = pad->IsMouseMButtonPressed(); break;
-        case rsMOUSE_RIGHT_BUTTON:      result = pad->IsMouseRButtonPressed(); break;
-        case rsMOUSE_WHEEL_UP_BUTTON:   result = pad->IsMouseWheelUpPressed(); break;
-        case rsMOUSE_WHEEL_DOWN_BUTTON: result = pad->IsMouseWheelDownPressed(); break;
-        case rsMOUSE_X1_BUTTON:         result = pad->IsMouseBmx1Pressed(); break;
-        case rsMOUSE_X2_BUTTON:         result = pad->IsMouseBmx2Pressed(); break;
+        case rsMOUSE_LEFT_BUTTON:       result = pad->IsMouseLButtonJustUp(); break;
+        case rsMOUSE_MIDDLE_BUTTON:     result = pad->IsMouseMButtonJustUp(); break;
+        case rsMOUSE_RIGHT_BUTTON:      result = pad->IsMouseRButtonJustUp(); break;
+        case rsMOUSE_WHEEL_UP_BUTTON:   result = pad->IsMouseWheelUpJustUp(); break;
+        case rsMOUSE_WHEEL_DOWN_BUTTON: result = pad->IsMouseWheelDownJustUp(); break;
+        case rsMOUSE_X1_BUTTON:         result = pad->IsMouseBmx1JustUp(); break;
+        case rsMOUSE_X2_BUTTON:         result = pad->IsMouseBmx2JustUp(); break;
         default:                        NOTSA_UNREACHABLE("Invalid Key: {}", (uint32)key); break;
         }
     } else if constexpr (CheckType == eMouseCheckType::IS_DOWN || CheckType == eMouseCheckType::IS_UP) {
@@ -1154,10 +1154,11 @@ void CControllerConfigManager::AffectPadFromKeyBoard() {
         for (const auto& type : CONTROLLER_TYPES_KEYBOARD) {
             const auto key = action.Keys[+type].m_uiActionInitiator;
 
-            if (GetIsKeyboardKeyDown(key) && inMenu && !GetIsKeyBlank(key, type)) {
-                if (inMenu) {
+            if (GetIsKeyboardKeyDown(key)) {
+                if (inMenu && !GetIsKeyBlank(key, type)) {
                     AffectControllerStateOn_ButtonDown(key, type);
                 }
+            } else {
                 auto* pad = CPad::GetPad();
                 if (!pad || FrontEndMenuManager.m_bMenuActive) {
                     continue;
@@ -1178,9 +1179,7 @@ void CControllerConfigManager::AffectPadFromMouse() {
             if (inMenu && !GetIsKeyBlank(button, eControllerType::MOUSE)) {
                 AffectControllerStateOn_ButtonDown(button, eControllerType::MOUSE);
             }
-        }
-
-        if (GetIsMouseButtonUp(button)) {
+        } else {
             if (auto* pad = CPad::GetPad()) {
                 AffectControllerStateOn_ButtonUp_All_Player_States(button, eControllerType::MOUSE, GetControllerState(*pad, eControllerType::MOUSE));
             }

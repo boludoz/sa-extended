@@ -44,6 +44,7 @@ enum eFKeyID : uint8 {
 
 #define MOUSE_IS_PRESSED(btn)  (NewMouseControllerState.btn && !OldMouseControllerState.btn)
 #define MOUSE_IS_DOWN(btn)     (NewMouseControllerState.btn)
+#define MOUSE_JUST_UP(btn)     (!NewMouseControllerState.btn && OldMouseControllerState.btn)
 
 class CPed;
 
@@ -338,7 +339,7 @@ public:
     // PAD END
 
     // MOUSE
-    static bool f0x57C3C0() noexcept               { return !NewMouseControllerState.isMouseLeftButtonPressed && OldMouseControllerState.isMouseLeftButtonPressed; }         // 0x57C3C0
+    static bool f0x57C3C0() noexcept               { return MOUSE_JUST_UP(isMouseLeftButtonPressed); }                                                                        // 0x57C3C0
     static bool IsMouseLButtonPressed() noexcept   { return MOUSE_IS_PRESSED(isMouseLeftButtonPressed); }                                                                    // 0x4D5A00
     static bool IsMouseRButtonPressed() noexcept   { return MOUSE_IS_PRESSED(isMouseRightButtonPressed); }                                                                   // 0x572E70
     static bool IsMouseMButtonPressed() noexcept   { return MOUSE_IS_PRESSED(isMouseMiddleButtonPressed); }                                                                  // 0x57C3E0
@@ -353,6 +354,13 @@ public:
     static bool IsMouseWheelDown() noexcept        { return MOUSE_IS_DOWN(isMouseWheelMovedDown); }                                                                          // 0x572E50
     static bool IsMouseBmx1() noexcept             { return MOUSE_IS_DOWN(isMouseFirstXPressed); }                                                                           // 
     static bool IsMouseBmx2() noexcept             { return MOUSE_IS_DOWN(isMouseSecondXPressed); }                                                                          // 
+    static bool IsMouseLButtonJustUp() noexcept    { return MOUSE_JUST_UP(isMouseLeftButtonPressed); }                                                                        // 0x57C3C0
+    static bool IsMouseRButtonJustUp() noexcept    { return MOUSE_JUST_UP(isMouseRightButtonPressed); }                                                                       // 
+    static bool IsMouseMButtonJustUp() noexcept    { return MOUSE_JUST_UP(isMouseMiddleButtonPressed); }                                                                      // 
+    static bool IsMouseWheelUpJustUp() noexcept    { return MOUSE_JUST_UP(isMouseWheelMovedUp); }                                                                            // 
+    static bool IsMouseWheelDownJustUp() noexcept  { return MOUSE_JUST_UP(isMouseWheelMovedDown); }                                                                          // 
+    static bool IsMouseBmx1JustUp() noexcept       { return MOUSE_JUST_UP(isMouseFirstXPressed); }                                                                           // 
+    static bool IsMouseBmx2JustUp() noexcept       { return MOUSE_JUST_UP(isMouseSecondXPressed); }                                                                          // 
     // MOUSE END
 
     int16 LookAroundLeftRight(CPed* entity) noexcept;

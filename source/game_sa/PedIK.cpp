@@ -100,13 +100,13 @@ bool CPedIK::PointGunInDirection(float zAngle, float distance, bool flag, float 
         break;
     }
 
-    const auto head = &RpHAnimHierarchyGetMatrixArray(hier)[PED_NODE_HEAD];
-    const auto headAngle = -CGeneral::LimitRadianAngle(atan2(-head->at.y, -head->at.x) - m_pPed->m_fCurrentRotation);
+    const auto pMatrix = &RpHAnimHierarchyGetMatrixArray(hier)[2];
+    const auto fHipYaw = -CGeneral::LimitRadianAngle(std::atan2(-pMatrix->at.y, -pMatrix->at.x) - m_pPed->m_fCurrentRotation);
 
     const auto axis = CVector{
         0.0f,
-        flag ? std::cos(headAngle) : -std::sin(headAngle),
-        flag ? std::sin(headAngle) :  std::cos(headAngle)
+        flag ? std::cos(fHipYaw) : -std::sin(fHipYaw),
+        flag ? std::sin(fHipYaw) :  std::cos(fHipYaw)
     };
 
     const auto torsoQ = &m_pPed->m_apBones[PED_NODE_UPPER_TORSO]->KeyFrame->q;
