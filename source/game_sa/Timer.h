@@ -109,6 +109,13 @@ public:
     static bool GetIsCodePaused() { return m_CodePause; }
     static void SetCodePause(bool pause) { m_CodePause = pause; }
 
+#ifdef FIX_BUGS
+    static float  GetDefaultTimeStep() { return 50.0f / 30.0f; }
+    static float  GetTimeStepFix() { return GetTimeStep() / GetDefaultTimeStep(); }
+    static uint32 GetLogicalFrameCounter() { return m_FrameCounter; }
+    static uint32 GetLogicalFramesPassed() { return 1; }
+#endif
+
     // NOTSA section
 
     static bool HasTimePointPassed(uint32 timeMs) { return GetTimeInMS() >= timeMs; }
