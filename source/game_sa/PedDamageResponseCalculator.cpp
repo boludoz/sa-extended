@@ -121,7 +121,7 @@ bool CPedDamageResponseCalculator::ComputeWillForceDeath(CPed* ped, CPedDamageRe
  */
 void CPedDamageResponseCalculator::ComputeWillKillPed(CPed* ped, CPedDamageResponse& rsp, bool bSpeak) {
     if (ped->IsPlayer()) {
-        if (CCheat::IsActive(CHEAT_NO_ONE_CAN_STOP_US) && m_weaponType < WEAPON_LAST_WEAPON) {
+        if (CCheat::IsActive(CHEAT_INFINITE_HEALTH) && m_weaponType < WEAPON_LAST_WEAPON) {
             return;
         }
     }
