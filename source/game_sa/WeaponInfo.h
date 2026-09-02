@@ -125,6 +125,8 @@ public:
     auto GetWeaponReloadTime() const -> uint32;
     auto GetAnimLoopStart(bool isSet2 = false) const { return isSet2 ? m_fAnimLoop2Start : m_fAnimLoopStart; }
     auto GetAnimLoopEnd(bool isSet2 = false) const { return isSet2 ? m_fAnimLoop2End : m_fAnimLoopEnd; }
+    auto GetAnimFireTime(bool isSet2 = false) const { return isSet2 ? m_fAnimLoop2Fire : m_fAnimLoopFire; }
+    auto GetAnimBreakoutTime() const { return m_fBreakoutTime; }
 
     auto GetFireType() const { return m_nWeaponFire; }
 

@@ -22,42 +22,47 @@ enum eFightAttackType : int8 {
 
 class NOTSA_EXPORT_VTABLE CMeleeInfo {
 public:
-    AssocGroupId m_nAnimGroup;
-    float  m_fRanges;
-    std::array<float, 5> m_fHit;
-    std::array<float, 5> m_fChain;
-    std::array<float, 5> m_fRadius;
-    float  m_fGroundLoop;
-    int32  ABlockHit;
-    int32  ABlockChain;
-    uint8  m_nHitLevel;
-    int32  m_nDamage;
-    int32  field_58;
-    std::array<int32, 5> m_Hit;
-    std::array<int32, 5> m_AltHit;
-    uint16 m_wFlags;
+    AssocGroupId         m_nAnimGroup;
+    float                m_fRanges;
+    std::array<float, 5> m_fHit;       // FireTime
+    std::array<float, 5> m_fChain;     // ComboTime
+    std::array<float, 5> m_fRadius;    // Radius
+    float                m_fGroundLoop;
+    float                ABlockHit;
+    float                ABlockChain;
+    std::array<uint8, 5> m_nHitLevel;  // HitLevel
+    std::array<uint8, 5> m_nDamage;    // Damage
+    uint8                __pad0[2];
+    std::array<int32, 5> m_Hit;        // HitSound
+    std::array<int32, 5> m_AltHit;     // AltHitSound
+    uint16               m_wFlags;
+    uint8                __pad1[2];
 };
 VALIDATE_SIZE(CMeleeInfo, 0x88);
 
 class NOTSA_EXPORT_VTABLE CTaskSimpleFight : public CTaskSimple {
 public:
-    bool                   m_bIsFinished;
-    bool                   m_bIsInControl;
-    bool                   m_bAnimsReferenced;
-    AssocGroupId           m_nRequiredAnimGroup;
-    uint16                 m_nIdlePeriod;
-    uint16                 m_nIdleCounter;
-    int8                   m_nContinueStrike;
-    int8                   m_nChainCounter;
-    CEntity*               m_pTargetEntity;
-    CAnimBlendAssociation* m_pAnim;
-    CAnimBlendAssociation* m_pIdleAnim;
-    int8                   m_nComboSet;
-    eFightAttackType       m_nCurrentMove;
-    uint8                  m_nNextCommand;
-    uint8                  m_nLastCommand;
+    bool                   m_bIsFinished;        // +8
+    bool                   m_bIsInControl;       // +9
+    bool                   m_bAnimsReferenced;   // +10
+    AssocGroupId           m_nRequiredAnimGroup; // +12
+    uint16                 m_nIdlePeriod;        // +16
+    uint16                 m_nIdleCounter;       // +18
+    int8                   m_nContinueStrike;    // +20
+    int8                   m_nChainCounter;      // +21
+    CEntity*               m_pTargetEntity;      // +24
+    CAnimBlendAssociation* m_pAnim;              // +28
+    CAnimBlendAssociation* m_pIdleAnim;          // +32
+    int8                   m_nComboSet;          // +36
+    eFightAttackType       m_nCurrentMove;       // +37
+    uint8                  m_nNextCommand;       // +38
+    uint8                  m_nLastCommand;       // +39
 
-    static inline auto& m_aComboData = StaticRef<std::array<CMeleeInfo, 12>>(0xC170D0);
+    static inline auto& m_aComboData = StaticRef<std::array<CMeleeInfo, 13>>(0xC170D0);
+    static inline auto& m_aHitOffset = StaticRef<std::array<CVector, 7>>(0xC177D0);
+    static inline auto& m_sStrikeColModel = StaticRef<CColModel>(0xC17824);
+    static inline auto& m_sStrikeColData  = StaticRef<CCollisionData>(0xC17854);
+    static inline auto& m_sStrikeSpheres  = StaticRef<std::array<CColSphere, 1>>(0xC17884);
 
 public:
     static constexpr auto Type = eTaskType::TASK_SIMPLE_FIGHT;
@@ -72,33 +77,33 @@ public:
 
     static void LoadMeleeData();
 
-    void BeHitWhileBlocking(CPed* ped1, CPed* ped2, int8, int8);
-    void ChooseAttackAI(CPed* ped);
-    void ChooseAttackPlayer(CPed* ped);
+    bool BeHitWhileBlocking(CPed* ped1, CPed* ped2, int8 attackCombo, int8 attackMove);
+    int16 ChooseAttackAI(CPed* ped);
+    int16 ChooseAttackPlayer(CPed* ped);
     bool ControlFight(CEntity* entity, uint8 command);
 
-    void FightHitCar(CPed* ped, CVehicle* vehicle, CVector& posn1, CVector& posn2, int16, int8);
-    void FightHitObj(CPed* ped, CObject* object, CVector& posn1, CVector& posn2, int16, int8);
-    void FightHitPed(CPed* creator, CPed* victim, CVector& posn1, CVector& posn2, int16);
-    void FightSetUpCol(float);
+    void FightHitCar(CPed* ped, CVehicle* vehicle, const CVector& posn1, const CVector& posn2, int16 pieceType, uint8 surfaceType);
+    void FightHitObj(CPed* ped, CObject* object, const CVector& posn1, const CVector& posn2, int16 pieceType, uint8 surfaceType);
+    CPed* FightHitPed(CPed* creator, CPed* victim, const CVector& posn1, const CVector& posn2, int16 pieceType);
+    void FightSetUpCol(float radius);
     void FightStrike(CPed* ped, CVector& posn);
 
-    void FindTargetOnGround(CPed* ped);
-    void FinishMeleeAnimCB(CAnimBlendAssociation*, void*);
+    bool FindTargetOnGround(CPed* ped);
+    static void FinishMeleeAnimCB(CAnimBlendAssociation* anim, void* data);
 
     bool IsComboSet();
     bool IsHitComboSet();
 
-    void GetAvailableComboSet(CPed* ped, int8);
-    void GetComboType(char*);
+    void GetAvailableComboSet(CPed* ped, int8 nextCommand);
+    static int32 GetComboType(const char* name);
     AssocGroupId GetComboAnimGroupID();
-    void GetHitLevel(const char*);
-    void GetHitSound(int32);
-    void GetRange();
-    void GetStrikeDamage(CPed* ped);
+    static uint8 GetHitLevel(const char* levelStr);
+    static int16 GetHitSound(int32 nHitSound);
+    float GetRange() const;
+    float GetStrikeDamage(CPed* ped);
 
     void SetPlayerMoveAnim(CPlayerPed* player);
-    void StartAnim(CPed* ped, int32);
+    void StartAnim(CPed* ped, int32 newMove);
 
 private:
     friend void InjectHooksMain();

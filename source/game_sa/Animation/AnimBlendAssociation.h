@@ -206,8 +206,10 @@ public:
         else
             m_Flags &= ~(int)flag;
     }
+    void ClearFlag(eAnimationFlags flag) { SetFlag(flag, false); }
 
     bool HasFlag(eAnimationFlags flag) const { return m_Flags & flag; }
+    bool IsFlagSet(eAnimationFlags flag) const { return HasFlag(flag); }
 
     static CAnimBlendAssociation* FromLink(CAnimBlendLink* link) {
         return (CAnimBlendAssociation*)((byte*)link - offsetof(CAnimBlendAssociation, m_Link));
