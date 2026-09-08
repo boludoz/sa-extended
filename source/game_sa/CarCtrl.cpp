@@ -1956,3 +1956,23 @@ void CCarCtrl::WeaveThroughPedsSectorList(PtrListType& ptrList, CVehicle* vehicl
 float CCarCtrl::FindMaxSteerAngle(CVehicle* veh) {
     return std::clamp(0.9f - veh->GetMoveSpeed().Magnitude(), 0.2f, 0.7f);
 }
+
+bool CCarCtrl::ThisRoadObjectCouldMove(int16 mi)
+{
+#ifdef GTA_BRIDGE
+	return mi == MI_BRIDGELIFT || mi == MI_BRIDGEROADSEGMENT;
+#else
+	return false;
+#endif
+}
+
+bool CCarCtrl::MapCouldMoveInThisArea(float x, float y)
+{
+#ifdef GTA_BRIDGE	// actually they forgot that in VC...
+	// bridge moves up and down
+	return x > -342.0f && x < -219.0f &&
+		y > -677.0f && y < -580.0f;
+#else
+	return false;
+#endif
+}

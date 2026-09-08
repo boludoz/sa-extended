@@ -168,4 +168,6 @@ public:
     template<typename PtrListType>
     static void WeaveThroughPedsSectorList(PtrListType& ptrList, CVehicle* vehicle, CPhysical* physical, float arg4, float arg5, float arg6, float arg7, float* arg8, float* arg9);
     static float FindMaxSteerAngle(CVehicle* veh);
+    static bool ThisRoadObjectCouldMove(int16 mi);
+    static bool MapCouldMoveInThisArea(float TestX, float TestY);
 };
