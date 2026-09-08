@@ -43,7 +43,8 @@ public:
     void InitGearRatios();
     void DisplayGearRatios();
     void CalculateGearForSimpleCar(float speed, uint8& currentGear);
-    float CalculateDriveAcceleration(const float& gasPedal, uint8& currentGear, float& gearChangeCount, float& velocity, float* a6, float* a7, uint8 allWheelsOnGround, uint8 handlingType);
+    float CalculateDriveAcceleration(const float& fThrottleSetting, uint8& nCurrentGear, float& fGearChangeCount,
+        const float& v, float* pEngineRevs, float* pEngineForce, uint8 nDriveWheelsOnGround, uint8 nFasterCheat);
 };
 
 VALIDATE_SIZE(cTransmission, 0x68);
