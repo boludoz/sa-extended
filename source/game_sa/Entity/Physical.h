@@ -67,41 +67,38 @@ public:
     uint32 m_nLastCollisionTime;
     union {
         struct {
-            uint32 bMakeMassTwiceAsBig : 1;
-            uint32 bApplyGravity : 1;
-            uint32 bDisableCollisionForce : 1;
-            uint32 bCollidable : 1;
-            uint32 bDisableTurnForce : 1;
-            uint32 bDisableMoveForce : 1;
-            uint32 bInfiniteMass : 1;
-            uint32 bDisableZ : 1;
-
-            uint32 bSubmergedInWater : 1;
-            uint32 bOnSolidSurface : 1;
-            uint32 bBroken : 1;
-            uint32 bProcessCollisionEvenIfStationary : 1; // ref @ 0x6F5CF0
-            uint32 bSkipLineCol : 1;                               // only used for peds
-            uint32 bDontApplySpeed : 1;
-            uint32 bDontLoadCollision : 1;
-            uint32 bProcessingShift : 1;
-
-            uint32 bForceHitReturnFalse : 1;
-            uint32 bDisableSimpleCollision : 1; // ref @ CPhysical::ProcessCollision
-            uint32 bBulletProof : 1;
-            uint32 bFireProof : 1;
-            uint32 bCollisionProof : 1;
-            uint32 bMeleeProof : 1;
-            uint32 bInvulnerable : 1;
-            uint32 bExplosionProof : 1;
-
-            uint32 bDontCollideWithFlyers : 1;
-            uint32 bAttachedToEntity : 1;
-            uint32 bAddMovingCollisionSpeed : 1;
-            uint32 bTouchingWater : 1;
-            uint32 bCanBeCollidedWith : 1;
-            uint32 bRenderScorched : 1;
-            uint32 bDoorHitEndStop : 1;
-            uint32 bCarriedByRope : 1;
+            uint32 bMakeMassTwiceAsBig                :1; // bExtraHeavy
+            uint32 bApplyGravity                      :1; // bDoGravity
+            uint32 bDisableCollisionForce             :1; // bInfiniteMass
+            uint32 bCollidable                        :1; // bInfiniteMassFixed
+            uint32 bDisableTurnForce                  :1; // bPedPhysics
+            uint32 bDisableMoveForce                  :1; // bDoorPhysics
+            uint32 bInfiniteMass                      :1; // bHangingPhysics
+            uint32 bDisableZ                          :1; // bPoolBallPhysics
+            uint32 bSubmergedInWater                  :1; // bIsInWater
+            uint32 bOnSolidSurface                    :1; // bCollidedThisFrame
+            uint32 bBroken                            :1; // bUnFreezable
+            uint32 bProcessCollisionEvenIfStationary  :1; // bTrainForceCol
+            uint32 bSkipLineCol                       :1; // bSkipLineCol
+            uint32 bDontApplySpeed                    :1; // bCoorsFrozenByScript
+            uint32 bDontLoadCollision                 :1; // bDontLoadCollision
+            uint32 bProcessingShift                   :1; // bHalfSpeedCollision
+            uint32 bForceHitReturnFalse               :1; // bForceHitReturnFalse
+            uint32 bDisableSimpleCollision            :1; // bDontProcessCollisionOurSelves
+            uint32 bBulletProof                       :1; // bNotDamagedByBullets
+            uint32 bFireProof                         :1; // bNotDamagedByFlames
+            uint32 bCollisionProof                    :1; // bNotDamagedByCollisions
+            uint32 bMeleeProof                        :1; // bNotDamagedByMelee
+            uint32 bInvulnerable                      :1; // bOnlyDamagedByPlayer
+            uint32 bExplosionProof                    :1; // bIgnoresExplosions
+            uint32 bDontCollideWithFlyers             :1; // bFlyer
+            uint32 bAttachedToEntity                  :1; // bNeverGoStatic
+            uint32 bAddMovingCollisionSpeed           :1; // bUsingSpecialColModel
+            uint32 bTouchingWater                     :1; // bForceFullWaterCheck
+            uint32 bCanBeCollidedWith                 :1; // bUsesCollisionRecords
+            uint32 bRenderScorched                    :1; // bRenderScorched
+            uint32 bDoorHitEndStop                    :1; // bDoorHitEndStop
+            uint32 bCarriedByRope                     :1; // bCarriedByRope
         } physicalFlags;
         uint32 m_nPhysicalFlags;
     };

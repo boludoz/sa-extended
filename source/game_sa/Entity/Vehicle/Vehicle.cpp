@@ -3407,7 +3407,7 @@ void CVehicle::ProcessBikeWheel(
     } else if (contactSpeedFwd != 0.0f) {
 
         fwd = -(contactSpeedFwd / wheelsOnGround);
-        if (bBraking || fabsf(this->m_GasPedal) >= WHEEL_THRESHOLD)
+        if (bBraking || fabsf(this->m_GasPedal) < WHEEL_THRESHOLD)
         {
             if ( m_nVehicleSubType == eVehicleType::VEHICLE_TYPE_BMX )
             {
