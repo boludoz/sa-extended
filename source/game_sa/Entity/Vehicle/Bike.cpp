@@ -2526,9 +2526,7 @@ void CBike::ProcessControl() // ASM Checked 75%
 
             if (vehicleFlags.bIsHandbrakeOn) {
 #ifdef FIX_BUGS
-                // fRearBrake = 20000.0f * CTimer::GetTimeStepFix();
-                float brake = gHandlingDataMgr.fWheelFriction * 0.6f / (m_pHandlingData->m_fMass + 200.0f); 
-                fRearBrake  = std::max(brake, fBrakingForce * 3.5f);
+                fRearBrake = 20000.0f * CTimer::GetTimeStepFix();
 #else
                 fRearBrake = 20000.0f;
 #endif
