@@ -685,6 +685,13 @@ public:
     [[nodiscard]] float GetBrakePedal() const noexcept { return m_BrakePedal; }
     [[nodiscard]] float GetSteerAngle() const noexcept { return m_fSteerAngle; }
     [[nodiscard]] eVehicleType GetVehicleType() const noexcept { return m_nVehicleType; }
+    void SetGasPedal(float v) noexcept { m_GasPedal = v; }
+    void SetBrakePedal(float v) noexcept { m_BrakePedal = v; }
+    void SetSteerAngle(float v) noexcept { m_fSteerAngle = v; }
+    void SetIsHandbrakeOn(bool b) noexcept { vehicleFlags.bIsHandbrakeOn = b; }
+    [[nodiscard]] bool GetIsHandbrakeOn() const noexcept { return vehicleFlags.bIsHandbrakeOn; }
+    [[nodiscard]] bool IsAlarmActivated() const noexcept { return !CanUpdateHornCounter(); }
+
 
     static void Shutdown();
     static void SetComponentAtomicAlpha(RpAtomic* atomic, int32 alpha);
@@ -742,6 +749,7 @@ public: // NOTSA functions
     [[nodiscard]] bool CanUpdateHornCounter() const {
         return m_nAlarmState == 0 || m_nAlarmState == (uint16)-1 || m_info.m_nStatus == STATUS_WRECKED;
     }
+
 
     CPlane* AsPlane() { return reinterpret_cast<CPlane*>(this); }
     CHeli*  AsHeli()  { return reinterpret_cast<CHeli*>(this); }
