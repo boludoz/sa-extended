@@ -29,6 +29,7 @@
 #include "FxManager.h"
 #include "EventVehicleOnFire.h"
 #include "Cheat.h"
+#include "RwHelper.h"
 
 void CBike::InjectHooks() {
     RH_ScopedVirtualClass(CBike, 0x871360, 67);
@@ -50,7 +51,7 @@ void CBike::InjectHooks() {
     RH_ScopedInstall(PlayHornIfNecessary, 0x6B7130);
     RH_ScopedInstall(CalculateLeanMatrix, 0x6B7150);
     RH_ScopedInstall(ProcessRiderAnims, 0x6B7280);
-    RH_ScopedInstall(FixHandsToBars, 0x6B7F90, { .reversed = false });
+    RH_ScopedInstall(FixHandsToBars, 0x6B7F90);
     RH_ScopedInstall(PlaceOnRoadProperly, 0x6BEEB0);
     RH_ScopedInstall(GetCorrectedWorldDoorPosition, 0x6BF230);
     RH_ScopedVMTInstall(Fix, 0x6B7050);
@@ -1239,9 +1240,119 @@ void CBike::CalculateLeanMatrix() {
     m_bLeanMatrixCalculated = true;
 }
 
+CVector vecBmxHandleBarPos(0.25f, 0.29f, 0.525f);
+CVector vecMtbHandleBarPos(0.25f, 0.29f, 0.525f);
+CVector vecChopperHandleBarPos(0.25f, 0.21f, 0.69f);
+CVector vecTweakHandleBarPos(0.0f, -0.04f, 0.04f);
+CVector vecTweakHandleBarPos2(-0.075f, -0.03f, 0.0f);
+
 // 0x6B7F90
 void CBike::FixHandsToBars(CPed* rider) {
-    ((void(__thiscall*)(CBike*, CPed*))0x6B7F90)(this, rider);
+    if (!m_nFixRightHand && !m_nFixLeftHand) {
+        return;
+    }
+
+    RwFrame* pFrame = m_aBikeNodes[BIKE_CHASSIS];
+    if (!pFrame) {
+        return;
+    }
+
+    CMatrix matChassis;
+    matChassis.Attach(&pFrame->modelling, false);
+
+    CMatrix vehMatrix;
+    vehMatrix = *m_matrix;
+    vehMatrix *= matChassis;
+
+    RpHAnimHierarchy* pHierarchy = GetAnimHierarchyFromSkinClump(rider->GetRpClump());
+
+    CVector point = CModelInfo::GetModelInfo(m_nModelIndex)->AsVehicleModelInfoPtr()->m_pVehicleStruct->m_avDummyPos[DUMMY_HAND_REST];
+
+    if (point.x == 0.0f && point.y == 0.0f && point.z == 0.0f) {
+        if (m_nModelIndex == MODEL_MTBIKE) {          // 510
+            point = vecMtbHandleBarPos;
+        } else if (m_nModelIndex == MODEL_BIKE) {     // 509
+            point = vecChopperHandleBarPos;
+        } else {
+            point = vecBmxHandleBarPos;
+        }
+    } else {
+        auto nBone = RpHAnimIDGetIndex(pHierarchy, BONE_R_HAND);
+        auto* pMatrix = &RpHAnimHierarchyGetMatrixArray(pHierarchy)[nBone];
+        CMatrix matHand(pMatrix, false);
+        CVector in = matHand.TransformVector(vecTweakHandleBarPos2);
+        point += vehMatrix.TransformVector(in);
+    }
+
+    // Mano Derecha
+    if (m_nFixRightHand) {
+        CVector vecTarget = vehMatrix.TransformPoint(point);
+
+        auto nBone = RpHAnimIDGetIndex(pHierarchy, BONE_R_HAND);
+        auto* pMatrix = &RpHAnimHierarchyGetMatrixArray(pHierarchy)[nBone];
+        CVector vecDelta = vecTarget - static_cast<CVector&>(pMatrix->pos);
+        static_cast<CVector&>(pMatrix->pos) += vecDelta;
+
+        nBone = RpHAnimIDGetIndex(pHierarchy, BONE_R_FINGER);
+        pMatrix = &RpHAnimHierarchyGetMatrixArray(pHierarchy)[nBone];
+        static_cast<CVector&>(pMatrix->pos) += vecDelta;
+
+        nBone = RpHAnimIDGetIndex(pHierarchy, BONE_R_FINGER_01);
+        pMatrix = &RpHAnimHierarchyGetMatrixArray(pHierarchy)[nBone];
+        static_cast<CVector&>(pMatrix->pos) += vecDelta;
+
+        nBone = RpHAnimIDGetIndex(pHierarchy, BONE_R_FORE_ARM);
+        pMatrix = &RpHAnimHierarchyGetMatrixArray(pHierarchy)[nBone];
+        static_cast<CVector&>(pMatrix->pos) += vecDelta * 0.667f;
+
+        nBone = RpHAnimIDGetIndex(pHierarchy, BONE_R_UPPER_ARM);
+        pMatrix = &RpHAnimHierarchyGetMatrixArray(pHierarchy)[nBone];
+        vecDelta *= 0.333f;
+        static_cast<CVector&>(pMatrix->pos) += vecDelta;
+
+        if (rider->IsPlayer()) {
+            nBone = RpHAnimIDGetIndex(pHierarchy, 301); // 0x12D (BONE_R_BREAST)
+            pMatrix = &RpHAnimHierarchyGetMatrixArray(pHierarchy)[nBone];
+            static_cast<CVector&>(pMatrix->pos) += vecDelta;
+        }
+    }
+
+    // Mano Izquierda
+    if (m_nFixLeftHand) {
+        point.x = -point.x;
+        CVector vecTarget = vehMatrix.TransformPoint(point);
+
+        auto nBone = RpHAnimIDGetIndex(pHierarchy, BONE_L_HAND);
+        auto* pMatrix = &RpHAnimHierarchyGetMatrixArray(pHierarchy)[nBone];
+        CVector vecDelta = vecTarget - static_cast<CVector&>(pMatrix->pos);
+        static_cast<CVector&>(pMatrix->pos) += vecDelta;
+
+        nBone = RpHAnimIDGetIndex(pHierarchy, BONE_L_FINGER);
+        pMatrix = &RpHAnimHierarchyGetMatrixArray(pHierarchy)[nBone];
+        static_cast<CVector&>(pMatrix->pos) += vecDelta;
+
+        nBone = RpHAnimIDGetIndex(pHierarchy, BONE_L_FINGER_01);
+        pMatrix = &RpHAnimHierarchyGetMatrixArray(pHierarchy)[nBone];
+        static_cast<CVector&>(pMatrix->pos) += vecDelta;
+
+        nBone = RpHAnimIDGetIndex(pHierarchy, BONE_L_FORE_ARM);
+        pMatrix = &RpHAnimHierarchyGetMatrixArray(pHierarchy)[nBone];
+        static_cast<CVector&>(pMatrix->pos) += vecDelta * 0.75f;
+
+        nBone = RpHAnimIDGetIndex(pHierarchy, BONE_L_UPPER_ARM);
+        pMatrix = &RpHAnimHierarchyGetMatrixArray(pHierarchy)[nBone];
+        vecDelta *= 0.40000001f;
+        static_cast<CVector&>(pMatrix->pos) += vecDelta;
+
+        if (rider->IsPlayer()) {
+            nBone = RpHAnimIDGetIndex(pHierarchy, 302); // 0x12E (BONE_L_BREAST)
+            pMatrix = &RpHAnimHierarchyGetMatrixArray(pHierarchy)[nBone];
+            static_cast<CVector&>(pMatrix->pos) += vecDelta;
+        }
+    }
+
+    m_nFixLeftHand = 0;
+    m_nFixRightHand = 0;
 }
 
 // 0x6BEEB0
@@ -1969,7 +2080,8 @@ void CBike::SetupDamageAfterLoad() {
     // NOP
 }
 
-constexpr CVector vecTestResistance(0.9995f, 0.9f, 0.95f);
+
+constexpr CVector vecTestResistance(0.9f, 0.88f, 0.88f);
 constexpr float fDAxisX                 = 1.0f;
 constexpr float fDAxisXExtra            = 100.0f;
 constexpr float fInAirXRes              = 0.98f;
