@@ -22,7 +22,7 @@ const float CHANGE_UP_RATIO = 0.6667f;
 // cTransmission::cTransmission() is defaulted in cTransmission.h
 
 // 0x6D0460
-void cTransmission::InitGearRatios()
+void cTransmission::InitGearRatios() // ASM Checked
 {
     m_aGears.fill({});
     static auto& pGearRatio1 = StaticRef<tTransmissionGear*>(0xC1CB34);
@@ -61,7 +61,7 @@ void cTransmission::InitGearRatios()
 
 // 0x6D05E0
 float cTransmission::CalculateDriveAcceleration(const float& fThrottleSetting, uint8& nCurrentGear, float& fGearChangeCount,
-    const float& v, float* pEngineRevs, float* pEngineForce, uint8 nDriveWheelsOnGround, uint8 nFasterCheat)
+    const float& v, float* pEngineRevs, float* pEngineForce, uint8 nDriveWheelsOnGround, uint8 nFasterCheat) // ASM Checked
 {
     static float& fAcceleration = StaticRef<float>(0xC1CB38);
     static float& fCheat        = StaticRef<float>(0xC1CB3C);
@@ -221,7 +221,7 @@ float cTransmission::CalculateDriveAcceleration(const float& fThrottleSetting, u
 }
 
 // 0x6D0530
-void cTransmission::CalculateGearForSimpleCar(float CurrentVel, uint8& nCurrentGear)
+void cTransmission::CalculateGearForSimpleCar(float CurrentVel, uint8& nCurrentGear) // ASM Checked
 {
     m_Velocity = CurrentVel;
     if (CurrentVel > m_aGears[nCurrentGear].ChangeUpVelocity)
