@@ -8,6 +8,8 @@
 #include "WindModifiers.h"
 #include "Entity.h"
 #include "Shadows.h"
+#include "InterestingEvents.h"
+#include "Ropes.h"
 
 void CHeli::InjectHooks() {
     RH_ScopedVirtualClass(CHeli, 0x871680, 71);
@@ -21,6 +23,7 @@ void CHeli::InjectHooks() {
     RH_ScopedInstall(RenderAllHeliSearchLights, 0x6C7C50);
     RH_ScopedInstall(TestSniperCollision, 0x6C6890);
     RH_ScopedInstall(UpdateHelis, 0x6C79A0);
+    RH_ScopedVMTInstall(ProcessControlInputs, 0x6C4830);
     RH_ScopedVMTInstall(ProcessFlyingCarStuff, 0x6C4E60);
     RH_ScopedVMTInstall(Render, 0x6C4400);
     RH_ScopedVMTInstall(Fix, 0x6C4530);
@@ -28,7 +31,7 @@ void CHeli::InjectHooks() {
     RH_ScopedVMTInstall(SetUpWheelColModel, 0x6C4320);
     RH_ScopedVMTInstall(PreRender, 0x6C5420);
     RH_ScopedVMTInstall(BlowUpCar, 0x6C6D30);
-
+    RH_ScopedVMTInstall(ProcessControl, 0x6C7050);
 }
 
 // 0x6C4190
@@ -538,7 +541,88 @@ bool CHeli::SetUpWheelColModel(CColModel* wheelCol) {
 
 // 0x6C4830
 void CHeli::ProcessControlInputs(uint8 playerNum) {
-    plugin::CallMethod<0x6C4830, CHeli*, uint8>(this, playerNum);
+    CPad* pad = CPad::GetPad(playerNum);
+
+    // Throttle
+    const int32 accelerate = pad->GetAccelerate();
+    m_fThrottleControl = static_cast<float>(accelerate - pad->GetBrake()) * (1.0f / 255.0f);
+
+    // Flight controls (Mouse / Analog)
+    if (!CCamera::m_bUseMouse3rdPerson || !CVehicle::m_bEnableMouseFlying) {
+        CVehicle::m_nLastControlInput = eControllerType::KEYBOARD;
+        m_fPitchControl = static_cast<float>(pad->GetSteeringUpDown()) * (1.0f / 128.0f);
+        m_fRollControl  = static_cast<float>(-pad->GetSteeringLeftRight()) * (1.0f / 128.0f);
+    } else if (CPad::NewMouseControllerState.m_AmountMoved.x == 0.0f
+               && CPad::NewMouseControllerState.m_AmountMoved.y == 0.0f
+               && (!(std::fabs(m_fRollControl) > 0.0f || std::fabs(m_fPitchControl) > 0.0f)
+                   || CVehicle::m_nLastControlInput != eControllerType::MOUSE
+                   || pad->GetSteeringLeftRight()
+                   || pad->GetSteeringUpDown())) {
+        if (pad->GetSteeringLeftRight() || pad->GetSteeringUpDown() || CVehicle::m_nLastControlInput != eControllerType::MOUSE) {
+            CVehicle::m_nLastControlInput = eControllerType::KEYBOARD;
+            m_fPitchControl = static_cast<float>(pad->GetSteeringUpDown()) * (1.0f / 128.0f);
+            m_fRollControl  = static_cast<float>(-pad->GetSteeringLeftRight()) * (1.0f / 128.0f);
+        }
+    } else {
+        CVehicle::m_nLastControlInput = eControllerType::MOUSE;
+
+        if (!pad->NewState.m_bVehicleMouseLook) {
+            m_fRollControl  -= CPad::NewMouseControllerState.m_AmountMoved.x * 0.0025f;
+            m_fPitchControl += CPad::NewMouseControllerState.m_AmountMoved.y * 0.0025f;
+        }
+
+        if (std::fabs(m_fRollControl) < 0.5f) {
+            m_fRollControl *= std::pow(0.98f, CTimer::GetTimeStep());
+        }
+
+        if (std::fabs(m_fPitchControl) < 0.5f) {
+            m_fPitchControl *= std::pow(0.98f, CTimer::GetTimeStep());
+        }
+    }
+
+    m_fPitchControl = std::clamp(m_fPitchControl, -1.0f, 1.0f);
+    m_fRollControl  = std::clamp(m_fRollControl, -1.0f, 1.0f);
+
+    m_fYawControl = static_cast<float>(pad->GetLookRight());
+    if (pad->GetLookLeft()) {
+        m_fYawControl = -1.0f;
+    }
+
+    if (pad->GetHorn() && GetMatrix().GetUp().z > 0.0f) {
+        m_fYawControl = 0.0f;
+
+        CVector vecTemp = CrossProduct(CVector(0.0f, 0.0f, 1.0f), GetMatrix().GetRight());
+        vecTemp.Normalise();
+        m_fPitchControl = std::clamp(DotProduct(vecTemp, m_vecMoveSpeed) * m_pFlyingHandlingData->m_fPitchStab, -2.0f, 2.0f);
+
+        vecTemp = CrossProduct(GetMatrix().GetForward(), CVector(0.0f, 0.0f, 1.0f));
+        vecTemp.Normalise();
+        m_fRollControl = std::clamp(DotProduct(vecTemp, m_vecMoveSpeed) * m_pFlyingHandlingData->m_fRollStab, -2.0f, 2.0f);
+    }
+
+    // Reset vehicle controls
+    SetSteerAngle(0.0f);
+    SetBrakePedal(1.0f);
+    SetGasPedal(0.0f);
+    SetIsHandbrakeOn(false);
+
+    // Locked controls (cutscenes)
+    if (pad->DisablePlayerControls) {
+        if (auto* player = FindPlayerPed()) {
+            player->KeepAreaAroundPlayerClear();
+        }
+
+        const float speed = m_vecMoveSpeed.Magnitude();
+        if (speed > 0.28f) {
+            m_vecMoveSpeed *= (0.28f / speed);
+        }
+    }
+
+    // Critical damage
+    if (m_fHealth < 250.0f) {
+        m_fThrottleControl = -0.1f;
+        m_fYawControl += 0.5f;
+    }
 }
 
 // 0x6C4400
@@ -798,314 +882,222 @@ void CHeli::PreRender() {
 
 // 0x6C7050
 void CHeli::ProcessControl() {
-    plugin::CallMethod<0x6C7050, CHeli*>(this);
-    /*
     CAutomobile::ProcessControl();
 
-    // Handle heli dust effects
-    if ((m_nVehicleFlags.bIsVehicleBeingShocked & 0x10) == 0) {
-        if (m_fxSysHeliDust) {
-            m_fxSysHeliDust->Kill();
-            m_fxSysHeliDust = nullptr;
-            m_heliDustRatio = 0.0f;
+    if (!vehicleFlags.bEngineOn) {
+        if (m_pDustParticle) {
+            m_pDustParticle->Kill();
+            m_pDustParticle = nullptr;
+            m_heliDustFxTimeConst = 0.0f;
         }
     }
 
-    // Get pad for driver
-    CPad* pad = nullptr;
-    if (m_pDriver) {
-        pad = CPad::GetPad(m_pDriver->m_nPedType == PED_TYPE_PLAYER1 ? 0 : 1);
-    } else {
-        pad = CPad::GetPad(0);
+    int32 playerId = 0;
+    if (m_pDriver && m_pDriver->m_nPedType == PED_TYPE_PLAYER2) {
+        playerId = 1;
     }
-
-    // Toggle search light if player has control
-    if ((m_nStatus == STATUS_PLAYER || m_nStatus == STATUS_REMOTE_CONTROLLED) && 
-        pad->GetHorn()) {
+    CPad* pPad = CPad::GetPad(playerId);
+    if (pPad->HornJustDown()) {
         m_bSearchLightOn = !m_bSearchLightOn;
     }
 
-    // Reset if underwater or in cull zone
-    bool useSearchLight = false;
-    bool shouldFireGun = false;
-    CPlayerPed* targetEntity = nullptr;
+    bool bDoSearchLight = false;
+    bool bFireSearchLightGun = false;
+    CPhysical* pSearchLightTarget = nullptr;
 
-    if (physicalFlags.bSubmergedInWater || CCullZones::PlayerNoRain()) {
+    if (physicalFlags.bRenderScorched || CCullZones::PlayerNoRain()) {
         m_LightBrightness = 0.0f;
     } else {
-        // Handle different missions
-        if (m_autoPilot.Mission == MISSION_HELI_FLYDIRECT) {
-            // Check if player is not in vehicle or not in heli/plane
-            CVehicle* playerVehicle = FindPlayerVehicle();
-            if (!playerVehicle || 
-                (playerVehicle->m_nVehicleSubType != VEHICLE_TYPE_HELI && 
-                 playerVehicle->m_nVehicleSubType != VEHICLE_TYPE_PLANE)) {
-                targetEntity = FindPlayerPed();
-                shouldFireGun = true;
-                useSearchLight = true;
-            }
-        } else if (m_autoPilot.Mission == MISSION_HELI_CIRCLE_TARGET) {
-            targetEntity = static_cast<CPlayerPed*>(m_autoPilot.pTargetEntity);
-            if (targetEntity && m_nHeliFlags.bUseSearchLightOnTarget) {
-                shouldFireGun = false;
-                useSearchLight = true;
-            }
+        if (m_autoPilot.Mission == MISSION_HELI_POLICE_BEHAVIOUR && (!FindPlayerVehicle(-1, false) || (FindPlayerVehicle(-1, false)->m_nVehicleSubType != VEHICLE_TYPE_HELI && FindPlayerVehicle(-1, false)->m_nVehicleSubType != VEHICLE_TYPE_PLANE))) {
+            bDoSearchLight = true;
+            bFireSearchLightGun = true;
+            pSearchLightTarget = static_cast<CPhysical*>(FindPlayerEntity(-1));
+        } else if (m_autoPilot.Mission == MISSION_HELI_FOLLOW_ENTITY && m_autoPilot.pTargetEntity && m_nHeliFlags.bUseSearchLightOnTarget) {
+            bDoSearchLight = true;
+            bFireSearchLightGun = false;
+            pSearchLightTarget = static_cast<CPhysical*>(m_autoPilot.pTargetEntity);
+        } else if (GetStatus() == STATUS_PLAYER && m_nModelIndex == MODEL_POLMAV && m_bSearchLightOn) {
+            bDoSearchLight = true;
+            bFireSearchLightGun = false;
+            pSearchLightTarget = nullptr;
         }
 
-        // Special case for police helicopter
-        if (m_nStatus <= STATUS_PLAYER && m_nModelIndex == MODEL_POLMAV) {
-            targetEntity = nullptr;
-            shouldFireGun = false;
-            useSearchLight = m_bSearchLightOn;
+        if (physicalFlags.bSubmergedInWater) {
+            bDoSearchLight = false;
+            bFireSearchLightGun = false;
         }
-    }
 
-    // Don't use search light if helicopter is damaged
-    useSearchLight = useSearchLight && !physicalFlags.bRenderScorched;
-    shouldFireGun = shouldFireGun && !physicalFlags.bRenderScorched;
-    m_bSearchLightOn = useSearchLight;
+        m_bSearchLightOn = bDoSearchLight;
 
-    // Process search light
-    if (useSearchLight) {
-        CVector targetPos;
-        
-        // Get target position
-        if (targetEntity) {
-            // Target player or entity
-            CMatrix* entityMatrix = targetEntity->m_matrix;
-            if (entityMatrix) {
-                targetPos = entityMatrix->GetPosition();
+        if (bDoSearchLight) {
+            int32 TimePassed;
+            int32 WaitBeforeOpeningFire = 0;
+            float Interp;
+            float LightDist;
+            float XDiff;
+            float YDiff;
+            float DistSqr;
+            CVector TargetPos;
+            CVector TargetSpeed;
+
+            if (pSearchLightTarget) {
+                TargetPos = pSearchLightTarget->GetPosition();
+                TargetSpeed = pSearchLightTarget->m_vecMoveSpeed;
             } else {
-                targetPos = targetEntity->GetPosition();
+                TargetPos = GetPosition() + GetForward() * 10.0f + GetUp() * -30.0f;
+                TargetSpeed = m_vecMoveSpeed;
             }
-        } else {
-            // No target, aim in front of helicopter
-            CMatrix* helicopterMatrix = m_matrix;
-            CVector forward, up;
-            
-            if (helicopterMatrix) {
-                forward = helicopterMatrix->GetForward();
-                up = helicopterMatrix->GetUp();
-            } else {
-                float heading = GetHeading();
-                forward.x = -sin(heading);
-                forward.y = cos(heading);
-                forward.z = 0.0f;
-                
-                up.x = 0.0f;
-                up.y = 0.0f;
-                up.z = 1.0f;
-            }
-            
-            CVector pos = GetPosition();
-            targetPos.x = pos.x + (forward.x * 10.0f) - (up.x * 30.0f);
-            targetPos.y = pos.y + (forward.y * 10.0f) - (up.y * 30.0f);
-            targetPos.z = pos.z + (forward.z * 10.0f) - (up.z * 30.0f);
-        }
-        
-        // Update search light position tracking
-        uint32 currentTime = CTimer::GetTimeInMS();
-        int32 timeDiff = currentTime - m_LastSearchLightSample;
-        
-        if (timeDiff <= 1000) {
-            // Small time difference, just interpolate
-            // float x1 = m_OldSearchLightX[1];
-            // float x2 = m_OldSearchLightX[2];
-            // float y1 = m_OldSearchLightY[1];
-            // float y2 = m_OldSearchLightY[2];
-            timeDiff = currentTime - m_LastSearchLightSample;
-        } else {
-            // Larger time difference, update positions
-            CVector velocity;
-            if (targetEntity) {
-                velocity = targetEntity->GetMoveSpeed();
-            } else {
-                velocity = m_vecMoveSpeed;
-            }
-            
-            // Predict target position
-            float predX = targetPos.x + (velocity.x * 50.0f * 2.0f);
-            float predY = targetPos.y + (velocity.y * 50.0f * 2.0f);
-            
-            // Update position history
-            for (int i = 5; i > 0; i--) {
-                m_OldSearchLightX[i] = m_OldSearchLightX[i-1];
-                m_OldSearchLightY[i] = m_OldSearchLightY[i-1];
-            }
-            
-            m_OldSearchLightX[0] = predX;
-            m_OldSearchLightY[0] = predY;
-            
-            // Next sample time
-            m_LastSearchLightSample = currentTime;
-            
-            // Set values for interpolation
-            // float x1 = m_OldSearchLightX[1];
-            // float x2 = m_OldSearchLightX[2];
-            // float y1 = m_OldSearchLightY[1];
-            // float y2 = m_OldSearchLightY[2];
-        }
-        
-        // Interpolate position
-        float timeRatio = static_cast<float>(timeDiff) / 1000.0f;
-        float invTimeRatio = 1.0f - timeRatio;
-        
-        m_SearchLightX = (invTimeRatio * m_OldSearchLightX[2]) + (timeRatio * m_OldSearchLightX[1]);
-        m_SearchLightY = (invTimeRatio * m_OldSearchLightY[2]) + (timeRatio * m_OldSearchLightY[1]);
-        m_SearchLightZ = targetPos.z;
-        
-        // Calculate light brightness based on distance
-        CVector heliPos = GetPosition();
-        float distSqXY = ((m_SearchLightY - heliPos.y) * (m_SearchLightY - heliPos.y)) + 
-                          ((m_SearchLightX - heliPos.x) * (m_SearchLightX - heliPos.x));
-        float distXY = sqrt(distSqXY);
-        
-        float brightness = 0.0f;
-        if (distXY <= 60.0f) {
-            brightness = 1.0f;
-            if (distXY >= 40.0f) {
-                brightness = ((distXY - 40.0f) / -20.0f) + 1.0f;
-            }
-        }
-        m_LightBrightness = brightness;
-        
-        // Check if target is too far away to shoot
-        float targetDistSq = ((targetPos.y - m_SearchLightY) * (targetPos.y - m_SearchLightY)) + 
-                             ((targetPos.x - m_SearchLightX) * (targetPos.x - m_SearchLightX));
-                             
-        if (brightness < 0.9f || targetDistSq > 49.0f) {
-            m_LastTimeSearchLightWasTooFarAwayToShoot = currentTime;
-            m_LastTimeGunFired = currentTime;
-        } else if (currentTime > m_nNextTalkTimer) {
-            // Police radio chatter
-            m_nNextTalkTimer = currentTime + (CGeneral::GetRandomNumber() & 0xFFF) + 4500;
-            
-            if (shouldFireGun) {
-                // Process gun firing
-                int32 wantedLevelOffset = FindPlayerWanted()->GetWantedLevel() - 3;
-                if (wantedLevelOffset > 3) {
-                    wantedLevelOffset = 3;
+
+            TimePassed = static_cast<int32>(CTimer::m_snTimeInMilliseconds - m_LastSearchLightSample);
+            while (TimePassed > 1000) {
+                for (int32 i = 5; i > 0; --i) {
+                    m_OldSearchLightX[i] = m_OldSearchLightX[i - 1];
+                    m_OldSearchLightY[i] = m_OldSearchLightY[i - 1];
                 }
-                
-                uint32 fireDelay = 5000 >> (wantedLevelOffset < 0 ? 0 : wantedLevelOffset);
-                
-                // Adjust delay based on player status
-                if (targetEntity == FindPlayerPed()) {
-                    fireDelay = fireDelay >> CCullZones::NoPolice();
-                } else {
-                    fireDelay = 5000;
+                m_LastSearchLightSample += 1000;
+                m_OldSearchLightX[0] = TargetPos.x + TargetSpeed.x * 100.0f;
+                m_OldSearchLightY[0] = TargetPos.y + TargetSpeed.y * 100.0f;
+                TimePassed -= 1000;
+            }
+
+            Interp = static_cast<float>(TimePassed) * 0.001f;
+            m_SearchLightZ = TargetPos.z;
+            m_SearchLightX = (1.0f - Interp) * m_OldSearchLightX[2] + Interp * m_OldSearchLightX[1];
+            m_SearchLightY = (1.0f - Interp) * m_OldSearchLightY[2] + Interp * m_OldSearchLightY[1];
+
+            DistSqr = (m_SearchLightY - GetPosition().y) * (m_SearchLightY - GetPosition().y)
+                    + (m_SearchLightX - GetPosition().x) * (m_SearchLightX - GetPosition().x);
+            LightDist = std::sqrt(DistSqr);
+
+            if (LightDist > 60.0f) {
+                m_LightBrightness = 0.0f;
+            } else if (LightDist < 40.0f) {
+                m_LightBrightness = 1.0f;
+            } else {
+                m_LightBrightness = 1.0f - (LightDist - 40.0f) * 0.05f;
+            }
+
+            XDiff = TargetPos.x - m_SearchLightX;
+            YDiff = TargetPos.y - m_SearchLightY;
+            DistSqr = XDiff * XDiff + YDiff * YDiff;
+            if (m_LightBrightness < 0.9f || DistSqr > 49.0f) {
+                m_LastTimeSearchLightWasTooFarAwayToShoot = CTimer::m_snTimeInMilliseconds;
+                m_nTimeForMinigunFiring = m_LastTimeSearchLightWasTooFarAwayToShoot;
+            } else {
+                uint32 timer = CTimer::m_snTimeInMilliseconds;
+                if (static_cast<int32>(timer) > m_nNextTalkTimer) {
+                    m_nNextTalkTimer = timer + (CGeneral::GetRandomNumber() & 0xFFF) + 4500;
                 }
-                
-                // Check if player is in vehicle
-                if (FindPlayerWanted()->m_bIgnoredByCops) {
-                    m_LastTimeSearchLightWasTooFarAwayToShoot = currentTime;
-                    m_LastTimeGunFired = currentTime;
-                } else {
-                    // Firing helicopter gun
-                    CVector gunPos, targetPos;
-                    CVector fireDir;
-                    
-                    // Get gun position
-                    gunPos = *m_matrix * CVector(0.0f, 3.0f, -1.0f);
-                    
-                    // Check line of sight
-                    if (currentTime > m_LastTimeSearchLightWasTooFarAwayToShoot + fireDelay && 
-                        CTimer::GetPreviousTimeInMS() <= m_LastTimeSearchLightWasTooFarAwayToShoot + fireDelay) {
-                        
-                        bool lineOfSight = CWorld::GetIsLineOfSightClear(
-                            gunPos, targetPos, true, false, false, false, false, false, false);
-                            
-                        if (!lineOfSight) {
-                            m_LastTimeSearchLightWasTooFarAwayToShoot = currentTime;
-                            m_LastTimeGunFired = currentTime;
+            }
+
+            if (bFireSearchLightGun) {
+                switch (FindPlayerPed(-1)->GetWantedLevel()) {
+                case eWantedLevel::WANTED_CLEAN:
+                case eWantedLevel::WANTED_LEVEL_1:
+                case eWantedLevel::WANTED_LEVEL_2:
+                    WaitBeforeOpeningFire = 999999;
+                    break;
+                case eWantedLevel::WANTED_LEVEL_3:
+                    WaitBeforeOpeningFire = 10000;
+                    break;
+                case eWantedLevel::WANTED_LEVEL_4:
+                    WaitBeforeOpeningFire = 5000;
+                    break;
+                case eWantedLevel::WANTED_LEVEL_5:
+                    WaitBeforeOpeningFire = 3500;
+                    break;
+                case eWantedLevel::WANTED_LEVEL_6:
+                    WaitBeforeOpeningFire = 2000;
+                    break;
+                }
+
+                if (FindPlayerPed(-1)->GetWantedLevel() != eWantedLevel::WANTED_CLEAN) {
+                    AudioEngine.SayPedless(AE_SPEECH_PED, CTX_GLOBAL_POLICE_HELICOPTER, this, 0, 1.0f, false, false, false);
+                }
+
+                if (CCullZones::NoPolice()) {
+                    WaitBeforeOpeningFire /= 2;
+                }
+
+                if (pSearchLightTarget != FindPlayerPed(-1)) {
+                    WaitBeforeOpeningFire = 5000;
+                }
+
+                if (!FindPlayerWanted(-1)->PoliceBackOff()) {
+                    CVector ShotOrigin = GetMatrix().TransformPoint(CVector(0.0f, 3.5f, -1.0f));
+
+                    if (CTimer::m_snTimeInMilliseconds > m_LastTimeSearchLightWasTooFarAwayToShoot + WaitBeforeOpeningFire && CTimer::m_snPreviousTimeInMilliseconds <= m_LastTimeSearchLightWasTooFarAwayToShoot + WaitBeforeOpeningFire) {
+                        if (!CWorld::GetIsLineOfSightClear(ShotOrigin, TargetPos, true, false, false, false, false, false, false)) {
+                            m_LastTimeSearchLightWasTooFarAwayToShoot = CTimer::m_snTimeInMilliseconds;
+                            m_nTimeForMinigunFiring = m_LastTimeSearchLightWasTooFarAwayToShoot;
                         }
                     }
-                    
-                    // Fire if time has elapsed
-                    if (currentTime > m_LastTimeSearchLightWasTooFarAwayToShoot + fireDelay && 
-                        currentTime > m_LastTimeGunFired) {
-                        
-                        // Add randomness to target position
-                        targetPos = m_SearchLightPos;
-                        float randX = targetPos.x + ((CGeneral::GetRandomNumber() - 128) * 0.02f);
-                        float randY = targetPos.y + ((CGeneral::GetRandomNumber() - 128) * 0.02f);
-                        
-                        // Calculate direction
-                        fireDir = targetPos - gunPos;
-                        fireDir.Normalize();
-                        
-                        // Offset positions slightly
-                        CVector adjustedStart = gunPos + (fireDir * 3.0f);
-                        CVector adjustedTarget = CVector(
-                            fireDir.x * 3.0f + randX,
-                            fireDir.y * 3.0f + randY,
-                            fireDir.z * 3.0f + targetPos.z
-                        );
-                        
-                        // Fire bullet
-                        CWeapon::FireOneInstantHitRound(&adjustedStart, &adjustedTarget, 20);
-                        CAudioEngine::ReportWeaponEvent(&AudioEngine, AE_WEAPON_M4_SHOT, WEAPON_M4, this);
-                        
-                        // Random delay before next shot
-                        int32 nextShotDelay = (CGeneral::GetRandomNumberInRange(0.0f, 1.0f) < 0.15f) ? 400 : 150;
-                        m_LastTimeGunFired = currentTime + nextShotDelay;
+
+                    if (CTimer::m_snTimeInMilliseconds > m_LastTimeSearchLightWasTooFarAwayToShoot + WaitBeforeOpeningFire && CTimer::m_snTimeInMilliseconds > m_nTimeForMinigunFiring) {
+                        CVector ToExtendAWeeBit;
+                        CVector TargetCoors;
+                        CVector Temp;
+
+                        TargetCoors = TargetPos;
+                        TargetCoors.x += ((CGeneral::GetRandomNumber() & 0xFF) - 128) * 0.02f;
+                        TargetCoors.y += ((CGeneral::GetRandomNumber() & 0xFF) - 128) * 0.02f;
+
+                        ToExtendAWeeBit = TargetPos - ShotOrigin;
+                        ToExtendAWeeBit.Normalise();
+
+                        Temp = ShotOrigin;
+                        TargetCoors += ToExtendAWeeBit * 3.0f;
+                        Temp += ToExtendAWeeBit * 3.0f;
+
+                        FireOneInstantHitRound(Temp, TargetCoors, 20);
+                        AudioEngine.ReportWeaponEvent(AE_WEAPON_FIRE, WEAPON_M4, this);
+
+                        if (CGeneral::GetRandomNumberInRange(0.0f, 1.0f) < gHeliFiringTimeStepRandomizer) {
+                            m_nTimeForMinigunFiring = CTimer::m_snTimeInMilliseconds + 400;
+                        } else {
+                            m_nTimeForMinigunFiring = CTimer::m_snTimeInMilliseconds + 150;
+                        }
                     }
+                } else {
+                    m_LastTimeSearchLightWasTooFarAwayToShoot = CTimer::m_snTimeInMilliseconds;
+                    m_nTimeForMinigunFiring = m_LastTimeSearchLightWasTooFarAwayToShoot;
                 }
             }
         }
     }
-    
-    // Handle SWAT team rappelling
-    if (m_autoPilot.Mission == MISSION_HELI_FLYDIRECT && m_nSwatOnBoard) {
+
+    if (m_autoPilot.Mission == MISSION_HELI_POLICE_BEHAVIOUR && m_nSwatOnBoard > 0) {
         SendDownSwat();
-        // CInterestingEvents::Add(&g_InterestingEvents, EVENT_SWAT_TEAM_ABSEILING, this);
+        g_InterestingEvents.Add(CInterestingEvents::ZELDICK_OCCUPATION, this);
     }
-    
-    // Process SWAT ropes
-    for (int i = 0; i < 4; i++) {
-        if (m_SwatRopeActive[i]) {
-            // Decrement rope timer
-            m_SwatRopeActive[i]--;
-            
-            // Set rope position
-            CVector ropeOffset(0.0f, 0.0f, 0.0f);
-            if (i <= 3) {
-                ropeOffset = FindSwatPositionRelativeToHeli(i);
-            }
-            
-            CVector ropePos = *m_matrix * ropeOffset;
-            CRopes::RegisterRope((uintptr_t)this + i, 8, ropePos, 0, 0, 0, nullptr, 20000);
-            
-            // If rope is done, set its speed
-            if (!m_SwatRopeActive[i]) {
-                CVector ropeSpeed(0.0f, 0.0f, 0.0f);
-                if (i <= 3) {
-                    // Get offset based on SWAT position
-                    ropeSpeed.x = 0.0f;  // Would use appropriate values from a table
-                    ropeSpeed.y = 0.0f;  // Would use appropriate values from a table
-                    ropeSpeed.z = -0.025f;
-                }
-                
-                // Transform to world space
-                ropeSpeed = Multiply3x3(m_matrix, &ropeSpeed);
-                ropeSpeed.z = 0.0f;
-                CRopes::SetSpeedOfTopNode((uintptr_t)this + i, ropeSpeed);
+
+    for (int32 Rope = 0; Rope < 4; ++Rope) {
+        if (m_SwatRopeActive[Rope]) {
+            --m_SwatRopeActive[Rope];
+            CRopes::RegisterRope(static_cast<uint32>(reinterpret_cast<uintptr_t>(this) + Rope), static_cast<uint32>(eRopeType::SWAT), GetMatrix().TransformPoint(FindSwatPositionRelativeToHeli(Rope)), false, 0, false, nullptr, 20000);
+
+            if (!m_SwatRopeActive[Rope]) {
+                CVector Temp = GetMatrix().TransformVector(FindSwatPositionRelativeToHeli(Rope) * 0.05f);
+                Temp.z = 0.0f;
+                CRopes::SetSpeedOfTopNode(static_cast<uint32>(reinterpret_cast<uintptr_t>(this) + Rope), Temp);
             }
         }
     }
-    
-    // Update vehicle weapons and winch
+
     UpdateWinch();
     ProcessWeapons();
-    
-    // Add helicopter overhead event based on probability
-    if (CInterestingEvents::aimingAtViewportTarget()) {
-        float probability = (shouldFireGun) ? 
-            ((CTimer::GetTimeStep() / 50.0f) / 10.0f) * 2.0f : 
-            ((CTimer::GetTimeStep() / 50.0f) / 10.0f);
-            
-        if (CGeneral::GetRandomNumberInRange(0.0f, 1.0f) < probability) {
-            CInterestingEvents::Add(&g_InterestingEvents, EVENT_HELICOPTER_OVERHEAD, this);
+
+    if (g_InterestingEvents.m_b1) {
+        float fTimeStep = CTimer::GetTimeStepInSeconds();
+        float fChance = fTimeStep * 0.1f;
+        if (bFireSearchLightGun) {
+            fChance *= 2.0f;
         }
-    }*/
+
+        float fRandVal = CGeneral::GetRandomNumberInRange(0.0f, 1.0f);
+        if (fRandVal < fChance) {
+            g_InterestingEvents.Add(CInterestingEvents::INTERESTING_EVENT_21, this);
+        }
+    }
 }
+

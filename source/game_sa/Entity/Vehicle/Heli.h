@@ -119,6 +119,7 @@ public:
     static inline auto& NumberOfSearchLights = StaticRef<uint32>(0xC1C96C);
     static inline auto& bHeliControlsCheat = StaticRef<bool>(0xC1C970);
     static inline auto& HeliSearchLights = StaticRef<std::array<tHeliLight, 4>>(0xC1C990);
+    static inline auto& gHeliFiringTimeStepRandomizer = StaticRef<float>(0x8D33A4); // 0.15
 
     static constexpr auto Type = VEHICLE_TYPE_HELI;
 
