@@ -11,11 +11,11 @@ void CInterestingEvents::InjectHooks() {
     RH_ScopedClass(CInterestingEvents);
     RH_ScopedCategoryGlobal();
 
-    RH_ScopedInstall(Constructor, 0x6023A0, { .reversed = false });
-    RH_ScopedInstall(Destructor, 0x856880, { .reversed = false });
-    RH_ScopedInstall(Add, 0x602590, { .reversed = false });
-    RH_ScopedInstall(ScanForNearbyEntities, 0x605A30, { .reversed = false });
-    RH_ScopedInstall(GetInterestingEvent, 0x6028A0);
+    RH_ScopedInstall(Constructor, 0x6023A0); // ASM Checked
+    RH_ScopedInstall(Destructor, 0x856880); // ASM Checked
+    RH_ScopedInstall(Add, 0x602590); // ASM Checked
+    RH_ScopedInstall(ScanForNearbyEntities, 0x605A30); // ASM Checked
+    RH_ScopedInstall(GetInterestingEvent, 0x6028A0); // ASM Checked
     RH_ScopedInstall(InvalidateEvent, 0x602960);
     RH_ScopedInstall(InvalidateNonVisibleEvents, 0x6029C0);
 }
@@ -110,81 +110,103 @@ CInterestingEvents* CInterestingEvents::Constructor() {
 
 // 0x856880
 CInterestingEvents::~CInterestingEvents() {
-    for (auto& event : m_Events) {
+    for (auto& event : g_InterestingEvents.m_Events) {
         CEntity::ClearReference(event.m_pEntity);
     }
 }
 
 CInterestingEvents* CInterestingEvents::Destructor() {
-    this->CInterestingEvents::~CInterestingEvents();
-    return this;
+    g_InterestingEvents.~CInterestingEvents();
+    return &g_InterestingEvents;
 }
 
 // 0x602590
 void CInterestingEvents::Add(CInterestingEvents::EType type, CEntity* entity) {
-    return plugin::CallMethod<0x602590, CInterestingEvents*, CInterestingEvents::EType, CEntity*>(this, type, entity);
-
-    if (!m_bIsActive || !entity)
+    if (!m_bIsActive || !entity) {
         return;
+    }
 
-    NOTSA_LOG_DEBUG("type={}, model={}", (int32)(type), entity->m_nModelIndex);
+    CVector vCameraOrigin = CCamera::GetActiveCamera().m_vecSource;
 
-    const auto& camPos = CCamera::GetActiveCamera().m_vecSource;
     if (m_iCurrentFrameCounter != CTimer::GetFrameCounter()) {
         m_iCurrentFrameCounter = CTimer::GetFrameCounter();
 
-        CPlayerPed* player = FindPlayerPed();
-        const auto& playerPos = player->GetPosition();
-        m_ViewVec = playerPos - camPos;
-        m_ViewVec.z = 0.f;
-        if (m_ViewVec.NormaliseAndMag() == 0.f) {
-            m_ViewVec = player->GetMatrix().GetForward();
+        CPlayerPed* pPlayerPed = FindPlayerPed();
+
+        m_ViewVec = pPlayerPed->GetPosition() - vCameraOrigin;
+        m_ViewVec.z = 0.0f;
+        if (m_ViewVec.NormaliseAndMag() == 0.0f) {
+            m_ViewVec = pPlayerPed->GetMatrix().GetForward();
         }
-        m_ScanOrigin = (m_ViewVec * m_fEventRadius) + playerPos;
+        m_ScanOrigin = pPlayerPed->GetPosition() + m_ViewVec * m_fEventRadius;
     }
 
-    CVector2D distance = m_ScanOrigin - entity->GetPosition();
-    if (distance.SquaredMagnitude() > m_fEventRadius * m_fEventRadius)
+    const float fRadiusSqr = m_fEventRadius * m_fEventRadius;
+    CVector vDiff = m_ScanOrigin - entity->GetPosition();
+    float fRadialDistSqr = vDiff.x * vDiff.x + vDiff.y * vDiff.y;
+    if (fRadialDistSqr > fRadiusSqr) {
         return;
+    }
 
-    CVector vec0 = m_ViewVec * entity->GetPosition();
-    CVector vec1 = m_ViewVec * camPos;
-    if (!m_bIgnoreEventsBehindPlayer && vec0.ComponentwiseSum() - vec1.ComponentwiseSum() < 0.f)
+    if (m_bIgnoreEventsBehindPlayer) {
+        float fPlaneDist = -DotProduct(vCameraOrigin, m_ViewVec);
+        float fPlanarDist = DotProduct(m_ViewVec, entity->GetPosition()) + fPlaneDist;
+        if (fPlanarDist < 0.0f) {
+            return;
+        }
+    }
+
+    bool bLOS = CWorld::GetIsLineOfSightClear(vCameraOrigin, entity->GetPosition(), true, false, false, false, false, true, false);
+    if (!bLOS) {
         return;
+    }
 
-    if (!CWorld::GetIsLineOfSightClear(camPos, entity->GetPosition(), true, false, false, false, false, true, false))
-        return;
+    uint32 iTimeMs = CTimer::GetTimeInMS();
+    int32 iPriority = m_EventPriorities[type];
+    bool bCanAddNewEventOfType = (iTimeMs > m_NextTimeToAcceptEvents[type]);
 
-    uint32 time = CTimer::GetTimeInMS();
-    for (auto index = 0; index < MAX_INTERESTING_EVENTS; index++) {
-        TInterestingEvent& event = g_InterestingEvents.m_Events[index];
-        if (event.m_pEntity) {
-            if (m_EventPriorities[type] < m_EventPriorities[event.m_eType] && CTimer::GetTimeInMS() <= event.m_iStartTime + static_cast<uint32>(m_EventDurations[event.m_eType]))
+    for (int32 e = 0; e < 8; e++) {
+        TInterestingEvent& pEvent = m_Events[e];
+        bool bLookingAtThisEvent = (m_iLookingAtEvent == e);
+        bool bDurationExpired = (iTimeMs > pEvent.m_iStartTime + m_EventDurations[pEvent.m_eType]);
+        EType eExistingType = static_cast<EType>(pEvent.m_eType);
+
+        if (!pEvent.m_pEntity) {
+            pEvent.m_eType = ENone;
+            pEvent.m_pEntity = nullptr;
+        } else if (eExistingType != ENone) {
+            int32 iExistingPriority = m_EventPriorities[eExistingType];
+            if (iPriority >= iExistingPriority) {
+                if (!bCanAddNewEventOfType || bLookingAtThisEvent)
+                    continue;
+            } else if (bDurationExpired) {
+                if (!bCanAddNewEventOfType || bLookingAtThisEvent)
+                    continue;
+            } else {
                 continue;
-            if (CTimer::GetTimeInMS() <= m_NextTimeToAcceptEvents[type] || m_iLookingAtEvent == index)
-                continue;
-        } else {
-            event.m_eType = ENone;
+            }
         }
 
-        CEntity::SafeCleanUpRef(event.m_pEntity);
-        event.m_eType = type;
-        event.m_pEntity = entity;
-        event.m_iStartTime = time;
-        entity->RegisterReference(&event.m_pEntity);
-        if (m_bUseTimeDelayBeforeAddingSimilarEvent)
-            m_NextTimeToAcceptEvents[type] = time;
-        else
-            m_NextTimeToAcceptEvents[type] = time + (m_EventDurations[type] >> 1);
-        break;
+        if (pEvent.m_pEntity) {
+            CEntity::ClearReference(pEvent.m_pEntity);
+        }
+        pEvent.m_eType = type;
+        pEvent.m_pEntity = entity;
+        pEvent.m_iStartTime = iTimeMs;
+        entity->RegisterReference(&pEvent.m_pEntity);
+
+        if (m_bUseTimeDelayBeforeAddingSimilarEvent) {
+            m_NextTimeToAcceptEvents[type] = iTimeMs + (m_EventDurations[type] / 2);
+        } else {
+            m_NextTimeToAcceptEvents[type] = iTimeMs;
+        }
+        return;
     }
 }
 
 // 0x605A30
 void CInterestingEvents::ScanForNearbyEntities() {
     ZoneScoped;
-
-    return plugin::CallMethod<0x605A30, CInterestingEvents*>(this);
 
     if (!m_bIsActive)
         return;
@@ -195,92 +217,74 @@ void CInterestingEvents::ScanForNearbyEntities() {
     }
     m_iLastScanTime = CTimer::GetTimeInMS();
 
-    CPlayerPed* player = FindPlayerPed();
+    CPlayerPed* pPlayerPed = FindPlayerPed();
     if (m_iCurrentFrameCounter != CTimer::GetFrameCounter()) {
         m_iCurrentFrameCounter = CTimer::GetFrameCounter();
-        const auto& camPos = CCamera::GetActiveCamera().m_vecSource, playerPos = player->GetPosition();
-        m_ViewVec = playerPos - camPos;
+        const CVector vCameraOrigin = CCamera::GetActiveCamera().m_vecSource;
+        m_ViewVec = pPlayerPed->GetPosition() - vCameraOrigin;
         m_ViewVec.z = 0.f;
         if (m_ViewVec.NormaliseAndMag() == 0.f)
-            m_ViewVec = player->GetMatrix().GetForward();
-        m_ScanOrigin = (m_ViewVec * m_fEventRadius) + playerPos;
+            m_ViewVec = pPlayerPed->GetMatrix().GetForward();
+        const float fRadiusSqr = m_fEventRadius * m_fEventRadius;
+        m_ScanOrigin = pPlayerPed->GetPosition() + (m_ViewVec * m_fEventRadius);
     }
 
-    auto v0 = std::max(static_cast<int>(std::floor((m_ScanOrigin.x - m_fEventRadius) * 50.0f + 60.0f)), 0);
-    auto v1 = std::max(static_cast<int>(std::floor((m_ScanOrigin.y - m_fEventRadius) * 50.0f + 60.0f)), 0);
-    auto v2 = std::min(static_cast<int>(std::floor((m_ScanOrigin.x + m_fEventRadius) * 50.0f + 60.0f)), 119);
-    auto v3 = std::min(static_cast<int>(std::floor((m_ScanOrigin.y + m_fEventRadius) * 50.0f + 60.0f)), 119);
-
-    int32 startSectorX = CWorld::GetSectorX(m_ScanOrigin.x - m_fEventRadius);
-    int32 startSectorY = CWorld::GetSectorY(m_ScanOrigin.y - m_fEventRadius);
-    int32 endSectorX   = CWorld::GetSectorX(m_ScanOrigin.x + m_fEventRadius);
-    int32 endSectorY   = CWorld::GetSectorY(m_ScanOrigin.y + m_fEventRadius);
-
-    assert(v0 == startSectorX);
-    assert(v1 == startSectorY);
-    assert(v2 == endSectorX);
-    assert(v3 == endSectorY);
+    const int32 iLeft   = std::max(static_cast<int32>(std::floor((m_ScanOrigin.x - m_fEventRadius) / 50.0f + 60.0f)), 0);
+    const int32 iBottom = std::max(static_cast<int32>(std::floor((m_ScanOrigin.y - m_fEventRadius) / 50.0f + 60.0f)), 0);
+    const int32 iRight  = std::min(static_cast<int32>(std::floor((m_ScanOrigin.x + m_fEventRadius) / 50.0f + 60.0f)), 119);
+    const int32 iTop    = std::min(static_cast<int32>(std::floor((m_ScanOrigin.y + m_fEventRadius) / 50.0f + 60.0f)), 119);
 
     CWorld::AdvanceCurrentScanCode();
-    player->SetCurrentScanCode();
+    pPlayerPed->SetCurrentScanCode();
 
-    for (int32 sectorY = startSectorY; sectorY <= endSectorY; ++sectorY) {
-        for (int32 sectorX = startSectorX; sectorX <= endSectorX; ++sectorX) {
-            auto& rs = CWorld::GetRepeatSector(sectorX, sectorY);
+    for (int32 y = iBottom; y <= iTop; ++y) {
+        for (int32 x = iLeft; x <= iRight; ++x) {
+            auto& sector = CWorld::GetRepeatSector(x, y);
 
-            for (auto* const ped : rs.Peds) {
-                if (ped->IsScanCodeCurrent())
+            for (auto* const pPed : sector.Peds) {
+                if (pPed->IsScanCodeCurrent())
                     continue;
 
-                ped->SetCurrentScanCode();
+                pPed->SetCurrentScanCode();
 
-                if (ped->m_nPedState == PEDSTATE_DEAD)
+                if (pPed->m_nPedState == PEDSTATE_DEAD)
                     continue;
 
-                CEntity* entity;
-                if (ped->bInVehicle) {
-                    entity = ped->m_pVehicle;
-                } else {
-                    entity = ped;
-                }
+                CEntity* pInterstingEntity = (pPed->bInVehicle && pPed->m_pVehicle) ? static_cast<CEntity*>(pPed->m_pVehicle) : static_cast<CEntity*>(pPed);
+                int32 iPedType = pPed->m_nPedType;
 
-                switch (ped->m_nPedType) {
+                switch (iPedType) {
                 case PED_TYPE_COP:
-                    Add(ECopNearby, entity);
+                    Add(ECopNearby, pInterstingEntity);
                     break;
                 case PED_TYPE_CRIMINAL:
-                    Add(ECriminalNearby, entity);
+                    Add(ECriminalNearby, pInterstingEntity);
                     break;
                 case PED_TYPE_PROSTITUTE:
-                    Add(EProzzyNearby, entity);
+                    Add(EProzzyNearby, pInterstingEntity);
                     break;
-                default:
-                    if (IsPedTypeGang(ped->m_nPedType)) {
-                        Add(EGangMemberNearby, entity);
-                    }
-                    break;
+                }
+
+                if (IsPedTypeGang(static_cast<ePedType>(iPedType))) {
+                    Add(EGangMemberNearby, pInterstingEntity);
                 }
             }
 
-            for (auto* const vehicle : rs.Vehicles) {
-                if (vehicle->IsScanCodeCurrent())
+            for (auto* const pVehicle : sector.Vehicles) {
+                if (pVehicle->IsScanCodeCurrent())
                     continue;
 
-                vehicle->SetCurrentScanCode();
-                if (vehicle->physicalFlags.bRenderScorched != 0)
+                pVehicle->SetCurrentScanCode();
+                if (pVehicle->physicalFlags.bRenderScorched != 0)
                     continue;
 
-                if (!vehicle->m_pDriver)
+                if (!pVehicle->m_pDriver)
                     continue;
 
-                auto style = vehicle->m_autoPilot.DrivingMode;
-                if (!style)
-                    continue;
-
-                if (style == DRIVING_STYLE_DRIVINGMODE_AVOIDCARS_STOPFORPEDS_OBEYLIGHTS)
-                    continue;
-
-                Add(EMadDriver, vehicle);
+                bool bMadDriver = pVehicle->m_autoPilot.DrivingMode != DRIVING_STYLE_STOP_FOR_CARS && pVehicle->m_autoPilot.DrivingMode != DRIVING_STYLE_DRIVINGMODE_AVOIDCARS_STOPFORPEDS_OBEYLIGHTS;
+                if (bMadDriver) {
+                    Add(EMadDriver, pVehicle);
+                }
             }
         }
     }
