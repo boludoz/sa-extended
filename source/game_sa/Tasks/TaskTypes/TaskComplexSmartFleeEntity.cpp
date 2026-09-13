@@ -79,7 +79,7 @@ CTask* CTaskComplexSmartFleeEntity::CreateFirstSubTask(CPed* ped) {
         return nullptr;
     }
 
-    g_InterestingEvents.Add(CInterestingEvents::INTERESTING_EVENT_13, ped);
+    g_InterestingEvents.Add(CInterestingEvents::EPanickedPed, ped);
 
     if (!ped->bInVehicle && !g_ikChainMan.IsLooking(ped)) {
         g_ikChainMan.LookAt(

@@ -136,7 +136,7 @@ CTask* CTaskComplexRoadRage::CreateFirstSubTask(CPed* ped) {
         ped->SetCurrentWeapon(wtype);     
     }
 
-    g_InterestingEvents.Add(CInterestingEvents::INTERESTING_EVENT_18, ped);
+    g_InterestingEvents.Add(CInterestingEvents::ERoadRage, ped);
 
     return CreateSubTask(m_rageWith->bInVehicle ? TASK_COMPLEX_LEAVE_CAR : TASK_COMPLEX_KILL_PED_ON_FOOT, ped);
 }

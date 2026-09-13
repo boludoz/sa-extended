@@ -36,7 +36,7 @@ void CTaskAllocatorKillThreatsBasicRandomGroup::AllocateTasks(CPedGroupIntellige
                     intel->SetEventResponseTask(mem, CTaskComplexSeekCoverUntilTargetDead{ threatsGroup->GetId() });
                 }
             }
-            g_InterestingEvents.Add(CInterestingEvents::GANG_FIGHT, group->GetMembership().GetLeader());
+            g_InterestingEvents.Add(CInterestingEvents::EGangFight, group->GetMembership().GetLeader());
         }
     } else {
         for (auto* const mem : group->GetMembership().GetMembers()) {
@@ -55,7 +55,7 @@ void CTaskAllocatorKillThreatsBasicRandomGroup::AllocateTasks(CPedGroupIntellige
                 intel->SetEventResponseTask(mem, CTaskComplexSeekCoverUntilTargetDead{ m_Threat }); // 0x69D71F
             }
         }
-        g_InterestingEvents.Add(CInterestingEvents::GANG_ATTACKING_PED, group->GetMembership().GetLeader());
+        g_InterestingEvents.Add(CInterestingEvents::EGangAttackingPed, group->GetMembership().GetLeader());
     }
 }
 

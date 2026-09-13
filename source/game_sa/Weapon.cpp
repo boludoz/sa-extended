@@ -333,7 +333,7 @@ bool CWeapon::FireSniper(CPed* shooter, CEntity* victim, CVector* target) {
     CEventGunShotWhizzedBy gsw(shooter, activeCam.m_vecSource, targetPoint, hasNoSound);
     eventGroup->Add(static_cast<CEvent*>(&gsw), false);
 
-    g_InterestingEvents.Add(CInterestingEvents::EType::INTERESTING_EVENT_22, shooter);
+    g_InterestingEvents.Add(CInterestingEvents::EGunshotFired, shooter);
 
     return true;
 }
@@ -945,7 +945,7 @@ void CWeapon::FireInstantHitFromCar2(CVector startPoint, CVector endPoint, CVehi
         endPoint,
         notsa::contains({WEAPON_PISTOL_SILENCED, WEAPON_TEARGAS}, GetType())
     });
-    g_InterestingEvents.Add(CInterestingEvents::EType::INTERESTING_EVENT_22, owner);
+    g_InterestingEvents.Add(CInterestingEvents::EGunshotFired, owner);
 
     CPointLights::AddLight(PLTYPE_POINTLIGHT, startPoint, {}, 3.0f, 0.25f, 0.22f, 0.0f, 0, false, nullptr);
     CWorld::bIncludeBikers = true;
@@ -1537,11 +1537,11 @@ bool CWeapon::FireProjectile(CEntity* firedBy, const CVector& origin, CEntity* t
 
     if (firedByPed) { // 0x741A74
         CCrime::ReportCrime(CRIME_EXPLOSION, firedByPed, firedByPed);
-        g_InterestingEvents.Add(CInterestingEvents::INTERESTING_EVENT_22, firedBy);
+        g_InterestingEvents.Add(CInterestingEvents::EGunshotFired, firedBy);
     } else if (firedBy->GetIsTypeVehicle()) { // 0x741B10
         if (const auto drvr = firedBy->AsVehicle()->m_pDriver) {
             CCrime::ReportCrime(CRIME_FIRE_WEAPON, firedBy, drvr);
-            g_InterestingEvents.Add(CInterestingEvents::INTERESTING_EVENT_22, drvr);
+            g_InterestingEvents.Add(CInterestingEvents::EGunshotFired, drvr);
         }
     }
 

@@ -802,7 +802,7 @@ void CGame::Process() {
         CTimeCycle::Update();
         CPopCycle::Update();
 
-        if (g_InterestingEvents.m_b1) {
+        if (g_InterestingEvents.m_bIsActive) {
             g_InterestingEvents.ScanForNearbyEntities();
         }
 

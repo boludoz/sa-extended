@@ -90,7 +90,7 @@ void CTaskSimpleGiveCPR::ReviveDeadPed(CPed* ped) {
 
         m_pAccident->m_bIsRevived = true;
         if (!targetPed->bRemoveHead) {
-            g_InterestingEvents.Add(CInterestingEvents::EType::INTERESTING_EVENT_11, targetPed);
+            g_InterestingEvents.Add(CInterestingEvents::EPedRevived, targetPed);
             CEventRevived eventRevived;
             targetPed->GetIntelligence()->m_eventGroup.Add(&eventRevived, false);
         }

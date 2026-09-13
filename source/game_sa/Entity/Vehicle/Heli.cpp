@@ -1068,7 +1068,7 @@ void CHeli::ProcessControl() {
 
     if (m_autoPilot.Mission == MISSION_HELI_POLICE_BEHAVIOUR && m_nSwatOnBoard > 0) {
         SendDownSwat();
-        g_InterestingEvents.Add(CInterestingEvents::ZELDICK_OCCUPATION, this);
+        g_InterestingEvents.Add(CInterestingEvents::ESwatTeamAbseiling, this);
     }
 
     for (int32 Rope = 0; Rope < 4; ++Rope) {
@@ -1087,7 +1087,7 @@ void CHeli::ProcessControl() {
     UpdateWinch();
     ProcessWeapons();
 
-    if (g_InterestingEvents.m_b1) {
+    if (g_InterestingEvents.m_bIsActive) {
         float fTimeStep = CTimer::GetTimeStepInSeconds();
         float fChance = fTimeStep * 0.1f;
         if (bFireSearchLightGun) {
@@ -1096,7 +1096,7 @@ void CHeli::ProcessControl() {
 
         float fRandVal = CGeneral::GetRandomNumberInRange(0.0f, 1.0f);
         if (fRandVal < fChance) {
-            g_InterestingEvents.Add(CInterestingEvents::INTERESTING_EVENT_21, this);
+            g_InterestingEvents.Add(CInterestingEvents::EHelicopterOverhead, this);
         }
     }
 }

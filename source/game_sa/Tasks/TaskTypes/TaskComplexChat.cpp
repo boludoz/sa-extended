@@ -65,7 +65,7 @@ CTask* CTaskComplexChat::CreateFirstSubTask(CPed* ped) {
         ped->Say(m_GlobalSpeechContext);
     }
 
-    g_InterestingEvents.Add(CInterestingEvents::PEDS_CHATTING, ped);
+    g_InterestingEvents.Add(CInterestingEvents::EPedsChatting, ped);
 
     if (m_GlobalSpeechContext == CTX_GLOBAL_PCONV_DISMISS || m_GlobalSpeechContext >= CTX_GLOBAL_PCONV_PART_FEM && m_GlobalSpeechContext <= CTX_GLOBAL_PCONV_PART_MALE) {
         switch (CGeneral::GetRandomNumberInRange(0, notsa::IsFixBugs() ? 4 : 3)) {

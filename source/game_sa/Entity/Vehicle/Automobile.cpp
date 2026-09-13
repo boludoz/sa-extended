@@ -3160,7 +3160,7 @@ void CAutomobile::VehicleDamage(float damageIntensity, eVehicleCollisionComponen
                         }
                     }
                 }
-                g_InterestingEvents.Add(CInterestingEvents::EType::VEHICLE_DAMAGE, this);
+                g_InterestingEvents.Add(CInterestingEvents::ECarCrash, this);
             }
 
             // Had to re-order all this mess.

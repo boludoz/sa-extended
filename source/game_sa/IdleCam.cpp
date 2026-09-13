@@ -102,11 +102,11 @@ bool CIdleCam::IsItTimeForIdleCam() {
 // 0x50E690
 void CIdleCam::IdleCamGeneralProcess() {
     if (!IsItTimeForIdleCam()) {
-        g_InterestingEvents.m_b1 = false;
+        g_InterestingEvents.m_bIsActive = false;
     }
 
     if (TheCamera.GetActiveCam().m_nMode != MODE_FOLLOWPED) {
-        g_InterestingEvents.m_b1    = false;
+        g_InterestingEvents.m_bIsActive = false;
         gIdleCam.m_IdleTickerFrames = 0;
     }
 }
@@ -345,7 +345,7 @@ void CIdleCam::ProcessTargetSelection() {
                 }
             }
         } else {
-            CEntity* pEntity = pLatestEvent->entity;
+            CEntity* pEntity = pLatestEvent->m_pEntity;
             assert(pEntity);
             if (m_Target == pEntity) {
                 if (!IsTargetValid(pEntity)) {
@@ -490,7 +490,7 @@ bool CIdleCam::Process() {
 
     m_Cam = &TheCamera.GetActiveCam();
     if (m_LastFrameProcessed < CTimer::GetFrameCounter() - 1) {
-        g_InterestingEvents.m_b1 = true;
+        g_InterestingEvents.m_bIsActive = true;
         Reset(false);
         m_TimeIdleCamStarted = static_cast<float>(CTimer::GetTimeInMS());
         SetTarget(FindPlayerPed());

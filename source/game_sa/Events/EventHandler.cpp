@@ -878,7 +878,7 @@ void CEventHandler::ComputeDamageResponse(CEventDamage* e, CTask* tactive, CTask
         switch (e->m_weaponType) {
         case WEAPON_RAMMEDBYCAR:
         case WEAPON_RUNOVERBYCAR:
-            g_InterestingEvents.Add(CInterestingEvents::INTERESTING_EVENT_15, m_Ped);
+            g_InterestingEvents.Add(CInterestingEvents::EPedRunOver, m_Ped);
         }
 
         if (const auto v = m_Ped->GetVehicleIfInOne()) {
@@ -907,7 +907,7 @@ void CEventHandler::ComputeDamageResponse(CEventDamage* e, CTask* tactive, CTask
             const auto DoDie = [&](bool bFallingToDeath = false, eDirection fallToDeathDir = eDirection::FORWARD, bool bFallToDeathOverRailing = false) { // 0x4C0AA2
                 const auto isBeingKilledByStealth = tactive && tactive->GetTaskType() == TASK_SIMPLE_STEALTH_KILL && !static_cast<CTaskSimpleStealthKill*>(tactive)->m_bKeepTargetAlive;
 
-                g_InterestingEvents.Add(CInterestingEvents::INTERESTING_EVENT_28, m_Ped);
+                g_InterestingEvents.Add(CInterestingEvents::EPedGotKilled, m_Ped);
                 if (const auto tPhyResp = m_Ped->GetTaskManager().GetTaskPrimary(TASK_PRIMARY_PHYSICAL_RESPONSE)) {
                     if (tPhyResp->GetTaskType() != TASK_SIMPLE_CHOKING || !notsa::contains({ WEAPON_SPRAYCAN, WEAPON_EXTINGUISHER, WEAPON_TEARGAS }, e->m_weaponType)) {
                         m_Ped->GetIntelligence()->AddTaskPhysResponse(nullptr); // NB: This might delete `tactive` or `tsimplest`!
@@ -1584,7 +1584,7 @@ void CEventHandler::ComputePedEnteredVehicleResponse(CEventPedEnteredMyVehicle* 
         if (e->m_Vehicle->m_pHandlingData->GetAnimGroupId() == ANIM_GROUP_COACHCARANIMS) {
             return new CTaskComplexSmartFleeEntity{ e->m_PedThatEntered, false, 60.f };
         }
-        g_InterestingEvents.Add(CInterestingEvents::INTERESTING_EVENT_20, e->m_Vehicle);
+        g_InterestingEvents.Add(CInterestingEvents::ECarJacking, e->m_Vehicle);
         const auto LeaveCarAndFlee = [&]{
             return new CTaskComplexLeaveCarAndFlee{
                 e->m_Vehicle,
@@ -2245,7 +2245,7 @@ void CEventHandler::ComputeSexyVehicleResponse(CEventSexyVehicle* e, CTask* tact
         if (!e->m_vehicle) {
             return nullptr;
         }
-        g_InterestingEvents.Add(CInterestingEvents::EType::INTERESTING_EVENT_8, e->m_vehicle);
+        g_InterestingEvents.Add(CInterestingEvents::ESexyCar, e->m_vehicle);
         g_ikChainMan.LookAt("CompSexyVhclResp", m_Ped, e->m_vehicle, 5000, BONE_UNKNOWN, nullptr, true, 0.25f, 500, 3, false);
         return new CTaskSimpleStandStill(5000, false, false, 8.0f);
     }();

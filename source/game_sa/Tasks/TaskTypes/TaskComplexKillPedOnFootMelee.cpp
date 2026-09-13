@@ -152,7 +152,7 @@ CTask* CTaskComplexKillPedOnFootMelee::CreateNextSubTask(CPed* ped) {
 
 // 0x62BE30
 CTask* CTaskComplexKillPedOnFootMelee::CreateFirstSubTask(CPed* ped) {
-    g_InterestingEvents.Add(CInterestingEvents::INTERESTING_EVENT_19, ped);
+    g_InterestingEvents.Add(CInterestingEvents::EFistFight, ped);
     m_bNewTarget = false;
     if (!m_target) {
         return nullptr;

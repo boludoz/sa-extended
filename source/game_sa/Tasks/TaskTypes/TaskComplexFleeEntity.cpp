@@ -88,7 +88,7 @@ CTask* CTaskComplexFleeEntity::CreateFirstSubTask(CPed* ped) {
         return nullptr;
     }
 
-    g_InterestingEvents.Add(CInterestingEvents::INTERESTING_EVENT_13, ped);
+    g_InterestingEvents.Add(CInterestingEvents::EPanickedPed, ped);
 
     if (!g_ikChainMan.IsLooking(ped)) {
         g_ikChainMan.LookAt(

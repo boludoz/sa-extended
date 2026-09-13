@@ -148,7 +148,7 @@ CTask* CTaskComplexMedicTreatInjuredPed::CreateNextSubTask(CPed* ped) {
         return CreateSubTask(ped->bInVehicle ? TASK_SIMPLE_CAR_DRIVE : TASK_COMPLEX_WANDER);
 
     if (subTaskId == TASK_COMPLEX_LEAVE_CAR) {
-        g_InterestingEvents.Add(CInterestingEvents::EType::INTERESTING_EVENT_12, ped);
+        g_InterestingEvents.Add(CInterestingEvents::EEmergencyServicesArrived, ped);
         if (m_bIsDriver && m_pAccident->m_pPed && m_pAccident->m_bIsTreated) {
             CalcTargetPosWithOffset(ped, m_pAccident->m_pPed);
             return CreateSubTask(TASK_COMPLEX_GO_TO_POINT_AND_STAND_STILL);
