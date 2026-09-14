@@ -2,5 +2,4 @@
 - CJ sometimes run away the cops: fixed.
 - The radio is shut down every time i press ESC.
 - CJ Tatoos are not visible.
-- Blackscreen at Barber.
 - Fallen peds and peds.
