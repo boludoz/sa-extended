@@ -173,13 +173,10 @@ public:
     * @brief Code based on 0x44D3E0
     */
     bool HasToBeSwitchedOff() const {
-        switch (m_nBehaviourType) {
-        case 1:
-        case 2:
-            return false;
-        default:
+        if (m_nBehaviourType != 1 && m_nBehaviourType != 2) {
             return true;
         }
+        return false;
     }
 };
 VALIDATE_SIZE(CPathNode, 0x1C);
@@ -289,7 +286,7 @@ public:
     void TidyUpNodeSwitchesAfterMission();
     void SwitchRoadsInAngledArea(float, float, float, float, float, float, float, uint8, uint8) { /*noop*/ }
     bool ThisNodeHasToBeSwitchedOff(CPathNode* node);
-    size_t CountNeighboursToBeSwitchedOff(const CPathNode& node);
+    int32 CountNeighboursToBeSwitchedOff(CPathNode* node);
     void SwitchOffNodeAndNeighbours(CPathNode* node, CPathNode*& outNext1, CPathNode** outNext2, bool lowTraffic, bool backToOriginal);
     void SwitchRoadsOffInAreaForOneRegion(float xMin, float xMax, float yMin, float yMax, float zMin, float zMax, bool bSwitchOff, bool bCars, int areaId, bool bBackToOriginal);
     void SwitchRoadsOffInArea(float xMin, float xMax, float yMin, float yMax, float zMin, float zMax, bool bSwitchOff, bool bCars, bool bBackToOriginal);

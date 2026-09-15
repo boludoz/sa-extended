@@ -57,7 +57,7 @@ void CPathFind::InjectHooks() {
     RH_ScopedOverloadedInstall(FindNodeCoorsForScript, "LinkedNode", 0x4505E0, CVector(CPathFind::*)(CNodeAddress, bool*));
     RH_ScopedInstall(IsWaterNodeNearby, 0x450DE0);
     RH_ScopedInstall(CountNeighboursToBeSwitchedOff, 0x4504F0);
-    //RH_ScopedInstall(FindNodeOrientationForCarPlacement, 0x450320);
+    RH_ScopedInstall(FindNodeOrientationForCarPlacement, 0x450320);
     //RH_ScopedInstall(FindNodePairClosestToCoors, 0x44FEE0);
     RH_ScopedInstall(FindNodeClosestToCoorsFavourDirection, 0x44FCE0);
     RH_ScopedInstall(FindNodeClosestToCoors, 0x44F460);
@@ -76,7 +76,7 @@ void CPathFind::InjectHooks() {
     //RH_ScopedInstall(TestCoorsCloseness, 0x452000);
     //RH_ScopedInstall(FindNextNodeWandering, 0x451B70);
     RH_ScopedInstall(DoPathSearch, 0x4515D0, {.reversed = false}); // Sometimes breaks `CTaskComplexFollowNodeRoute::ComputePathNodes` - To repro just walk around in groove st. 
-    //RH_ScopedInstall(FindParkingNodeInArea, 0x4513F0);
+    RH_ScopedInstall(FindParkingNodeInArea, 0x4513F0);
     RH_ScopedInstall(FindLinkBetweenNodes, 0x451350);
     RH_ScopedInstall(ReturnInteriorNodeIndex, 0x451300);
     //RH_ScopedInstall(FindNthNodeClosestToCoors, 0x44F8C0);
@@ -1112,9 +1112,51 @@ CCarPathLinkAddress CPathFind::FindLinkBetweenNodes(CNodeAddress nodeAddrA, CNod
 
 // 0x4513F0
 CVector CPathFind::FindParkingNodeInArea(float minX, float maxX, float minY, float maxY, float minZ, float maxZ) {
-    CVector vecOut;
-    plugin::CallMethod<0x4513F0, CPathFind*, CVector*, float, float, float, float, float, float>(this, &vecOut, minX, maxX, minY, maxY, minZ, maxZ);
-    return vecOut;
+    static int32 dwParkingNodeIndex = 0;
+
+    int32 index = 0;
+    int32 lookingForIndex = dwParkingNodeIndex;
+    CVector found0;
+    CVector foundIndex;
+    bool bFound0 = false;
+    bool bFoundIndex = false;
+
+    for (size_t region = 0; region < NUM_PATH_MAP_AREAS; ++region) {
+        if (m_pPathNodes[region]) {
+            uint32 startNode = 0;
+            uint32 endNode = m_anNumVehicleNodes[region];
+            for (uint32 nodeIdx = startNode; nodeIdx < endNode; ++nodeIdx) {
+                CPathNode& node = m_pPathNodes[region][nodeIdx];
+                CVector pos = node.GetPosition();
+                if (pos.x > minX && pos.x < maxX && pos.y > minY && pos.y < maxY && pos.z > minZ && pos.z < maxZ) {
+                    if (node.m_nBehaviourType == 2) {
+                        if (index == 0) {
+                            found0 = pos;
+                            bFound0 = true;
+                        }
+                        if (index == lookingForIndex) {
+                            foundIndex = pos;
+                            bFoundIndex = true;
+                        }
+                        index++;
+                    }
+                }
+            }
+        }
+    }
+
+    dwParkingNodeIndex++;
+    if (dwParkingNodeIndex >= index) {
+        dwParkingNodeIndex = 0;
+    }
+
+    if (!bFound0) {
+        return { 0.0f, 0.0f, 0.0f };
+    }
+    if (bFoundIndex) {
+        return foundIndex;
+    }
+    return found0;
 }
 
 // 0x450F30
@@ -1305,25 +1347,71 @@ void CPathFind::MarkRegionsForCoors(CVector pos, float radius) {
     );
 }
 
-// 0x44D3E0 - Moved to CPathNode
+// 0x44D3E0
 bool CPathFind::ThisNodeHasToBeSwitchedOff(CPathNode* node) {
-    return node->HasToBeSwitchedOff();
+    if (node->m_nBehaviourType != 1 && node->m_nBehaviourType != 2) {
+        return true;
+    }
+    return false;
 }
 
 // 0x4504F0
-// This function is only called from `SwitchOffNodeAndNeighbours` but when unhooked
-// it doesn't spoil `eax` which makes the former crash
-// so hopefully the `__asm mov eax, this` fixes it
-// If not just lock both :D
-size_t CPathFind::CountNeighboursToBeSwitchedOff(const CPathNode& node) {
-    const auto ret = (size_t)rng::count_if(GetNodeLinkedNodes(node), &CPathNode::HasToBeSwitchedOff);
-    __asm mov eax, this // It has to be `this`
-    return ret;
+int32 CPathFind::CountNeighboursToBeSwitchedOff(CPathNode* node) {
+    int32 result = 0;
+
+    for (int32 neighbour = 0; neighbour < (int32)node->m_nNumLinks; ++neighbour) {
+        CNodeAddress neighbourNode = m_pNodeLinks[node->m_wAreaId][node->m_wBaseLinkId + neighbour];
+        if (IsAreaLoaded(neighbourNode.m_wAreaId)) {
+            CPathNode* pNeighbourNode = &m_pPathNodes[neighbourNode.m_wAreaId][neighbourNode.m_wNodeId];
+            if (ThisNodeHasToBeSwitchedOff(pNeighbourNode)) {
+                result++;
+            }
+        }
+    }
+
+    return result;
 }
 
 // 0x450320
-float CPathFind::FindNodeOrientationForCarPlacement(CNodeAddress nodeInfo) {
-    return plugin::CallMethodAndReturn<float, 0x450320, CPathFind*, CNodeAddress>(this, nodeInfo);
+float CPathFind::FindNodeOrientationForCarPlacement(CNodeAddress address) {
+    if (!address.IsValid() || !IsAreaLoaded(address.m_wAreaId)) {
+        return 0.0f;
+    }
+
+    CPathNode* node = &m_pPathNodes[address.m_wAreaId][address.m_wNodeId];
+    if (node->m_nNumLinks == 0) {
+        return 0.0f;
+    }
+
+    int32 nodeToUse = 0;
+    for (; nodeToUse < (int32)node->m_nNumLinks - 1; nodeToUse++) {
+        CCarPathLinkAddress linkAddr = m_pNaviLinks[address.m_wAreaId][node->m_wBaseLinkId + nodeToUse];
+        if (IsAreaLoaded(linkAddr.m_wAreaId)) {
+            const CCarPathLink& link = m_pNaviNodes[linkAddr.m_wAreaId][linkAddr.m_wCarPathLinkId];
+            if (link.m_attachedTo == address) {
+                if (link.m_numOppositeDirLanes != 0) {
+                    break;
+                }
+            } else {
+                if (link.m_numSameDirLanes != 0) {
+                    break;
+                }
+            }
+        }
+    }
+
+    CNodeAddress adjAddr = m_pNodeLinks[address.m_wAreaId][node->m_wBaseLinkId + nodeToUse];
+    if (!adjAddr.IsValid() || !IsAreaLoaded(adjAddr.m_wAreaId)) {
+        return 0.0f;
+    }
+
+    CPathNode* adjNode = &m_pPathNodes[adjAddr.m_wAreaId][adjAddr.m_wNodeId];
+
+    CVector diff = adjNode->GetPosition() - node->GetPosition();
+    diff.z = 0.0f;
+    diff.Normalise();
+
+    return std::atan2(-diff.x, diff.y) * 57.295776f;
 }
 
 // 0x452160
@@ -1335,7 +1423,7 @@ void CPathFind::SwitchOffNodeAndNeighbours(CPathNode* node, CPathNode*& outNext1
         *outNext2 = nullptr;
     }
 
-    if (CountNeighboursToBeSwitchedOff(*node) > 2) {
+    if (CountNeighboursToBeSwitchedOff(node) > 2) {
         return;
     }
 
@@ -1346,7 +1434,7 @@ void CPathFind::SwitchOffNodeAndNeighbours(CPathNode* node, CPathNode*& outNext1
         if (linked.m_isSwitchedOff == bWhatToSwitchTo) {
             continue;
         }
-        if (CountNeighboursToBeSwitchedOff(*node) > 2) {
+        if (CountNeighboursToBeSwitchedOff(&linked) > 2) {
             continue;
         }
         if (!outNext1) {
