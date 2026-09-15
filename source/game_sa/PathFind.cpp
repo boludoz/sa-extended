@@ -75,7 +75,7 @@ void CPathFind::InjectHooks() {
     RH_ScopedInstall(Find2NodesForCarCreation, 0x452090);
     //RH_ScopedInstall(TestCoorsCloseness, 0x452000);
     //RH_ScopedInstall(FindNextNodeWandering, 0x451B70);
-    RH_ScopedInstall(DoPathSearch, 0x4515D0, {.reversed = false}); // Sometimes breaks `CTaskComplexFollowNodeRoute::ComputePathNodes` - To repro just walk around in groove st. 
+    RH_ScopedInstall(DoPathSearch, 0x4515D0);
     RH_ScopedInstall(FindParkingNodeInArea, 0x4513F0);
     RH_ScopedInstall(FindLinkBetweenNodes, 0x451350);
     RH_ScopedInstall(ReturnInteriorNodeIndex, 0x451300);
@@ -176,27 +176,32 @@ void CPathFind::Shutdown() {
     }
 }
 
+// 0x44D310
 bool CPathFind::ThisNodeWillLeadIntoADeadEnd(CPathNode* startNode, CPathNode* endNode) {
     auto curr = startNode, prev = endNode;
     while (true) {
-        CPathNode* next{}; // If node has no links (or neither links area is loaded) this will be nullptr
-        for (auto& linked : GetNodeLinkedNodes(*curr)) {
-            if (&linked == prev) { // Obviously don't count the previous node
-                continue;
-            }
-            if (linked.m_nBehaviourType == 4u || linked.m_nBehaviourType > 10u) { // TODO: Enum?
-                // I'm unsure what's happening here
-                // I think, since this function isn't recursive, they just
-                // consider having 2 appropriate links as a non-deadend
-                if (next) {
-                    return false;
+        CPathNode* next = nullptr;
+
+        for (int32 neighbour = 0; neighbour < (int32)curr->m_nNumLinks; ++neighbour) {
+            const auto linkIndex = curr->m_wBaseLinkId + neighbour;
+            const CNodeAddress newNode = m_pNodeLinks[curr->m_wAreaId][linkIndex];
+
+            if (IsAreaNodesAvailable(newNode)) {
+                CPathNode* pNewNode = GetPathNode(newNode);
+
+                if (pNewNode && pNewNode != prev && (pNewNode->m_nBehaviourType == 0 || pNewNode->m_nBehaviourType > 10)) {
+                    if (next) {
+                        return false;
+                    }
+                    next = pNewNode;
                 }
-                next = &linked;
             }
         }
-        if (!next) { 
+
+        if (!next) {
             return true;
         }
+
         prev = curr;
         curr = next;
     }
@@ -296,195 +301,181 @@ void CPathFind::FindNextNodeWandering(uint8 nodeType, CVector vecPos, CNodeAddre
 void CPathFind::DoPathSearch(
     ePathType pathType,
     CVector originPos,
-    CNodeAddress originAddrAddrHint, // If invalid/area not loaded the closest node to `originPos` is used.
+    CNodeAddress originAddrAddr,
     CVector targetPos,
     CNodeAddress* outResultNodes,
     int16& outNodesCount,
     int32 maxNodesToFind,
     float* outDistance,
     float maxSearchDistance,
-    CNodeAddress* targetNodeAddrHint, // If null/invalid/area not loaded the closest node to `targetPos` is used.
-    float maxSearchDepth,
-    bool sameLaneOnly,
+    CNodeAddress* targetNodeAddr,
+    float maxUnkLimit,
+    bool oneSideOnly,
     CNodeAddress forbiddenNodeAddr,
-    bool bAllowWaterNodeTransitions,
-    bool forBoats
+    bool includeNodesWithoutLinks,
+    bool waterPath
 ) {
-    // Moved this up here, as it's set in every return path
-    outNodesCount = 0;
+    CNodeAddress targetNode;
+    if (targetNodeAddr && targetNodeAddr->IsValid() && IsAreaNodesAvailable(*targetNodeAddr)) {
+        targetNode = *targetNodeAddr;
+    } else {
+        targetNode = FindNodeClosestToCoors(targetPos, pathType, maxSearchDistance, 0, 0, 0, waterPath, 0);
+    }
 
-    const auto ResolveNode = [&, this](CVector nodePosn, CNodeAddress* addr) {
-        if (addr && addr->IsValid()) {
-            // In case area is not loaded we still fall-back to
-            // finding the closest node, as that will yield the
-            // node closest in a loaded area
-            if (IsAreaNodesAvailable(*addr)) {
-                return GetPathNode(*addr);
-            }
-        }
-        const auto foundAddr = FindNodeClosestToCoors(
-            nodePosn,
-            pathType,
-            maxSearchDistance,
-            false,
-            false,
-            false,
-            forBoats,
-            false
-        );
-        return foundAddr.IsValid()
-            ? GetPathNode(foundAddr)
-            : nullptr;
-    };
-
-    // Resolve addresses to use. Dont use `originAddrAddr` or `targetNodeAddr` after this point
-    CPathNode *origin, *target{};
-    if (   !(origin = ResolveNode(originPos, &originAddrAddrHint))
-        || !(target = ResolveNode(targetPos, targetNodeAddrHint))
-    ) {
-    fail:
+    if (!targetNode.IsValid()) {
         outNodesCount = 0;
         if (outDistance) {
-            *outDistance = 100'000.f;
+            *outDistance = 100000.0f;
         }
         return;
     }
 
-    // Check if the 2 nodes ended up being the same
-    if (*origin == *target) {
+    CNodeAddress startNode = originAddrAddr;
+    if (!startNode.IsValid() || !IsAreaNodesAvailable(startNode)) {
+        startNode = FindNodeClosestToCoors(originPos, pathType, maxSearchDistance, 0, 0, 0, waterPath, 0);
+    }
+
+    if (!startNode.IsValid()) {
         outNodesCount = 0;
         if (outDistance) {
-            *outDistance = 0.f;
+            *outDistance = 100000.0f;
         }
         return;
     }
 
-    // Check if flood fill values match, if not, fail
-    if (origin->m_nFloodFill != target->m_nFloodFill) {
-        goto fail;
+    if (startNode == targetNode) {
+        outNodesCount = 0;
+        if (outDistance) {
+            *outDistance = 0.0f;
+        }
+        return;
     }
 
-    rng::fill(m_pathFindHashTable, nullptr);
-    m_totalNumNodesInPathFindHashTable = 0u;
+    CPathNode* pTargetNode = GetPathNode(targetNode);
+    CPathNode* pStartNode = GetPathNode(startNode);
 
-    AddNodeToList(target, 0);
-
-    size_t numNodesToBeCleared{};
-    const auto AddNodeToBeCleared = [&](const CPathNode& node) {
-        if (numNodesToBeCleared < std::size(aNodesToBeCleared)) {
-            aNodesToBeCleared[numNodesToBeCleared++] = node.GetAddress();
+    if (pTargetNode->m_nFloodFill != pStartNode->m_nFloodFill) {
+        outNodesCount = 0;
+        if (outDistance) {
+            *outDistance = 100000.0f;
         }
-    };
-    AddNodeToBeCleared(*target);
+        return;
+    }
 
-    size_t iterDepth{};
-    bool finished{};
-    while (true) {
-        // Dijkstra's algorithm (probably)
+    for (int32 c = 0; c < 512; c++) {
+        m_pathFindHashTable[c] = nullptr;
+    }
 
-        // Find distances
-        for (auto node = m_pathFindHashTable[iterDepth % std::size(m_pathFindHashTable)]; node; node = node->m_next) {
-            if (*node == *origin) {
-                finished = true;
+    AddNodeToList(pTargetNode, 0);
+    aNodesToBeCleared[0] = pTargetNode->GetAddress();
+    int32 numNodesToBeCleared = 1;
+    int32 currentRoughDist = 0;
+    int32 currentHashValue = 0;
+    bool bStartNodeFound = false;
+
+    while (!bStartNodeFound) {
+        for (CPathNode* pCurrNode = m_pathFindHashTable[currentHashValue]; pCurrNode != nullptr; pCurrNode = pCurrNode->m_next) {
+            if (pCurrNode == pStartNode) {
+                bStartNodeFound = true;
             }
 
-            for (auto linkNum = 0u; linkNum < node->m_nNumLinks; linkNum++) {
-                const auto linkIdx    = node->m_wBaseLinkId + linkNum;
-                const auto linkedAddr = m_pNodeLinks[node->m_wAreaId][linkIdx];
+            for (int32 neighbours = 0; neighbours < (int32)pCurrNode->m_nNumLinks; ++neighbours) {
+                const auto linkIndex = neighbours + pCurrNode->m_wBaseLinkId;
+                const CNodeAddress neighbourNode = m_pNodeLinks[pCurrNode->m_wAreaId][linkIndex];
+                if (IsAreaNodesAvailable(neighbourNode)) {
+                    CPathNode* pCandidateNode = GetPathNode(neighbourNode);
+                    bool bDontConsiderThisNeighbour = false;
 
-                if (!IsAreaNodesAvailable(linkedAddr)) {
-                    continue;
-                }
-
-                auto& linked = *GetPathNode(linkedAddr);
-
-                // Omitted the bool variable and instead used `continue`s
-
-                if (sameLaneOnly) { // 0x451814
-                    const auto& naviLinkAddr = m_pNaviLinks[node->m_wAreaId][linkIdx];
-                    if (IsAreaLoaded(naviLinkAddr.m_wAreaId)) {
-                        const auto& naviLink = GetCarPathLink(naviLinkAddr);
-                        if (naviLink.m_attachedTo == linked.GetAddress()) {
-                            if (!naviLink.m_numOppositeDirLanes) {
-                                continue;
+                    if (oneSideOnly) {
+                        const CCarPathLinkAddress candidateLink = m_pNaviLinks[pCurrNode->m_wAreaId][linkIndex];
+                        if (m_pPathNodes[candidateLink.m_wAreaId]) {
+                            const CCarPathLink& candidateLinkRef = m_pNaviNodes[candidateLink.m_wAreaId][candidateLink.m_wCarPathLinkId];
+                            int32 lanesGoingOurWay;
+                            if (candidateLinkRef.m_attachedTo == neighbourNode) {
+                                lanesGoingOurWay = candidateLinkRef.m_numOppositeDirLanes;
+                            } else {
+                                lanesGoingOurWay = candidateLinkRef.m_numSameDirLanes;
                             }
-                        } else if (!naviLink.m_numSameDirLanes) {
-                            continue;
+
+                            if (lanesGoingOurWay == 0) {
+                                bDontConsiderThisNeighbour = true;
+                            }
+                        }
+                    }
+
+                    if (neighbourNode == forbiddenNodeAddr) {
+                        bDontConsiderThisNeighbour = true;
+                    }
+
+                    if (pCurrNode->m_bWaterNode != pCandidateNode->m_bWaterNode) {
+                        if (!includeNodesWithoutLinks) {
+                            bDontConsiderThisNeighbour = true;
+                        }
+                    }
+
+                    if (!bDontConsiderThisNeighbour) {
+                        const int32 candidateDist = pCurrNode->m_totalDistFromOrigin + m_pLinkLengths[pCurrNode->m_wAreaId][linkIndex];
+                        if (candidateDist < pCandidateNode->m_totalDistFromOrigin) {
+                            if (pCandidateNode->m_totalDistFromOrigin != 0x7FFE) {
+                                RemoveNodeFromList(pCandidateNode);
+                            }
+                            if (pCandidateNode->m_totalDistFromOrigin == 0x7FFE) {
+                                if (numNodesToBeCleared < 5000) {
+                                    aNodesToBeCleared[numNodesToBeCleared++] = pCandidateNode->GetAddress();
+                                }
+                            }
+
+                            AddNodeToList(pCandidateNode, candidateDist);
                         }
                     }
                 }
-
-                if (forbiddenNodeAddr == linked.GetAddress()) {
-                    continue;
-                }
-
-                // 0x451885
-                if (node->m_bWaterNode != linked.m_bWaterNode && !bAllowWaterNodeTransitions) {
-                    continue;
-                }
-
-                // 0x4518BD
-                const auto distToOriginFromLinked = node->m_totalDistFromOrigin + m_pLinkLengths[node->m_wAreaId][linkIdx];
-
-                // If this new route we found is better than the previous re-insert node into hashtable
-                if (distToOriginFromLinked < linked.m_totalDistFromOrigin) {
-                    if (linked.m_totalDistFromOrigin != SHRT_MAX - 1) { // Why the fuck they used this instead of `SHRT_MAX`?
-                        RemoveNodeFromList(&linked);
-                    } else {
-                        AddNodeToBeCleared(linked);
-                    }
-                    AddNodeToList(&linked, distToOriginFromLinked);
-                }
             }
 
-            // We've visited this node, so remove it
-            RemoveNodeFromList(node);
+            RemoveNodeFromList(pCurrNode);
         }
 
-        // No more nodes? Well, too sad.
-        if (!m_totalNumNodesInPathFindHashTable) {
-            break;
-        }
-
-        // Hit limit?
-        if (++iterDepth > maxSearchDepth) {
-            break;
-        }
-
-        if (numNodesToBeCleared >= std::size(aNodesToBeCleared) - 50) {
-            break;
-        }
-
-        if (!finished) { // Inverted 0x4519C0 
-            continue;
-        }
-
-        if (outDistance) {
-            *outDistance = origin->m_totalDistFromOrigin;
-        }
-        if (outResultNodes) { // Weird check really, because below it isn't checked :D
-            outResultNodes[outNodesCount++] = origin->GetAddress();
-        }
-
-        for (auto node = origin; node == target || outNodesCount < maxNodesToFind; outNodesCount++) {
-            for (auto linkNum = 0u; linkNum < node->m_nNumLinks; linkNum++) {
-                const auto linkedAddr = m_pNodeLinks[node->m_wAreaId][linkNum];
-                const auto linkIdx    = node->m_wBaseLinkId + linkNum;
-                if (!IsAreaNodesAvailable(linkedAddr)) {
-                    continue;
-                }
-                const auto linked = GetPathNode(linkedAddr);
-                if (const auto dist = node->m_totalDistFromOrigin - m_pLinkLengths[node->m_wAreaId][linkIdx]; dist == linked->m_totalDistFromOrigin) {
-                    outResultNodes[outNodesCount++] = linkedAddr;
-                    node = linked;
-                    break;
-                }
+        currentRoughDist++;
+        currentHashValue = currentRoughDist & 0x1FF;
+        if (m_totalNumNodesInPathFindHashTable == 0 || static_cast<float>(currentRoughDist) > maxUnkLimit || numNodesToBeCleared >= 4950) {
+            outNodesCount = 0;
+            for (int32 node = 0; node < numNodesToBeCleared; ++node) {
+                GetPathNode(aNodesToBeCleared[node])->m_totalDistFromOrigin = 0x7FFE;
             }
+            return;
         }
-        break;
     }
-    for (auto& addr : aNodesToBeCleared | rng::views::take(numNodesToBeCleared)) {
-        GetPathNode(addr)->m_totalDistFromOrigin = SHRT_MAX - 1;
+
+    outNodesCount = 0;
+    if (outDistance) {
+        *outDistance = static_cast<float>(pStartNode->m_totalDistFromOrigin);
+    }
+
+    if (outResultNodes) {
+        outResultNodes[outNodesCount++] = pStartNode->GetAddress();
+    }
+
+    CPathNode* pBacktrackNode = pStartNode;
+    while (outNodesCount < maxNodesToFind && pBacktrackNode != pTargetNode) {
+        for (int32 c = 0; c < (int32)pBacktrackNode->m_nNumLinks; ++c) {
+            const auto linkIndex = pBacktrackNode->m_wBaseLinkId + c;
+            const CNodeAddress candidateNode = m_pNodeLinks[pBacktrackNode->m_wAreaId][linkIndex];
+            if (IsAreaNodesAvailable(candidateNode)) {
+                CPathNode* pCandidateNode = GetPathNode(candidateNode);
+                if (pBacktrackNode->m_totalDistFromOrigin - m_pLinkLengths[pBacktrackNode->m_wAreaId][linkIndex] == pCandidateNode->m_totalDistFromOrigin) {
+                    pBacktrackNode = pCandidateNode;
+                    if (outResultNodes) {
+                        outResultNodes[outNodesCount++] = pCandidateNode->GetAddress();
+                    } else {
+                        outNodesCount++;
+                    }
+                    c = 29030;
+                }
+            }
+        }
+    }
+
+    for (int32 node = 0; node < numNodesToBeCleared; node++) {
+        GetPathNode(aNodesToBeCleared[node])->m_totalDistFromOrigin = 0x7FFE;
     }
 }
 
