@@ -834,46 +834,86 @@ void CPathFind::FindNodeClosestInRegion(CNodeAddress* outAddress, uint16 areaId,
 
 // 0x44F460
 CNodeAddress CPathFind::FindNodeClosestToCoors(
-    CVector pos,
-    ePathType nodeType,
-    float maxDistance,
-    uint16 unk2,
-    int32 unk3,
-    uint16 unk4,
-    uint16 bBoatsOnly,
-    int32 unk6
+    CVector SearchCoors,
+    ePathType GraphType,
+    float CutoffDist,
+    uint16 bIgnoreSwitchedOff,
+    int32 bIgnoreBetweenLevels,
+    uint16 bIgnoreAlreadyFound,
+    uint16 bBoatNodes,
+    int32 bIgnoreInteriors
 ) {
-    CNodeAddress outAddress;
-    float closestDist = maxDistance;
+    int32 CenterRegionY, CenterRegionX, RegionX, RegionY;
+    int32 Area;
+    CNodeAddress ClosestNode;
+    float ClosestDist, DistToBorderOfRegion;
+    uint16 Region;
 
-    int32 xRegion = FindXRegionForCoors(pos.x);
-    int32 yRegion = FindYRegionForCoors(pos.y);
+    ClosestDist = CutoffDist;
 
-    int32 area = 1;
-    while (area <= 4 && !outAddress.IsValid()) {
-        int32 minX = std::max(0, xRegion - area);
-        int32 maxX = std::min(NUM_PATH_MAP_AREA_X - 1, xRegion + area);
-        int32 minY = std::max(0, yRegion - area);
-        int32 maxY = std::min(NUM_PATH_MAP_AREA_Y - 1, yRegion + area);
+    CenterRegionX = (int32)FindXRegionForCoors(SearchCoors.x);
+    CenterRegionY = (int32)FindYRegionForCoors(SearchCoors.y);
+    Region = static_cast<uint16>(CenterRegionX + 8 * CenterRegionY);
 
-        for (int32 y = minY; y <= maxY; ++y) {
-            for (int32 x = minX; x <= maxX; ++x) {
-                if (std::abs(x - xRegion) == area || std::abs(y - yRegion) == area) {
-                    uint16 areaId = static_cast<uint16>(x + y * NUM_PATH_MAP_AREA_X);
-                    FindNodeClosestInRegion(&outAddress, areaId, pos, static_cast<uint8>(nodeType), &closestDist, unk2 != 0, unk4 != 0, bBoatsOnly != 0, unk6 != 0);
+    DistToBorderOfRegion = SearchCoors.x - FindXCoorsForRegion(CenterRegionX);
+    DistToBorderOfRegion = std::min(DistToBorderOfRegion, FindXCoorsForRegion(CenterRegionX + 1) - SearchCoors.x);
+    DistToBorderOfRegion = std::min(DistToBorderOfRegion, SearchCoors.y - FindYCoorsForRegion(CenterRegionY));
+    DistToBorderOfRegion = std::min(DistToBorderOfRegion, FindYCoorsForRegion(CenterRegionY + 1) - SearchCoors.y);
+
+    FindNodeClosestInRegion(&ClosestNode, Region, SearchCoors, (uint8)GraphType, &ClosestDist, bIgnoreSwitchedOff != 0, bIgnoreAlreadyFound != 0, bBoatNodes != 0, bIgnoreInteriors != 0);
+
+    if (ClosestDist > DistToBorderOfRegion) {
+        for (Area = 1; Area < 5; Area++) {
+            RegionX = CenterRegionX - Area;
+            if (RegionX >= 0 && RegionX < NUM_PATH_MAP_AREA_X) {
+                for (RegionY = CenterRegionY - Area; RegionY <= CenterRegionY + Area; RegionY++) {
+                    if (RegionY >= 0 && RegionY < NUM_PATH_MAP_AREA_Y) {
+                        FindNodeClosestInRegion(&ClosestNode, static_cast<uint16>(RegionX + 8 * RegionY), SearchCoors, (uint8)GraphType, &ClosestDist, bIgnoreSwitchedOff != 0, bIgnoreAlreadyFound != 0, bBoatNodes != 0, bIgnoreInteriors != 0);
+                    }
                 }
             }
+
+            RegionX = CenterRegionX + Area;
+            if (RegionX >= 0 && RegionX < NUM_PATH_MAP_AREA_X) {
+                for (RegionY = CenterRegionY - Area; RegionY <= CenterRegionY + Area; RegionY++) {
+                    if (RegionY >= 0 && RegionY < NUM_PATH_MAP_AREA_Y) {
+                        FindNodeClosestInRegion(&ClosestNode, static_cast<uint16>(RegionX + 8 * RegionY), SearchCoors, (uint8)GraphType, &ClosestDist, bIgnoreSwitchedOff != 0, bIgnoreAlreadyFound != 0, bBoatNodes != 0, bIgnoreInteriors != 0);
+                    }
+                }
+            }
+
+            RegionY = CenterRegionY - Area;
+            if (RegionY >= 0 && RegionY < NUM_PATH_MAP_AREA_Y) {
+                for (RegionX = CenterRegionX - Area + 1; RegionX < CenterRegionX + Area; RegionX++) {
+                    if (RegionX >= 0 && RegionX < NUM_PATH_MAP_AREA_X) {
+                        FindNodeClosestInRegion(&ClosestNode, static_cast<uint16>(RegionX + 8 * RegionY), SearchCoors, (uint8)GraphType, &ClosestDist, bIgnoreSwitchedOff != 0, bIgnoreAlreadyFound != 0, bBoatNodes != 0, bIgnoreInteriors != 0);
+                    }
+                }
+            }
+
+            RegionY = CenterRegionY + Area;
+            if (RegionY >= 0 && RegionY < NUM_PATH_MAP_AREA_Y) {
+                for (RegionX = CenterRegionX - Area + 1; RegionX < CenterRegionX + Area; RegionX++) {
+                    if (RegionX >= 0 && RegionX < NUM_PATH_MAP_AREA_X) {
+                        FindNodeClosestInRegion(&ClosestNode, static_cast<uint16>(RegionX + 8 * RegionY), SearchCoors, (uint8)GraphType, &ClosestDist, bIgnoreSwitchedOff != 0, bIgnoreAlreadyFound != 0, bBoatNodes != 0, bIgnoreInteriors != 0);
+                    }
+                }
+            }
+
+            DistToBorderOfRegion += 750.0f;
+            if (ClosestDist < DistToBorderOfRegion) {
+                break;
+            }
         }
-        area++;
     }
 
-    if (!unk6) {
-        for (uint16 interiorArea = NUM_PATH_MAP_AREAS; interiorArea < NUM_TOTAL_PATH_NODE_AREAS; ++interiorArea) {
-            FindNodeClosestInRegion(&outAddress, interiorArea, pos, static_cast<uint8>(nodeType), &closestDist, unk2 != 0, unk4 != 0, bBoatsOnly != 0, unk6 != 0);
+    if (!bIgnoreInteriors) {
+        for (uint16 InteriorRegion = NUM_PATH_MAP_AREAS; InteriorRegion < NUM_TOTAL_PATH_NODE_AREAS; InteriorRegion++) {
+            FindNodeClosestInRegion(&ClosestNode, InteriorRegion, SearchCoors, (uint8)GraphType, &ClosestDist, bIgnoreSwitchedOff != 0, bIgnoreAlreadyFound != 0, bBoatNodes != 0, false);
         }
     }
 
-    return outAddress;
+    return ClosestNode;
 }
 
 // 0x44FA30
@@ -1147,30 +1187,68 @@ bool CPathFind::These2NodesAreAdjacent(CNodeAddress nodeAddress1, CNodeAddress n
 }
 
 // 0x44FCE0
-CNodeAddress CPathFind::FindNodeClosestToCoorsFavourDirection(CVector pos, ePathType nodeType, CVector2D dir) {
-    dir = dir.Normalized(); // In-place normalize
-    
-    CNodeAddress closest{};
-    float        scoreOfClosest{std::numeric_limits<float>::max()};
-    for (auto areaId{ 0u }; areaId < NUM_TOTAL_PATH_NODE_AREAS; areaId++) {
-        for (const auto& node : GetPathNodesInArea(areaId, nodeType)) { // NOTE: Function takes care of checking whenever the area is loaded
-            const auto playerToNodeDirection = node.GetPosition() - pos;
+CNodeAddress CPathFind::FindNodeClosestToCoorsFavourDirection(CVector SearchCoors, ePathType GraphType, CVector2D Dir) {
+    int32 Node, Region;
+    float ClosestDist, ThisDist;
+    int32 StartNode, EndNode;
+    float Length, DiffY, DiffX;
+    CNodeAddress ClosestNode;
+    float DirX = Dir.x;
+    float DirY = Dir.y;
 
-            const auto dotScore = (abs(playerToNodeDirection) * CVector { 1.f, 1.f, 3.f }).ComponentwiseSum();
-            if (dotScore >= scoreOfClosest) {
-                continue;
+    Length = std::sqrt(DirX * DirX + DirY * DirY);
+    if (Length != 0.0f) {
+        DirX /= Length;
+        DirY /= Length;
+    } else {
+        DirX = 1.0f;
+    }
+
+    ClosestDist = 10000.0f;
+
+    for (Region = 0; Region < NUM_TOTAL_PATH_NODE_AREAS; Region++) {
+        if (m_pPathNodes[Region] == nullptr) {
+            continue;
+        }
+        switch ((uint8)GraphType) {
+        case 0:
+            StartNode = 0;
+            EndNode = m_anNumVehicleNodes[Region];
+            break;
+        case 1:
+            StartNode = m_anNumVehicleNodes[Region];
+            EndNode = m_anNumNodes[Region];
+            break;
+        default:
+            continue;
+        }
+
+        for (Node = StartNode; Node < EndNode; Node++) {
+            CPathNode* pNode = &m_pPathNodes[Region][Node];
+
+            CVector nodePos = pNode->GetPosition();
+
+            if ((ThisDist = (std::abs(nodePos.x - SearchCoors.x) + std::abs(nodePos.y - SearchCoors.y) + 3.0f * std::abs(nodePos.z - SearchCoors.z))) < ClosestDist) {
+                DiffX = nodePos.x - SearchCoors.x;
+                DiffY = nodePos.y - SearchCoors.y;
+                Length = std::sqrt(DiffX * DiffX + DiffY * DiffY);
+                if (Length != 0.0f) {
+                    DiffX /= Length;
+                    DiffY /= Length;
+                } else {
+                    DiffX = 1.0f;
+                }
+
+                ThisDist += -20.0f * ((DiffX * DirX + DiffY * DirY) - 1.0f);
+
+                if (ThisDist < ClosestDist) {
+                    ClosestDist = ThisDist;
+                    ClosestNode = { static_cast<uint16>(Region), static_cast<uint16>(Node) };
+                }
             }
-
-            const auto score = dotScore - (dir.Dot(CVector2D{ playerToNodeDirection }.Normalized()) - 1.f) * 20.f;
-            if (score > scoreOfClosest) {
-                continue;
-            }
-
-            scoreOfClosest = score;
-            closest = node.GetAddress();
         }
     }
-    return closest;
+    return ClosestNode;
 }
 
 // 0x5D34C0
