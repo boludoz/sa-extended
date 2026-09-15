@@ -121,6 +121,8 @@ public:
     static inline auto& ms_cutsceneAssociations = StaticRef<CAnimBlendAssocGroup>(0xBC4020);
     static inline auto& ms_cutsceneOffset = StaticRef<CVector>(0xBC4034);
 
+    static void SetCutsceneOffset(const CVector& offset) { ms_cutsceneOffset = offset; }
+
     static void InjectHooks();
 
     static int32 AddCutsceneHead(CObject* object, int32 arg1);

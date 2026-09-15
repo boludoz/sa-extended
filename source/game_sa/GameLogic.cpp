@@ -229,7 +229,7 @@ bool CGameLogic::LaRiotsActiveHere() {
         return false;
     }
 
-    if (CCheat::IsActive(CHEAT_RIOT_MODE)) {
+    if (CCheat::IsActive(RIOT_CHEAT)) {
         return true;
     }
 

@@ -269,6 +269,34 @@ public:
 
     void Init();
 
+    OpcodeResult ProcessCommands0To99(int32 CurrCommand);
+    OpcodeResult ProcessCommands100To199(int32 CurrCommand);
+    OpcodeResult ProcessCommands200To299(int32 CurrCommand);
+    OpcodeResult ProcessCommands300To399(int32 CurrCommand);
+    OpcodeResult ProcessCommands400To499(int32 CurrCommand);
+    OpcodeResult ProcessCommands500To599(int32 CurrCommand);
+    OpcodeResult ProcessCommands600To699(int32 CurrCommand);
+    OpcodeResult ProcessCommands700To799(int32 CurrCommand);
+    OpcodeResult ProcessCommands800To899(int32 CurrCommand);
+    OpcodeResult ProcessCommands900To999(int32 CurrCommand);
+    OpcodeResult ProcessCommands1000To1099(int32 CurrCommand);
+    OpcodeResult ProcessCommands1100To1199(int32 CurrCommand);
+    OpcodeResult ProcessCommands1200To1299(int32 CurrCommand);
+    OpcodeResult ProcessCommands1300To1399(int32 CurrCommand);
+    OpcodeResult ProcessCommands1400To1499(int32 CurrCommand);
+    OpcodeResult ProcessCommands1500To1599(int32 CurrCommand);
+    OpcodeResult ProcessCommands1600To1699(int32 CurrCommand);
+    OpcodeResult ProcessCommands1700To1799(int32 CurrCommand);
+    OpcodeResult ProcessCommands1800To1899(int32 CurrCommand);
+    OpcodeResult ProcessCommands1900To1999(int32 CurrCommand);
+    OpcodeResult ProcessCommands2000To2099(int32 CurrCommand);
+    OpcodeResult ProcessCommands2100To2199(int32 CurrCommand);
+    OpcodeResult ProcessCommands2200To2299(int32 CurrCommand);
+    OpcodeResult ProcessCommands2300To2399(int32 CurrCommand);
+    OpcodeResult ProcessCommands2400To2499(int32 CurrCommand);
+    OpcodeResult ProcessCommands2500To2599(int32 CurrCommand);
+    OpcodeResult ProcessCommands2600To2699(int32 CurrCommand);
+
     void PlayAnimScriptCommand(int32 commandId);
 
     void LocateCarCommand(int32 commandId);

@@ -822,7 +822,7 @@ CPed* CPopulation::AddPed(ePedType pedType, eModelID modelIndex, const CVector& 
         case PED_TYPE_CIVFEMALE: { // 0x61274E
             const auto ped = new CCivilianPed(pedType, modelIndex);
 
-            if (CCheat::IsAnyActive({ CHEAT_EVERYONE_ARMED, CHEAT_PEDS_ATTACK_OTHER_WITH_GOLFCLUB })) {
+            if (CCheat::IsAnyActive({ WEAPONSFORALL_CHEAT, MAYHEM_CHEAT })) {
                 GiveAndSetPedWeapon(ped, CGeneral::RandomChoiceFromList({ WEAPON_PISTOL, WEAPON_BASEBALLBAT, WEAPON_SHOTGUN, WEAPON_M4, WEAPON_RLAUNCHER }));
             }
 
@@ -840,7 +840,7 @@ CPed* CPopulation::AddPed(ePedType pedType, eModelID modelIndex, const CVector& 
         case PED_TYPE_GANG10: { // 0x6128C4
             const auto ped = new CCivilianPed(pedType, modelIndex);
 
-            if (CCheat::IsActive(CHEAT_NINJA_THEME) && pedType == PED_TYPE_GANG7) {
+            if (CCheat::IsActive(NINJA_CHEAT) && pedType == PED_TYPE_GANG7) {
                 GiveAndSetPedWeapon(ped, WEAPON_KATANA);
             } else if (CGeneral::RandomBool(33)) { // Give random weapon
                 if (const auto wtype = CGangs::Gang[GetGangOfPedType(pedType)].GetRandomWeapon(); wtype != WEAPON_UNARMED) {
@@ -903,12 +903,12 @@ CPed* CPopulation::AddPed(ePedType pedType, eModelID modelIndex, const CVector& 
         );
     }
 
-    if (CCheat::IsActive(CHEAT_SLUT_MAGNET) && pedType == PED_TYPE_PROSTITUTE) {
+    if (CCheat::IsActive(LOVECONQUERSALL_CHEAT) && pedType == PED_TYPE_PROSTITUTE) {
         ped->GetEventGroup().Add(CEventSexyPed{ FindPlayerPed(), TASK_COMPLEX_GANG_HASSLE_PED });
         GiveAndSetPedWeapon(ped, CGeneral::RandomChoiceFromList({ WEAPON_DILDO1, WEAPON_DILDO2, WEAPON_VIBE1, WEAPON_VIBE2 }), 1);
     }
 
-    if (CCheat::IsActive(CHEAT_PEDS_ATTACK_OTHER_WITH_GOLFCLUB)) {
+    if (CCheat::IsActive(MAYHEM_CHEAT)) {
         auto& pedsc = ped->GetIntelligence()->GetPedScanner();
         pedsc.ScanForPedsInRange(*ped);
         if (const auto closest = pedsc.GetClosestPedInRange()) { // Not what they did, but better (though possibly hacky)
@@ -1090,14 +1090,14 @@ eModelID CPopulation::ChooseCivilianOccupationForVehicle(bool mustBeMale, CVehic
                     continue;
                 }
                 if (!CCheat::IsAnyActive({
-                    CHEAT_ELVIS_IS_EVERYWHERE,
-                    CHEAT_PEDS_ATTACK_YOU_WITH_ROCKETS,
-                    CHEAT_BEACH_PARTY,
-                    CHEAT_GANGMEMBERS_EVERYWHERE,
-                    CHEAT_NINJA_THEME,
-                    CHEAT_SLUT_MAGNET,
-                    CHEAT_FUNHOUSE_THEME,
-                    CHEAT_COUNTRY_TRAFFIC,
+                    ELVISLIVES_CHEAT,
+                    VILLAGEPEOPLE_CHEAT,
+                    BEACHPARTY_CHEAT,
+                    GANGS_CHEAT,
+                    NINJA_CHEAT,
+                    LOVECONQUERSALL_CHEAT,
+                    FUNHOUSE_CHEAT,
+                    COUNTRYSIDEINVASION_CHEAT,
                 })) {
                     if (!CPopCycle::PedIsAcceptableInCurrentZone(pedModelId)) {
                         continue;

@@ -61,6 +61,16 @@ else()
     list(REMOVE_ITEM SOURCE_FILES_LIST ${OPENAL_FILES})
 endif()
 
+# Exclude legacy Commands/ directory (replaced with modular ProcessCommands in script2.cpp)
+file(
+    GLOB_RECURSE SCRIPT_COMMANDS_FILES
+    LIST_DIRECTORIES false
+    RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/game_sa/Scripts/Commands/*.c*"
+    "${CMAKE_CURRENT_SOURCE_DIR}/game_sa/Scripts/Commands/*.h*"
+)
+list(REMOVE_ITEM SOURCE_FILES_LIST ${SCRIPT_COMMANDS_FILES})
+
 if (${RE_PROJECT}_STANDALONE)
     add_executable(${RE_PROJECT_LIB_NAME} WIN32 ${SOURCE_FILES_LIST})
 else()

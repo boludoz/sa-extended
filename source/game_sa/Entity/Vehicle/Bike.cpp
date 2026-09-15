@@ -2463,7 +2463,7 @@ void CBike::ProcessControl() // ASM Checked 75%
             nullptr,
             nullptr,
             m_NumDriveWheelsOnGround,
-            CCheat::IsActive(CHEAT_PERFECT_HANDLING));
+            CCheat::IsActive(STRONGGRIP_CHEAT));
 
         fThrust /= m_fVelocityFrequency;
         float fBrakingForce = m_pHandlingData->m_fBrakeDeceleration * m_BrakePedal * CTimer::GetTimeStep();

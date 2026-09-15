@@ -109,6 +109,7 @@ public:
     static auto GetAnimBlocks() { return ms_aAnimBlocks | rng::views::take(ms_numAnimBlocks); }
     static auto GetAssocGroups() { return std::span{ms_aAnimAssocGroups, ms_numAnimAssocDefinitions}; }
     static auto GetAssocGroupDefs() { return std::span{ms_aAnimAssocDefinitions, ms_numAnimAssocDefinitions}; }
+    static uint32 GetNumAnimAssocDefinitions() { return ms_numAnimAssocDefinitions; }
 
     static void StreamAnimBlock(const char* blck, bool shouldBeLoaded, bool& isLoaded);
 private:

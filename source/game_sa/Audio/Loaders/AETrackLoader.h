@@ -15,8 +15,17 @@ VALIDATE_SIZE(StreamPack, 0x10);
 
 struct tTrackInfo {
     struct tBeat {
-        uint32 m_nTime{};
-        uint32 m_nKey{};
+        union {
+            struct {
+                uint32 m_nTime;
+                uint32 m_nKey;
+            };
+            struct {
+                int32 Time;
+                int32 Type;
+            };
+        };
+        tBeat() : m_nTime(0), m_nKey(0) {}
     };
     std::array<tBeat, 1000>   m_aBeats;
 

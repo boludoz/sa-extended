@@ -3267,7 +3267,7 @@ bool CPhysical::ApplyCollision(CEntity* theEntity, CColPoint& colPoint, float& t
             }
         }
 
-        if (CCheat::IsActive(CHEAT_CARS_FLOAT_AWAY_WHEN_HIT))
+        if (CCheat::IsActive(SUPERPOWERCAR_CHEAT))
         {
             if (FindPlayerVehicle() == thisVehicle
                 && entity->GetIsTypeVehicle() && entityVehicle->GetCreatedBy() != MISSION_VEHICLE)

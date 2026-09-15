@@ -616,7 +616,7 @@ void CEventDamage::ComputeDeathAnim(CPed* ped, bool bMakeActiveTaskAbortable) {
                     }
                 }
             }
-            if (CCheat::IsActive(CHEAT_MEGA_PUNCH)) {
+            if (CCheat::IsActive(SUPERPUNCH_CHEAT)) {
                 if (!m_weaponType || m_weaponType == WEAPON_BRASSKNUCKLE || m_weaponType == WEAPON_PARACHUTE)
                     fForceFactor = fForceFactor * 20.0f;
             }

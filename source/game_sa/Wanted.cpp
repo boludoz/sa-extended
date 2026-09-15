@@ -277,7 +277,7 @@ bool CWanted::AddCrimeToQ(eCrimeType crimeType, uint32 crimeId, const CVector& p
 
 // 0x562120
 void CWanted::ReportCrimeNow(eCrimeType crimeType, const CVector& posn, bool bPoliceDontReallyCare) {
-    if (CCheat::IsActive(CHEAT_I_DO_AS_I_PLEASE)) {
+    if (CCheat::IsActive(NOTWANTED_CHEAT)) {
         return;
     }
 
@@ -408,7 +408,7 @@ void CWanted::RegisterCrime_Immediately(eCrimeType crimeType, const CVector& pos
 void CWanted::SetWantedLevel(eWantedLevel level) {
     NOTSA_LOG_DEBUG("New:{}", level); // IV
 
-    if (CCheat::IsActive(CHEAT_I_DO_AS_I_PLEASE)) {
+    if (CCheat::IsActive(NOTWANTED_CHEAT)) {
         return;
     }
 

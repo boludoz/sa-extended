@@ -12,4 +12,6 @@ public:
 
     // Originally named `CosTabel` with argument named `Arg`, same story as above
     static float GetCosFast(float rad);
+
+    static float Sqrt(float v) { return std::sqrt(v); }
 };

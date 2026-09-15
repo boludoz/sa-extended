@@ -17,9 +17,9 @@ SpriteFileName FrontEndFilenames[] = {
     { "radio_mastersounds", "" },              // 10
     { "radio_wctr",         "" },              // 11
     { "radio_TPLAYER",      "" },              // 12
-# ifdef BUILD_XBOX
-    { "CONTROLLER_XBOX",    "CONTROLLER_XBOXM" },
-# endif
+// # ifdef BUILD_XBOX
+//     { "CONTROLLER_XBOX",    "CONTROLLER_XBOXM" },
+// # endif
     { "back2",              "" },              // 13
     { "back3",              "" },              // 14
     { "back4",              "" },              // 15
@@ -30,16 +30,16 @@ SpriteFileName FrontEndFilenames[] = {
     { "map",                "" },              // 20
     { "back8_top",          "" },              // 21
     { "back8_right",        "" },              // 22
-# ifdef BUILD_PC
+// # ifdef BUILD_PC
     { "mouse",              "mousea"     },    // 23
     { "crosshair",          "crosshaira" },    // 24
-# endif
+// # endif
 };
 
-#if defined BUILD_PC
+// #if defined BUILD_PC
     #include "FrontendScreensPC.h"
-#elif defined BUILD_XBOX
-    #include "config/FrontendScreensXBOX.def"
-#elif defined BUILD_PS2
-    #include "config/FrontendScreensPS2.def"
-#endif
+// #elif defined BUILD_XBOX
+//     #include "config/FrontendScreensXBOX.def"
+// #elif defined BUILD_PS2
+//     #include "config/FrontendScreensPS2.def"
+// #endif

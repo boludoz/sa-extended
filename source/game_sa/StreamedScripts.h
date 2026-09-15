@@ -45,6 +45,8 @@ public:
     CRunningScript* StartNewStreamedScript(int32 index);
 
     // NOTSA
+    uint8           GetNumUsersOfStreamedScript(int32 idx) const { return m_aScripts[idx].m_NumberOfUsers; }
+    void            SetNumUsersOfStreamedScript(int32 idx, uint8 count) { m_aScripts[idx].m_NumberOfUsers = count; }
     auto GetActiveScriptsWithIndex() {
         return m_aScripts | rngv::enumerate | rngv::take(m_nCountOfScripts);
     }

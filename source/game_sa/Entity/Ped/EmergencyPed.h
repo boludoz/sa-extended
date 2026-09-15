@@ -11,6 +11,7 @@
 class NOTSA_EXPORT_VTABLE CEmergencyPed : public CPed {
 public:
     CEmergencyPed(ePedType pedType, uint32 modelIndex);
+    CEmergencyPed(int32 pedType, uint32 modelIndex) : CEmergencyPed(static_cast<ePedType>(pedType), modelIndex) {}
     ~CEmergencyPed() override = default;
 
     void MedicAI();

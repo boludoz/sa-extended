@@ -163,6 +163,7 @@ public:
     void RemoveTexDictionaryRef();
     void AddRef();
     void RemoveRef();
+    void SetAlpha(uint8 alpha) { m_nAlpha = alpha; }
     // initPairedModel defines if we need to set col model for time model
     void SetColModel(CColModel* colModel, bool bIsLodModel = false);
     void Init2dEffects();

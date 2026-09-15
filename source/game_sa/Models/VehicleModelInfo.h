@@ -134,6 +134,10 @@ public:
     RpMaterial*        m_pPlateMaterial;
     char               m_szPlateText[9];
     uint8              m_nPlateType;
+
+    RpMaterial* GetCustomPlateMaterial() const { return m_pPlateMaterial; }
+    void SetCustomCarPlateDesign(uint8 design) { m_nPlateType = design; }
+    int32 GetVehicleList() const { return static_cast<int32>(m_nVehicleClass); }
     char               m_szGameName[8];
     eVehicleType       m_nVehicleType;
     float              m_fWheelSizeFront;

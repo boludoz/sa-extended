@@ -2942,22 +2942,22 @@ bool CStreaming::IsCarModelNeededInCurrentZone(int32 modelId) {
         return false;
 
     // Check cheats
-    if (CCheat::IsActive(CHEAT_BEACH_PARTY))
+    if (CCheat::IsActive(BEACHPARTY_CHEAT))
         return CPopulation::DoesCarGroupHaveModelId(POPCYCLE_CARGROUP_BEACHFOLK, modelId);
 
-    if (CCheat::IsActive(CHEAT_COUNTRY_TRAFFIC))
+    if (CCheat::IsActive(COUNTRYSIDEINVASION_CHEAT))
         return CPopulation::DoesCarGroupHaveModelId(POPCYCLE_CARGROUP_FARMERS, modelId);
 
-    if (CCheat::IsActive(CHEAT_CHEAP_TRAFFIC))
+    if (CCheat::IsActive(ALLCARSARESHIT_CHEAT))
         return CPopulation::DoesCarGroupHaveModelId(POPCYCLE_CARGROUP_CHEAT1, modelId);
 
-    if (CCheat::IsActive(CHEAT_FAST_TRAFFIC))
+    if (CCheat::IsActive(ALLCARSAREGREAT_CHEAT))
         return CPopulation::DoesCarGroupHaveModelId(POPCYCLE_CARGROUP_CHEAT2, modelId);
 
-    if (CCheat::IsActive(CHEAT_NINJA_THEME))
+    if (CCheat::IsActive(NINJA_CHEAT))
         return CPopulation::DoesCarGroupHaveModelId(POPCYCLE_CARGROUP_CHEAT3, modelId);
 
-    if (CCheat::IsActive(CHEAT_FUNHOUSE_THEME))
+    if (CCheat::IsActive(FUNHOUSE_CHEAT))
         return CPopulation::DoesCarGroupHaveModelId(POPCYCLE_CARGROUP_CHEAT4, modelId);
 
     // Check in current popcycle
@@ -3182,27 +3182,27 @@ void CStreaming::StreamOneNewCar() {
 
     bool bCheatActive = false;
     int32 carGroupId = 0;
-    if (CCheat::IsActive(CHEAT_BEACH_PARTY)) {
+    if (CCheat::IsActive(BEACHPARTY_CHEAT)) {
         carGroupId = POPCYCLE_CARGROUP_BEACHFOLK;
         bCheatActive = true;
     }
-    if (CCheat::IsActive(CHEAT_COUNTRY_TRAFFIC)) {
+    if (CCheat::IsActive(COUNTRYSIDEINVASION_CHEAT)) {
         carGroupId = POPCYCLE_CARGROUP_FARMERS;
         bCheatActive = true;
     }
-    if (CCheat::IsActive(CHEAT_CHEAP_TRAFFIC)) {
+    if (CCheat::IsActive(ALLCARSARESHIT_CHEAT)) {
         carGroupId = POPCYCLE_CARGROUP_CHEAT1;
         bCheatActive = true;
     }
-    if (CCheat::IsActive(CHEAT_FAST_TRAFFIC)) {
+    if (CCheat::IsActive(ALLCARSAREGREAT_CHEAT)) {
         carGroupId = POPCYCLE_CARGROUP_CHEAT2;
         bCheatActive = true;
     }
-    if (CCheat::IsActive(CHEAT_NINJA_THEME)) {
+    if (CCheat::IsActive(NINJA_CHEAT)) {
         carGroupId = POPCYCLE_CARGROUP_CHEAT3;
         bCheatActive = true;
     }
-    if (CCheat::IsActive(CHEAT_FUNHOUSE_THEME)) {
+    if (CCheat::IsActive(FUNHOUSE_CHEAT)) {
         carGroupId = POPCYCLE_CARGROUP_CHEAT4;
         bCheatActive = true;
     }
@@ -3603,7 +3603,7 @@ void CStreaming::StreamZoneModels_Gangs(const CVector& unused) {
             gangsNeeded |= (1 << i);
         }
     }
-    if (CCheat::IsActive(CHEAT_GANGS_CONTROLS_THE_STREETS)) {
+    if (CCheat::IsActive(GANGLAND_CHEAT)) {
         gangsNeeded |= 0xFF; // First 8 gangs
     }
 

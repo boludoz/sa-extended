@@ -327,7 +327,7 @@ void CPlayerInfo::WorkOutEnergyFromHunger() {
     static auto& s_LastHungryState = StaticRef<int8>(0xB9B8F1);
     static auto& s_bHungryMessageShown = StaticRef<bool>(0xB9B8F0);
 
-    if (CCheat::IsActive(CHEAT_NEVER_GET_HUNGRY)) {
+    if (CCheat::IsActive(NOFOOD_CHEAT)) {
         return;
     }
 

@@ -35,6 +35,8 @@ public:
     void FreeStaticMatrix();
     void SetPosn(float x, float y, float z);
     void SetPosn(const CVector& posn);
+    void SetPosition(float x, float y, float z) { SetPosn(x, y, z); }
+    void SetPosition(const CVector& posn) { SetPosn(posn); }
     void SetOrientation(float x, float y, float z);
     void SetOrientation(CVector radians) { SetOrientation(radians.x, radians.y, radians.z); } // TODO: Replace method above with this
     void GetOrientation(float& x, float& y, float& z);

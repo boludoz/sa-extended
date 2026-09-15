@@ -1363,7 +1363,7 @@ bool CWeapon::FireFromCar(CVehicle* vehicle, bool leftSide, bool rightSide) {
     if (const auto d = vehicle->m_pDriver) {
         d->GetWeaponAE().AddAudioEvent(AE_WEAPON_FIRE);
     }
-    if (!CCheat::IsActive(CHEAT_INFINITE_AMMO)) {
+    if (!CCheat::IsActive(AMMO_CHEAT)) {
         if (m_AmmoInClip) { // NOTE: I'm pretty sure this is redundant
             m_AmmoInClip--;
         }
@@ -1900,7 +1900,7 @@ bool CWeapon::Fire(CEntity* firedBy, CVector* startPosn, CVector* barrelPosn, CE
         }
 
         // 0x7428A6
-        if (!CCheat::IsActive(CHEAT_INFINITE_AMMO)) {
+        if (!CCheat::IsActive(AMMO_CHEAT)) {
             if (m_AmmoInClip) {
                 m_AmmoInClip--;
             }

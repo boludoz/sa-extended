@@ -307,7 +307,7 @@ CPed::CPed(ePedType pedType) : CPhysical(), m_pedIK{CPedIK(this)} {
 
     CPopulation::UpdatePedCount(this, 0);
 
-    if (CCheat::IsActive(CHEAT_HAVE_ABOUNTY_ON_YOUR_HEAD)) {
+    if (CCheat::IsActive(EVERYBODYATTACKSPLAYER_CHEAT)) {
         if (!IsPlayer()) {
             GetAcquaintance().SetAsAcquaintance(ACQUAINTANCE_HATE, CPedType::GetPedFlag(ePedType::PED_TYPE_PLAYER1));
             GetEventGroup().Add(CEventAcquaintancePedHate{FindPlayerPed()});
@@ -3370,18 +3370,18 @@ void CPed::GiveWeaponAtStartOfFight()
 
 /*!
 * @addr 5E8BE0
-* @brief If ped has no weapons give them one. (AK-47 if `CHEAT_NO_ONE_CAN_STOP_US` is active, RLauncher if `CHEAT_ROCKET_MAYHEM` is active, or a pistol otherwise)
+* @brief If ped has no weapons give them one. (AK-47 if `RECRUITME_AK47_CHEAT` is active, RLauncher if `RECRUITME_ROCKET_CHEAT` is active, or a pistol otherwise)
 */
 void CPed::GiveWeaponWhenJoiningGang()
 {
     if (GetActiveWeapon().m_Type == WEAPON_UNARMED && m_nDelayedWeapon == WEAPON_UNIDENTIFIED) {
-        if (CCheat::IsActive(CHEAT_NO_ONE_CAN_STOP_US)) {
+        if (CCheat::IsActive(RECRUITME_AK47_CHEAT)) {
             GiveDelayedWeapon(WEAPON_AK47, 200);
             SetCurrentWeapon(CWeaponInfo::GetWeaponInfo(WEAPON_AK47, eWeaponSkill::STD)->m_nSlot);
         }
         else {
             CWeaponInfo* weaponInfo = nullptr;
-            if (CCheat::IsActive(CHEAT_ROCKET_MAYHEM)) {
+            if (CCheat::IsActive(RECRUITME_ROCKET_CHEAT)) {
                 GiveDelayedWeapon(WEAPON_RLAUNCHER, 200);
                 weaponInfo = CWeaponInfo::GetWeaponInfo(WEAPON_RLAUNCHER, eWeaponSkill::STD);
             }

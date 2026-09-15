@@ -420,13 +420,13 @@ void CAutomobile::ProcessControl()
         }
     }
 
-    if (CCheat::IsActive(CHEAT_ALL_TAXIS_NITRO)) {
+    if (CCheat::IsActive(TAXINITRO_CHEAT)) {
         if (GetStatus() == STATUS_PLAYER && IsTransportVehicle())
             extraHandlingFlags |= EXTRA_HANDLING_TAXI_BOOST;
     }
 
     bool bExtraHandlingTaxiBoost = !!(extraHandlingFlags & EXTRA_HANDLING_TAXI_BOOST);
-    if (CCheat::IsActive(CHEAT_ALL_CARS_HAVE_NITRO) || bExtraHandlingTaxiBoost) {
+    if (CCheat::IsActive(NITRO_CHEAT) || bExtraHandlingTaxiBoost) {
         handlingFlags.bNosInst = true;
         m_nNitroBoosts = 101;
     }
@@ -523,7 +523,7 @@ void CAutomobile::ProcessControl()
             && !m_nNumContactWheels
             && m_fDamageIntensity <= 0.0f
             || m_nModelIndex == MODEL_VORTEX
-            || CCheat::IsActive(CHEAT_CARS_ON_WATER)
+            || CCheat::IsActive(BACKTOTHEFUTURE_CHEAT)
             && IsAnyWheelTouchingShallowWaterGround())
         {
             skipPhysics = false;
@@ -573,7 +573,7 @@ void CAutomobile::ProcessControl()
         default:
             if (handlingFlags.bHydraulicInst)
                 HydraulicControl();
-            else if ((CCheat::IsActive(CHEAT_PERFECT_HANDLING) || (extraHandlingFlags & EXTRA_HANDLING_TAXI_BOOST))
+            else if ((CCheat::IsActive(STRONGGRIP_CHEAT) || (extraHandlingFlags & EXTRA_HANDLING_TAXI_BOOST))
                 && GetStatus() == STATUS_PLAYER
                 && m_vecMoveSpeed.SquaredMagnitude() > 0.04f)
             {
@@ -745,7 +745,7 @@ void CAutomobile::ProcessControl()
         uint8 cheatType = CHEAT_HANDLING_NONE;
         if (handlingFlags.bNosInst && m_fTireTemperature < 0.0f)
             cheatType = CHEAT_HANDLING_NITROS;
-        else if (extraPerfectHandling || CCheat::IsActive(CHEAT_PERFECT_HANDLING))
+        else if (extraPerfectHandling || CCheat::IsActive(STRONGGRIP_CHEAT))
             cheatType = CHEAT_HANDLING_PERFECT;
 
         float acceleration = 0.0f;
@@ -768,13 +768,13 @@ void CAutomobile::ProcessControl()
             traction = 250.0f / m_fCarTraction * m_pHandlingData->m_fTractionMultiplier;
         traction *= 0.25f / m_fVelocityFrequency;
         CPlane* vortex = AsPlane();
-        if (CCheat::IsActive(CHEAT_PERFECT_HANDLING) || m_nModelIndex == MODEL_VORTEX && vortex->m_fAccelerationBreakStatus == 0.0f)
+        if (CCheat::IsActive(STRONGGRIP_CHEAT) || m_nModelIndex == MODEL_VORTEX && vortex->m_fAccelerationBreakStatus == 0.0f)
             traction *= 4.0f;
 
-        if (this != FindPlayerVehicle() && (extraPerfectHandling || CCheat::IsActive(CHEAT_PERFECT_HANDLING))) {
+        if (this != FindPlayerVehicle() && (extraPerfectHandling || CCheat::IsActive(STRONGGRIP_CHEAT))) {
             traction *= 1.2f;
             acceleration *= 1.4f;
-            if (extraHandlingNitros || CCheat::IsActive(CHEAT_PERFECT_HANDLING)) {
+            if (extraHandlingNitros || CCheat::IsActive(STRONGGRIP_CHEAT)) {
                 traction *= 1.3f;
                 acceleration *= 1.4f;
             }
@@ -874,7 +874,7 @@ void CAutomobile::ProcessControl()
             if (CanUpdateHornCounter())
                 ReduceHornCounter();
         }
-        else if (handlingFlags.bHydraulicInst || CCheat::IsActive(CHEAT_PERFECT_HANDLING) || extraHandlingTaxiBoost)
+        else if (handlingFlags.bHydraulicInst || CCheat::IsActive(STRONGGRIP_CHEAT) || extraHandlingTaxiBoost)
             ProcessSirenAndHorn(false);
         else
             ProcessSirenAndHorn(true);
@@ -1053,7 +1053,7 @@ void CAutomobile::ProcessControl()
                     && !physicalFlags.bSubmergedInWater)
                 {
                     if ((!m_pTowingVehicle || m_pTowingVehicle->m_vecMoveSpeed == 0.0f) && DidAnyWheelTouchGroundPrev()) {
-                        if (m_nModelIndex == MODEL_VORTEX || CCheat::IsActive(CHEAT_CARS_ON_WATER)
+                        if (m_nModelIndex == MODEL_VORTEX || CCheat::IsActive(BACKTOTHEFUTURE_CHEAT)
                             && DidAnyWheelTouchShallowWaterGroundPrev())
                         {
                             m_nFakePhysics = 0;
@@ -1166,7 +1166,7 @@ bool CAutomobile::ProcessAI(uint32& extraHandlingFlags) {
     }
 
     bool extraPerfectHandling = !!(extraHandlingFlags & EXTRA_HANDLING_PERFECT);
-    if (extraPerfectHandling || CCheat::IsActive(CHEAT_PERFECT_HANDLING)) {
+    if (extraPerfectHandling || CCheat::IsActive(STRONGGRIP_CHEAT)) {
         m_vecCentreOfMass.z = m_fSuspensionLength[CAR_WHEEL_FRONT_LEFT] * 0.3f - m_fFrontHeightAboveRoad;
     }
     else if (GetStatus() == STATUS_PHYSICS) {
@@ -1469,7 +1469,7 @@ void CAutomobile::ResetSuspension()
 void CAutomobile::ProcessFlyingCarStuff()
 {
     if (GetStatus() == STATUS_PLAYER || GetStatus() == STATUS_REMOTE_CONTROLLED || GetStatus() == STATUS_PHYSICS) {
-        if (CCheat::IsActive(CHEAT_CARS_FLY)
+        if (CCheat::IsActive(FLYINGCARS_CHEAT)
             && m_vecMoveSpeed.Magnitude() > 0.0f
             && CTimer::GetTimeStep() > 0.0f
         ) {
@@ -1562,7 +1562,7 @@ void CAutomobile::ProcessSuspension() {
                 fSuspensionForceLevel *= std::fabs(AsPlane()->m_fAccelerationBreakStatus) * 0.25f + 1.0f;
             }
 
-            if (CCheat::IsActive(CHEAT_CARS_ON_WATER) || ModelIndices::IsVortex(m_nModelIndex))
+            if (CCheat::IsActive(BACKTOTHEFUTURE_CHEAT) || ModelIndices::IsVortex(m_nModelIndex))
                 ApplySpringCollision(
                     fSuspensionForceLevel,
                     directions[i],
@@ -3183,7 +3183,7 @@ void CAutomobile::VehicleDamage(float damageIntensity, eVehicleCollisionComponen
             }
             // NOTSA_LOG_DEBUG("Health: {.2f} (Loss: {.2f})", m_fHealth, prevHealth - m_fHealth); // NOTSA
             // 0x6A8338
-            if (CCheat::IsActive(CHEAT_SMASH_N_BOOM) && m_pDamageEntity && m_pDamageEntity == FindPlayerVehicle()) {
+            if (CCheat::IsActive(VEHICLEOFDEATH_CHEAT) && m_pDamageEntity && m_pDamageEntity == FindPlayerVehicle()) {
                 BlowUpCar(m_pDamageEntity, false);
             }
             else if (m_fHealth <= 0.f && (uint16)prevHealth > 0) { // 0x6A8354
@@ -5231,7 +5231,7 @@ void CAutomobile::ProcessBuoyancy()
     }
 
     // 0x6A8F67
-    if ((CCheat::IsActive(CHEAT_CARS_ON_WATER) || m_nModelIndex == MODEL_VORTEX)
+    if ((CCheat::IsActive(BACKTOTHEFUTURE_CHEAT) || m_nModelIndex == MODEL_VORTEX)
         && GetStatus() == STATUS_PLAYER
         && GetUp().z > 0.3F
     ) {
@@ -5728,7 +5728,7 @@ void CAutomobile::UpdateWheelMatrix(int32 nWheelIndex, int32 nOptionFlags) {
         fTiltAngle           = std::atan2(-1.0f * fRhsWheel * fTiltAngle, 2.0f * std::abs(posn.y));
         matrix.RotateY(fTiltAngle);
     } else {
-        const bool bIsHoverMode   = (CCheat::IsActive(CHEAT_CARS_ON_WATER) || GetModelIndex() == MODEL_VORTEX);
+        const bool bIsHoverMode   = (CCheat::IsActive(BACKTOTHEFUTURE_CHEAT) || GetModelIndex() == MODEL_VORTEX);
         const bool bWheelAirborne = m_fWheelsSuspensionCompressionPrev[nWheelNumber] < 1.0f;
 
         if (bIsHoverMode && bWheelAirborne && !vehicleFlags.bIsDrowning) {
@@ -6702,7 +6702,7 @@ void CAutomobile::PreRender() {
     CVehicle::PreRender();
 
     // RIPAZHA / BACKTOTHEFUTURE_CHEAT (compresión hover al volar)
-    if (CCheat::IsActive(CHEAT_CARS_ON_WATER)) {
+    if (CCheat::IsActive(BACKTOTHEFUTURE_CHEAT)) {
         DoHoverSuspensionRatios();
     }
 
@@ -7090,7 +7090,7 @@ void CAutomobile::PreRender() {
             if (m_nModelIndex == MODEL_FIRELA) {
                 matrix.RotateX(PACKER_COL_ANGLE_MULT * (float)m_wMiscComponentAngle);
             }
-            matrix.GetPosition() += posn;
+            matrix.GetPosition() = posn;
             matrix.UpdateRW();
         }
     }
@@ -7254,7 +7254,7 @@ void CAutomobile::PreRender() {
         break;
     }
 
-    if (m_nModelIndex == MODEL_SANDKING || ((m_pHandlingData->m_nHandlingFlags & VEHICLE_HANDLING_HYDRAULIC_GEOM) && m_nVehicleType == VEHICLE_TYPE_AUTOMOBILE)) {
+    if (m_nModelIndex == MODEL_SANDKING || (handlingFlags.bHydraulicGeom && handlingFlags.bHydraulicInst && m_nVehicleType == VEHICLE_TYPE_AUTOMOBILE)) {
         CVector posn;
         pModelInfo->GetWheelPosn(0, posn, false);
         SetTransmissionRotation(m_aCarNodes[CAR_MISC_A], m_wheelPosition[CAR_WHEEL_FRONT_LEFT], m_wheelPosition[CAR_WHEEL_FRONT_RIGHT], posn, true);
@@ -7271,7 +7271,7 @@ void CAutomobile::Render() {
     RwRenderStateGet(rwRENDERSTATEALPHATESTFUNCTIONREF, &alphaTestRef);
     RwRenderStateSet(rwRENDERSTATEALPHATESTFUNCTIONREF, RWRSTATE(1));
 
-    if (CCheat::IsActive(CHEAT_INVISIBLE_CAR)) {
+    if (CCheat::IsActive(ONLYRENDERWHEELS_CHEAT)) {
         if (auto atomic = reinterpret_cast<RpAtomic*>(GetFirstObject(m_aCarNodes[CAR_WHEEL_RB]))) {
             atomic->renderCallBack(atomic);
         }

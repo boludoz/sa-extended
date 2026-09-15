@@ -553,6 +553,8 @@ public:
     CPedClothesDesc* GetClothesDesc() { return GetPlayerData()->m_pPedClothesDesc; }
 
     CPedIntelligence* GetIntelligence() const { return m_pIntelligence; }
+    CPedIntelligence* GetPedIntelligence() const { return m_pIntelligence; }
+    uint8 GetCharCreatedBy() const { return m_nCreatedBy; }
     CTaskManager& GetTaskManager() { return GetIntelligence()->m_TaskMgr; }
     CTaskManager& GetTaskManager() const { return GetIntelligence()->m_TaskMgr; }
     CEventGroup& GetEventGroup() { return GetIntelligence()->m_eventGroup; }

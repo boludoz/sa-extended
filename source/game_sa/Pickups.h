@@ -118,6 +118,8 @@ struct tPickupReference {
     tPickupReference(int32 value) :
         num(value) {}
 
+    operator int32() const { return num; }
+
     tPickupReference(int16 idx, int16 refIdx) :
         index(idx),
         refIndex(refIdx) {}

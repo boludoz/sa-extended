@@ -21,15 +21,15 @@
 
 namespace {
 void SetAllTaxisHaveNitro(bool enabled) {
-    (enabled ? CCheat::ApplyCheat : CCheat::Disable)(CHEAT_ALL_TAXIS_NITRO);
+    (enabled ? CCheat::ApplyCheat : CCheat::Disable)(TAXINITRO_CHEAT);
 }
 
 void ActivatePimpCheat(bool enabled) {
-    (enabled ? CCheat::ApplyCheat : CCheat::Disable)(CHEAT_PROSTITUTES_PAY_YOU);
+    (enabled ? CCheat::ApplyCheat : CCheat::Disable)(PIMP_CHEAT);
 }
 
 bool AreAnyCarCheatsActivated() {
-    return rng::any_of(std::array{ CHEAT_PERFECT_HANDLING, CHEAT_CARS_ON_WATER, CHEAT_BOATS_FLY }, CCheat::IsActive);
+    return rng::any_of(std::array{ STRONGGRIP_CHEAT, BACKTOTHEFUTURE_CHEAT, FLYINGFISH_CHEAT }, CCheat::IsActive);
 }
 
 void FailCurrentMission() {
@@ -206,11 +206,11 @@ void DrawShadow(eShadowTextureType type, CVector coors, float angle, float lengt
 
 /// IS_XBOX_VERSION(0A49)
 bool IsXboxVersion() {
-    #if BUILD_XBOX
-        return true;
-    #else
+    // #if BUILD_XBOX
+    //     return true;
+    // #else
         return false;
-    #endif
+    // #endif
 }
 
 // DO_DEBUG_STUFF(0A4E) - PC
@@ -255,11 +255,11 @@ void notsa::script::commands::game::RegisterHandlers() {
     REGISTER_COMMAND_HANDLER(COMMAND_SHAKE_PAD, ShakePad);
     REGISTER_COMMAND_HANDLER(COMMAND_DRAW_SHADOW, DrawShadow);
     REGISTER_COMMAND_HANDLER(COMMAND_IS_XBOX_VERSION, IsXboxVersion);
-#if BUILD_XBOX
+// #if BUILD_XBOX
     //TODO:
     //REGISTER_COMMAND_HANDLER(COMMAND_IS_XBOX_PLAYER2_PRESSING_START, IsXboxPlayer2PressingStart);
     //REGISTER_COMMAND_HANDLER(COMMAND_FINISHED_WITH_XBOX_PLAYER2, FinishedWithXboxPlayer2);
-#endif
+// #endif
     REGISTER_COMMAND_HANDLER(COMMAND_DO_DEBUG_STUFF, DoDebugStuff);
 
     // -----------------------------[ NOP ]-----------------------------

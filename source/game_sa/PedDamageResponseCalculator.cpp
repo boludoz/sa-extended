@@ -92,7 +92,7 @@ void CPedDamageResponseCalculator::AdjustPedDamage(CPed* ped) {
         || m_weaponType == WEAPON_BRASSKNUCKLE
         || m_weaponType == WEAPON_PARACHUTE;
 
-    if (CCheat::m_aCheatsActive[CHEAT_COUNTRY_TRAFFIC] && m_weaponType <= eWeaponType::WEAPON_PARACHUTE && isUnarmedBrassOrParachute) {
+    if (CCheat::m_aCheatsActive[COUNTRYSIDEINVASION_CHEAT] && m_weaponType <= eWeaponType::WEAPON_PARACHUTE && isUnarmedBrassOrParachute) {
         m_fDamageFactor = ped->m_fHealth;
     }
 
@@ -121,14 +121,14 @@ bool CPedDamageResponseCalculator::ComputeWillForceDeath(CPed* ped, CPedDamageRe
  */
 void CPedDamageResponseCalculator::ComputeWillKillPed(CPed* ped, CPedDamageResponse& rsp, bool bSpeak) {
     if (ped->IsPlayer()) {
-        if (CCheat::IsActive(CHEAT_INFINITE_HEALTH) && m_weaponType < WEAPON_LAST_WEAPON) {
+        if (CCheat::IsActive(BULLETPROOF_CHEAT) && m_weaponType < WEAPON_LAST_WEAPON) {
             return;
         }
     }
 
     rsp.m_bForceDeath = ComputeWillForceDeath(ped, rsp);
 
-    if (CCheat::IsActive(CHEAT_MEGA_PUNCH)) {
+    if (CCheat::IsActive(SUPERPUNCH_CHEAT)) {
         if (notsa::contains({ WEAPON_UNARMED, WEAPON_BRASSKNUCKLE, WEAPON_PARACHUTE }, m_weaponType)) {
             m_fDamageFactor = ped->m_fHealth;
         }

@@ -46,13 +46,13 @@ void CClock::Update() {
     if (gbFreezeTime) { // NOTSA
         ms_nLastClockTick = CTimer::GetTimeInMS();
     }
-    else if (ms_nMillisecondsPerGameMinute < (CTimer::GetTimeInMS() - ms_nLastClockTick) || CCheat::IsActive(CHEAT_FASTER_CLOCK)) {
-        if (!CCheat::IsActive(CHEAT_ALWAYS_MIDNIGHT) && !CCheat::IsActive(CHEAT_STOP_GAME_CLOCK_ORANGE_SKY)) {
+    else if (ms_nMillisecondsPerGameMinute < (CTimer::GetTimeInMS() - ms_nLastClockTick) || CCheat::IsActive(FASTWEATHER_CHEAT)) {
+        if (!CCheat::IsActive(MIDNIGHT_CHEAT) && !CCheat::IsActive(DUSK_CHEAT)) {
             // next minute
             ms_nGameClockMinutes++;
             ms_nLastClockTick += ms_nMillisecondsPerGameMinute;
 
-            if (CCheat::IsActive(CHEAT_FASTER_CLOCK))
+            if (CCheat::IsActive(FASTWEATHER_CHEAT))
                 ms_nLastClockTick = CTimer::GetTimeInMS();
 
             // next hour

@@ -244,7 +244,10 @@ VALIDATE_SIZE(tScriptSearchlight, 0x7C);
 
 struct tUsedObject {
     char  szModelName[24];
-    int32 nModelIndex;
+    union {
+        int32 nModelIndex;
+        int32 Index;
+    };
 
     tUsedObject() = default; // 0x468F20
 };
@@ -563,6 +566,7 @@ public:
     static void DrawDebugSquare(const CRect& area) { DrawDebugSquare(area.left, area.top, area.right, area.bottom); }
     static void DrawDebugAngledSquare(const CVector2D& inf, const CVector2D& sup, const CVector2D& rotSup, const CVector2D& rotInf);
     static void DrawDebugCube(const CVector& inf, const CVector& sup);
+    static void DrawDebugCube(float x1, float y1, float z1, float x2, float y2, float z2) { DrawDebugCube(CVector(x1, y1, z1), CVector(x2, y2, z2)); }
     static void DrawDebugAngledCube(const CVector& inf, const CVector& sup, const CVector2D& rotSup, const CVector2D& rotInf);
     static void DrawScriptSpritesAndRectangles(bool drawBeforeFade);
 

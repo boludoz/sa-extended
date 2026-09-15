@@ -829,7 +829,7 @@ void CCarCtrl::GenerateOneRandomCar()
 
     if (!bIsBoat && CarRating != 13 && !bNoPoliceChasing)
     {
-        if (CGeneral::GetRandomNumberInRange(0, MadDriverChance) == 0 || CCheat::m_aCheatsActive[CHEAT_AGGRESSIVE_DRIVERS])
+        if (CGeneral::GetRandomNumberInRange(0, MadDriverChance) == 0 || CCheat::m_aCheatsActive[MADDRIVERS_CHEAT])
         {
             bMadDriver = true;
             FractionOfLinkBetweenNodes = 1.0f;
@@ -1081,7 +1081,7 @@ void CCarCtrl::GenerateOneRandomCar()
 
     CVisibilityPlugins::SetClumpAlpha(pNewVehicle->GetRpClump(), 0);
 
-    if (CCheat::m_aCheatsActive[CHEAT_FUNHOUSE_THEME] && pNewVehicle->m_nVehicleType == VEHICLE_TYPE_AUTOMOBILE)
+    if (CCheat::m_aCheatsActive[FUNHOUSE_CHEAT] && pNewVehicle->m_nVehicleType == VEHICLE_TYPE_AUTOMOBILE)
     {
         pNewVehicle->AddVehicleUpgrade(ModelIndices::MI_HYDRAULICS);
     }
@@ -1187,7 +1187,7 @@ void CCarCtrl::GenerateOneRandomCar()
             pNewVehicle->m_autoPilot.DrivingMode = DRIVING_STYLE_DRIVINGMODE_AVOIDCARS_STOPFORPEDS_OBEYLIGHTS;
         }
 
-        if (!bIsBoat && CarRating != 13 && (uint32)FindPlayerWanted()->GetWantedLevel() == 0 && (CCheat::m_aCheatsActive[CHEAT_AGGRESSIVE_DRIVERS] || TimeNextMadDriverChaseCreated <= 0.0f) && !bNoPoliceChasing && CreatePoliceChase(pNewVehicle, CarRating, FromNode))
+        if (!bIsBoat && CarRating != 13 && (uint32)FindPlayerWanted()->GetWantedLevel() == 0 && (CCheat::m_aCheatsActive[MADDRIVERS_CHEAT] || TimeNextMadDriverChaseCreated <= 0.0f) && !bNoPoliceChasing && CreatePoliceChase(pNewVehicle, CarRating, FromNode))
         {
             if (CGameLogic::LaRiotsActiveHere())
             {
@@ -1214,7 +1214,7 @@ void CCarCtrl::GenerateOneRandomCar()
                 pNewVehicle->m_autoPilot.CruiseSpeed = (uint8)NewSpeed;
                 pNewVehicle->m_vecMoveSpeed = pNewVehicle->GetForward() * NewSpeed * 0.02f;
 
-                if (CGameLogic::LaRiotsActiveHere() || CCheat::m_aCheatsActive[CHEAT_AGGRESSIVE_DRIVERS])
+                if (CGameLogic::LaRiotsActiveHere() || CCheat::m_aCheatsActive[MADDRIVERS_CHEAT])
                 {
                     if (pNewVehicle->m_pDriver != nullptr)
                     {

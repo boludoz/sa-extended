@@ -55,6 +55,7 @@ public:
     bool IsActive() const;
 
     auto& GetIntelligence()     { return m_groupIntelligence; }
+    CPedGroupIntelligence* GetGroupIntelligence() { return &m_groupIntelligence; }
     auto& GetMembership() const { return m_groupMembership; }
     auto& GetMembership()       { return m_groupMembership; }
 

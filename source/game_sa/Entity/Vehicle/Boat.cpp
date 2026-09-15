@@ -673,7 +673,7 @@ void CBoat::ProcessControl() {
     if (m_nModelIndex == MODEL_SKIMMER
         && (m_EngineSpeed > CPlane::PLANE_MIN_PROP_SPEED || m_vecMoveSpeed.SquaredMagnitude() > CPlane::PLANE_MIN_PROP_SPEED)) {
         FlyingControl(FLIGHT_MODEL_PLANE, -10000.0f, -10000.0f, -10000.0f, -10000.0f);
-    } else if (CCheat::IsActive(CHEAT_BOATS_FLY)) {
+    } else if (CCheat::IsActive(FLYINGFISH_CHEAT)) {
         FlyingControl(FLIGHT_MODEL_BOAT, -10000.0f, -10000.0f, -10000.0f, -10000.0f);
     }
 
@@ -754,7 +754,7 @@ void CBoat::PreRender() {
         auto moving = m_BoatNodes[BOAT_MOVING];
         if (moving) {
             SetComponentRotation(moving, AXIS_Z, m_Scan, true);
-            if (CCheat::IsActive(CHEAT_INVISIBLE_CAR)) {
+            if (CCheat::IsActive(ONLYRENDERWHEELS_CHEAT)) {
                 auto firstObj = reinterpret_cast<RpAtomic*>(GetFirstObject(moving));
                 RpAtomicRenderMacro(firstObj);
             }
@@ -826,7 +826,7 @@ inline void CBoat::ProcessBoatNodeRendering(eBoatNodes eNode, float fRotation, R
 // 0x6F0210
 void CBoat::Render() {
     m_nTimeTillWeNeedThisCar = CTimer::GetTimeInMS() + 3'000;
-    if (CCheat::IsActive(CHEAT_INVISIBLE_CAR)) {
+    if (CCheat::IsActive(ONLYRENDERWHEELS_CHEAT)) {
         return;
     }
 

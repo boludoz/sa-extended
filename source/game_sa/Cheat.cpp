@@ -166,104 +166,104 @@ struct MobileCheatEntry {
 static constexpr MobileCheatEntry aMobileCheats[] = {
     // Money, Health, Armor
     { 0xE1614CCB, CHEAT_REAL_INVINCIBILITY },              // "GONPXWR"
-    { 0x3ADFFFA8, CHEAT_INFINITE_OXYGEN },                 // "POOOJOX"
-    { 0x12D59071, CHEAT_HEALTH_ARMOR_250K },               // "PJYNQCQ"
+    { 0x3ADFFFA8, SCUBA_CHEAT },                 // "POOOJOX"
+    { 0x12D59071, MONEYARMOURHEALTH_CHEAT },               // "PJYNQCQ"
     // Weapons
-    { 0x42EDF90A, CHEAT_WEAPON_SET1 },                     // "BEFWKSBQ"
-    { 0xCDE9F55B, CHEAT_WEAPON_SET2 },                     // "SHHIHJJG"
-    { 0xC3A29663, CHEAT_WEAPON_SET3 },                     // "GOIZSSX"
+    { 0x42EDF90A, WEAPON1_CHEAT },                     // "BEFWKSBQ"
+    { 0xCDE9F55B, WEAPON2_CHEAT },                     // "SHHIHJJG"
+    { 0xC3A29663, WEAPON3_CHEAT },                     // "GOIZSSX"
     { 0x48642074, CHEAT_WEAPON_SET4 },                     // "BIEUHQY"
-    { 0x2301C349, CHEAT_HITMAN_LEVEL_FOR_ALL_WEAPONS },    // "SDWBWHE"
-    { 0xD12EF2EB, CHEAT_INFINITE_AMMO },                   // "NECUMZ"
-    { 0x132A0F27, CHEAT_SUICIDE },                         // "SLOTSFK"
+    { 0x2301C349, WEAPONSKILLS_CHEAT },    // "SDWBWHE"
+    { 0xD12EF2EB, AMMO_CHEAT },                   // "NECUMZ"
+    { 0x132A0F27, SUICIDE_CHEAT },                         // "SLOTSFK"
     // Vehicles
-    { 0x6BCC38EB, CHEAT_PERFECT_HANDLING },                // "DLNNHZJ"
-    { 0x31EA09CF, CHEAT_MAX_DRIVING_SKILLS },              // "VQIMAHA"
-    { 0x1437E993, CHEAT_SMASH_N_BOOM },                    // "BXBTUBTI"
-    { 0x56B01D89, CHEAT_WEAPON_AIMING_WHILE_DRIVING },     // "RYSMRM"
-    { 0xC979142B, CHEAT_WEAPON_AIMING_WHILE_DRIVING },     // "IWANTTODRIVEBY"
-    { 0xF9ACF74C, CHEAT_WEAPON_AIMING_WHILE_DRIVING },     // "IWANTDRIVEBY"
-    { 0x6E4CACD5, CHEAT_WEAPON_AIMING_WHILE_DRIVING },     // "DRIVEBY"
-    { 0x68098ED7, CHEAT_BGREEN_LIGHTS_CHEAT },             // "ENQCFMA"
-    { 0x9CED655E, CHEAT_AGGRESSIVE_DRIVERS },              // "IOKXTFJ"
-    { 0xDED59DF1, CHEAT_CARS_FLY },                        // "DOTBSFK"
-    { 0xC9993735, CHEAT_BOATS_FLY },                       // "PTHSEOT"
-    { 0xD52392AD, CHEAT_ALL_CARS_HAVE_NITRO },             // "WUSDOTO"
-    { 0xF01286E9, CHEAT_ALL_TAXIS_NITRO },                 // "VKYPQCF"
-    { 0xC5CE5AB5, CHEAT_CARS_ON_WATER },                   // "GKPNMQ"
-    { 0x765D7A6D, CHEAT_BLOW_UP_ALL_CARS },                // "BKFONFE"
-    { 0xA81A5482, CHEAT_CARS_FLOAT_AWAY_WHEN_HIT },        // "JBVIJXA"
-    { 0x65AD3F35, CHEAT_PINK_TRAFFIC },                    // "GYKVYTR"
-    { 0x4BC59B1F, CHEAT_BLACK_TRAFFIC },                   // "GOYDVAO"
-    { 0x05FB6B3C, CHEAT_SPAWN_RHINO },                     // "AYNVQVK"
-    { 0x4166529E, CHEAT_GET_JETPACK },                     // "CDGUDEP"
-    { 0x2BDD2FA1, CHEAT_SPAWN_MONSTER },                   // "AGBDLCID"
-    { 0x5B8EF3FE, CHEAT_GET_PARACHUTE },                   // "GSUMLEG"
-    { 0x99CF7EC2, CHEAT_SPAWN_BLOODRINGBANGER },           // "BIGLWCDD"
-    { 0x4CE89DD5, CHEAT_SPAWN_CADDY },                     // "DAHESZY"
-    { 0x171BA8CC, CHEAT_SPAWN_DOZER },                     // "EEGCYXT"
-    { 0xD2A85D8B, CHEAT_SPAWN_HOTRINGA },                  // "BGJPSYC"
-    { 0x2B9B8339, CHEAT_SPAWN_HOTRINGB },                  // "BIEAVBAY"
-    { 0x860428E8, CHEAT_SPAWN_HYDRA },                     // "AWPTMIIQ"
-    { 0x9E2897FA, CHEAT_SPAWN_STRETCH },                   // "IXSMWCQ"
-    { 0x6DAFE294, CHEAT_SPAWN_ROMERO },                    // "PSPNATX"
-    { 0x02C83A7C, CHEAT_SPAWN_QUAD },                      // "AKJJYGLC"
-    { 0x6272855B, CHEAT_SPAWN_RANCHER },                   // "HPGPIJZ"
-    { 0x86988DAE, CHEAT_SPAWN_STUNT_PLANE },               // "URKQSRK"
-    { 0xE49C3ED4, CHEAT_SPAWN_TANKER_TRUCK },              // "AMOMHRER"
-    { 0x8D284EBD, CHEAT_SPAWN_TRASHMASTER },               // "QPOLSVK"
-    { 0xA48A770B, CHEAT_SPAWN_VORTEX },                    // "KGGGDKP"
+    { 0x6BCC38EB, STRONGGRIP_CHEAT },                // "DLNNHZJ"
+    { 0x31EA09CF, VEHICLESKILLS_CHEAT },              // "VQIMAHA"
+    { 0x1437E993, VEHICLEOFDEATH_CHEAT },                    // "BXBTUBTI"
+    { 0x56B01D89, DRIVEBY_CHEAT },     // "RYSMRM"
+    { 0xC979142B, DRIVEBY_CHEAT },     // "IWANTTODRIVEBY"
+    { 0xF9ACF74C, DRIVEBY_CHEAT },     // "IWANTDRIVEBY"
+    { 0x6E4CACD5, DRIVEBY_CHEAT },     // "DRIVEBY"
+    { 0x68098ED7, TRAFFICLIGHTS_CHEAT },             // "ENQCFMA"
+    { 0x9CED655E, MADDRIVERS_CHEAT },              // "IOKXTFJ"
+    { 0xDED59DF1, FLYINGCARS_CHEAT },                        // "DOTBSFK"
+    { 0xC9993735, FLYINGFISH_CHEAT },                       // "PTHSEOT"
+    { 0xD52392AD, NITRO_CHEAT },             // "WUSDOTO"
+    { 0xF01286E9, TAXINITRO_CHEAT },                 // "VKYPQCF"
+    { 0xC5CE5AB5, BACKTOTHEFUTURE_CHEAT },                   // "GKPNMQ"
+    { 0x765D7A6D, BLOWUPCARS_CHEAT },                // "BKFONFE"
+    { 0xA81A5482, SUPERPOWERCAR_CHEAT },        // "JBVIJXA"
+    { 0x65AD3F35, PINKCARS_CHEAT },                    // "GYKVYTR"
+    { 0x4BC59B1F, BLACKCARS_CHEAT },                   // "GOYDVAO"
+    { 0x05FB6B3C, TANK_CHEAT },                     // "AYNVQVK"
+    { 0x4166529E, JETPACK_CHEAT },                     // "CDGUDEP"
+    { 0x2BDD2FA1, MONSTERTRUCK_CHEAT },                   // "AGBDLCID"
+    { 0x5B8EF3FE, PARACHUTE_CHEAT },                   // "GSUMLEG"
+    { 0x99CF7EC2, STOCKCAR_CHEAT },           // "BIGLWCDD"
+    { 0x4CE89DD5, GOLFCART_CHEAT },                     // "DAHESZY"
+    { 0x171BA8CC, DOZER_CHEAT },                     // "EEGCYXT"
+    { 0xD2A85D8B, STOCKCAR3_CHEAT },                  // "BGJPSYC"
+    { 0x2B9B8339, STOCKCAR4_CHEAT },                  // "BIEAVBAY"
+    { 0x860428E8, FLYBOY_CHEAT },                     // "AWPTMIIQ"
+    { 0x9E2897FA, LOVEFIST_CHEAT },                   // "IXSMWCQ"
+    { 0x6DAFE294, HEARSE_CHEAT },                    // "PSPNATX"
+    { 0x02C83A7C, QUAD_CHEAT },                      // "AKJJYGLC"
+    { 0x6272855B, STOCKCAR2_CHEAT },                   // "HPGPIJZ"
+    { 0x86988DAE, STUNTPLANE_CHEAT },               // "URKQSRK"
+    { 0xE49C3ED4, TANKER_CHEAT },              // "AMOMHRER"
+    { 0x8D284EBD, TRASHMASTER_CHEAT },               // "QPOLSVK"
+    { 0xA48A770B, VORTEX_CHEAT },                    // "KGGGDKP"
     // Stats
-    { 0xF1BA89BC, CHEAT_MAX_STAMINA },                     // "AEZLCKXU"
-    { 0x1ED903DD, CHEAT_NEVER_GET_HUNGRY },                // "KBTMUVH"
-    { 0x8CCA8D6B, CHEAT_FAT_PLAYER },                      // "AESHXWQI"
-    { 0x0D9DDD15, CHEAT_MAX_MUSCLE },                      // "SGVDSQW"
-    { 0x5FD1B49D, CHEAT_SKINNY_PLAYER },                   // "KVGYZQK"
-    { 0x4C53B1F1, CHEAT_MAX_RESPECT },                     // "MTGIISR"
-    { 0xE60DEED4, CHEAT_MAX_SEX_APPEAL },                  // "APGZLQR"
+    { 0xF1BA89BC, STAMINA_CHEAT },                     // "AEZLCKXU"
+    { 0x1ED903DD, NOFOOD_CHEAT },                // "KBTMUVH"
+    { 0x8CCA8D6B, FAT_CHEAT },                      // "AESHXWQI"
+    { 0x0D9DDD15, MUSCLE_CHEAT },                      // "SGVDSQW"
+    { 0x5FD1B49D, SKINNY_CHEAT },                   // "KVGYZQK"
+    { 0x4C53B1F1, RESPECT_CHEAT },                     // "MTGIISR"
+    { 0xE60DEED4, SEXAPPEAL_CHEAT },                  // "APGZLQR"
     { 0xFA300554, CHEAT_THE_GAMBLER },                     // "AFJKBNRP"
     // Wanted
-    { 0xD9944593, CHEAT_WANTED_LEVEL_2STARS },             // "NCBXXDX"
-    { 0xAA5FE043, CHEAT_CLEAR_WANTED_LEVEL },              // "KDTZNHON"
-    { 0x7607D7B8, CHEAT_SIX_WANTED_STARS },                // "GWJZWCB"
-    { 0x26079684, CHEAT_I_DO_AS_I_PLEASE },                // "BYKGOAB"
+    { 0xD9944593, WANTEDLEVELUP_CHEAT },             // "NCBXXDX"
+    { 0xAA5FE043, WANTEDLEVELDOWN_CHEAT },              // "KDTZNHON"
+    { 0x7607D7B8, WANTED_CHEAT },                // "GWJZWCB"
+    { 0x26079684, NOTWANTED_CHEAT },                // "BYKGOAB"
     // Gameplay, Weather, Peds
-    { 0x9BC9E237, CHEAT_FASTER_CLOCK },                    // "OWAKIJ"
-    { 0x08AC509B, CHEAT_FASTER_GAMEPLAY },                 // "EHWBWDS"
-    { 0x9701CFB4, CHEAT_SLOWER_GAMEPLAY },                 // "FNJFCZC"
-    { 0x34F5060A, CHEAT_ADRENALINE_MODE },                 // "SLSNRKKK"
-    { 0xF77AE750, CHEAT_STOP_GAME_CLOCK_ORANGE_SKY },      // "KTGDLXY"
+    { 0x9BC9E237, FASTWEATHER_CHEAT },                    // "OWAKIJ"
+    { 0x08AC509B, FASTTIME_CHEAT },                 // "EHWBWDS"
+    { 0x9701CFB4, SLOWTIME_CHEAT },                 // "FNJFCZC"
+    { 0x34F5060A, ADRENALINE_CHEAT },                 // "SLSNRKKK"
+    { 0xF77AE750, DUSK_CHEAT },      // "KTGDLXY"
     { 0x045A0CAD, CHEAT_TIME_TRAVEL },                     // "YACKMWS"
-    { 0x7EABE709, CHEAT_ALWAYS_MIDNIGHT },                 // "AWUJNBB"
-    { 0x1CA1A783, CHEAT_SUNNY_WEATHER },                   // "AAEXPPQC"
-    { 0x182BBB8E, CHEAT_VERY_SUNNY_WEATHER },              // "HTRTTVJ"
-    { 0x90668987, CHEAT_OVERCAST_WEATHER },                // "VBWEMQX"
-    { 0xFAF7CFF1, CHEAT_RAINY_WEATHER },                   // "TAVPIER"
-    { 0x4C40B7BC, CHEAT_THUNDER_STORM },                   // "EAKILHM"
-    { 0xD83323B0, CHEAT_FOGGY_WEATHER },                   // "EGCEBVM"
-    { 0x62AB7CD3, CHEAT_SAND_STORM },                      // "JBWDWWO"
-    { 0x7A7365B6, CHEAT_REDUCED_TRAFFIC },                 // "DEHDRX"
-    { 0xB6BD1EF8, CHEAT_COUNTRY_TRAFFIC },                 // "JTBCSN"
-    { 0x7FF6FDAD, CHEAT_FAST_TRAFFIC },                    // "FRIUBIL"
-    { 0x17E2371C, CHEAT_GANGMEMBERS_EVERYWHERE },          // "EAMLJNN"
-    { 0x4551B5B2, CHEAT_WANNA_BE_IN_MY_GANG },             // "JEZRPI"
-    { 0xF187CB21, CHEAT_NO_ONE_CAN_STOP_US },              // "AWIOMPH"
-    { 0x76F94A7B, CHEAT_ROCKET_MAYHEM },                   // "QAONHOH"
-    { 0x60299030, CHEAT_GANGS_CONTROLS_THE_STREETS },      // "HAPOHXR"
-    { 0x5AE74D6E, CHEAT_FUNHOUSE_THEME },                  // "HDLIWGB"
-    { 0x9321FFA4, CHEAT_BEACH_PARTY },                     // "BWCMMTD"
-    { 0xD0C58345, CHEAT_EVERYONE_ARMED },                  // "GDNXHDK"
-    { 0xBB9E7E86, CHEAT_HAVE_ABOUNTY_ON_YOUR_HEAD },       // "FARYJHZ"
-    { 0x7222BA4B, CHEAT_RIOT_MODE },                       // "NJXPCYE"
-    { 0x73A8AA87, CHEAT_PEDS_ATTACK_OTHER_WITH_GOLFCLUB }, // "AKOZBCH"
-    { 0x9AD03DD3, CHEAT_PEDS_ATTACK_YOU_WITH_ROCKETS },    // "ERFBFNI"
-    { 0xB5DFCBC6, CHEAT_SLUT_MAGNET },                     // "BNIZWSBT"
-    { 0xEB788F38, CHEAT_ELVIS_IS_EVERYWHERE },             // "LNHVOAE"
-    { 0x1CB6F385, CHEAT_NINJA_THEME },                     // "AAUSQP"
-    { 0x091A31D0, CHEAT_CHEAP_TRAFFIC },                   // "OAXCCRI"
-    { 0x92A93BA7, CHEAT_HUGE_BUNNY_HOP },                  // "TDBKCEH"
-    { 0xFFD40169, CHEAT_MEGAJUMP },                        // "BFMANNZP"
-    { 0x0A8FBE7C, CHEAT_MEGA_PUNCH },                      // "LRMYOJM"
+    { 0x7EABE709, MIDNIGHT_CHEAT },                 // "AWUJNBB"
+    { 0x1CA1A783, SUNNYWEATHER_CHEAT },                   // "AAEXPPQC"
+    { 0x182BBB8E, EXTRASUNNYWEATHER_CHEAT },              // "HTRTTVJ"
+    { 0x90668987, CLOUDYWEATHER_CHEAT },                // "VBWEMQX"
+    { 0xFAF7CFF1, RAINYWEATHER_CHEAT },                   // "TAVPIER"
+    { 0x4C40B7BC, STORM_CHEAT },                   // "EAKILHM"
+    { 0xD83323B0, FOGGYWEATHER_CHEAT },                   // "EGCEBVM"
+    { 0x62AB7CD3, SANDSTORM_CHEAT },                      // "JBWDWWO"
+    { 0x7A7365B6, WASTELAND_CHEAT },                 // "DEHDRX"
+    { 0xB6BD1EF8, COUNTRYSIDEINVASION_CHEAT },                 // "JTBCSN"
+    { 0x7FF6FDAD, ALLCARSAREGREAT_CHEAT },                    // "FRIUBIL"
+    { 0x17E2371C, GANGS_CHEAT },          // "EAMLJNN"
+    { 0x4551B5B2, RECRUITME_CHEAT },             // "JEZRPI"
+    { 0xF187CB21, RECRUITME_AK47_CHEAT },              // "AWIOMPH"
+    { 0x76F94A7B, RECRUITME_ROCKET_CHEAT },                   // "QAONHOH"
+    { 0x60299030, GANGLAND_CHEAT },      // "HAPOHXR"
+    { 0x5AE74D6E, FUNHOUSE_CHEAT },                  // "HDLIWGB"
+    { 0x9321FFA4, BEACHPARTY_CHEAT },                     // "BWCMMTD"
+    { 0xD0C58345, WEAPONSFORALL_CHEAT },                  // "GDNXHDK"
+    { 0xBB9E7E86, EVERYBODYATTACKSPLAYER_CHEAT },       // "FARYJHZ"
+    { 0x7222BA4B, RIOT_CHEAT },                       // "NJXPCYE"
+    { 0x73A8AA87, MAYHEM_CHEAT }, // "AKOZBCH"
+    { 0x9AD03DD3, VILLAGEPEOPLE_CHEAT },    // "ERFBFNI"
+    { 0xB5DFCBC6, LOVECONQUERSALL_CHEAT },                     // "BNIZWSBT"
+    { 0xEB788F38, ELVISLIVES_CHEAT },             // "LNHVOAE"
+    { 0x1CB6F385, NINJA_CHEAT },                     // "AAUSQP"
+    { 0x091A31D0, ALLCARSARESHIT_CHEAT },                   // "OAXCCRI"
+    { 0x92A93BA7, CJPHONEHOME_CHEAT },                  // "TDBKCEH"
+    { 0xFFD40169, HIGHJUMP_CHEAT },                        // "BFMANNZP"
+    { 0x0A8FBE7C, SUPERPUNCH_CHEAT },                      // "LRMYOJM"
 };
 #endif
 
@@ -410,8 +410,8 @@ void CCheat::DoCheats() {
 
 // 0x439880
 void CCheat::AdrenalineCheat() {
-    Toggle(CHEAT_ADRENALINE_MODE);
-    if (IsActive(CHEAT_ADRENALINE_MODE)) {
+    Toggle(ADRENALINE_CHEAT);
+    if (IsActive(ADRENALINE_CHEAT)) {
         CPickups::GivePlayerGoodiesWithPickUpMI(ModelIndices::MI_PICKUP_ADRENALINE, 0);
     } else {
         FindPlayerPed()->ClearAdrenaline(); // FIX_BUGS
@@ -420,26 +420,26 @@ void CCheat::AdrenalineCheat() {
 
 // 0x4394e0
 void CCheat::AllCarsAreGreatCheat() {
-    Toggle(CHEAT_FAST_TRAFFIC);
-    if (IsActive(CHEAT_FAST_TRAFFIC)) {
-        HandleSpecialCheats(CHEAT_FAST_TRAFFIC);
+    Toggle(ALLCARSAREGREAT_CHEAT);
+    if (IsActive(ALLCARSAREGREAT_CHEAT)) {
+        HandleSpecialCheats(ALLCARSAREGREAT_CHEAT);
         CStreaming::ReclassifyLoadedCars();
     }
 }
 
 // 0x4394b0
 void CCheat::AllCarsAreShitCheat() {
-    Toggle(CHEAT_CHEAP_TRAFFIC);
-    if (IsActive(CHEAT_CHEAP_TRAFFIC)) {
-        HandleSpecialCheats(CHEAT_CHEAP_TRAFFIC);
+    Toggle(ALLCARSARESHIT_CHEAT);
+    if (IsActive(ALLCARSARESHIT_CHEAT)) {
+        HandleSpecialCheats(ALLCARSARESHIT_CHEAT);
         CStreaming::ReclassifyLoadedCars();
     }
 }
 
 // 0x439230
 void CCheat::BeachPartyCheat() {
-    Toggle(CHEAT_BEACH_PARTY);
-    if (IsActive(CHEAT_BEACH_PARTY)) {
+    Toggle(BEACHPARTY_CHEAT);
+    if (IsActive(BEACHPARTY_CHEAT)) {
         int32 peds[] = {
             MODEL_BMYBE, MODEL_HMYBE, MODEL_WFYBE, MODEL_BFYBE,
             MODEL_HFYBE, UNLOAD_MODEL, UNLOAD_MODEL, UNLOAD_MODEL,
@@ -458,16 +458,16 @@ void CCheat::BeachPartyCheat() {
         }
 
         ExtraSunnyWeatherCheat();
-        HandleSpecialCheats(CHEAT_BEACH_PARTY);
+        HandleSpecialCheats(BEACHPARTY_CHEAT);
         CStreaming::ReclassifyLoadedCars();
     }
 }
 
 // 0x4390f0
 void CCheat::BlackCarsCheat() {
-    Toggle(CHEAT_BLACK_TRAFFIC);
-    if (IsActive(CHEAT_BLACK_TRAFFIC)) {
-        Disable(CHEAT_PINK_TRAFFIC);
+    Toggle(BLACKCARS_CHEAT);
+    if (IsActive(BLACKCARS_CHEAT)) {
+        Disable(PINKCARS_CHEAT);
     }
 }
 
@@ -480,8 +480,8 @@ void CCheat::BlowUpCarsCheat() {
 
 // 0x439f60
 void CCheat::CountrysideInvasionCheat() {
-    Toggle(CHEAT_COUNTRY_TRAFFIC);
-    if (IsActive(CHEAT_COUNTRY_TRAFFIC)) {
+    Toggle(COUNTRYSIDEINVASION_CHEAT);
+    if (IsActive(COUNTRYSIDEINVASION_CHEAT)) {
         int32 peds[] = {
             MODEL_CWFOFR, MODEL_CWFOHB, MODEL_CWFYFR1, MODEL_CWFYHB,
             MODEL_CWMOFR, MODEL_CWMOHB1, MODEL_CWMOHB2, MODEL_CWMYFR,
@@ -496,16 +496,16 @@ void CCheat::CountrysideInvasionCheat() {
         if (player->m_nPedState != PEDSTATE_DRIVING) {
             CClothes::RebuildPlayer(player, false);
         }
-        if (IsActive(CHEAT_BEACH_PARTY)) {
+        if (IsActive(BEACHPARTY_CHEAT)) {
             BeachPartyCheat();
         }
-        if (IsActive(CHEAT_CHEAP_TRAFFIC)) {
-            Disable(CHEAT_CHEAP_TRAFFIC);
+        if (IsActive(ALLCARSARESHIT_CHEAT)) {
+            Disable(ALLCARSARESHIT_CHEAT);
         }
-        if (IsActive(CHEAT_FAST_TRAFFIC)) {
-            Disable(CHEAT_FAST_TRAFFIC);
+        if (IsActive(ALLCARSAREGREAT_CHEAT)) {
+            Disable(ALLCARSAREGREAT_CHEAT);
         }
-        if (IsActive(CHEAT_FUNHOUSE_THEME)) {
+        if (IsActive(FUNHOUSE_CHEAT)) {
             FunhouseCheat();
         }
 
@@ -515,10 +515,10 @@ void CCheat::CountrysideInvasionCheat() {
 
 // 0x4398d0
 void CCheat::DrivebyCheat() {
-    Toggle(CHEAT_WEAPON_AIMING_WHILE_DRIVING);
+    Toggle(DRIVEBY_CHEAT);
 
     CPlayerPed *player = FindPlayerPed();
-    if (IsActive(CHEAT_WEAPON_AIMING_WHILE_DRIVING) && player->GetWeaponInSlot(eWeaponSlot::SMG).m_Type == WEAPON_UNARMED) {
+    if (IsActive(DRIVEBY_CHEAT) && player->GetWeaponInSlot(eWeaponSlot::SMG).m_Type == WEAPON_UNARMED) {
         player->GiveDelayedWeapon(WEAPON_MICRO_UZI, 150);
         player->SetCurrentWeapon(WEAPON_MICRO_UZI);
     }
@@ -526,8 +526,8 @@ void CCheat::DrivebyCheat() {
 
 // 0x439540
 void CCheat::DuskCheat() {
-    Toggle(CHEAT_STOP_GAME_CLOCK_ORANGE_SKY);
-    if (!IsActive(CHEAT_STOP_GAME_CLOCK_ORANGE_SKY)) {
+    Toggle(DUSK_CHEAT);
+    if (!IsActive(DUSK_CHEAT)) {
         CClock::ms_nGameClockHours = 21;
         CClock::ms_nGameClockMinutes = 0;
         CClock::ms_nGameClockSeconds = 0;
@@ -536,8 +536,8 @@ void CCheat::DuskCheat() {
 
 // 0x4391d0
 void CCheat::ElvisLivesCheat() {
-    Toggle(CHEAT_ELVIS_IS_EVERYWHERE);
-    if (IsActive(CHEAT_ELVIS_IS_EVERYWHERE)) {
+    Toggle(ELVISLIVES_CHEAT);
+    if (IsActive(ELVISLIVES_CHEAT)) {
         int32 peds[] = {
             MODEL_VHMYELV, MODEL_VBMYELV, MODEL_VIMYELV, UNLOAD_MODEL,
             UNLOAD_MODEL, UNLOAD_MODEL, UNLOAD_MODEL, UNLOAD_MODEL,
@@ -548,8 +548,8 @@ void CCheat::ElvisLivesCheat() {
 
 // 0x439c70
 void CCheat::EverybodyAttacksPlayerCheat() {
-    Toggle(CHEAT_HAVE_ABOUNTY_ON_YOUR_HEAD);
-    if (IsActive(CHEAT_HAVE_ABOUNTY_ON_YOUR_HEAD)) {
+    Toggle(EVERYBODYATTACKSPLAYER_CHEAT);
+    if (IsActive(EVERYBODYATTACKSPLAYER_CHEAT)) {
         auto* const player = FindPlayerPed();
         for (auto& ped : GetPedPool()->GetAllValid()) {
             if (ped.IsPlayer())
@@ -590,8 +590,8 @@ void CCheat::FatCheat() {
 
 // 0x439720
 void CCheat::FunhouseCheat() {
-    Toggle(CHEAT_FUNHOUSE_THEME);
-    if (IsActive(CHEAT_FUNHOUSE_THEME)) {
+    Toggle(FUNHOUSE_CHEAT);
+    if (IsActive(FUNHOUSE_CHEAT)) {
         CPostEffects::m_bHeatHazeFX = false;
     } else {
         int32 peds[] = {
@@ -612,7 +612,7 @@ void CCheat::FunhouseCheat() {
             CClothes::RebuildPlayer(player, false);
         }
 
-        HandleSpecialCheats(CHEAT_FUNHOUSE_THEME);
+        HandleSpecialCheats(FUNHOUSE_CHEAT);
         CStreaming::ReclassifyLoadedCars();
         ExtraSunnyWeatherCheat();
         CPostEffects::m_bHeatHazeFX = true;
@@ -621,14 +621,14 @@ void CCheat::FunhouseCheat() {
 
 // 0x4393d0
 void CCheat::GangLandCheat() {
-    Toggle(CHEAT_GANGS_CONTROLS_THE_STREETS);
-    CPopulation::m_bOnlyCreateRandomGangMembers = IsActive(CHEAT_GANGS_CONTROLS_THE_STREETS);
+    Toggle(GANGLAND_CHEAT);
+    CPopulation::m_bOnlyCreateRandomGangMembers = IsActive(GANGLAND_CHEAT);
 }
 
 // 0x439360
 void CCheat::GangsCheat() {
-    Toggle(CHEAT_GANGMEMBERS_EVERYWHERE);
-    if (IsActive(CHEAT_GANGMEMBERS_EVERYWHERE)) {
+    Toggle(GANGS_CHEAT);
+    if (IsActive(GANGS_CHEAT)) {
         int32 peds[] = {
             MODEL_BALLAS1, MODEL_BALLAS2, MODEL_BALLAS3, MODEL_FAM1,
             MODEL_FAM2, MODEL_LSV1, MODEL_LSV2, MODEL_LSV3,
@@ -640,19 +640,19 @@ void CCheat::GangsCheat() {
 // Handles BeachParty, Funhouse, AllCarsAreGreat, AllCarsAreCheap cheats toggling
 // 0x439A10
 void CCheat::HandleSpecialCheats(eCheats cheat) {
-    if (IsActive(CHEAT_BEACH_PARTY) && cheat != CHEAT_BEACH_PARTY) {
+    if (IsActive(BEACHPARTY_CHEAT) && cheat != BEACHPARTY_CHEAT) {
         BeachPartyCheat();
     }
-    if (IsActive(CHEAT_CHEAP_TRAFFIC) && cheat != CHEAT_CHEAP_TRAFFIC) {
-        Disable(CHEAT_CHEAP_TRAFFIC);
+    if (IsActive(ALLCARSARESHIT_CHEAT) && cheat != ALLCARSARESHIT_CHEAT) {
+        Disable(ALLCARSARESHIT_CHEAT);
     }
-    if (IsActive(CHEAT_FAST_TRAFFIC) && cheat != CHEAT_FAST_TRAFFIC) {
-        Disable(CHEAT_FAST_TRAFFIC);
+    if (IsActive(ALLCARSAREGREAT_CHEAT) && cheat != ALLCARSAREGREAT_CHEAT) {
+        Disable(ALLCARSAREGREAT_CHEAT);
     }
-    if (IsActive(CHEAT_FUNHOUSE_THEME) && cheat != CHEAT_FUNHOUSE_THEME) {
+    if (IsActive(FUNHOUSE_CHEAT) && cheat != FUNHOUSE_CHEAT) {
         FunhouseCheat();
     }
-    if (IsActive(CHEAT_COUNTRY_TRAFFIC) && cheat != CHEAT_COUNTRY_TRAFFIC) {
+    if (IsActive(COUNTRYSIDEINVASION_CHEAT) && cheat != COUNTRYSIDEINVASION_CHEAT) {
         CountrysideInvasionCheat();
     }
 }
@@ -690,8 +690,8 @@ void CCheat::JetpackCheat() {
 
 // 0x4393f0
 void CCheat::LoveConquersAllCheat() {
-    Toggle(CHEAT_SLUT_MAGNET);
-    if (IsActive(CHEAT_SLUT_MAGNET)) {
+    Toggle(LOVECONQUERSALL_CHEAT);
+    if (IsActive(LOVECONQUERSALL_CHEAT)) {
         int32 peds[] = {
             MODEL_BMYPIMP, MODEL_BFYPRO, MODEL_HFYPRO, MODEL_SWFOPRO,
             MODEL_SBFYPRO, MODEL_VWFYPRO, MODEL_VHFYPRO, UNLOAD_MODEL,
@@ -708,8 +708,8 @@ void CCheat::LoveConquersAllCheat() {
 
 // 0x439B20
 void CCheat::MayhemCheat() {
-    Toggle(CHEAT_PEDS_ATTACK_OTHER_WITH_GOLFCLUB);
-    if (IsActive(CHEAT_PEDS_ATTACK_OTHER_WITH_GOLFCLUB)) {
+    Toggle(MAYHEM_CHEAT);
+    if (IsActive(MAYHEM_CHEAT)) {
         std::swap(CPedType::ms_apPedTypesOld, CPedType::ms_apPedTypes); // NOTSA
 
         for (uint32 pedType = PED_TYPE_CIVMALE; pedType <= PED_TYPE_PROSTITUTE; pedType++) {
@@ -749,8 +749,8 @@ void CCheat::MayhemCheat() {
 
 // 0x439510
 void CCheat::MidnightCheat() {
-    Toggle(CHEAT_ALWAYS_MIDNIGHT);
-    if (IsActive(CHEAT_ALWAYS_MIDNIGHT)) {
+    Toggle(MIDNIGHT_CHEAT);
+    if (IsActive(MIDNIGHT_CHEAT)) {
         CClock::ms_nGameClockHours = 0;
         CClock::ms_nGameClockMinutes = 0;
         CClock::ms_nGameClockSeconds = 0;
@@ -779,10 +779,10 @@ void CCheat::MuscleCheat() {
 
 // 0x439e50
 void CCheat::NinjaCheat() {
-    Toggle(CHEAT_NINJA_THEME);
-    if (IsActive(CHEAT_NINJA_THEME)) {
-        if (IsActive(CHEAT_BLACK_TRAFFIC)) {
-            Disable(CHEAT_BLACK_TRAFFIC);
+    Toggle(NINJA_CHEAT);
+    if (IsActive(NINJA_CHEAT)) {
+        if (IsActive(BLACKCARS_CHEAT)) {
+            Disable(BLACKCARS_CHEAT);
         }
     } else {
         int32 peds[] = {
@@ -791,25 +791,25 @@ void CCheat::NinjaCheat() {
         };
         CStreaming::StreamPedsIntoRandomSlots(peds);
 
-        if (IsActive(CHEAT_BEACH_PARTY)) {
+        if (IsActive(BEACHPARTY_CHEAT)) {
             BeachPartyCheat();
         }
-        if (IsActive(CHEAT_CHEAP_TRAFFIC)) {
-            Disable(CHEAT_CHEAP_TRAFFIC);
+        if (IsActive(ALLCARSARESHIT_CHEAT)) {
+            Disable(ALLCARSARESHIT_CHEAT);
         }
-        if (IsActive(CHEAT_FAST_TRAFFIC)) {
-            Disable(CHEAT_FAST_TRAFFIC);
+        if (IsActive(ALLCARSAREGREAT_CHEAT)) {
+            Disable(ALLCARSAREGREAT_CHEAT);
         }
-        if (IsActive(CHEAT_FUNHOUSE_THEME)) {
+        if (IsActive(FUNHOUSE_CHEAT)) {
             FunhouseCheat();
         }
-        if (IsActive(CHEAT_COUNTRY_TRAFFIC)) {
+        if (IsActive(COUNTRYSIDEINVASION_CHEAT)) {
             CountrysideInvasionCheat();
         }
         CStreaming::ReclassifyLoadedCars();
-        if (!IsActive(CHEAT_BLACK_TRAFFIC)) {
-            Enable(CHEAT_BLACK_TRAFFIC);
-            Disable(CHEAT_PINK_TRAFFIC);
+        if (!IsActive(BLACKCARS_CHEAT)) {
+            Enable(BLACKCARS_CHEAT);
+            Disable(PINKCARS_CHEAT);
         }
 
         CStreaming::RequestModel(MODEL_KATANA, STREAMING_GAME_REQUIRED);
@@ -826,7 +826,7 @@ void CCheat::NotWantedCheat() {
     CPlayerPed* player = FindPlayerPed();
     player->CheatWantedLevel(eWantedLevel::WANTED_CLEAN);
     player->bWantedByPolice = false;
-    Toggle(CHEAT_I_DO_AS_I_PLEASE);
+    Toggle(NOTWANTED_CHEAT);
 }
 
 // 0x4395b0
@@ -840,15 +840,15 @@ void CCheat::ParachuteCheat() {
 
 // 0x4390d0
 void CCheat::PinkCarsCheat() {
-    Toggle(CHEAT_PINK_TRAFFIC);
-    if (IsActive(CHEAT_PINK_TRAFFIC)) {
-        Disable(CHEAT_BLACK_TRAFFIC);
+    Toggle(PINKCARS_CHEAT);
+    if (IsActive(PINKCARS_CHEAT)) {
+        Disable(BLACKCARS_CHEAT);
     }
 }
 
 // 0x439710
 void CCheat::RiotCheat() {
-    Toggle(CHEAT_RIOT_MODE);
+    Toggle(RIOT_CHEAT);
 }
 
 // 0x439190
@@ -1048,9 +1048,9 @@ void CCheat::VehicleSkillsCheat() {
 
 // 0x439c70
 void CCheat::VillagePeopleCheat() {
-    Toggle(CHEAT_PEDS_ATTACK_YOU_WITH_ROCKETS);
-    if (IsActive(CHEAT_PEDS_ATTACK_YOU_WITH_ROCKETS)) {
-        Disable(CHEAT_EVERYONE_ARMED);
+    Toggle(VILLAGEPEOPLE_CHEAT);
+    if (IsActive(VILLAGEPEOPLE_CHEAT)) {
+        Disable(WEAPONSFORALL_CHEAT);
         EverybodyAttacksPlayerCheat();
     } else {
         int32 peds[] = {
@@ -1059,7 +1059,7 @@ void CCheat::VillagePeopleCheat() {
         };
         CStreaming::StreamPedsIntoRandomSlots(peds);
         EverybodyAttacksPlayerCheat();
-        Enable(CHEAT_EVERYONE_ARMED);
+        Enable(WEAPONSFORALL_CHEAT);
     }
 }
 
@@ -1236,14 +1236,14 @@ void CCheat::SuicideCheat() {
 
 // 0x407410
 bool CCheat::IsZoneStreamingAllowed() {
-    return IsActive(CHEAT_ELVIS_IS_EVERYWHERE)
-        || IsActive(CHEAT_PEDS_ATTACK_YOU_WITH_ROCKETS)
-        || IsActive(CHEAT_BEACH_PARTY)
-        || IsActive(CHEAT_GANGMEMBERS_EVERYWHERE)
-        || IsActive(CHEAT_NINJA_THEME)
-        || IsActive(CHEAT_SLUT_MAGNET)
-        || IsActive(CHEAT_FUNHOUSE_THEME)
-        || IsActive(CHEAT_COUNTRY_TRAFFIC);
+    return IsActive(ELVISLIVES_CHEAT)
+        || IsActive(VILLAGEPEOPLE_CHEAT)
+        || IsActive(BEACHPARTY_CHEAT)
+        || IsActive(GANGS_CHEAT)
+        || IsActive(NINJA_CHEAT)
+        || IsActive(LOVECONQUERSALL_CHEAT)
+        || IsActive(FUNHOUSE_CHEAT)
+        || IsActive(COUNTRYSIDEINVASION_CHEAT);
 }
 
 #ifdef USE_ADDITIONAL_CHEATS

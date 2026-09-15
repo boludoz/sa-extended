@@ -120,7 +120,7 @@ void CBmx::LaunchBunnyHopCB(CAnimBlendAssociation* assoc, void* data) {
         if (bmx->GetStatus() == STATUS_PLAYER) {
             power *= CStats::GetFatAndMuscleModifier(STAT_MOD_6);
         }
-        if (CCheat::IsActive(CHEAT_HUGE_BUNNY_HOP)) {
+        if (CCheat::IsActive(CJPHONEHOME_CHEAT)) {
             power *= 5.0f;
         }
         bmx->ApplyMoveForce(0.06f * bmx->m_fMass * power * bmx->m_matrix->GetUp());

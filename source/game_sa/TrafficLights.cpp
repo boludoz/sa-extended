@@ -408,7 +408,7 @@ uint8 CTrafficLights::LightForPeds() {
 
 // 0x49D2D0
 uint8 CTrafficLights::LightForCars1() {
-    if (CGameLogic::LaRiotsActiveHere() || CCheat::IsActive(CHEAT_BGREEN_LIGHTS_CHEAT))
+    if (CGameLogic::LaRiotsActiveHere() || CCheat::IsActive(TRAFFICLIGHTS_CHEAT))
         return eTrafficLightsState::LIGHT_GREEN;
 
     auto uiMaskedTime = (CTimer::GetTimeInMS() / 2) & 16383;
@@ -423,7 +423,7 @@ uint8 CTrafficLights::LightForCars1() {
 
 // 0x49D310
 uint8 CTrafficLights::LightForCars2() {
-    if (CGameLogic::LaRiotsActiveHere() || CCheat::IsActive(CHEAT_BGREEN_LIGHTS_CHEAT))
+    if (CGameLogic::LaRiotsActiveHere() || CCheat::IsActive(TRAFFICLIGHTS_CHEAT))
         return eTrafficLightsState::LIGHT_GREEN;
 
     auto uiMaskedTime = (CTimer::GetTimeInMS() / 2) & 16383;

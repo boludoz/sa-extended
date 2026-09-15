@@ -41,6 +41,8 @@ private:
 public:
     eForceClimb m_ForceClimb;
     bool        m_UsePlayerLaunchForce;
+
+    void SetUsePlayerLaunchForce(bool b) { m_UsePlayerLaunchForce = b; }
 };
 
 VALIDATE_SIZE(CTaskComplexJump, 0x14);

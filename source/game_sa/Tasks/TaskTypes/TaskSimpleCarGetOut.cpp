@@ -144,7 +144,7 @@ bool CTaskSimpleCarGetOut::ProcessPed(CPed* ped) {
     }
 
     if (m_finished) {
-        if (CCheat::IsActive(CHEAT_SMASH_N_BOOM)) {
+        if (CCheat::IsActive(VEHICLEOFDEATH_CHEAT)) {
             m_veh->physicalFlags.bExplosionProof = m_veh->physicalFlags.bBulletProof = false;
             m_veh->vehicleFlags.bCanBeDamaged = true;
         }

@@ -21,6 +21,8 @@ public:
 
 public:
     static constexpr auto Type = TASK_COMPLEX_GO_TO_POINT_AND_STAND_STILL;
+    static constexpr float ms_fTargetRadius = 1.5f;
+    static constexpr float ms_fSlowDownDistance = 2.0f;
 
     CTaskComplexGoToPointAndStandStill(
         eMoveState moveState,

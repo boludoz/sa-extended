@@ -522,7 +522,7 @@ void CPopCycle::UpdatePercentages() {
 
 // 0x60F8D0
 ePedType CPopCycle::PickGangToCreateMembersOf() {
-    if (CCheat::IsActive(CHEAT_GANGS_CONTROLS_THE_STREETS)) {
+    if (CCheat::IsActive(GANGLAND_CHEAT)) {
         return CGeneral::RandomChoice(GetAllGangPedTypes());
     }
 

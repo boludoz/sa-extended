@@ -51,6 +51,9 @@ public:
     int32       m_nModelId1;    // modelInfo id
     int32       m_nModelId2;    // second modelInfo id
     int32       m_nSlot;
+
+    int32 GetModelId() const { return m_nModelId1; }
+    int32 GetWeaponSlot() const { return m_nSlot; }
     union {
         struct {
             uint32 bCanAim : 1;

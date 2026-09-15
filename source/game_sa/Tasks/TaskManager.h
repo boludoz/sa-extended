@@ -55,6 +55,8 @@ public:
     explicit CTaskManager(CPed* ped);
     ~CTaskManager();
 
+    CTask* GetTask(int32 i) const { return m_aPrimaryTasks[i]; }
+
     /*!
     * @0x681720
     * @brief Get the first present primary task (that is, the first non-null entry from `m_aPrimaryTasks`)

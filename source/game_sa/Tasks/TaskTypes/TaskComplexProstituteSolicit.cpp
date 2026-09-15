@@ -225,7 +225,7 @@ CTask* CTaskComplexProstituteSolicit::CreateNextSubTask(CPed* ped) {
         if (!bPlayerHasAcceptedSexProposition)
             return CreateSubTask(TASK_FINISHED, ped);
 
-        if (CCheat::IsActive(CHEAT_PROSTITUTES_PAY_YOU)) {
+        if (CCheat::IsActive(PIMP_CHEAT)) {
             return CreateSubTask(TASK_COMPLEX_ENTER_CAR_AS_PASSENGER, ped);
         }
 

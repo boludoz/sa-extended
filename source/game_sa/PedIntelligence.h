@@ -92,6 +92,8 @@ public:
     void AddTaskEventResponseTemp(CTask* task, int32 unUsed);
     void AddTaskEventResponseNonTemp(CTask* task, int32 unUsed);
     void AddTaskPrimaryMaybeInGroup(CTask* task, bool bAffectsPed);
+    void AddTaskDefault(CTask* task, bool bForce = false) { m_TaskMgr.SetTask(task, TASK_PRIMARY_DEFAULT, bForce); }
+    void AddTaskPrimary(CTask* task, bool bForce = false) { m_TaskMgr.SetTask(task, TASK_PRIMARY_PRIMARY, bForce); }
 
     //!< Can be replaced using `CTaskManager::Find<T>(false);`
     CTask* FindTaskByType(eTaskType taskId);
@@ -167,6 +169,9 @@ public:
     CEntity*         GetPedEntity(uint32 index)        { return GetPedEntities()[index]; } // todo: GetPedEntity or degrades readability?
     CEntity**        GetVehicleEntities()              { return m_vehicleScanner.m_apEntities.data(); }
     auto&            GetStuckChecker(this auto&& self) { return self.m_pedStuckChecker; }
+
+    void AddEvent(CEvent& event, bool bFlag = false) { m_eventGroup.Add(&event, bFlag); }
+    static inline int32 ms_iDesiredMoveState = 0;
 
 private:
     CPedIntelligence* Constructor(CPed* ped);

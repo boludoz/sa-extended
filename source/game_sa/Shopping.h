@@ -87,6 +87,7 @@ public:
 
     static void Init();
     static void ShutdownForRestart();
+    static const char* GetShopLoaded() { return ms_shopLoaded; }
     static void Buy(uint32 key, int32 extraInfo);
     static int32 FindItem(uint32 itemKey);
     static bool FindSection(FILESTREAM file, const char* sectionName);

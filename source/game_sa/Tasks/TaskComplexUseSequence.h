@@ -35,5 +35,12 @@ public:
     int32 m_nSequenceRepeatedCount{}; /**< This simply tells us how many times the sequence has been repeated.
                                            If `CTaskComplexSequence::m_bRepeatSequence` is true, this can be greater than 1,
                                            otherwise it's set to 1 when the sequence is done executing the sequence tasks. */
+
+    void SetProgress(int32 p1, int32 p2) {
+        m_nCurrentTaskIndex = p1;
+        m_nEndTaskIndex = p2;
+    }
+    int32 GetProgress1() const { return m_nCurrentTaskIndex; }
+    int32 GetProgress2() const { return m_nEndTaskIndex; }
 };
 VALIDATE_SIZE(CTaskComplexUseSequence, 0x1C);
