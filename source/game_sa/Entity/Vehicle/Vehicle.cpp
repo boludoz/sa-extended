@@ -3236,12 +3236,16 @@ void CVehicle::ProcessWheel(CVector& wheelFwd, CVector& wheelRight,
     else if (contactSpeedFwd != 0.0f) {
         fwd = -contactSpeedFwd / wheelsOnGround;
         if (!bBraking && std::fabs(m_GasPedal) < 0.01f) {
+            float wheelFriction = gHandlingDataMgr.fWheelFriction;
+#ifdef FIX_BUGS
+            wheelFriction *= CTimer::GetTimeStepFix();
+#endif
             if (IsBike())
-                brake = gHandlingDataMgr.fWheelFriction * 0.6f / (m_pHandlingData->m_fMass + 200.0f);
+                brake = wheelFriction * 0.6f / (m_pHandlingData->m_fMass + 200.0f);
             else if (IsSubPlane())
                 brake = 0.0f;
             else {
-                brake = gHandlingDataMgr.fWheelFriction / m_pHandlingData->m_fMass;
+                brake = wheelFriction / m_pHandlingData->m_fMass;
 
                 if (brake > 500.0f)
                     brake *= 0.1f;
@@ -3409,18 +3413,22 @@ void CVehicle::ProcessBikeWheel(
         fwd = -(contactSpeedFwd / wheelsOnGround);
         if (bBraking || fabsf(this->m_GasPedal) < WHEEL_THRESHOLD)
         {
+            float wheelFriction = gHandlingDataMgr.fWheelFriction;
+#ifdef FIX_BUGS
+            wheelFriction *= CTimer::GetTimeStepFix();
+#endif
             if ( m_nVehicleSubType == eVehicleType::VEHICLE_TYPE_BMX )
             {
                 if ( fwd > -BRAKE_THRESHOLD && fwd < BRAKE_THRESHOLD )
                 {
-                    currentTurnForce = gHandlingDataMgr.fWheelFriction * TURN_MEDIUM / (m_pHandlingData->m_fMass + 200.0f);
+                    currentTurnForce = wheelFriction * TURN_MEDIUM / (m_pHandlingData->m_fMass + 200.0f);
                 }
             } else if ( m_nVehicleSubType == eVehicleType::VEHICLE_TYPE_BIKE )
             {
-                currentTurnForce = gHandlingDataMgr.fWheelFriction * TURN_FAST / (m_pHandlingData->m_fMass + 200.0f);
+                currentTurnForce = wheelFriction * TURN_FAST / (m_pHandlingData->m_fMass + 200.0f);
             } 
             else {
-                currentTurnForce = gHandlingDataMgr.fWheelFriction / m_pHandlingData->m_fMass;
+                currentTurnForce = wheelFriction / m_pHandlingData->m_fMass;
                 if ((m_pHandlingData->m_fMass < 500.0) || m_nModelIndex == MODEL_RCBANDIT && !std::isnan(m_pHandlingData->m_fMass)) 
                 {
                     currentTurnForce *= TURN_SLOW;
