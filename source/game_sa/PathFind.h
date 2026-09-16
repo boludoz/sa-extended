@@ -307,6 +307,7 @@ public:
     void MarkRoadNodeAsDontWander(float x, float y, float z);
     void RecordNodesClosestToCoors(CVector pos, uint8 nodeType, int count, CNodeAddress* outAddresses, float maxDist, bool, bool, bool, bool);
     void Find2NodesForCarCreation(CVector pos, CNodeAddress* outAddress1, CNodeAddress* outAddress2, bool bLowTraffic);
+    bool TestCoorsCloseness(CVector Coors, uint8 GraphType, CVector PlayerCoors);
     CNodeAddress FindNthNodeClosestToCoors(CVector pos, uint8 nodeType, float maxDistance, bool bLowTraffic, bool bUnkn, int nthNode, bool bBoatsOnly, bool bIgnoreInterior,
                                            CNodeAddress* outNode);
     void FindNextNodeWandering(uint8 nodeType, CVector vecPos, CNodeAddress* originAddress, CNodeAddress* targetAddress, uint8 dir, uint8* outDir);
@@ -447,7 +448,7 @@ public:
     void RemoveInteriorLinks(uint32 intIdx);
     CNodeAddress FindNearestExteriorNodeToInteriorNode(int interiorId);
     void AddDynamicLinkBetween2Nodes_For1Node(CNodeAddress node1, CNodeAddress node2);
-    void AddDynamicLinkBetween2Nodes(CNodeAddress node1, CNodeAddress node2);
+    void AddDynamicLinkBetween2Nodes(CNodeAddress NodeAddress1, CNodeAddress NodeAddress2);
     void CompleteNewInterior(CNodeAddress* outAddress);
     void RemoveInterior(uint32 interior);
     CNodeAddress ReturnInteriorNodeIndex(int32 unkn, uint32 intId, int16 nodeId);
@@ -618,3 +619,4 @@ public:
 VALIDATE_SIZE(CPathFind, 0x3C80);
 
 static inline auto& ThePaths = StaticRef<CPathFind>(0x96F050);
+static inline auto& EmptyNodeAddress = StaticRef<CNodeAddress>(0x8A5F44);
