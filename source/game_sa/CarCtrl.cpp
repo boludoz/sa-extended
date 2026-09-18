@@ -1566,26 +1566,25 @@ void CCarCtrl::RemoveCarsIfThePoolGetsFull() {
 void CCarCtrl::RemoveDistantCars() {
     ZoneScoped;
 
-    // FIXBUGS: First remove vehicles that can be removed
-    if (notsa::bugfixes::CCarCtrl_RemoveDistantCars_UseAfterFree) {
-        for (auto& veh : GetVehiclePool()->GetAllValid()) {
-            PossiblyRemoveVehicle(&veh);
-        }
-    }
-
-    //... only then process them, this way we don't do use-after-free
-    // only other solution would be `PossiblyRemoveVehicle` returning a `bool`
-    // to indicate whenever the vehicle was deleted or not.
     for (auto& veh : GetVehiclePool()->GetAllValid()) {
-        if (!notsa::bugfixes::CCarCtrl_RemoveDistantCars_UseAfterFree) {
-            PossiblyRemoveVehicle(&veh); // This may or may not invalidate `veh`
+        PossiblyRemoveVehicle(&veh);
+
+        // FIXBUGS: Prevenir Use-After-Free si el vehículo fue eliminado en PossiblyRemoveVehicle
+        if (notsa::bugfixes::CCarCtrl_RemoveDistantCars_UseAfterFree) {
+            if (!GetVehiclePool()->IsObjectValid(&veh)) {
+                continue;
+            }
         }
+
         if (!veh.vehicleFlags.bCreateRoadBlockPeds) {
             continue;
         }
-        if (DistanceBetweenPoints(FindPlayerCentreOfWorld(), veh.GetPosition()) >= 54.5f) {
+
+        constexpr float maxDistSq = 54.5f * 54.5f;
+        if (DistanceBetweenPointsSquared2D(FindPlayerCentreOfWorld(), veh.GetPosition()) >= maxDistSq) {
             continue;
         }
+
         CRoadBlocks::GenerateRoadBlockPedsForCar(
             &veh,
             veh.m_nPedsPositionForRoadBlock,
