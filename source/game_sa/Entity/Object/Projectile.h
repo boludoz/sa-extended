@@ -11,6 +11,14 @@
 class NOTSA_EXPORT_VTABLE CProjectile : public CObject {
 public:
     CProjectile(int32 modelId);
+    ~CProjectile() override = default;
+
+private:
+    friend void InjectHooksMain();
+    static void InjectHooks();
+
+    CProjectile* Constructor(int32 modelId);
+    CProjectile* Destructor();
 };
 
 VALIDATE_SIZE(CProjectile, 0x17C);

@@ -16,14 +16,14 @@ constexpr uint32 MAX_PROJECTILES = 32;
 
 class CProjectileInfo {
 public:
-    uint32      m_nWeaponType; // see eWeaponType
-    CEntity*    m_pCreator;
-    CEntity*    m_pVictim;
-    int32       m_nDestroyTime;
-    bool        m_bActive;
+    eWeaponType m_eProjectileType;
+    CEntity*    m_pEntProjectileOwner;
+    CEntity*    m_pTargetEntity;
+    uint32      m_fTimeExpires;
+    bool        m_bProjectileActive;
     char        _pad11[3];
-    CVector     m_vecLastPosn;
-    FxSystem_c* m_pFxSystem;
+    CVector     OldCoors;
+    FxSystem_c* m_fxSystem;
 
 public:
     static inline auto& ms_apProjectile = StaticRef<std::array<CProjectile*, MAX_PROJECTILES>>(0xC89110);

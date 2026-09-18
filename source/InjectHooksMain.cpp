@@ -691,6 +691,7 @@ void InjectHooksMain() {
     CObjectSaveStructure::InjectHooks();
     CCutsceneObject::InjectHooks();
     CHandObject::InjectHooks();
+    CProjectile::InjectHooks();
     CBuilding::InjectHooks();
     CAnimatedBuilding::InjectHooks();
     CCompressedMatrixNotAligned::InjectHooks();
