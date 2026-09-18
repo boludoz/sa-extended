@@ -292,6 +292,8 @@
 #include "MissionCleanup.h"
 #include "NodeAddress.h"
 #include "NodeRoute.h"
+#include "AnimNameDescriptor.h"
+#include "PatrolRoute.h"
 #include "ObjectData.h"
 #include "CustomRoadsignMgr.h"
 #include "CompressedVector.h"

@@ -795,6 +795,7 @@ void InjectHooksMain() {
     CPathFind::InjectHooks();
     CPathNode::InjectHooks();
     CNodeRoute::InjectHooks();
+    CPatrolRoute::InjectHooks();
     CLoadMonitor::InjectHooks();
     CDecisionMakerTypes::InjectHooks();
     CDecisionMakerTypesFileLoader::InjectHooks();
@@ -855,7 +856,7 @@ void InjectHooksMain() {
         CPtrNodeDoubleLinkPool::InjectHooks();
         CEntryInfoNodePool::InjectHooks();
         CPointRoutePool::InjectHooks();
-        //CPatrolRoutePool::InjectHooks();
+        CPatrolRoutePool::InjectHooks();
         CEventPool::InjectHooks();
         CNodeRoutePool::InjectHooks();
         CTaskAllocatorPool::InjectHooks();
@@ -1450,6 +1451,7 @@ void InjectHooksMain() {
         CAnimBlendSequence::InjectHooks();
         CAnimBlendStaticAssociation::InjectHooks();
         CAnimManager::InjectHooks();
+        CAnimNameDescriptor::InjectHooks();
     };
 
     Animation();

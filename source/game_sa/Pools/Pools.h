@@ -97,8 +97,8 @@ auto& PoolOf<CPointRoute>() {
     return *GetPointRoutePool();
 }
 
-//template<>
-//auto& PoolOf<CPatrolRoute>() { return *GetPatrolRoutePool(); }
+template<>
+auto& PoolOf<CPatrolRoute>() { return *GetPatrolRoutePool(); }
 
 template<>
 auto& PoolOf<CNodeRoute>() {
