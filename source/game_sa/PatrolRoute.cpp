@@ -8,6 +8,7 @@ void CPatrolRoute::InjectHooks() {
 
     RH_ScopedInstall(operator new, 0x41B810);
     RH_ScopedInstall(operator delete, 0x41B820);
+    RH_ScopedInstall(Destructor, 0x6677A0);
     RH_ScopedInstall(Add, 0x46AE80);
 }
 

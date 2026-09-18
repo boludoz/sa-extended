@@ -22,5 +22,9 @@ private:
     static void InjectHooks();
 
     CTaskSimpleSetStayInSamePlace* Constructor(bool bStayInSamePlace);
+    CTaskSimpleSetStayInSamePlace* Destructor() {
+        this->CTaskSimpleSetStayInSamePlace::~CTaskSimpleSetStayInSamePlace();
+        return this;
+    }
 };
 VALIDATE_SIZE(CTaskSimpleSetStayInSamePlace, 0xC);

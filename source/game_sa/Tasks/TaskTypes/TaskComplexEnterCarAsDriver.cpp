@@ -7,6 +7,7 @@ void CTaskComplexEnterCarAsDriver::InjectHooks() {
     RH_ScopedCategory("Tasks/TaskTypes");
 
     RH_ScopedInstall(Constructor, 0x6402F0);
+    RH_ScopedInstall(Destructor, 0x640330);
     RH_ScopedVMTInstall(GetTaskType, 0x640320);
     RH_ScopedVMTInstall(Clone, 0x643780);
 }

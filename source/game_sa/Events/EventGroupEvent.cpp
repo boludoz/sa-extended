@@ -5,6 +5,7 @@
 void CEventGroupEvent::InjectHooks() {
     RH_ScopedVirtualClass(CEventGroupEvent, 0x85AE48, 16);
     RH_ScopedCategory("Events");
+    RH_ScopedInstall(Destructor, 0x4AE070);
 
     RH_ScopedInstall(Constructor, 0x4ADFD0);
     RH_ScopedVMTInstall(AffectsPed, 0x4AE0D0);

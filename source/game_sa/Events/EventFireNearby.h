@@ -23,5 +23,9 @@ private:
     static void InjectHooks();
 
     CEventFireNearby* Constructor(const CVector& position);
+    CEventFireNearby* Destructor() {
+        this->CEventFireNearby::~CEventFireNearby();
+        return this;
+    }
 };
 VALIDATE_SIZE(CEventFireNearby, 0x20);

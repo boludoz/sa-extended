@@ -35,6 +35,10 @@ private:
     static void InjectHooks();
 
     CEventGroupEvent* Constructor(CPed* ped, CEvent* event);
+    CEventGroupEvent* Destructor() {
+        this->CEventGroupEvent::~CEventGroupEvent();
+        return this;
+    }
 };
 
 VALIDATE_SIZE(CEventGroupEvent, 0x14);

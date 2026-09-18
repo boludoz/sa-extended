@@ -22,5 +22,9 @@ private:
     static void InjectHooks();
 
     CEventPedToFlee* Constructor(CPed* ped);
+    CEventPedToFlee* Destructor() {
+        this->CEventPedToFlee::~CEventPedToFlee();
+        return this;
+    }
 };
 VALIDATE_SIZE(CEventPedToFlee, 0x10);

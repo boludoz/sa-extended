@@ -4,6 +4,7 @@
 void CEventInWater::InjectHooks() {
     RH_ScopedVirtualClass(CEventInWater, 0x85B4C8, 16);
     RH_ScopedCategory("Events");
+    RH_ScopedInstall(Destructor, 0x4B13C0);
 
     RH_ScopedInstall(Constructor, 0x4B1370);
     RH_ScopedVMTInstall(AffectsPed, 0x4B13D0);

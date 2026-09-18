@@ -26,5 +26,9 @@ private:
 
     CEventDeath* Constructor1(bool bDrowning);
     CEventDeath* Constructor2(bool bDrowning, uint32 deathTimeInMs);
+    CEventDeath* Destructor() {
+        this->CEventDeath::~CEventDeath();
+        return this;
+    }
 };
 VALIDATE_SIZE(CEventDeath, 0x14);

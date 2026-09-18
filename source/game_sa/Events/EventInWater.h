@@ -24,5 +24,9 @@ private:
     static void InjectHooks();
 
     CEventInWater* Constructor(float acceleration);
+    CEventInWater* Destructor() {
+        this->CEventInWater::~CEventInWater();
+        return this;
+    }
 };
 VALIDATE_SIZE(CEventInWater, 0x10);

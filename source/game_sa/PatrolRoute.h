@@ -21,6 +21,11 @@ public:
 
     ~CPatrolRoute() = default;
 
+    CPatrolRoute* Destructor() {
+        this->CPatrolRoute::~CPatrolRoute();
+        return this;
+    }
+
     CPatrolRoute& operator=(const CPatrolRoute& o) {
         if (this != &o) {
             From(o);

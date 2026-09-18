@@ -7,6 +7,7 @@ void CTaskSimpleSetStayInSamePlace::InjectHooks() {
     RH_ScopedCategory("Tasks/TaskTypes");
 
     RH_ScopedInstall(Constructor, 0x62F590);
+    RH_ScopedInstall(Destructor, 0x62F5D0);
     RH_ScopedVMTInstall(GetTaskType, 0x62F5B0);
     RH_ScopedVMTInstall(MakeAbortable, 0x62F5C0);
     RH_ScopedVMTInstall(ProcessPed, 0x62F5E0);

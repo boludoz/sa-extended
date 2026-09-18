@@ -5,6 +5,7 @@
 void CEventDraggedOutCar::InjectHooks() {
     RH_ScopedVirtualClass(CEventDraggedOutCar, 0x85AD30, 17);
     RH_ScopedCategory("Events");
+    RH_ScopedInstall(Destructor, 0x4AD330);
 
     RH_ScopedInstall(Constructor, 0x4AD250);
     RH_ScopedVMTInstall(AffectsPed, 0x4AD3A0);

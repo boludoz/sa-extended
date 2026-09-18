@@ -30,5 +30,9 @@ private:
     static void InjectHooks();
 
     CEventGunAimedAt* Constructor(CPed* ped);
+    CEventGunAimedAt* Destructor() {
+        this->CEventGunAimedAt::~CEventGunAimedAt();
+        return this;
+    }
 };
 VALIDATE_SIZE(CEventGunAimedAt, 0x18);

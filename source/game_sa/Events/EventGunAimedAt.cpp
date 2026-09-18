@@ -7,6 +7,7 @@
 void CEventGunAimedAt::InjectHooks() {
     RH_ScopedVirtualClass(CEventGunAimedAt, 0x85B330, 17);
     RH_ScopedCategory("Events");
+    RH_ScopedInstall(Destructor, 0x4B07B0);
 
     RH_ScopedInstall(Constructor, 0x4B0700);
     RH_ScopedVMTInstall(AffectsPed, 0x4B4EE0);

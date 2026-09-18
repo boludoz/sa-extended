@@ -26,5 +26,9 @@ private:
     static void InjectHooks();
 
     CTaskComplexEnterCarAsDriver* Constructor(CVehicle* targetVehicle);
+    CTaskComplexEnterCarAsDriver* Destructor() {
+        this->CTaskComplexEnterCarAsDriver::~CTaskComplexEnterCarAsDriver();
+        return this;
+    }
 };
 VALIDATE_SIZE(CTaskComplexEnterCarAsDriver, 0x50);

@@ -24,5 +24,9 @@ private:
     static void InjectHooks();
 
     CEventPedToChase* Constructor(CPed* ped);
+    CEventPedToChase* Destructor() {
+        this->CEventPedToChase::~CEventPedToChase();
+        return this;
+    }
 };
 VALIDATE_SIZE(CEventPedToChase, 0x10);

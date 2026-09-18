@@ -19,5 +19,9 @@ private:
     static void InjectHooks();
 
     CEventSpecial* Constructor();
+    CEventSpecial* Destructor() {
+        this->CEventSpecial::~CEventSpecial();
+        return this;
+    }
 };
 VALIDATE_SIZE(CEventSpecial, 0x14);

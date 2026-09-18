@@ -5,6 +5,7 @@
 void CEventPedToChase::InjectHooks() {
     RH_ScopedVirtualClass(CEventPedToChase, 0x85B138, 16);
     RH_ScopedCategory("Events");
+    RH_ScopedInstall(Destructor, 0x4AF1C0);
 
     RH_ScopedInstall(Constructor, 0x4AF130);
     RH_ScopedVMTInstall(AffectsPed, 0x4AF220);

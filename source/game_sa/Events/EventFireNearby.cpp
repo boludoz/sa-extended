@@ -4,6 +4,7 @@
 void CEventFireNearby::InjectHooks() {
     RH_ScopedVirtualClass(CEventFireNearby, 0x85B6E8, 17);
     RH_ScopedCategory("Events");
+    RH_ScopedInstall(Destructor, 0x4B1F80);
 
     RH_ScopedInstall(Constructor, 0x4B1F10);
     RH_ScopedVMTInstall(AffectsPed, 0x4B1F90);

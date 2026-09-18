@@ -24,6 +24,10 @@ private:
     static void InjectHooks();
 
     CEventGotKnockedOverByCar* Constructor(CVehicle* vehicle);
+    CEventGotKnockedOverByCar* Destructor() {
+        this->CEventGotKnockedOverByCar::~CEventGotKnockedOverByCar();
+        return this;
+    }
 };
 
 VALIDATE_SIZE(CEventGotKnockedOverByCar, 0x18);

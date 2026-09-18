@@ -5,6 +5,7 @@
 void CEventDeath::InjectHooks() {
     RH_ScopedVirtualClass(CEventDeath, 0x85ADC0, 16);
     RH_ScopedCategory("Events");
+    RH_ScopedInstall(Destructor, 0x4ADE90);
 
     RH_ScopedOverloadedInstall(Constructor1, "1", 0x4ADDF0, CEventDeath*(CEventDeath::*)(bool));
     RH_ScopedOverloadedInstall(Constructor2, "2", 0x4ADE50, CEventDeath*(CEventDeath::*)(bool, uint32));

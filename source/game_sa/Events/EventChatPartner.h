@@ -24,5 +24,9 @@ private:
     static void InjectHooks();
 
     CEventChatPartner* Constructor(bool leadSpeaker, CPed* partner);
+    CEventChatPartner* Destructor() {
+        this->CEventChatPartner::~CEventChatPartner();
+        return this;
+    }
 };
 VALIDATE_SIZE(CEventChatPartner, 0x14);

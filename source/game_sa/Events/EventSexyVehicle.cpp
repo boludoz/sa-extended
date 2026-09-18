@@ -4,6 +4,7 @@
 void CEventSexyVehicle::InjectHooks() {
     RH_ScopedVirtualClass(CEventSexyVehicle, 0x85B0F8, 16);
     RH_ScopedCategory("Events");
+    RH_ScopedInstall(Destructor, 0x4AF0A0);
 
     RH_ScopedInstall(Constructor, 0x4AF010);
     RH_ScopedVMTInstall(AffectsPed, 0x4AF100);

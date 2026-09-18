@@ -16,8 +16,18 @@ public:
     CTaskComplexEnterCarAsPassenger(const CTaskComplexEnterCarAsPassenger&);
     ~CTaskComplexEnterCarAsPassenger() override = default;
 
-    eTaskType GetTaskType() const override { return Type; }
-    CTask* Clone() const override { return new CTaskComplexEnterCarAsPassenger{*this}; } // 0x6437F0
+    eTaskType GetTaskType() const override;
+    CTask* Clone() const override;
+
+private:
+    friend void InjectHooksMain();
+    static void InjectHooks();
+
+    CTaskComplexEnterCarAsPassenger* Constructor(CVehicle* targetVehicle, int32 nTargetSeat, bool bCarryOnAfterFallingOff);
+    CTaskComplexEnterCarAsPassenger* Destructor() {
+        this->CTaskComplexEnterCarAsPassenger::~CTaskComplexEnterCarAsPassenger();
+        return this;
+    }
 };
 
 VALIDATE_SIZE(CTaskComplexEnterCarAsPassenger, 0x50);

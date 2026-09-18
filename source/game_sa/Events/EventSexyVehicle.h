@@ -23,5 +23,9 @@ private:
     static void InjectHooks();
 
     CEventSexyVehicle* Constructor(CVehicle* vehicle);
+    CEventSexyVehicle* Destructor() {
+        this->CEventSexyVehicle::~CEventSexyVehicle();
+        return this;
+    }
 };
 VALIDATE_SIZE(CEventSexyVehicle, 0x10);

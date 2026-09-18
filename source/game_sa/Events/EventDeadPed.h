@@ -28,5 +28,9 @@ private:
     static void InjectHooks();
 
     CEventDeadPed* Constructor(CPed* ped, bool bUnknown, uint32 deathTimeInMs);
+    CEventDeadPed* Destructor() {
+        this->CEventDeadPed::~CEventDeadPed();
+        return this;
+    }
 };
 VALIDATE_SIZE(CEventDeadPed, 0x20);

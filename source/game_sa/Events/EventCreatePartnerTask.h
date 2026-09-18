@@ -26,5 +26,9 @@ private:
     static void InjectHooks();
 
     CEventCreatePartnerTask* Constructor(int32 type, CPed* partner, bool isLeadSpeaker, float meetDist);
+    CEventCreatePartnerTask* Destructor() {
+        this->CEventCreatePartnerTask::~CEventCreatePartnerTask();
+        return this;
+    }
 };
 VALIDATE_SIZE(CEventCreatePartnerTask, 0x1C);

@@ -5,6 +5,7 @@
 void CEventGotKnockedOverByCar::InjectHooks() {
     RH_ScopedVirtualClass(CEventGotKnockedOverByCar, 0x85B618, 17);
     RH_ScopedCategory("Events");
+    RH_ScopedInstall(Destructor, 0x4B1C10);
 
     RH_ScopedInstall(Constructor, 0x4B1B60);
     RH_ScopedVMTInstall(AffectsPed, 0x4B1C70);
