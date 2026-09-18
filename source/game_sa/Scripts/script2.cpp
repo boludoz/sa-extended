@@ -69,6 +69,7 @@
 #include "Tasks/TaskTypes/TaskSimpleCarSetPedInAsDriver.h"
 #include "CustomCarPlateMgr.h"
 #include "PedClothesDesc.h"
+#include "VehicleRecording.h"
 
 using i8  = int8;
 using i16 = int16;
