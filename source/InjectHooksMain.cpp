@@ -1245,7 +1245,7 @@ void InjectHooksMain() {
         CTaskSimplePause::InjectHooks();
         // CTaskComplexEnterCarAsPassenger::InjectHooks();
         CTaskComplexEnterCarAsDriver::InjectHooks();
-        // CTaskSimpleNone::InjectHooks();
+        CTaskSimpleNone::InjectHooks();
         CTaskComplexKillPedOnFoot::InjectHooks();
         CTaskSimpleThrowProjectile::InjectHooks();
         CTaskSimpleGoToPoint::InjectHooks();
@@ -1288,7 +1288,7 @@ void InjectHooksMain() {
         CTaskComplexEnterBoatAsDriver::InjectHooks();
         CTaskSimpleFight::InjectHooks();
         CTaskComplexUseWaterCannon::InjectHooks();
-        // CTaskComplexDriveToPoint::InjectHooks();
+        CTaskComplexDriveToPoint::InjectHooks();
         CTaskSimpleSlideToCoord::InjectHooks();
         // CTaskComplexPartnerDeal::InjectHooks();
         CTaskSimplePickUpEntity::InjectHooks();
