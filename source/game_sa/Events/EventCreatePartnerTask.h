@@ -18,7 +18,13 @@ public:
     eEventType GetEventType()        const override { return EVENT_CREATE_PARTNER_TASK; }
     int32      GetEventPriority()    const override { return 6; }
     int32      GetLifeTime()               override { return 0; }
-    CEvent*    Clone() const noexcept                     override { return new CEventCreatePartnerTask(m_partnerType, m_partner, m_isLeadSpeaker, m_meetDist); }
-    bool       AffectsPed(CPed* ped)       override { return true; }
+    CEvent*    Clone() const noexcept override;
+    bool       AffectsPed(CPed* ped) override;
+
+private:
+    friend void InjectHooksMain();
+    static void InjectHooks();
+
+    CEventCreatePartnerTask* Constructor(int32 type, CPed* partner, bool isLeadSpeaker, float meetDist);
 };
 VALIDATE_SIZE(CEventCreatePartnerTask, 0x1C);

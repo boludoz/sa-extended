@@ -24,5 +24,11 @@ public:
     CEntity* GetSourceEntity() const override { return m_AimedBy; }
     bool TakesPriorityOver(const CEvent& refEvent) override;
     CEventEditableResponse* CloneEditable() const noexcept override;
+
+private:
+    friend void InjectHooksMain();
+    static void InjectHooks();
+
+    CEventGunAimedAt* Constructor(CPed* ped);
 };
 VALIDATE_SIZE(CEventGunAimedAt, 0x18);

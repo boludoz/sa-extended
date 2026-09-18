@@ -4,6 +4,20 @@
 
 #include "Ragdoll/IKChainManager.h"
 
+void CEventDeadPed::InjectHooks() {
+    RH_ScopedVirtualClass(CEventDeadPed, 0x85AE00, 17);
+    RH_ScopedCategory("Events");
+
+    RH_ScopedInstall(Constructor, 0x4ADEA0);
+    RH_ScopedVMTInstall(AffectsPed, 0x4B4830);
+    RH_ScopedVMTInstall(CloneEditable, 0x4B6E70);
+}
+
+CEventDeadPed* CEventDeadPed::Constructor(CPed* ped, bool bUnknown, uint32 deathTimeInMs) {
+    this->CEventDeadPed::CEventDeadPed(ped, bUnknown, deathTimeInMs);
+    return this;
+}
+
 // 0x4ADEA0
 CEventDeadPed::CEventDeadPed(CPed* ped, bool bUnknown, uint32 deathTimeInMs) : CEventEditableResponse() {
     m_ped = ped;

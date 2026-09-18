@@ -16,7 +16,13 @@ public:
     eEventType GetEventType() const override { return EVENT_CHAT_PARTNER; }
     int32 GetEventPriority() const override { return 5; }
     int32 GetLifeTime() override { return 0; }
-    CEventChatPartner* Clone() const noexcept override { return new CEventChatPartner(m_leadSpeaker, m_partner); }
+    CEventChatPartner* Clone() const noexcept override;
     bool AffectsPed(CPed* ped)  override;
+
+private:
+    friend void InjectHooksMain();
+    static void InjectHooks();
+
+    CEventChatPartner* Constructor(bool leadSpeaker, CPed* partner);
 };
 VALIDATE_SIZE(CEventChatPartner, 0x14);

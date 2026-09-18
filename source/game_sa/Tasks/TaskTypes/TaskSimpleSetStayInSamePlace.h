@@ -12,9 +12,15 @@ public:
     explicit CTaskSimpleSetStayInSamePlace(bool bStayInSamePlace);
     ~CTaskSimpleSetStayInSamePlace() override = default;
 
-    eTaskType GetTaskType() const override { return Type; }
-    CTask* Clone() const override { return new CTaskSimpleSetStayInSamePlace(m_bStayInSamePlace); }
-    bool MakeAbortable(class CPed* ped, eAbortPriority priority = ABORT_PRIORITY_URGENT, const CEvent* event = nullptr) override { return true; }
+    eTaskType GetTaskType() const override;
+    CTask* Clone() const override;
+    bool MakeAbortable(class CPed* ped, eAbortPriority priority = ABORT_PRIORITY_URGENT, const CEvent* event = nullptr) override;
     bool ProcessPed(CPed* ped) override;
+
+private:
+    friend void InjectHooksMain();
+    static void InjectHooks();
+
+    CTaskSimpleSetStayInSamePlace* Constructor(bool bStayInSamePlace);
 };
 VALIDATE_SIZE(CTaskSimpleSetStayInSamePlace, 0xC);

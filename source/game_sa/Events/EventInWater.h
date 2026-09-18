@@ -15,8 +15,14 @@ public:
     eEventType GetEventType() const override { return EVENT_IN_WATER; }
     int32 GetEventPriority() const override { return 62; }
     int32 GetLifeTime() override { return 0; }
-    CEvent* Clone() const noexcept override { return new CEventInWater(m_acceleration); }
+    CEvent* Clone() const noexcept override;
     bool AffectsPed(CPed* ped) override;
     bool TakesPriorityOver(const CEvent& refEvent) override;
+
+private:
+    friend void InjectHooksMain();
+    static void InjectHooks();
+
+    CEventInWater* Constructor(float acceleration);
 };
 VALIDATE_SIZE(CEventInWater, 0x10);

@@ -16,7 +16,13 @@ public:
     eEventType GetEventType() const override { return EVENT_PED_TO_CHASE; }
     int32 GetEventPriority() const override { return 1; }
     int32 GetLifeTime() override { return 0; }
-    CEvent* Clone() const noexcept override { return new CEventPedToChase(m_ped); }
-    bool AffectsPed(CPed* ped) override { return ped->IsAlive(); }
+    CEvent* Clone() const noexcept override;
+    bool AffectsPed(CPed* ped) override;
+
+private:
+    friend void InjectHooksMain();
+    static void InjectHooks();
+
+    CEventPedToChase* Constructor(CPed* ped);
 };
 VALIDATE_SIZE(CEventPedToChase, 0x10);

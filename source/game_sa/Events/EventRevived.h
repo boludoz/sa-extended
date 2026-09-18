@@ -13,7 +13,13 @@ public:
     eEventType GetEventType() const override { return EVENT_REVIVE; }
     int32 GetEventPriority() const override { return 74; }
     int32 GetLifeTime() override { return 0; }
-    CEventRevived* Clone() const noexcept override { return new CEventRevived(); }
+    CEventRevived* Clone() const noexcept override;
     bool AffectsPed(CPed* ped) override;
+
+private:
+    friend void InjectHooksMain();
+    static void InjectHooks();
+
+    CEventRevived* Constructor();
 };
 VALIDATE_SIZE(CEventRevived, 0xC);

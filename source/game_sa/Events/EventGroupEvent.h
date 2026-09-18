@@ -19,9 +19,9 @@ public:
     eEventType GetEventType() const override { return EVENT_GROUP_EVENT; }
     int32 GetEventPriority() const override { return 41; }
     int32 GetLifeTime() override { return 0; }
-    CEvent* Clone() const noexcept override { return new CEventGroupEvent(m_ped, m_event->Clone()); } // 0x4B6EE0
-    bool AffectsPed(CPed* ped) override { return false; }
-    bool AffectsPedGroup(CPedGroup* pedGroup) override { return pedGroup->GetMembership().IsMember(m_ped); }
+    CEvent* Clone() const noexcept override;
+    bool AffectsPed(CPed* ped) override;
+    bool AffectsPedGroup(CPedGroup* pedGroup) override;
     float GetLocalSoundLevel() override { return 100.0f; }
 
     bool BaseEventTakesPriorityOverBaseEvent(const CEventGroupEvent& other);
@@ -30,6 +30,11 @@ public:
 
 private:
     bool IsPriorityEvent() const;
+
+    friend void InjectHooksMain();
+    static void InjectHooks();
+
+    CEventGroupEvent* Constructor(CPed* ped, CEvent* event);
 };
 
 VALIDATE_SIZE(CEventGroupEvent, 0x14);

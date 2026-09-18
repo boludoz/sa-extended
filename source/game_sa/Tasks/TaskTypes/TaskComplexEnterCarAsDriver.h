@@ -18,7 +18,13 @@ public:
     CTaskComplexEnterCarAsDriver(const CTaskComplexEnterCarAsDriver&);
     ~CTaskComplexEnterCarAsDriver() override = default;
 
-    eTaskType GetTaskType() const override { return Type; }
-    CTask*    Clone()       const override { return new CTaskComplexEnterCarAsDriver{*this}; }
+    eTaskType GetTaskType() const override;
+    CTask*    Clone()       const override;
+
+private:
+    friend void InjectHooksMain();
+    static void InjectHooks();
+
+    CTaskComplexEnterCarAsDriver* Constructor(CVehicle* targetVehicle);
 };
 VALIDATE_SIZE(CTaskComplexEnterCarAsDriver, 0x50);

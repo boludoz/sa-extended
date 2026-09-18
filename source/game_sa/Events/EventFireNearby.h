@@ -15,7 +15,13 @@ public:
     int32 GetEventPriority() const override { return 17; }
     int32 GetLifeTime() override { return 0; }
     bool AffectsPed(CPed* ped) override;
-    bool TakesPriorityOver(const CEvent& refevent) override { return true; }
-    CEventFireNearby* CloneEditable() const noexcept override { return new CEventFireNearby(m_position); }
+    bool TakesPriorityOver(const CEvent& refevent) override;
+    CEventFireNearby* CloneEditable() const noexcept override;
+
+private:
+    friend void InjectHooksMain();
+    static void InjectHooks();
+
+    CEventFireNearby* Constructor(const CVector& position);
 };
 VALIDATE_SIZE(CEventFireNearby, 0x20);

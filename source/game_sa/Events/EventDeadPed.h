@@ -22,5 +22,11 @@ public:
     CEventEditableResponse* CloneEditable() const noexcept override;
 
     auto GetDeadPed() const { return m_ped; }
+
+private:
+    friend void InjectHooksMain();
+    static void InjectHooks();
+
+    CEventDeadPed* Constructor(CPed* ped, bool bUnknown, uint32 deathTimeInMs);
 };
 VALIDATE_SIZE(CEventDeadPed, 0x20);

@@ -11,7 +11,13 @@ public:
     eEventType GetEventType() const override { return EVENT_SPECIAL; }
     int32 GetEventPriority() const override { return 52; }
     int32 GetLifeTime() override { return 0; }
-    bool AffectsPed(CPed* ped) override { return true; }
-    CEventSpecial* CloneEditable() const noexcept override { return new CEventSpecial(); }
+    bool AffectsPed(CPed* ped) override;
+    CEventSpecial* CloneEditable() const noexcept override;
+
+private:
+    friend void InjectHooksMain();
+    static void InjectHooks();
+
+    CEventSpecial* Constructor();
 };
 VALIDATE_SIZE(CEventSpecial, 0x14);
