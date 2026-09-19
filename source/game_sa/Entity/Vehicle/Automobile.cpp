@@ -4857,127 +4857,148 @@ void CAutomobile::dmgDrawCarCollidingParticles(const CVector& position, float fo
 }
 
 // 0x6A7090
-void CAutomobile::ProcessCarOnFireAndExplode(bool bExplodeImmediately) {
-    // TODO: Re-order the code to get rid of lambdas here (and of the really deep nesting)
+void CAutomobile::ProcessCarOnFireAndExplode(bool bExplodeImmediately)
+{
+    const uint8 engineDamage = m_damageManager.GetEngineStatus();
 
-    const auto DecreaseHealthAndProcess = [this, estatus = m_damageManager.GetEngineStatus()] {
-        if (estatus > 225 && m_fHealth > 250.f) {
-            m_fHealth -= 2.f;
+    if (m_fHealth < 250.0f && GetStatus() != STATUS_WRECKED && !vehicleFlags.bIsDrowning) {
+        int32 triggerFire = 0;
+
+        const eVehicleType vehType = static_cast<eVehicleType>(GetVehicleType());
+        const bool isSubPlaneOrHeli = (vehType == VEHICLE_TYPE_PLANE || vehType == VEHICLE_TYPE_HELI);
+
+        if (!m_pFireParticle && !isSubPlaneOrHeli) {
+            triggerFire = 1;
         }
-        ProcessDelayedExplosion();
-    };
 
-    const auto SetFxVelocity = [&, this] {
-        if (m_pFireParticle) {
-            auto bullshit = GetMoveSpeed() * 50.f;
-            m_pFireParticle->SetVelAdd(bullshit);
-        }
-        DecreaseHealthAndProcess();
-    };
-
-    const auto CreateFx = [&, this](size_t typ) {
-        auto pos = GetDummyPosition(DUMMY_ENGINE);
-        if (const auto mat = GetModellingMatrix()) {
-            m_pFireParticle = g_fxMan.CreateFxSystem(
-                typ == 1
-                    ? "fire_car"
-                    : "fire_large",
-                pos,
-                mat
-            );
-        }
-        if (m_pFireParticle) {
-            m_pFireParticle->Play();
-            GetEventGlobalGroup()->Add(CEventVehicleOnFire{ this });
-        }
-    };
-
-    if (m_fHealth < 250.f && GetStatus() != STATUS_WRECKED && !vehicleFlags.bIsDrowning) {
-        const auto isSubPlaneOrHeli = notsa::contains({ VEHICLE_TYPE_PLANE, VEHICLE_TYPE_HELI }, (eVehicleType)GetVehicleType());
-
-        auto partFxToUse = !m_pFireParticle && !isSubPlaneOrHeli ? 1 : 0;
-
-        const auto floorTsMS = std::floor(CTimer::GetTimeStepInMS());
-        if (isSubPlaneOrHeli) { // 0x6A7117
+        if (isSubPlaneOrHeli) {
             if (!m_fireParticleCounter) {
                 m_fireParticleCounter = IsInAir() ? 2 : 1;
             }
 
-            if (!bExplodeImmediately) { // 0x6A720B
-                const auto isRcShit = notsa::contains({
-                    MODEL_RCBARON,
-                    MODEL_RCRAIDER,
-                    MODEL_RCGOBLIN,
-                    MODEL_RCBANDIT,
-                    MODEL_RCTIGER
-                }, GetModelId());
+            if (bExplodeImmediately) {
+                BlowUpCar(m_pExplosionVictim, false);
+            } else {
+                const int32 modelId = GetModelId();
+                const bool isRc = (modelId == MODEL_RCBARON
+                                || modelId == MODEL_RCRAIDER
+                                || modelId == MODEL_RCGOBLIN
+                                || modelId == MODEL_RCBANDIT
+                                || modelId == MODEL_RCTIGER);
 
-                m_fBurnTimer += m_fireParticleCounter || isRcShit
-                    ? floorTsMS
-                    : floorTsMS / 5.f;
-                if (m_fBurnTimer > 5000.f) { // 0x6A72A4
+#if FIX_BUGS // FPS Fix
+                const float timeStepMs = CTimer::GetTimeStepInMS();
+#else
+                const float timeStepMs = std::floor(CTimer::GetTimeStepInMS());
+#endif
+                if (m_fireParticleCounter == 1 || isRc) {
+                    m_fBurnTimer += timeStepMs;
+                } else {
+                    m_fBurnTimer += timeStepMs * 0.2f;
+                }
+
+                if (m_fBurnTimer > 5000.0f || vehicleFlags.bIsDrowning) {
                     BlowUpCar(m_pExplosionVictim, false);
-                } else { //> 0x6A72D9 - Create smoke particle fx
-                    auto fxPrtMult = [&, this]() -> FxPrtMult_c {
-                        if (!isRcShit) {
-                            return { 0.f, 0.f, 0.f, 0.4f, 1.f, 1.f, 0.3f };
-                        }
-                        if (GetStatus() == STATUS_REMOTE_CONTROLLED) {
-                            return { 0.f, 0.f, 0.5f, 0.4f, 0.1f, 1.f, 0.1f };
-                        }
-                        return { 0.f, 0.f, 0.15f, 0.4f, 0.3f, 1.f, 0.3f };
-                    }();
-                    if (CTimer::GetFrameCounter() % 2 == 0) { // TODO: Don't use frame counter
-                        g_fx.m_SmokeHuge->AddParticle(
-                            GetPosition() + (isRcShit
-                                ? CVector::Random({ -0.7f, -0.7f, 0.f }, { 0.7f, 0.7f, 0.f })
-                                : CVector::Random({ -2.0f, -2.0f, 0.f }, { 2.0f, 2.0f, 0.f })
-                            ),
-                            isRcShit
-                                ? CVector::Random({ -0.5f, -0.5f, 0.f }, { 0.5f, 0.5f, 0.4f })
-                                : CVector::Random({ -1.5f, -1.5f, 0.f }, { 1.5f, 1.5f, 1.0f }),
-                            0.f,
-                            fxPrtMult
-                        );
-                    }
-                }
+                } else {
+                    FxPrtMult_c fxMults(0.0f, 0.0f, 0.0f, 0.4f, 1.0f, 1.0f, 0.3f);
 
-                if (notsa::contains({ STATUS_PLAYER, STATUS_REMOTE_CONTROLLED }, GetStatus())) { // 0x6A745D
-                    if (!m_pFireParticle && m_fBurnTimer > 2500.f) {
-                        CreateFx(2);
-                        SetFxVelocity();
-                        return;
+                    if (isRc) {
+                        if (GetStatus() == STATUS_REMOTE_CONTROLLED) {
+                            fxMults.m_Color.alpha = 0.5f;
+                            fxMults.m_fSize = 0.1f;
+                            fxMults.m_fLife = 0.1f;
+                        } else {
+                            fxMults.m_Color.alpha = 0.15f;
+                            fxMults.m_fSize = 0.3f;
+                            fxMults.m_fLife = 0.3f;
+                        }
                     }
-                } else if (!isRcShit && CGeneral::RandomBool(1.2f)) {
-                    CExplosion::AddExplosion(this, m_pExplosionVictim, EXPLOSION_ROCKET, GetPosition(), 0, true, -1.f, false);
+
+#if FIX_BUGS // FPS Fix
+                    if ((CTimer::GetLogicalFrameCounter() % 2) == 0) {
+#else
+                    if ((CTimer::GetFrameCounter() % 2) == 0) {
+#endif
+                        CVector pos = GetPosition();
+                        CVector vel;
+
+                        if (isRc) {
+                            vel.x = CGeneral::GetRandomNumberInRange(-0.5f, 0.5f);
+                            vel.y = CGeneral::GetRandomNumberInRange(-0.5f, 0.5f);
+                            vel.z = CGeneral::GetRandomNumberInRange(0.0f, 0.4f);
+                            pos.x += CGeneral::GetRandomNumberInRange(-0.7f, 0.7f);
+                            pos.y += CGeneral::GetRandomNumberInRange(-0.7f, 0.7f);
+                        } else {
+                            vel.x = CGeneral::GetRandomNumberInRange(-1.5f, 1.5f);
+                            vel.y = CGeneral::GetRandomNumberInRange(-1.5f, 1.5f);
+                            vel.z = CGeneral::GetRandomNumberInRange(0.0f, 1.0f);
+                            pos.x += CGeneral::GetRandomNumberInRange(-2.0f, 2.0f);
+                            pos.y += CGeneral::GetRandomNumberInRange(-2.0f, 2.0f);
+                        }
+
+                        g_fx.m_SmokeHuge->AddParticle(pos, vel, 0.0f, fxMults);
+                    }
+
+                    if (GetStatus() != STATUS_PLAYER && GetStatus() != STATUS_REMOTE_CONTROLLED) {
+                        if (!isRc && CGeneral::GetRandomNumberInRange(0, 250) < 3) {
+                            CExplosion::AddExplosion(this, m_pExplosionVictim, EXPLOSION_ROCKET, GetPosition(), 0, true, -1.0f, false);
+                        }
+                    } else {
+                        if (!m_pFireParticle && m_fBurnTimer > 2500.0f) {
+                            triggerFire = 2;
+                        }
+                    }
                 }
-            
-                if (partFxToUse == 0) {
-                    SetFxVelocity();
-                    return;
-                }
-                CreateFx(partFxToUse);
-                SetFxVelocity();
             }
         } else {
-            m_fBurnTimer += floorTsMS;
-            if (m_fBurnTimer > 5000.f) {
+#if FIX_BUGS // FPS Fix
+            m_fBurnTimer += CTimer::GetTimeStepInMS();
+            if (m_fBurnTimer > 5000.0f || vehicleFlags.bIsDrowning) { // Race condition
+#else
+            m_fBurnTimer += std::floor(CTimer::GetTimeStepInMS());
+            if (m_fBurnTimer > 5000.0f) {
+#endif
                 BlowUpCar(m_pExplosionVictim, false);
             }
-            if (partFxToUse == 0) {
-                SetFxVelocity();
-                return;
+        }
+
+        if (triggerFire) {
+            CVector engineOffset = GetDummyPosition(DUMMY_ENGINE);
+            RwMatrix* parentMat = GetModellingMatrix();
+
+            if (parentMat) {
+                const char* const fxName = (triggerFire == 1) ? "fire_car" : "fire_large";
+                m_pFireParticle = g_fxMan.CreateFxSystem(fxName, engineOffset, parentMat);
             }
+
+            if (m_pFireParticle) {
+                m_pFireParticle->Play();
+                CEventVehicleOnFire event(this);
+                GetEventGlobalGroup()->Add(event);
+            }
+        }
+
+        if (m_pFireParticle) {
+            CVector velAdd = GetMoveSpeed() * 50.0f;
+            m_pFireParticle->SetVelAdd(velAdd);
+        }
+    } else {
+        m_fBurnTimer = 0.0f;
+        if (m_pFireParticle) {
+            m_pFireParticle->Kill();
+            m_pFireParticle = nullptr;
         }
     }
 
-    m_fBurnTimer = 0.f;
-    if (m_pFireParticle) {
-        m_pFireParticle->Kill();
-        m_pFireParticle = nullptr;
+    if (engineDamage > 225 && m_fHealth > 250.0f) {
+#if FIX_BUGS // FPS Fix
+        m_fHealth -= 2.0f * CTimer::GetTimeStepFix();
+#else
+        m_fHealth -= 2.0f;
+#endif
     }
 
-    DecreaseHealthAndProcess();
+    ProcessDelayedExplosion();
 }
 
 // todo: nodeIndex one of { eBikeNodes eBmxNodes eBoatNodes eHeliNodes eMonsterTruckNodes ePlaneNodes eQuadBikeNodes eTrailerNodes eTrainNodes eCarNodes }

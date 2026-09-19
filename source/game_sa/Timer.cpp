@@ -56,6 +56,10 @@ void CTimer::Initialise()
     m_snRenderTimerPauseCount = 0;
 
     m_FrameCounter = 0;
+#ifdef FIX_BUGS
+    m_LogicalFrameCounter = 0;
+    m_LogicalFramesPassed = 0;
+#endif
     m_sbEnableTimeDebug = false;
     game_FPS = 0.0f;
 
@@ -73,6 +77,7 @@ void CTimer::Initialise()
         timerFunc = GetMillisecondTime;
         m_snTimerDivider = 1;
     }
+
     ms_fnTimerFunction = timerFunc;
     m_snRenderStartTime = timerFunc();
 }
@@ -200,33 +205,46 @@ void CTimer::UpdateVariables(float timeElapsed)
 }
 
 // 0x561B10
-void CTimer::Update() {
-    ZoneScoped;
-
+void CTimer::Update()
+{
     if (!ms_fnTimerFunction)
         return;
 
     m_sbEnableTimeDebug = true;
-    game_FPS = float(1000.0f / float(m_snTimeInMillisecondsNonClipped - m_snPreviousTimeInMillisecondsNonClipped));
+    game_FPS = static_cast<float>(1000.0 / static_cast<double>(m_snTimeInMillisecondsNonClipped - m_snPreviousTimeInMillisecondsNonClipped));
 
-    // Update history
     m_snPPPPreviousTimeInMilliseconds = m_snPPPreviousTimeInMilliseconds;
-    m_snPPPreviousTimeInMilliseconds = m_snPPreviousTimeInMilliseconds;
-    m_snPPreviousTimeInMilliseconds = m_snPreviousTimeInMilliseconds;
-    m_snPreviousTimeInMilliseconds = m_snTimeInMilliseconds;
-
+    m_snPPPreviousTimeInMilliseconds  = m_snPPreviousTimeInMilliseconds;
+    m_snPPreviousTimeInMilliseconds   = m_snPreviousTimeInMilliseconds;
+    m_snPreviousTimeInMilliseconds    = m_snTimeInMilliseconds;
     m_snPreviousTimeInMillisecondsNonClipped = m_snTimeInMillisecondsNonClipped;
 
-    const uint64 nRenderTimeBefore = m_snRenderStartTime;
-    m_snRenderStartTime = ms_fnTimerFunction();
-    auto fTimeDelta = float(m_snRenderStartTime - nRenderTimeBefore);
-    if (!GetIsPaused())
-        fTimeDelta *= ms_fTimeScale;
+    const uint64 currentTime = ms_fnTimerFunction();
+    float step = static_cast<float>(currentTime - m_snRenderStartTime);
 
-    m_snTimeInMillisecondsPauseMode += (uint32)(fTimeDelta / float(m_snTimerDivider));
-    if (GetIsPaused())
-        fTimeDelta = 0.0f;
+#ifdef FIX_BUGS
+    const double rawDeltaMs = static_cast<double>(step) / static_cast<double>(m_snTimerDivider);
+    static double frameTimeLogical = 0.0;
+    m_LogicalFramesPassed = 0;
+    frameTimeLogical += rawDeltaMs;
+    while (frameTimeLogical >= (1000.0 / 30.0)) {
+        frameTimeLogical -= (1000.0 / 30.0);
+        m_LogicalFramesPassed++;
+    }
+    m_LogicalFrameCounter += m_LogicalFramesPassed;
+#endif
 
-    UpdateVariables(fTimeDelta);
-    m_FrameCounter++;
+    if (!m_UserPause && !m_CodePause) {
+        step *= ms_fTimeScale;
+    }
+
+    m_snRenderStartTime = currentTime;
+    m_snTimeInMillisecondsPauseMode += static_cast<uint32>(step / static_cast<float>(m_snTimerDivider));
+
+    if (m_UserPause || m_CodePause) {
+        step = 0.0f;
+    }
+
+    UpdateVariables(step);
+    ++m_FrameCounter;
 }

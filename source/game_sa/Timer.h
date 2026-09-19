@@ -52,6 +52,11 @@ public:
     static inline auto& m_snPPreviousTimeInMilliseconds = StaticRef<uint32>(0xB7CB74);
     static inline auto& m_snPreviousTimeInMilliseconds = StaticRef<uint32>(0xB7CB78);
 
+#ifdef FIX_BUGS // FPS Fix
+	static inline uint32 m_LogicalFrameCounter;
+	static inline uint32 m_LogicalFramesPassed;
+#endif
+
 public:
     static void InjectHooks();
 
@@ -89,7 +94,13 @@ public:
     static float  GetTimeStepNonClippedInMS() { return GetTimeStepNonClippedInSeconds() * 1000.0f; }
     static void   SetTimeStepNonClipped(float ts) { ms_fTimeStepNonClipped = ts; }
 
-    static uint32 GetFrameCounter() { return m_FrameCounter; }
+    static uint32 GetFrameCounter() {
+#ifdef FIX_BUGS // FPS Fix
+        return m_LogicalFrameCounter; 
+#else
+        return m_FrameCounter; 
+#endif
+}
     static void   SetFrameCounter(uint32 fc) { m_FrameCounter = fc; }
 
     static uint32 GetTimeInMS() { return m_snTimeInMilliseconds; }
@@ -109,15 +120,15 @@ public:
     static bool GetIsCodePaused() { return m_CodePause; }
     static void SetCodePause(bool pause) { m_CodePause = pause; }
 
-#ifdef FIX_BUGS
-    static float GetDefaultTimeStep() { return 50.0f / 30.0f; }
-    static float GetTimeStepFix() { return GetTimeStep() / GetDefaultTimeStep(); }
-    static uint32 GetLogicalFrameCounter() { return m_FrameCounter; }
-    static uint32 GetLogicalFramesPassed() { return 1; }
+    // NOTSA section
+#ifdef FIX_BUGS // FPS Fix
+    static float GetDefaultTimeStep(void) { return TIMESTEP_PER_SECOND / 30.0f; }
+    static float GetTimeStepFix(void) { return GetTimeStep() / GetDefaultTimeStep(); }
+    static uint32 GetLogicalFrameCounter(void) { return m_LogicalFrameCounter; }
+    static uint32 GetLogicalFramesPassed(void) { return m_LogicalFramesPassed; }
 #endif
 
-    // NOTSA section
-
+    
     static bool HasTimePointPassed(uint32 timeMs) { return GetTimeInMS() >= timeMs; }
     static bool IsTimeInRange(uint32 fromMs, uint32 toMs) { return HasTimePointPassed(fromMs) && !HasTimePointPassed(toMs); }
 };
