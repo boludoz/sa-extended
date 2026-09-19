@@ -38,7 +38,7 @@ void CTrailer::InjectHooks() {
 
 // 0x6D03A0
 CTrailer::CTrailer(int32 modelIndex, eVehicleCreatedBy createdBy) : CAutomobile(modelIndex, createdBy, false) {
-    m_nVehicleSubType = VEHICLE_TYPE_TRAILER;
+    m_vehicleType = VEHICLE_TYPE_TRAILER;
 
     if (m_nModelIndex == MODEL_BAGBOXA || m_nModelIndex == MODEL_BAGBOXB) {
         m_fTrailerTowedRatio = BAGGAGE_TRAILER_TOWED_RATIO;

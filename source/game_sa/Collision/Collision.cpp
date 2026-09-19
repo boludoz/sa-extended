@@ -2572,7 +2572,7 @@ bool CCollision::IsThisVehicleSittingOnMe(CVehicle* veh, CVehicle* vehOnMe) {
     const auto Check = [veh](auto& wheelColEntities) {
         return notsa::contains(wheelColEntities, veh);
     };
-    switch (vehOnMe->m_nVehicleType) {
+    switch (vehOnMe->GetBaseVehicleType()) {
     case VEHICLE_TYPE_AUTOMOBILE: return Check(vehOnMe->AsAutomobile()->m_apWheelCollisionEntity);
     case VEHICLE_TYPE_BIKE:       return Check(vehOnMe->AsBike()->m_aGroundPhysicalPtrs);
     default:                      return false;

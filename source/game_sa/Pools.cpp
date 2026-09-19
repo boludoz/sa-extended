@@ -224,7 +224,7 @@ bool CPools::LoadVehiclePool() {
         CStreaming::LoadAllRequestedModels(false);
 
         CVehicle* vehicle = nullptr;
-        switch (CModelInfo::GetModelInfo(modelId)->AsVehicleModelInfoPtr()->m_nVehicleType) {
+        switch (CModelInfo::GetModelInfo(modelId)->AsVehicleModelInfoPtr()->GetVehicleClass()) {
         case VEHICLE_TYPE_MTRUCK:
             vehicle = new CMonsterTruck(modelId, RANDOM_VEHICLE);
             break;

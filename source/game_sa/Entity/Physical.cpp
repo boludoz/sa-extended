@@ -272,7 +272,7 @@ void CPhysical::ProcessCollision() {
             CColPoint* wheelsColPoints = nullptr;
             float* pfWheelsSuspensionCompression = nullptr;
             CVector* wheelsCollisionPositions = nullptr;
-            if (vehicle->m_nVehicleSubType) { // todo: m_nVehicleSubType
+            if (vehicle->GetVehicleType()) { // todo: GetVehicleType()
                 bike->m_aGroundPhysicalPtrs[0] = nullptr; // todo: enum
                 bike->m_aGroundPhysicalPtrs[1] = nullptr;
                 bike->m_aGroundPhysicalPtrs[2] = nullptr;
@@ -399,7 +399,7 @@ void CPhysical::ProcessCollision() {
                     return;
                 }
                 if (GetIsTypeVehicle()) {
-                    if (vehicle->m_nVehicleType) { // todo: m_nVehicleType
+                    if (vehicle->GetBaseVehicleType()) { // todo: GetBaseVehicleType()
                         if (vehicle->IsBike()) {
                             bike->m_aWheelRatios[0] = 1.0f; // todo: enum
                             bike->m_aWheelRatios[1] = 1.0f;
@@ -1072,7 +1072,7 @@ bool CPhysical::ApplySoftCollision(CEntity* entity, const CColPoint& colPoint, f
     float fSquaredMagnitude = vecMoveDirection.SquaredMagnitude();
     float fCollisionMass = 1.0f / (fSquaredMagnitude / m_fTurnMass + 1.0f / m_fMass);
 
-    if (!GetIsTypeVehicle() || vehicle->m_nVehicleSubType // todo: m_nVehicleSubType
+    if (!GetIsTypeVehicle() || vehicle->GetVehicleType() // todo: GetVehicleType()
         || colPoint.m_nPieceTypeA < 13u || colPoint.m_nPieceTypeA > 16u)
     {
         float fDepth = SOFTCOL_DEPTH_MIN;

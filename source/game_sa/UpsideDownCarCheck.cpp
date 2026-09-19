@@ -27,7 +27,7 @@ bool CUpsideDownCarCheck::IsCarUpsideDown(int32 carHandle) {
 // 0x463830
 bool CUpsideDownCarCheck::IsCarUpsideDown(const CVehicle* vehicle) {
     const auto GetNumContactWheels = [=]() -> uint32 {
-        switch (vehicle->m_nVehicleType) {
+        switch (vehicle->GetBaseVehicleType()) {
         case eVehicleType::VEHICLE_TYPE_BIKE:       return static_cast<const CBike*>(vehicle)->m_nNoOfContactWheels;
         case eVehicleType::VEHICLE_TYPE_AUTOMOBILE: return static_cast<const CAutomobile*>(vehicle)->m_nNumContactWheels;
         default: return 0u;

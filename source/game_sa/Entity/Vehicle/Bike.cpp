@@ -80,8 +80,8 @@ void CBike::InjectHooks() {
 // 0x6BF430
 CBike::CBike(int32 modelIndex, eVehicleCreatedBy createdBy) :
     CVehicle(createdBy) {
-    auto mi = CModelInfo::GetModelInfo(modelIndex)->AsVehicleModelInfoPtr();
-    if (mi->m_nVehicleType == VEHICLE_TYPE_BIKE) {
+    auto mi = static_cast<CVehicleModelInfo*>(CModelInfo::GetModelInfo(modelIndex)->AsVehicleModelInfoPtr());
+    if (mi->GetVehicleClass() == VEHICLE_TYPE_BIKE) {
         const auto& animationStyle = CAnimManager::GetAnimBlocks()[mi->GetAnimFileIndex()].GroupId;
         m_RideAnimData.AnimGroup   = animationStyle;
         if (animationStyle < ANIM_GROUP_BIKES || animationStyle > ANIM_GROUP_WAYFARER) {
@@ -89,8 +89,8 @@ CBike::CBike(int32 modelIndex, eVehicleCreatedBy createdBy) :
         }
     }
 
-    m_nVehicleSubType = VEHICLE_TYPE_BIKE;
-    m_nVehicleType    = VEHICLE_TYPE_BIKE;
+    m_vehicleType = VEHICLE_TYPE_BIKE;
+    m_baseVehicleType = VEHICLE_TYPE_BIKE;
 
     m_BlowUpTimer     = 0.0f;
     m_nBrakesOn       = false;
@@ -998,7 +998,7 @@ void CBike::ProcessControlInputs(uint8 playerNum) {
     const float fPedal     = (float(pad->GetAccelerate()) - float(pad->GetBrake())) * (1.0f / 255.0f);
 
     if (std::abs(forwardness) < 0.01f) {
-        if (pad->GetAccelerate() > 150 && pad->GetBrake() > 150 && m_nVehicleSubType != VEHICLE_TYPE_BMX) {
+        if (pad->GetAccelerate() > 150 && pad->GetBrake() > 150 && GetVehicleType() != VEHICLE_TYPE_BMX) {
             m_GasPedal   = float(pad->GetAccelerate()) * (1.0f / 255.0f);
             m_BrakePedal = float(pad->GetBrake()) * (1.0f / 255.0f);
             m_nBrakesOn  = 1;
@@ -2918,7 +2918,7 @@ void CBike::ProcessControl() // ASM Checked 75%
             m_pFireParticle = nullptr;
         }
     } else {
-        if (m_nVehicleSubType != VEHICLE_TYPE_BMX) {
+        if (GetVehicleType() != VEHICLE_TYPE_BMX) {
             if (GetRwObject() && !m_pFireParticle) {
                 RwMatrix* pParentMat = GetModellingMatrix();
                 CVector engineOffset = GetDummyPosition(DUMMY_ENGINE);

@@ -42,8 +42,7 @@ void CPlane::InjectHooks() {
 
 // 0x6C8E20
 CPlane::CPlane(int32 modelIndex, eVehicleCreatedBy createdBy) : CAutomobile(modelIndex, createdBy, true) {
-    m_nVehicleSubType = VEHICLE_TYPE_PLANE;
-
+    m_vehicleType                  = VEHICLE_TYPE_PLANE;
     m_fLeftRightSkid               = 0.0f;
     m_fSteeringUpDown              = 0.0f;
     m_fSteeringLeftRight           = 0.0f;

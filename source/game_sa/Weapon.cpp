@@ -1211,7 +1211,7 @@ float CWeapon::EvaluateTargetForHeatSeekingMissile(CEntity* potentialTarget, con
     }
 
     if (arePlanesPriority) {
-        if (potentialTarget->GetIsTypeVehicle() && notsa::contains({ VEHICLE_TYPE_PLANE, VEHICLE_TYPE_HELI }, potentialTarget->AsVehicle()->m_nVehicleSubType)) {
+        if (potentialTarget->GetIsTypeVehicle() && notsa::contains({ VEHICLE_TYPE_PLANE, VEHICLE_TYPE_HELI }, (eVehicleType)potentialTarget->AsVehicle()->GetVehicleType())) {
             ret *= 0.25f;
         }
     }

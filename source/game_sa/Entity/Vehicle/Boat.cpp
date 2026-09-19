@@ -63,9 +63,8 @@ CBoat::CBoat(int32 modelIndex, eVehicleCreatedBy createdBy) : CVehicle(createdBy
 
     m_BoatDoor = {};
 
-    m_nVehicleType = VEHICLE_TYPE_BOAT;
-    m_nVehicleSubType = VEHICLE_TYPE_BOAT;
-
+    m_vehicleType     = VEHICLE_TYPE_BOAT;
+    m_baseVehicleType = VEHICLE_TYPE_BOAT;
     m_PadNum = 0;
     m_Scan = 0.0f;
 

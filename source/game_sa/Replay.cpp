@@ -834,7 +834,7 @@ void CReplay::RecordThisFrame() {
     auto framePacketSize = 116u;
     for (const auto& veh : GetVehiclePool()->GetAllValid()) {
         if (veh.GetRwObject()) {
-            switch (veh.m_nVehicleSubType) {
+            switch (veh.GetVehicleType()) {
             case VEHICLE_TYPE_AUTOMOBILE:
             case VEHICLE_TYPE_MTRUCK:
             case VEHICLE_TYPE_QUAD:
@@ -905,7 +905,7 @@ void CReplay::RecordThisFrame() {
 
     for (auto&& [i, veh] : GetVehiclePool()->GetAllValidWithIndex()) {
         if (veh.GetRwObject()) {
-            switch (veh.m_nVehicleSubType) {
+            switch (veh.GetVehicleType()) {
             case VEHICLE_TYPE_AUTOMOBILE:
             case VEHICLE_TYPE_MTRUCK:
             case VEHICLE_TYPE_QUAD:

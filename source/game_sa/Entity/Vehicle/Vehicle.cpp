@@ -1365,7 +1365,7 @@ void CVehicle::ProcessDelayedExplosion() {
 // NOTSA
 void CVehicle::ApplyTurnForceToOccupantOnEntry(CPed* passenger) {
     // Apply some turn force
-    switch (m_nVehicleType) {
+    switch (GetBaseVehicleType()) {
     case VEHICLE_TYPE_BIKE: {
         ApplyTurnForce(
             GetUp() * passenger->m_fMass / -50.f,
@@ -2500,7 +2500,7 @@ void CVehicle::RemoveAllUpgrades() {
 // 0x6D3AE0
 int32 CVehicle::GetSpareHasslePosId() const {
     const auto numberOfPositions = [&] {
-        switch (m_nVehicleSubType) {
+        switch (GetVehicleType()) {
         case eVehicleType::VEHICLE_TYPE_BIKE:
         case eVehicleType::VEHICLE_TYPE_BMX:
         case eVehicleType::VEHICLE_TYPE_QUAD:
@@ -2691,7 +2691,7 @@ int32 CVehicle::GetPlaneNumGuns() {
 // 0x6D4010
 void CVehicle::SetFiringRateMultiplier(float multiplier) {
     multiplier = std::clamp(multiplier, 0.0f, 15.9375f);
-    switch (m_nVehicleSubType) {
+    switch (GetVehicleType()) {
     case VEHICLE_TYPE_PLANE:
         AsPlane()->m_nFiringMultiplier = uint8(multiplier * 16.0f);
         break;
@@ -2703,7 +2703,7 @@ void CVehicle::SetFiringRateMultiplier(float multiplier) {
 
 // 0x6D4090
 float CVehicle::GetFiringRateMultiplier() {
-    switch (m_nVehicleSubType) {
+    switch (GetVehicleType()) {
     case VEHICLE_TYPE_PLANE:
         return float(AsPlane()->m_nFiringMultiplier) / 16.0f;
     case VEHICLE_TYPE_HELI:
@@ -2880,7 +2880,7 @@ void CVehicle::DoPlaneGunFireFX(CWeapon* weapon, CVector& particlePos, CVector& 
     };
 
 
-    switch (m_nVehicleSubType) {
+    switch (GetVehicleType()) {
     case VEHICLE_TYPE_PLANE: {
         DoFx(AsPlane()->m_pGunParticles);
         break;
@@ -3099,7 +3099,7 @@ bool CVehicle::CanPedLeanOut(CPed* ped) {
     case ANIM_GROUP_SILENCED:
         return false;
     default: {
-        switch (m_nVehicleSubType) {
+        switch (GetVehicleType()) {
         case VEHICLE_TYPE_HELI:
         case VEHICLE_TYPE_PLANE:
         case VEHICLE_TYPE_TRAIN:
@@ -3417,13 +3417,13 @@ void CVehicle::ProcessBikeWheel(
 #ifdef FIX_BUGS
             wheelFriction *= CTimer::GetTimeStepFix();
 #endif
-            if ( m_nVehicleSubType == eVehicleType::VEHICLE_TYPE_BMX )
+            if ( GetVehicleType() == eVehicleType::VEHICLE_TYPE_BMX )
             {
                 if ( fwd > -BRAKE_THRESHOLD && fwd < BRAKE_THRESHOLD )
                 {
                     currentTurnForce = wheelFriction * TURN_MEDIUM / (m_pHandlingData->m_fMass + 200.0f);
                 }
-            } else if ( m_nVehicleSubType == eVehicleType::VEHICLE_TYPE_BIKE )
+            } else if ( GetVehicleType() == eVehicleType::VEHICLE_TYPE_BIKE )
             {
                 currentTurnForce = wheelFriction * TURN_FAST / (m_pHandlingData->m_fMass + 200.0f);
             } 
@@ -5094,7 +5094,7 @@ bool IsValidModForVehicle(uint32 modelId, CVehicle* vehicle) {
 bool IsVehiclePointerValid(CVehicle* vehicle) {
     const auto* const pool = GetVehiclePool();
     assert(pool);
-    return pool->IsObjectValid(vehicle) && (vehicle->m_nVehicleType == VEHICLE_TYPE_FPLANE || !vehicle->m_pCollisionList.IsEmpty());
+    return pool->IsObjectValid(vehicle) && (vehicle->GetBaseVehicleType() == VEHICLE_TYPE_FPLANE || !vehicle->m_pCollisionList.IsEmpty());
 }
 
 // 0x6E3950

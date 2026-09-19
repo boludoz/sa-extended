@@ -28,7 +28,7 @@ CMonsterTruck::CMonsterTruck(int32 modelIndex, eVehicleCreatedBy createdBy) : CA
     std::ranges::fill(field_988, 1.0f);
     CMonsterTruck::SetupSuspensionLines();
     autoFlags.bIsMonsterTruck = true;
-    m_nVehicleSubType = VEHICLE_TYPE_MTRUCK;
+    m_vehicleType             = VEHICLE_TYPE_MTRUCK;
 }
 
 // 0x6C8AE0

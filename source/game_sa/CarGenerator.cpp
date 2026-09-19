@@ -175,7 +175,7 @@ void CCarGenerator::DoInternalProcessing()
         actualModelId == MODEL_SEASPAR ||
         actualModelId == MODEL_SKIMMER)
     {
-        switch (CModelInfo::GetModelInfo(actualModelId)->AsVehicleModelInfoPtr()->m_nVehicleType)
+        switch (CModelInfo::GetModelInfo(actualModelId)->AsVehicleModelInfoPtr()->GetVehicleClass())
         {
         case VEHICLE_TYPE_HELI:
             vehicle = new CHeli(actualModelId, PARKED_VEHICLE);
@@ -215,7 +215,7 @@ void CCarGenerator::DoInternalProcessing()
                 mi->SetCustomCarPlateText(plate.m_szPlateText);
         }
 
-        switch (CModelInfo::GetModelInfo(actualModelId)->AsVehicleModelInfoPtr()->m_nVehicleType)
+        switch (CModelInfo::GetModelInfo(actualModelId)->AsVehicleModelInfoPtr()->GetVehicleClass())
         {
         case VEHICLE_TYPE_MTRUCK:
             vehicle = new CMonsterTruck(actualModelId, PARKED_VEHICLE);
@@ -431,7 +431,7 @@ uint32 CCarGenerator::CalcNextGen()
 // notsa
 CVehicle* CCarGenerator::CreateVehicle(eModelID model, eVehicleCreatedBy createdBy) {
     const auto* mi = CModelInfo::GetModelInfo(model)->AsVehicleModelInfoPtr();
-    switch (const auto vt = mi->m_nVehicleType) {
+    switch (const auto vt = mi->GetVehicleClass()) {
     case VEHICLE_TYPE_AUTOMOBILE:
         return new CAutomobile{model, createdBy, true};
     case VEHICLE_TYPE_MTRUCK:

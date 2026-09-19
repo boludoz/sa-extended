@@ -497,7 +497,7 @@ void CShadows::RenderExtraPlayerShadows() {
         return;
     }
 
-    switch (plyrVeh->m_nVehicleType) {
+    switch (plyrVeh->GetBaseVehicleType()) {
     case VEHICLE_TYPE_BIKE:
     case VEHICLE_TYPE_FPLANE:
     case VEHICLE_TYPE_BOAT:

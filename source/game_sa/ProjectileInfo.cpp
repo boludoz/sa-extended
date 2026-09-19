@@ -612,7 +612,7 @@ void CProjectileInfo::Update() {
                     auto* bestVeh = bestTarget->AsVehicle();
                     auto* owner = info.m_pEntProjectileOwner;
                     if ((owner == FindPlayerPed(-1) || owner == FindPlayerVehicle(-1, false))
-                        && bestVeh->m_nVehicleType == VEHICLE_TYPE_PLANE) {
+                        && bestVeh->GetBaseVehicleType() == VEHICLE_TYPE_PLANE) {
                         bSuperMissile = true;
                     }
                 }

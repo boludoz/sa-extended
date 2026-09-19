@@ -4943,7 +4943,7 @@ void CCam::Process_FollowPedWithMouse(const CVector& ThisCamsTarget, float Targe
     }
 
     const auto playerVeh = FindPlayerVehicle();
-    const auto HackPlayerOnStoppingTrain = playerVeh && playerVeh->m_nVehicleType == VEHICLE_TYPE_TRAIN;
+    const auto HackPlayerOnStoppingTrain = playerVeh && playerVeh->GetBaseVehicleType() == VEHICLE_TYPE_TRAIN;
 
     auto vecTargetCoords = ThisCamsTarget;
     vecTargetCoords.z += fTranslateCamUp; // Look at the ped's head rather than their torso

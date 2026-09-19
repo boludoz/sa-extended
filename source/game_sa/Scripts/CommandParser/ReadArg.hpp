@@ -227,7 +227,7 @@ inline T Read(CRunningScript* S) {
         // Asserts for correct type
         if (entity) {
             if constexpr (detail::is_derived_from_but_not_v<CVehicle, EntityType>) {
-                assert(EntityType::Type == entity->m_nVehicleSubType); // check specialized type, in case of e.g. CAutomobile and one of its derived classes: CPlane, CHeli, etc
+                assert(EntityType::Type == entity->GetVehicleType()); // check specialized type, in case of e.g. CAutomobile and one of its derived classes: CPlane, CHeli, etc
             } else if constexpr (detail::is_derived_from_but_not_v<CTask, EntityType>) {
                 assert(EntityType::Type == entity->GetTaskType());
             } // TODO: Eventually add this for `CEvent` too

@@ -2824,49 +2824,55 @@ void CPed::RemoveWeaponForScriptedCutscene()
 /*!
 * @addr 0x5E65A0
 */
-void CPed::PreRenderAfterTest()
-{
-    auto* const intel = GetIntelligence();
-    if (const auto* swim = intel->GetTaskSwim()) {
+void CPed::PreRenderAfterTest() {
+    CPedIntelligence* const intel = m_pIntelligence;
+
+    CTaskSimpleSwim* swim         = intel->GetTaskSwim();
+    if (swim) {
         swim->ApplyRollAndPitch(this);
         m_pedIK.bSlopePitch = false;
-    } else if (auto* jetpack = intel->GetTaskJetPack()) {
-        jetpack->ApplyRollAndPitch(this);
-        m_pedIK.bSlopePitch = false;
+    } else {
+        CTaskSimpleJetPack* jetpack = intel->GetTaskJetPack();
+        if (jetpack) {
+            jetpack->ApplyRollAndPitch(this);
+            m_pedIK.bSlopePitch = false;
+        }
     }
 
     if (intel->GetTaskInAir()) {
         m_pedIK.bSlopePitch = false;
-    } else if (m_pedIK.bSlopePitch || !IsPlayer() && m_pedIK.m_fSlopePitch != 0.0f) {
+    } else if (m_pedIK.bSlopePitch || (!IsPlayer() && m_pedIK.m_fSlopePitch != 0.0f)) {
         m_pedIK.PitchForSlope();
     }
+
     bCalledPreRender = true;
     UpdateRpHAnim();
 
-    if (!CTimer::bSkipProcessThisFrame && m_pWeaponObject && GetPlayerData()) {
-        if (GetActiveWeapon().GetType() == eWeaponType::WEAPON_MINIGUN) {
-            if (const auto f = CClumpModelInfo::GetFrameFromName(m_pWeaponObject, "minigun2")) {
-                RwMatrixRotate(
-                    RwFrameGetMatrix(f),
-                    &CPedIK::XaxisIK,
-                    RadiansToDegrees(CTimer::GetTimeStep() * GetPlayerData()->m_fGunSpinSpeed),
-                    rwCOMBINEPRECONCAT
-                );
+    if (!CTimer::bSkipProcessThisFrame && m_pWeaponObject && m_pPlayerData) {
+        if (GetActiveWeapon().GetType() == WEAPON_MINIGUN) {
+            RwFrame* minigunFrame = CClumpModelInfo::GetFrameFromName(m_pWeaponObject, "minigun2");
+            if (minigunFrame) {
+                const float spinAngle = (CTimer::GetTimeStep() * m_pPlayerData->m_fGunSpinSpeed) * 57.295776f;
+                RwMatrixRotate(RwFrameGetMatrix(minigunFrame), &CPedIK::XaxisIK, spinAngle, rwCOMBINEPRECONCAT);
             }
         }
     }
 
     if (GetIsVisible() && CTimeCycle::GetShadowStrength()) {
-        const auto [shadowNeeded, activeTask] = [&]() -> std::pair<bool, CTask*> {
-            if (!bInVehicle) {
-                return std::make_pair(false, intel->GetTaskManager().FindActiveTaskByType(TASK_COMPLEX_ENTER_ANY_CAR_AS_DRIVER));
+        bool   shadowNeeded = false;
+        CTask* enterCarTask = nullptr;
+
+        if (bInVehicle) {
+            CTaskManager& taskMgr = intel->GetTaskManager();
+            if (taskMgr.FindActiveTaskByType(TASK_COMPLEX_LEAVE_CAR) || taskMgr.FindActiveTaskByType(TASK_COMPLEX_DRAG_PED_FROM_CAR)) {
+                shadowNeeded = true;
             }
+        } else {
+            enterCarTask = intel->GetTaskManager().FindActiveTaskByType(TASK_COMPLEX_ENTER_ANY_CAR_AS_DRIVER);
+        }
 
-            return std::make_pair(intel->GetTaskManager().FindActiveTaskFromList({ TASK_COMPLEX_LEAVE_CAR, TASK_COMPLEX_DRAG_PED_FROM_CAR }) != nullptr, nullptr);
-        }();
-
-        // Low quality circle below feet shadow
-        const auto DrawDummyShadow = [&] {
+        const int32 fxQuality = g_fx.GetFxQuality();
+        if (fxQuality != FX_QUALITY_VERY_HIGH && (fxQuality != FX_QUALITY_HIGH || !IsPlayer())) {
             if (!m_pShadowData && (!bInVehicle || shadowNeeded)) {
                 CShadows::StoreShadowForPedObject(
                     this,
@@ -2878,131 +2884,162 @@ void CPed::PreRenderAfterTest()
                     CTimeCycle::m_fShadowSideY[CTimeCycle::m_CurrentStoredValue]
                 );
             }
-        };
+        } else {
+            CVector     rootBonePos = GetBonePosition(BONE_ROOT);
+            const float camDistX    = rootBonePos.x - TheCamera.GetPosition().x;
+            const float camDistY    = rootBonePos.y - TheCamera.GetPosition().y;
 
-        // FIX_BUGS: Original check was only for 1st player in high FX quality.
-        if (g_fx.GetFxQuality() != FX_QUALITY_VERY_HIGH && (g_fx.GetFxQuality() != FX_QUALITY_HIGH || !IsPlayer())) {
-            DrawDummyShadow();
-        } else if (const auto b = GetBonePosition(eBoneTag::BONE_ROOT); DistanceBetweenPoints2D(b, TheCamera.GetPosition2D()) <= MAX_DISTANCE_PED_SHADOWS_SQR) {
-            const auto IsVehicleRTShadable = [](eVehicleType t) {
-                switch (t) {
-                case VEHICLE_TYPE_BMX:
-                case VEHICLE_TYPE_BIKE:
-                case VEHICLE_TYPE_QUAD:
-                    return true;
-                default:
-                    return false;
-                }
-            };
+            if ((camDistX * camDistX + camDistY * camDistY) <= 100.0f) { // MAX_DISTANCE_PED_SHADOWS_SQR (10.0f * 10.0f)
+                if (!physicalFlags.bSubmergedInWater) {
+                    bool drawRealTimeShadow = true;
 
-            auto drawRealTimeShadow = true;
-            if (!physicalFlags.bSubmergedInWater) {
-                if (const auto* veh = GetVehicleIfInOne()) {
-                    drawRealTimeShadow = IsVehicleRTShadable(veh->m_nVehicleSubType);
-                }
-
-                if (activeTask) {
-                    drawRealTimeShadow = false;
-                    if (const auto* targetVeh = notsa::cast<CTaskComplexEnterCarAsDriver>(activeTask)->GetTargetCar()) {
-                        drawRealTimeShadow = IsVehicleRTShadable(targetVeh->m_nVehicleSubType);
+                    if (bInVehicle && m_pVehicle) {
+                        const int32 vehType = m_pVehicle->GetVehicleType();
+                        if (vehType != VEHICLE_TYPE_BMX && vehType != VEHICLE_TYPE_BIKE && vehType != VEHICLE_TYPE_QUAD) {
+                            drawRealTimeShadow = false;
+                        }
                     }
-                }
 
-                if (const auto bsp = GetBonePosition(eBoneTag::BONE_SPINE1); IsAlive() && GetPosition().z - 0.2f > bsp.z) {
-                    drawRealTimeShadow = bIsDucking;
-                }
+                    if (enterCarTask) {
+                        drawRealTimeShadow  = false;
+                        CVehicle* targetVeh = ((CTaskComplexEnterCarAsDriver*)enterCarTask)->GetTargetCar();
+                        if (targetVeh) {
+                            const int32 vehType = targetVeh->GetVehicleType();
+                            if (vehType == VEHICLE_TYPE_BMX || vehType == VEHICLE_TYPE_BIKE || vehType == VEHICLE_TYPE_QUAD) {
+                                drawRealTimeShadow = true;
+                            }
+                        }
+                    }
 
-                if (drawRealTimeShadow) {
-                    g_realTimeShadowMan.DoShadowThisFrame(this);
-                    DrawDummyShadow();
+                    if (IsAlive()) {
+                        CVector spinePos = GetBonePosition(BONE_SPINE1);
+                        if (GetPosition().z - 0.2f > spinePos.z) {
+                            drawRealTimeShadow = bIsDucking;
+                        }
+                    }
+
+                    if (drawRealTimeShadow) {
+                        g_realTimeShadowMan.DoShadowThisFrame(this);
+                        if (!m_pShadowData && (!bInVehicle || shadowNeeded)) {
+                            CShadows::StoreShadowForPedObject(
+                                this,
+                                CTimeCycle::m_fShadowDisplacementX[CTimeCycle::m_CurrentStoredValue],
+                                CTimeCycle::m_fShadowDisplacementY[CTimeCycle::m_CurrentStoredValue],
+                                CTimeCycle::m_fShadowFrontX[CTimeCycle::m_CurrentStoredValue],
+                                CTimeCycle::m_fShadowFrontY[CTimeCycle::m_CurrentStoredValue],
+                                CTimeCycle::m_fShadowSideX[CTimeCycle::m_CurrentStoredValue],
+                                CTimeCycle::m_fShadowSideY[CTimeCycle::m_CurrentStoredValue]
+                            );
+                        }
+                    }
                 }
             }
         }
     }
 
-    if (GetModelId() == MODEL_PLAYER) {
-        ShoulderBoneRotation(GetRpClump());
+    if (m_nModelIndex == MODEL_PLAYER) {
+        ShoulderBoneRotation((RpClump*)m_pRwObject);
         m_bDontUpdateHierarchy = true;
     }
-    float windMod{};
-    const auto rainAffectsPlayer = IsPlayer() && CWindModifiers::FindWindModifier(GetPosition(), &windMod, &windMod) && !CCullZones::PlayerNoRain();
-    const auto drivingOpenTopVeh = IsStateDriving() && IsInVehicle() && (m_pVehicle->IsBike() || m_pVehicle->IsAutomobile() && m_pVehicle->IsOpenTopCar());
 
-    const auto GetHierMatrix = [h = GetAnimHierarchyFromSkinClump(GetRpClump())](AnimationId id) {
-        return &RpHAnimHierarchyGetMatrixArray(h)[RpHAnimIDGetIndex(h, id)];
-    };
+    float      windMod           = 0.0f;
+    const bool rainAffectsPlayer = IsPlayer() && CWindModifiers::FindWindModifier(GetPosition(), &windMod, &windMod) && !CCullZones::PlayerNoRain();
+    const bool drivingOpenTopVeh = (m_nPedState == PEDSTATE_DRIVING) && bInVehicle && m_pVehicle && (m_pVehicle->IsBike() || (m_pVehicle->IsAutomobile() && m_pVehicle->IsOpenTopCar()));
 
-    if (!GetPlayerData() || !GetPlayerData()->m_pPedClothesDesc->IsWearingModel("vest") && !GetPlayerData()->m_pPedClothesDesc->IsWearingModel("torso")) {
+    RpHAnimHierarchy* hier       = GetAnimHierarchyFromSkinClump((RpClump*)m_pRwObject);
+    RwMatrix*         matrices   = RpHAnimHierarchyGetMatrixArray(hier);
+
+    bool hasClothesBlockingWind  = false;
+    if (m_pPlayerData && m_pPlayerData->m_pPedClothesDesc) {
+        if (m_pPlayerData->m_pPedClothesDesc->IsWearingModel("vest") || m_pPlayerData->m_pPedClothesDesc->IsWearingModel("torso")) {
+            hasClothesBlockingWind = true;
+        }
+    }
+
+    if (!m_pPlayerData || !hasClothesBlockingWind) {
         if (rainAffectsPlayer || drivingOpenTopVeh) {
-            float vehSpeed = drivingOpenTopVeh ? m_pVehicle->GetMoveSpeed().Magnitude() : 0.0f;
+            float vehSpeed = 0.0f;
+            if (drivingOpenTopVeh) {
+                vehSpeed = m_pVehicle->m_vecMoveSpeed.Magnitude();
+            }
 
             if (rainAffectsPlayer) {
-                vehSpeed = std::max(vehSpeed, std::abs(windMod - 1.0f));
+                const float windDelta = std::abs(windMod - 1.0f);
+                if (windDelta > vehSpeed) {
+                    vehSpeed = windDelta;
+                }
             }
 
-            static constexpr float flt_8D1378 = 0.2f, flt_8D1380 = 0.2f;
-            static constexpr float flt_8D137C = 0.1f;
+            // ANIM_ID_ROADCROSS (Bone 0.2f * vehSpeed)
+            float   rRange = 0.2f * vehSpeed;
+            CVector scale;
+            scale.x = CGeneral::GetRandomNumberInRange(1.0f - rRange, 1.0f + rRange);
+            scale.y = CGeneral::GetRandomNumberInRange(1.0f - rRange, 1.0f + rRange);
+            scale.z = CGeneral::GetRandomNumberInRange(1.0f - rRange, 1.0f + rRange);
+            RwMatrixScale(&matrices[RpHAnimIDGetIndex(hier, ANIM_ID_ROADCROSS)], &scale, rwCOMBINEPRECONCAT);
 
-            const auto ScaleAnimHierMat = [GetHierMatrix](float range, AnimationId id) {
-                const CVector scale{
-                    CGeneral::GetRandomNumberInRange(1.0f - range, 1.0f + range),
-                    CGeneral::GetRandomNumberInRange(1.0f - range, 1.0f + range),
-                    CGeneral::GetRandomNumberInRange(1.0f - range, 1.0f + range),
-                };
-                RwMatrixScale(GetHierMatrix(id), &scale, rwCOMBINEPRECONCAT);
-                return scale;
-            };
+            // ANIM_ID_SHOT_RIGHTP (Bone 0.1f * vehSpeed)
+            rRange  = 0.1f * vehSpeed;
+            scale.x = CGeneral::GetRandomNumberInRange(1.0f - rRange, 1.0f + rRange);
+            scale.y = CGeneral::GetRandomNumberInRange(1.0f - rRange, 1.0f + rRange);
+            scale.z = CGeneral::GetRandomNumberInRange(1.0f - rRange, 1.0f + rRange);
+            RwMatrixScale(&matrices[RpHAnimIDGetIndex(hier, ANIM_ID_SHOT_RIGHTP)], &scale, rwCOMBINEPRECONCAT);
+            RwMatrixScale(&matrices[RpHAnimIDGetIndex(hier, ANIM_ID_GAS_CWR)], &scale, rwCOMBINEPRECONCAT);
 
-            ScaleAnimHierMat(flt_8D1378 * vehSpeed, ANIM_ID_ROADCROSS);
-            auto scale = ScaleAnimHierMat(flt_8D137C * vehSpeed, ANIM_ID_SHOT_RIGHTP);
-            RwMatrixScale(GetHierMatrix(ANIM_ID_GAS_CWR), &scale, rwCOMBINEPRECONCAT);
             if (drivingOpenTopVeh || !intel->GetTaskJetPack()) {
-                RwMatrixScale(GetHierMatrix(ANIM_ID_IDLE), &scale, rwCOMBINEPRECONCAT);
+                RwMatrixScale(&matrices[RpHAnimIDGetIndex(hier, ANIM_ID_IDLE)], &scale, rwCOMBINEPRECONCAT);
             }
-            scale = ScaleAnimHierMat(flt_8D1380 * vehSpeed, ANIM_ID_HIT_FRONT);
-            RwMatrixScale(GetHierMatrix(ANIM_ID_KD_LEFT), &scale, rwCOMBINEPRECONCAT);
+
+            // ANIM_ID_HIT_FRONT (Bone 0.2f * vehSpeed)
+            rRange  = 0.2f * vehSpeed;
+            scale.x = CGeneral::GetRandomNumberInRange(1.0f - rRange, 1.0f + rRange);
+            scale.y = CGeneral::GetRandomNumberInRange(1.0f - rRange, 1.0f + rRange);
+            scale.z = CGeneral::GetRandomNumberInRange(1.0f - rRange, 1.0f + rRange);
+            RwMatrixScale(&matrices[RpHAnimIDGetIndex(hier, ANIM_ID_HIT_FRONT)], &scale, rwCOMBINEPRECONCAT);
+            RwMatrixScale(&matrices[RpHAnimIDGetIndex(hier, ANIM_ID_KD_LEFT)], &scale, rwCOMBINEPRECONCAT);
         }
     }
 
     if (bIsTalking && m_nBodypartToRemove == 2) {
-        const CVector scale{};
-        RwMatrixScale(GetHierMatrix(ANIM_ID_WALK_START), &scale, rwCOMBINEPRECONCAT);
-        RwMatrixScale(GetHierMatrix(ANIM_ID_IDLE_HBHB_0), &scale, rwCOMBINEPRECONCAT);
-        RwMatrixScale(GetHierMatrix(ANIM_ID_RUN_STOP), &scale, rwCOMBINEPRECONCAT);
-        RwMatrixScale(GetHierMatrix(ANIM_ID_RUN_STOPR), &scale, rwCOMBINEPRECONCAT);
+        CVector scaleZero = { 0.0f, 0.0f, 0.0f };
+        RwMatrixScale(&matrices[RpHAnimIDGetIndex(hier, ANIM_ID_WALK_START)], &scaleZero, rwCOMBINEPRECONCAT);
+        RwMatrixScale(&matrices[RpHAnimIDGetIndex(hier, ANIM_ID_IDLE_HBHB_0)], &scaleZero, rwCOMBINEPRECONCAT);
+        RwMatrixScale(&matrices[RpHAnimIDGetIndex(hier, ANIM_ID_RUN_STOP)], &scaleZero, rwCOMBINEPRECONCAT);
+        RwMatrixScale(&matrices[RpHAnimIDGetIndex(hier, ANIM_ID_RUN_STOPR)], &scaleZero, rwCOMBINEPRECONCAT);
     }
 
     if (m_Wobble > 0.0f) {
-        static constexpr float WOBBLE_FACTOR = 5.0f; // 0x8D21F0
-
-        const auto angle = std::sin(m_Wobble) * -WOBBLE_FACTOR;
+        const float angle = std::sin(m_Wobble) * -5.0f;
         m_Wobble -= CTimer::GetTimeStep() * m_WobbleSpeed;
 
         if (IsPlayer()) {
-            RwMatrixRotate(GetHierMatrix(ANIM_ID_SMKCIG_PRTL_F), &CPedIK::ZaxisIK, angle, rwCOMBINEPRECONCAT);
-            RwMatrixRotate(GetHierMatrix(ANIM_ID_DRNKBR_PRTL_F), &CPedIK::ZaxisIK, angle, rwCOMBINEPRECONCAT);
+            RwMatrixRotate(&matrices[RpHAnimIDGetIndex(hier, ANIM_ID_SMKCIG_PRTL_F)], &CPedIK::ZaxisIK, angle, rwCOMBINEPRECONCAT);
+            RwMatrixRotate(&matrices[RpHAnimIDGetIndex(hier, ANIM_ID_DRNKBR_PRTL_F)], &CPedIK::ZaxisIK, angle, rwCOMBINEPRECONCAT);
         }
-        RwMatrixRotate(GetHierMatrix(ANIM_ID_BIKE_HIT), &CPedIK::ZaxisIK, angle, rwCOMBINEPRECONCAT);
+        RwMatrixRotate(&matrices[RpHAnimIDGetIndex(hier, ANIM_ID_BIKE_HIT)], &CPedIK::ZaxisIK, angle, rwCOMBINEPRECONCAT);
     }
 
     if (CWeather::Earthquake > 0.0f) {
-        const auto swing = CGeneral::GetRandomNumberInRange(-CWeather::Earthquake, CWeather::Earthquake);
+        const float swing = CGeneral::GetRandomNumberInRange(-CWeather::Earthquake, CWeather::Earthquake);
 
-        RwMatrixRotate(GetHierMatrix(ANIM_ID_FIGHTSH_LEFT), &CPedIK::ZaxisIK, swing, rwCOMBINEPOSTCONCAT);
-        RwMatrixRotate(GetHierMatrix(ANIM_ID_GUNMOVE_BWD), &CPedIK::ZaxisIK, swing, rwCOMBINEPOSTCONCAT);
-        RwMatrixRotate(GetHierMatrix(ANIM_ID_HIT_L), &CPedIK::ZaxisIK, swing, rwCOMBINEPOSTCONCAT);
-        RwMatrixRotate(GetHierMatrix(ANIM_ID_KD_RIGHT), &CPedIK::ZaxisIK, swing, rwCOMBINEPOSTCONCAT);
-        RwMatrixRotate(GetHierMatrix(ANIM_ID_HIT_FRONT), &CPedIK::ZaxisIK, swing, rwCOMBINEPOSTCONCAT);
-        RwMatrixRotate(GetHierMatrix(ANIM_ID_KD_LEFT), &CPedIK::ZaxisIK, swing, rwCOMBINEPOSTCONCAT);
-        RwMatrixRotate(GetHierMatrix(ANIM_ID_FIGHTSH_BWD), &CPedIK::ZaxisIK, swing, rwCOMBINEPOSTCONCAT);
-        RwMatrixRotate(GetHierMatrix(ANIM_ID_GUNMOVE_R), &CPedIK::ZaxisIK, swing, rwCOMBINEPOSTCONCAT);
-        RwMatrixRotate(GetHierMatrix(ANIM_ID_HIT_BACK), &CPedIK::ZaxisIK, swing, rwCOMBINEPOSTCONCAT);
-        RwMatrixRotate(GetHierMatrix(ANIM_ID_KO_SKID_FRONT), &CPedIK::ZaxisIK, swing, rwCOMBINEPOSTCONCAT);
-        RwMatrixRotate(GetHierMatrix(ANIM_ID_WALK_START), &CPedIK::ZaxisIK, swing, rwCOMBINEPOSTCONCAT);
+        RwMatrixRotate(&matrices[RpHAnimIDGetIndex(hier, ANIM_ID_FIGHTSH_LEFT)], &CPedIK::ZaxisIK, swing, rwCOMBINEPOSTCONCAT);
+        RwMatrixRotate(&matrices[RpHAnimIDGetIndex(hier, ANIM_ID_GUNMOVE_BWD)], &CPedIK::ZaxisIK, swing, rwCOMBINEPOSTCONCAT);
+        RwMatrixRotate(&matrices[RpHAnimIDGetIndex(hier, ANIM_ID_HIT_L)], &CPedIK::ZaxisIK, swing, rwCOMBINEPOSTCONCAT);
+        RwMatrixRotate(&matrices[RpHAnimIDGetIndex(hier, ANIM_ID_KD_RIGHT)], &CPedIK::ZaxisIK, swing, rwCOMBINEPOSTCONCAT);
+        RwMatrixRotate(&matrices[RpHAnimIDGetIndex(hier, ANIM_ID_HIT_FRONT)], &CPedIK::ZaxisIK, swing, rwCOMBINEPOSTCONCAT);
+        RwMatrixRotate(&matrices[RpHAnimIDGetIndex(hier, ANIM_ID_KD_LEFT)], &CPedIK::ZaxisIK, swing, rwCOMBINEPOSTCONCAT);
+        RwMatrixRotate(&matrices[RpHAnimIDGetIndex(hier, ANIM_ID_FIGHTSH_BWD)], &CPedIK::ZaxisIK, swing, rwCOMBINEPOSTCONCAT);
+        RwMatrixRotate(&matrices[RpHAnimIDGetIndex(hier, ANIM_ID_GUNMOVE_R)], &CPedIK::ZaxisIK, swing, rwCOMBINEPOSTCONCAT);
+        RwMatrixRotate(&matrices[RpHAnimIDGetIndex(hier, ANIM_ID_HIT_BACK)], &CPedIK::ZaxisIK, swing, rwCOMBINEPOSTCONCAT);
+        RwMatrixRotate(&matrices[RpHAnimIDGetIndex(hier, ANIM_ID_KO_SKID_FRONT)], &CPedIK::ZaxisIK, swing, rwCOMBINEPOSTCONCAT);
+        RwMatrixRotate(&matrices[RpHAnimIDGetIndex(hier, ANIM_ID_WALK_START)], &CPedIK::ZaxisIK, swing, rwCOMBINEPOSTCONCAT);
     }
 
-    if (bIsTalking && m_nBodypartToRemove == 2 && !IsStateDead() && !bIsDyingStuck && CTimer::GetFrameCounter() % 8 > 3) {
-        g_fx.AddBlood(GetHierMatrix(ANIM_ID_WALK_START)->pos, 0.6f * GetUp(), 16, m_fContactSurfaceBrightness);
+    if (bIsTalking && m_nBodypartToRemove == 2 && m_nPedState != PEDSTATE_DEAD && !bIsDyingStuck && (CTimer::GetFrameCounter() % 8) > 3) {
+        RwMatrix* neckMat  = &matrices[RpHAnimIDGetIndex(hier, ANIM_ID_WALK_START)];
+        CVector   bloodPos = { neckMat->pos.x, neckMat->pos.y, neckMat->pos.z };
+        CVector   bloodDir = GetUp() * 0.6f;
+        g_fx.AddBlood(bloodPos, bloodDir, 16, m_fContactSurfaceBrightness);
     }
 
     if (CWeather::Rain > 0.3f
@@ -3010,41 +3047,56 @@ void CPed::PreRenderAfterTest()
         && !bInVehicle
         && CGame::CanSeeOutSideFromCurrArea()
         && GetPosition().z < 900.0f
-        && !CCullZones::CamNoRain()
-    ) {
-        if (DistanceBetweenPoints(TheCamera.GetPosition(), GetPosition()) < 25.0f) {
-            auto* const pedModelInfo = GetModelInfo()->AsPedModelInfoPtr();
-            pedModelInfo->AnimatePedColModelSkinnedWorld(GetRpClump());
+        && !CCullZones::CamNoRain()) {
+        CVector camDist = TheCamera.GetPosition() - GetPosition();
+        if (camDist.SquaredMagnitude() < 625.0f) { // 25.0f * 25.0f
+            CPedModelInfo* pedModelInfo = (CPedModelInfo*)CModelInfo::GetModelInfo(m_nModelIndex);
+            pedModelInfo->AnimatePedColModelSkinnedWorld((RpClump*)m_pRwObject);
 
-            if (const auto& s = FindPlayerSpeed(); std::abs(s.x) <= 0.05f
-                && std::abs(s.y) <= 0.05f
-                && !IsStateDying()
-                && !notsa::contains({ PEDSTATE_FALL, PEDSTATE_ATTACK, PEDSTATE_FIGHT }, m_nPedState)
+            const CVector playerSpeed = FindPlayerSpeed();
+            if (std::abs(playerSpeed.x) <= 0.05f
+                && std::abs(playerSpeed.y) <= 0.05f
+                && m_nPedState != PEDSTATE_DIE
+                && m_nPedState != PEDSTATE_DEAD
+                && m_nPedState != PEDSTATE_FALL
+                && m_nPedState != PEDSTATE_ATTACK
+                && m_nPedState != PEDSTATE_FIGHT
                 && IsPedHeadAbovePos(0.3f)
-                && !RpAnimBlendClumpGetAssociation(GetRpClump(), ANIM_ID_IDLE_TIRED)
-            ) {
+                && !RpAnimBlendClumpGetAssociation((RpClump*)m_pRwObject, ANIM_ID_IDLE_TIRED)) {
                 const auto* colData = pedModelInfo->GetColModel()->GetData();
-                for (const auto& sphere : colData->GetSpheres()) {
-                    if (notsa::contains(std::initializer_list<uint8>{ 5, 6, 9 }, sphere.m_Surface.m_nPiece)) {
-                        g_fx.m_Splash->AddParticle(sphere.m_vecCenter + CVector::Random({ -0.08f, -0.08f, -0.08f }, { 0.08f, 0.08f, 0.02f }), s * 50.0f, 0.0f, FxPrtMult_c{ 1.0f, 1.0f, 1.0f, 0.35f, 0.01f, 0.0f, 0.03f });
+                for (int32 i = 0; i < colData->m_nNumSpheres; ++i) {
+                    const uint8 pieceType = colData->m_pSpheres[i].m_Surface.m_nPiece;
+                    if (pieceType == 5 || pieceType == 6 || pieceType == 9) {
+                        CVector randOffset;
+                        randOffset.x        = CGeneral::GetRandomNumberInRange(-0.08f, 0.08f);
+                        randOffset.y        = CGeneral::GetRandomNumberInRange(-0.08f, 0.08f);
+                        randOffset.z        = CGeneral::GetRandomNumberInRange(-0.08f, 0.02f);
+
+                        CVector particlePos = colData->m_pSpheres[i].m_vecCenter + randOffset;
+                        CVector particleVel = playerSpeed * 50.0f;
+
+                        FxPrtMult_c prtMult(1.0f, 1.0f, 1.0f, 0.35f, 0.01f, 0.0f, 0.03f);
+                        g_fx.m_Splash->AddParticle(particlePos, particleVel, 0.0f, prtMult);
                     }
                 }
             }
         }
     }
 
-    if (GetPlayerData() && GetPlayerData()->m_nWetness && GetPlayerData()->m_nWaterCoverPerc < 30u) {
-        FxPrtMult_c p{1.0f, 1.0f, 1.0f, 0.2f, 0.15f, 0.0f, 0.1f};
+    if (m_pPlayerData && m_pPlayerData->m_nWetness && m_pPlayerData->m_nWaterCoverPerc < 30) {
+        FxPrtMult_c prtMult(1.0f, 1.0f, 1.0f, 0.2f, 0.15f, 0.0f, 0.1f);
         CVector     pos = GetPosition();
         pos.x += CGeneral::GetRandomNumberInRange(-0.03f, 0.03f);
         pos.y += CGeneral::GetRandomNumberInRange(-0.03f, 0.03f);
         pos.z += CGeneral::GetRandomNumberInRange(-0.8f, 0.2f);
-        p.m_Color.alpha *= (float)GetPlayerData()->m_nWetness / 100.0f;
-        g_fx.m_WaterSplash->AddParticle(pos, {}, 0.0f, p);
+        prtMult.m_Color.alpha *= ((float)m_pPlayerData->m_nWetness / 100.0f);
+
+        CVector zeroVel = { 0.0f, 0.0f, 0.0f };
+        g_fx.m_WaterSplash->AddParticle(pos, zeroVel, 0.0f, prtMult);
     }
 
-    if (const auto* veh = GetVehicleIfInOne()) {
-        m_fContactSurfaceBrightness = veh->m_fContactSurfaceBrightness;
+    if (bInVehicle && m_pVehicle) {
+        m_fContactSurfaceBrightness = m_pVehicle->m_fContactSurfaceBrightness;
     }
 }
 

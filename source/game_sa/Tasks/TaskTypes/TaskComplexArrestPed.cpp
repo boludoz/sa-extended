@@ -268,7 +268,7 @@ CTask* CTaskComplexArrestPed::ControlSubTask(CPed* ped) {
                     }
                 } else if (m_PedToArrest->bInVehicle && m_PedToArrest->m_pVehicle) {
                     CVehicle* const veh = m_PedToArrest->m_pVehicle;
-                    if (veh->GetVehicleType() == VEHICLE_TYPE_BOAT || veh->GetVehicleType() == VEHICLE_TYPE_PLANE || veh->GetVehicleType() == VEHICLE_TYPE_HELI) {
+                    if (veh->GetBaseVehicleType() == VEHICLE_TYPE_BOAT || veh->GetVehicleType() == VEHICLE_TYPE_PLANE || veh->GetVehicleType() == VEHICLE_TYPE_HELI) {
                         if (ped->GetActiveWeapon().IsTypeMelee()) {
                             if (ped->DoWeHaveWeaponAvailable(WEAPON_SHOTGUN)) {
                                 ped->SetCurrentWeapon(WEAPON_SHOTGUN);
@@ -287,7 +287,7 @@ CTask* CTaskComplexArrestPed::ControlSubTask(CPed* ped) {
 
                         if (taskId != TASK_COMPLEX_DESTROY_CAR) {
                             if (this->m_Vehicle != veh && !m_PedToArrest->GetTaskManager().FindActiveTaskByType(TASK_COMPLEX_LEAVE_CAR)) {
-                                if (veh->GetVehicleType() == VEHICLE_TYPE_BIKE || veh->GetVehicleType() == VEHICLE_TYPE_QUAD) {
+                                if (veh->GetBaseVehicleType() == VEHICLE_TYPE_BIKE || veh->GetVehicleType() == VEHICLE_TYPE_QUAD) {
                                     taskId = TASK_COMPLEX_DRAG_PED_FROM_CAR;
                                 } else if (!veh->IsUpsideDown() && !veh->IsOnItsSide()) {
                                     taskId = TASK_COMPLEX_CAR_OPEN_DRIVER_DOOR;

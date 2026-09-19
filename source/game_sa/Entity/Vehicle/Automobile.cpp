@@ -161,8 +161,7 @@ CAutomobile::CAutomobile(int32 modelIndex, eVehicleCreatedBy createdBy, bool set
     CVehicle(createdBy),
     m_damageManager{ 0.5f }
 {
-    m_nVehicleType    = VEHICLE_TYPE_AUTOMOBILE;
-    m_nVehicleSubType = VEHICLE_TYPE_AUTOMOBILE;
+    m_baseVehicleType = m_vehicleType = VEHICLE_TYPE_AUTOMOBILE;
 
     m_fBurnTimer    = 0.0f;
     m_bDoingBurnout = false;
@@ -2555,7 +2554,7 @@ void CAutomobile::SetupSuspensionLines() {
         CVector posn;
         mi->GetWheelPosn((int32)i, posn, false);
 
-        if (m_nVehicleType == VEHICLE_TYPE_QUAD) {
+        if (GetBaseVehicleType() == VEHICLE_TYPE_QUAD) {
             if (posn.x > 0.0f) {
                 posn.x += 0.15f;
             } else {
@@ -4894,7 +4893,7 @@ void CAutomobile::ProcessCarOnFireAndExplode(bool bExplodeImmediately) {
     };
 
     if (m_fHealth < 250.f && GetStatus() != STATUS_WRECKED && !vehicleFlags.bIsDrowning) {
-        const auto isSubPlaneOrHeli = notsa::contains({ VEHICLE_TYPE_PLANE, VEHICLE_TYPE_HELI }, m_nVehicleSubType);
+        const auto isSubPlaneOrHeli = notsa::contains({ VEHICLE_TYPE_PLANE, VEHICLE_TYPE_HELI }, (eVehicleType)GetVehicleType());
 
         auto partFxToUse = !m_pFireParticle && !isSubPlaneOrHeli ? 1 : 0;
 
@@ -6137,7 +6136,7 @@ void CAutomobile::DoHeliDustEffect(float timeConstMult, float fxMaxZMult) {
         return;
     }
 
-    switch (m_nVehicleSubType) {
+    switch (GetVehicleType()) {
     case eVehicleType::VEHICLE_TYPE_HELI: {
         if (m_fHeliRotorSpeed < 0.1125f) {
             KillDustFx();
@@ -6709,7 +6708,7 @@ void CAutomobile::PreRender() {
     CColModel* colModel = GetColModel();
     CCollisionData* pColData = colModel ? colModel->m_pColData : nullptr;
 
-    if (vehicleFlags.bVehicleColProcessed && m_nVehicleSubType != VEHICLE_TYPE_MTRUCK && pColData) {
+    if (vehicleFlags.bVehicleColProcessed && GetVehicleType() != VEHICLE_TYPE_MTRUCK && pColData) {
         DoBurstAndSoftGroundRatios();
 
         for (auto i = 0; i < 4; i++) {
@@ -7011,7 +7010,7 @@ void CAutomobile::PreRender() {
     }
 
     if (!(this == FindPlayerVehicle() && TheCamera.GetLookingForwardFirstPerson())) {
-        if (vehicleFlags.bIsRCVehicle && m_nVehicleType != VEHICLE_TYPE_AUTOMOBILE) {
+        if (vehicleFlags.bIsRCVehicle && GetBaseVehicleType() != VEHICLE_TYPE_AUTOMOBILE) {
             CShadows::StoreShadowForVehicle(this, VEH_SHD_RC);
         } else {
             CShadows::StoreShadowForVehicle(this, VEH_SHD_CAR);
@@ -7254,7 +7253,7 @@ void CAutomobile::PreRender() {
         break;
     }
 
-    if (m_nModelIndex == MODEL_SANDKING || (handlingFlags.bHydraulicGeom && handlingFlags.bHydraulicInst && m_nVehicleType == VEHICLE_TYPE_AUTOMOBILE)) {
+    if (m_nModelIndex == MODEL_SANDKING || (handlingFlags.bHydraulicGeom && handlingFlags.bHydraulicInst && GetBaseVehicleType() == VEHICLE_TYPE_AUTOMOBILE)) {
         CVector posn;
         pModelInfo->GetWheelPosn(0, posn, false);
         SetTransmissionRotation(m_aCarNodes[CAR_MISC_A], m_wheelPosition[CAR_WHEEL_FRONT_LEFT], m_wheelPosition[CAR_WHEEL_FRONT_RIGHT], posn, true);

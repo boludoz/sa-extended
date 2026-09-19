@@ -47,7 +47,7 @@ public:
         eEntityStatus m_nStatus : 5; // Mask: & 0xF8 = 248 (Remember: In the original code unless this was left shifted the value it's compared to has to be left shifted by 3!)
     };
 
-private:
+//private:
     RwObject* m_pRwObject; // Use `GetRwObject`/`GetRpClump`/`GetRpAtomic` to access
 
 public:

@@ -516,7 +516,7 @@ bool CGameLogic::SkipCanBeActivated() {
         return false;
 
     if (auto vehicle = FindPlayerVehicle()) {
-        switch (vehicle->m_nVehicleSubType) {
+        switch (vehicle->GetVehicleType()) {
         case VEHICLE_TYPE_BIKE:
         case VEHICLE_TYPE_AUTOMOBILE:
         case VEHICLE_TYPE_MTRUCK:

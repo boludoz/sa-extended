@@ -77,9 +77,7 @@ CTrain::CTrain(int32 modelIndex, eVehicleCreatedBy createdBy) : CVehicle(created
     plugin::CallMethod<0x6F6030, CTrain*, int32, eVehicleCreatedBy>(this, modelIndex, createdBy);
     return;
 
-    m_nVehicleSubType = VEHICLE_TYPE_TRAIN;
-    m_nVehicleType = VEHICLE_TYPE_TRAIN;
-
+    m_baseVehicleType = m_vehicleType = VEHICLE_TYPE_TRAIN;
     const auto mi = CModelInfo::GetModelInfo(modelIndex)->AsVehicleModelInfoPtr();
     m_pHandlingData = gHandlingDataMgr.GetVehiclePointer(mi->m_nHandlingId);
     m_nHandlingFlagsIntValue = m_pHandlingData->m_nHandlingFlags;

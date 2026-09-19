@@ -1841,7 +1841,7 @@ int32 CFileLoader::LoadVehicleObject(const char* line) {
     mi->m_nFlags = flags;
     mi->m_extraComps = vehComps;
 
-    mi->m_nVehicleType = notsa::find_value(
+    mi->m_vehicleType = notsa::find_value(
         notsa::make_mapping<std::string_view, eVehicleType>({
             { "car",     VEHICLE_TYPE_AUTOMOBILE },
             { "mtruck",  VEHICLE_TYPE_MTRUCK     },
@@ -1859,7 +1859,7 @@ int32 CFileLoader::LoadVehicleObject(const char* line) {
         type
     );
 
-    switch (mi->m_nVehicleType) {
+    switch (mi->m_vehicleType) {
     case VEHICLE_TYPE_AUTOMOBILE:
     case VEHICLE_TYPE_MTRUCK:
     case VEHICLE_TYPE_QUAD:

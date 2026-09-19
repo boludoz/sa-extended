@@ -675,7 +675,7 @@ void CCarCtrl::GenerateOneRandomCar()
 
     if (NumLanes > 1)
     {
-        if (CModelInfo::GetModelInfo(CarModel)->AsVehicleModelInfoPtr()->m_nVehicleType == VEHICLE_TYPE_BMX)
+        if (CModelInfo::GetModelInfo(CarModel)->AsVehicleModelInfoPtr()->GetVehicleClass() == VEHICLE_TYPE_BMX)
         {
             return;
         }
@@ -966,7 +966,7 @@ void CCarCtrl::GenerateOneRandomCar()
 
     OldLaneOffset = (oldLinkRef.OneWayLaneOffset() + (float)pNewVehicle->m_autoPilot.OldLane) * 5.4f;
     NewLaneOffset = (newLinkRef.OneWayLaneOffset() + (float)pNewVehicle->m_autoPilot.NewLane) * 5.4f;
-    if (pNewVehicle->m_nVehicleType == VEHICLE_TYPE_BMX)
+    if (pNewVehicle->GetBaseVehicleType() == VEHICLE_TYPE_BMX)
     {
         OldLaneOffset += 1.458f;
         NewLaneOffset += 1.458f;
@@ -1081,7 +1081,7 @@ void CCarCtrl::GenerateOneRandomCar()
 
     CVisibilityPlugins::SetClumpAlpha(pNewVehicle->GetRpClump(), 0);
 
-    if (CCheat::m_aCheatsActive[FUNHOUSE_CHEAT] && pNewVehicle->m_nVehicleType == VEHICLE_TYPE_AUTOMOBILE)
+    if (CCheat::m_aCheatsActive[FUNHOUSE_CHEAT] && pNewVehicle->GetBaseVehicleType() == VEHICLE_TYPE_AUTOMOBILE)
     {
         pNewVehicle->AddVehicleUpgrade(ModelIndices::MI_HYDRAULICS);
     }
@@ -1125,7 +1125,7 @@ void CCarCtrl::GenerateOneRandomCar()
 
         CWorld::Add(pNewVehicle);
 
-        if (pNewVehicle->m_nModelIndex == MODEL_TRACTOR || pNewVehicle->m_nModelIndex == MODEL_COMBINE || pNewVehicle->m_nVehicleType == VEHICLE_TYPE_BMX)
+        if (pNewVehicle->m_nModelIndex == MODEL_TRACTOR || pNewVehicle->m_nModelIndex == MODEL_COMBINE || pNewVehicle->GetBaseVehicleType() == VEHICLE_TYPE_BMX)
         {
             pNewVehicle->m_autoPilot.CruiseSpeed = (uint8)(pNewVehicle->m_autoPilot.CruiseSpeed / 3);
         }
@@ -1146,7 +1146,7 @@ void CCarCtrl::GenerateOneRandomCar()
             pNewVehicle->m_autoPilot.DrivingMode = DRIVING_STYLE_AVOID_CARS;
         }
 
-        if (pNewVehicle->m_nVehicleType == VEHICLE_TYPE_AUTOMOBILE)
+        if (pNewVehicle->GetBaseVehicleType() == VEHICLE_TYPE_AUTOMOBILE)
         {
             switch (CarRating)
             {
@@ -1181,7 +1181,7 @@ void CCarCtrl::GenerateOneRandomCar()
             }
         }
 
-        if (pNewVehicle->m_nVehicleType == VEHICLE_TYPE_BIKE && pNewVehicle->m_autoPilot.DrivingMode == DRIVING_STYLE_STOP_FOR_CARS)
+        if (pNewVehicle->GetBaseVehicleType() == VEHICLE_TYPE_BIKE && pNewVehicle->m_autoPilot.DrivingMode == DRIVING_STYLE_STOP_FOR_CARS)
         {
             pNewVehicle->SetStatus(STATUS_SIMPLE);
             pNewVehicle->m_autoPilot.DrivingMode = DRIVING_STYLE_DRIVINGMODE_AVOIDCARS_STOPFORPEDS_OBEYLIGHTS;
@@ -1303,7 +1303,7 @@ void CCarCtrl::GetAIPlaneToDoDogFightAgainstPlayer(CAutomobile* automobile) {
 
 // 0x421440
 CVehicle* CCarCtrl::GetNewVehicleDependingOnCarModel(int32 modelId, eVehicleCreatedBy createdBy) {
-    switch (CModelInfo::GetModelInfo(modelId)->AsVehicleModelInfoPtr()->m_nVehicleType) {
+    switch (CModelInfo::GetModelInfo(modelId)->AsVehicleModelInfoPtr()->GetVehicleClass()) {
     case VEHICLE_TYPE_MTRUCK:
         return new CMonsterTruck(modelId, createdBy);
     case VEHICLE_TYPE_QUAD:

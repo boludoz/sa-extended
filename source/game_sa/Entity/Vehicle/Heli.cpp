@@ -36,7 +36,7 @@ void CHeli::InjectHooks() {
 
 // 0x6C4190
 CHeli::CHeli(int32 modelIndex, eVehicleCreatedBy createdBy) : CAutomobile(modelIndex, createdBy, true) {
-    m_nVehicleSubType = VEHICLE_TYPE_HELI;
+    m_vehicleType                        = VEHICLE_TYPE_HELI;
 
     m_fYawControl                        = 0.0;
     m_fPitchControl                      = 0.0;
@@ -908,7 +908,7 @@ void CHeli::ProcessControl() {
     if (physicalFlags.bRenderScorched || CCullZones::PlayerNoRain()) {
         m_LightBrightness = 0.0f;
     } else {
-        if (m_autoPilot.Mission == MISSION_HELI_POLICE_BEHAVIOUR && (!FindPlayerVehicle(-1, false) || (FindPlayerVehicle(-1, false)->m_nVehicleSubType != VEHICLE_TYPE_HELI && FindPlayerVehicle(-1, false)->m_nVehicleSubType != VEHICLE_TYPE_PLANE))) {
+        if (m_autoPilot.Mission == MISSION_HELI_POLICE_BEHAVIOUR && (!FindPlayerVehicle(-1, false) || (FindPlayerVehicle(-1, false)->GetVehicleType() != VEHICLE_TYPE_HELI && FindPlayerVehicle(-1, false)->GetVehicleType() != VEHICLE_TYPE_PLANE))) {
             bDoSearchLight = true;
             bFireSearchLightGun = true;
             pSearchLightTarget = static_cast<CPhysical*>(FindPlayerEntity(-1));

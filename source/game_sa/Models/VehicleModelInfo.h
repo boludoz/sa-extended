@@ -139,7 +139,11 @@ public:
     void SetCustomCarPlateDesign(uint8 design) { m_nPlateType = design; }
     int32 GetVehicleList() const { return static_cast<int32>(m_nVehicleClass); }
     char               m_szGameName[8];
-    eVehicleType       m_nVehicleType;
+
+//private:
+    int32              m_vehicleType;
+
+//public:
     float              m_fWheelSizeFront;
     float              m_fWheelSizeRear;
     int16              m_nWheelModelIndex;
@@ -437,20 +441,22 @@ public:
     const CVector& GetFrontSeatPosn() { return m_pVehicleStruct->m_avDummyPos[IsBoat() ? 0 : 4]; } // TODO: 0/4 ?
     const CVector& GetBackSeatPosn() { return m_pVehicleStruct->m_avDummyPos[5]; } // TODO: 5 ?
 
-    // Helpers
+    // Helpers NOTSA
     // ctrl+c, ctrl+v from CVehicle
-    [[nodiscard]] bool IsVehicleTypeValid()     const { return m_nVehicleType != VEHICLE_TYPE_IGNORE; }
-    [[nodiscard]] bool IsAutomobile()           const { return m_nVehicleType == VEHICLE_TYPE_AUTOMOBILE; }
-    [[nodiscard]] bool IsMonsterTruck()         const { return m_nVehicleType == VEHICLE_TYPE_MTRUCK; }
-    [[nodiscard]] bool IsQuad()                 const { return m_nVehicleType == VEHICLE_TYPE_QUAD; }
-    [[nodiscard]] bool IsHeli()                 const { return m_nVehicleType == VEHICLE_TYPE_HELI; }
-    [[nodiscard]] bool IsPlane()                const { return m_nVehicleType == VEHICLE_TYPE_PLANE; }
-    [[nodiscard]] bool IsBoat()                 const { return m_nVehicleType == VEHICLE_TYPE_BOAT; }
-    [[nodiscard]] bool IsTrain()                const { return m_nVehicleType == VEHICLE_TYPE_TRAIN; }
-    [[nodiscard]] bool IsFakeAircraft()         const { return m_nVehicleType == VEHICLE_TYPE_FHELI || m_nVehicleType == VEHICLE_TYPE_FPLANE; }
-    [[nodiscard]] bool IsBike()                 const { return m_nVehicleType == VEHICLE_TYPE_BIKE; }
-    [[nodiscard]] bool IsBMX()                  const { return m_nVehicleType == VEHICLE_TYPE_BMX; }
-    [[nodiscard]] bool IsTrailer()              const { return m_nVehicleType == VEHICLE_TYPE_TRAILER; }
+    [[nodiscard]] bool IsVehicleTypeValid()     const { return m_vehicleType != VEHICLE_TYPE_IGNORE; }
+    [[nodiscard]] bool IsAutomobile()           const { return m_vehicleType == VEHICLE_TYPE_AUTOMOBILE; }
+    [[nodiscard]] bool IsMonsterTruck()         const { return m_vehicleType == VEHICLE_TYPE_MTRUCK; }
+    [[nodiscard]] bool IsQuad()                 const { return m_vehicleType == VEHICLE_TYPE_QUAD; }
+    [[nodiscard]] bool IsHeli()                 const { return m_vehicleType == VEHICLE_TYPE_HELI; }
+    [[nodiscard]] bool IsPlane()                const { return m_vehicleType == VEHICLE_TYPE_PLANE; }
+    [[nodiscard]] bool IsBoat()                 const { return m_vehicleType == VEHICLE_TYPE_BOAT; }
+    [[nodiscard]] bool IsTrain()                const { return m_vehicleType == VEHICLE_TYPE_TRAIN; }
+    [[nodiscard]] bool IsFakeAircraft()         const { return m_vehicleType == VEHICLE_TYPE_FHELI || m_vehicleType == VEHICLE_TYPE_FPLANE; }
+    [[nodiscard]] bool IsBike()                 const { return m_vehicleType == VEHICLE_TYPE_BIKE; }
+    [[nodiscard]] bool IsBMX()                  const { return m_vehicleType == VEHICLE_TYPE_BMX; }
+    [[nodiscard]] bool IsTrailer()              const { return m_vehicleType == VEHICLE_TYPE_TRAILER; }
+
+    auto GetVehicleClass() const { return m_vehicleType; }
 
     // These were probably inlined:
     void SetWheelSizes(float front, float rear) {

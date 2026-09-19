@@ -56,7 +56,7 @@ tReplayVehicleBlock tReplayVehicleBlock::MakeVehicleUpdateData(CVehicle& veh, in
         }
     }
     ret.physicalFlags ^= (ret.physicalFlags ^ (veh.m_nPhysicalFlags >> 29)) & 1;
-    ret.vehicleSubType = veh.m_nVehicleSubType;
+    ret.vehicleSubType = veh.GetVehicleType();
     return ret;
 }
 

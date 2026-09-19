@@ -4559,8 +4559,8 @@ void CAEVehicleAudioEntity::ProcessVehicle(CPhysical* physical) {
     tVehicleParams vp{};
     vp.Vehicle               = vehicle;
     vp.ModelIndexMinusOffset = physical->GetModelIndex() - MODEL_VEHICLE_FIRST;
-    vp.BaseVehicleType       = vehicle->m_nVehicleType;
-    vp.SpecificVehicleType   = vehicle->m_nVehicleSubType;
+    vp.BaseVehicleType       = vehicle->GetBaseVehicleType();
+    vp.SpecificVehicleType   = vehicle->GetVehicleType();
     vp.Transmission          = vehicle->m_pHandlingData
         ? &vehicle->m_pHandlingData->m_transmissionData
         : nullptr;
@@ -4570,7 +4570,7 @@ void CAEVehicleAudioEntity::ProcessVehicle(CPhysical* physical) {
 
     switch (m_AuSettings.VehicleAudioType) {
     case AE_CAR: {
-        UpdateGasPedalAudio(vehicle, vehicle->m_nVehicleType);
+        UpdateGasPedalAudio(vehicle, vehicle->GetBaseVehicleType());
 
         if (m_IsWreckedVehicle) {
             break;
@@ -4619,7 +4619,7 @@ void CAEVehicleAudioEntity::ProcessVehicle(CPhysical* physical) {
             break;
         }
 
-        UpdateGasPedalAudio(vehicle, vehicle->m_nVehicleType);
+        UpdateGasPedalAudio(vehicle, vehicle->GetBaseVehicleType());
         ProcessVehicleRoadNoise(vp);
 
         if (!isStatusSimple) {
@@ -4649,7 +4649,7 @@ void CAEVehicleAudioEntity::ProcessVehicle(CPhysical* physical) {
             break;
         }
 
-        UpdateGasPedalAudio(vehicle, vehicle->m_nVehicleType);
+        UpdateGasPedalAudio(vehicle, vehicle->GetBaseVehicleType());
         ProcessVehicleSkidding(vp);
         ProcessVehicleSirenAlarmHorn(vp);
 
@@ -4669,13 +4669,13 @@ void CAEVehicleAudioEntity::ProcessVehicle(CPhysical* physical) {
         break;
     }
     case AE_AIRCRAFT_HELICOPTER: {
-        UpdateGasPedalAudio(vehicle, vehicle->m_nVehicleType);
+        UpdateGasPedalAudio(vehicle, vehicle->GetBaseVehicleType());
         ProcessAircraft(vp);
         ProcessRainOnVehicle(vp);
         break;
     }
     case AE_AIRCRAFT_PLANE: {
-        UpdateGasPedalAudio(vehicle, vehicle->m_nVehicleType);
+        UpdateGasPedalAudio(vehicle, vehicle->GetBaseVehicleType());
         ProcessAircraft(vp);
         ProcessRainOnVehicle(vp);
         ProcessMovingParts(vp);

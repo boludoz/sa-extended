@@ -933,7 +933,7 @@ CVehicle* CCheat::VehicleCheat(eModelID modelId) {
     CWorld::Add(vehicle);
     CTheScripts::ClearSpaceForMissionEntity(pos, vehicle);
 
-    switch (vehicle->m_nVehicleType) {
+    switch (vehicle->GetBaseVehicleType()) {
     case VEHICLE_TYPE_TRAIN: {
         const auto train = vehicle->AsTrain();
         train->FindPositionOnTrackFromCoors();

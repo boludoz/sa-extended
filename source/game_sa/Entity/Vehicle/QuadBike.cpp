@@ -31,7 +31,8 @@ CQuadBike::CQuadBike(int32 modelIndex, eVehicleCreatedBy createdBy) :
     CAutomobile(modelIndex, createdBy, false)
 {
     m_pHandling = gHandlingDataMgr.GetBikeHandlingPointer(GetVehicleModelInfo()->m_nHandlingId);
-    m_nVehicleSubType = VEHICLE_TYPE_QUAD;
+    // m_baseVehicleType = m_vehicleType = VEHICLE_TYPE_QUAD;
+    m_vehicleType = VEHICLE_TYPE_QUAD;
 
     { // unused
         field_9A8[0] = 1.f;

@@ -518,7 +518,7 @@ bool CCamera::IsItTimeForNewCamera(int32 camSequence, int32 startTime) {
     //! Seaplane is classed as a boat, but the camera treats it like a car
     const auto PlayerInBoat = [&] {
         const auto* veh = FindPlayerVehicle();
-        return veh && veh->m_nVehicleType == VEHICLE_TYPE_BOAT && m_pTargetEntity->m_nModelIndex != MODEL_SKIMMER;
+        return veh && veh->GetBaseVehicleType() == VEHICLE_TYPE_BOAT && m_pTargetEntity->m_nModelIndex != MODEL_SKIMMER;
     };
     const auto LineOfSightClear = [](const CVector& from, const CVector& to) {
         return CWorld::GetIsLineOfSightClear(from, to, true, false, false, false, false, false, false);
@@ -3144,7 +3144,7 @@ void CCamera::ImproveNearClip(CVehicle* vehicle, CPed* ped, CVector* source, CVe
     }
 
     if (vehicle) {
-        if (vehicle->m_nVehicleSubType == VEHICLE_TYPE_HELI || vehicle->m_nVehicleSubType == VEHICLE_TYPE_PLANE) {
+        if (vehicle->GetVehicleType() == VEHICLE_TYPE_HELI || vehicle->GetVehicleType() == VEHICLE_TYPE_PLANE) {
             if (gCurDistForCam > 0.3f) {
                 const auto groundZ = CalculateGroundHeight(eGroundHeightType::ENTITY_BB_BOTTOM);
                 if (cam.m_vecSource.z - groundZ > 10.0f) {
@@ -3153,7 +3153,7 @@ void CCamera::ImproveNearClip(CVehicle* vehicle, CPed* ped, CVector* source, CVe
                         RwCameraSetNearClipPlane(Scene.m_pRwCamera, nearClip);
                     }
                 }
-            } else if (vehicle->m_nVehicleSubType == VEHICLE_TYPE_HELI) {
+            } else if (vehicle->GetVehicleType() == VEHICLE_TYPE_HELI) {
                 RwCameraSetNearClipPlane(Scene.m_pRwCamera, 0.1f);
             }
         }
@@ -3271,7 +3271,7 @@ bool CCamera::TryToStartNewCamMode(int32 camSequence) {
     //! Seaplane is classed as a boat, but the camera treats it like a car
     const auto PlayerInBoat = [&] {
         const auto* veh = FindPlayerVehicle();
-        return veh && veh->m_nVehicleType == VEHICLE_TYPE_BOAT && m_pTargetEntity->m_nModelIndex != MODEL_SKIMMER;
+        return veh && veh->GetBaseVehicleType() == VEHICLE_TYPE_BOAT && m_pTargetEntity->m_nModelIndex != MODEL_SKIMMER;
     };
     const auto LineOfSightClear = [](const CVector& from, const CVector& to) {
         return CWorld::GetIsLineOfSightClear(from, to, true, false, false, false, false, false, false);
@@ -3285,7 +3285,7 @@ bool CCamera::TryToStartNewCamMode(int32 camSequence) {
     //! Keep the camera clear of the water, further up for a seaplane
     const auto ClampAboveWater = [&](CVector& coors, float surfaceZ) {
         const auto* veh = FindPlayerVehicle();
-        const auto  minHeight = veh && veh->m_nVehicleType == VEHICLE_TYPE_BOAT
+        const auto  minHeight = veh && veh->GetBaseVehicleType() == VEHICLE_TYPE_BOAT
             ? fSeaplaneMinHeightAboveWater
             : fHeliMinHeightAboveWater;
         coors.z = std::max(coors.z, surfaceZ + minHeight);
@@ -3476,7 +3476,7 @@ bool CCamera::TryToStartNewCamMode(int32 camSequence) {
         auto coors = FindPlayerCoors();
         coors += FlatSpeedDir() * HELI_CAM_DIST_AWAY_ONE;
         coors.z = FindPlayerCoors().z + 0.5f;
-        if (FindPlayerVehicle()->m_nVehicleType == VEHICLE_TYPE_BOAT) {
+        if (FindPlayerVehicle()->GetBaseVehicleType() == VEHICLE_TYPE_BOAT) {
             coors.z += 1.0f;
         }
 
@@ -3559,7 +3559,7 @@ bool CCamera::TryToStartNewCamMode(int32 camSequence) {
     case MOVIECAM18: { // Directly above the player
         auto coors = FindPlayerCoors();
         const auto* veh = FindPlayerVehicle();
-        coors.z += veh && veh->m_nVehicleType == VEHICLE_TYPE_BOAT ? HELI_CAM_DIST_AWAY_FOUR : -HELI_CAM_DIST_AWAY_FOUR;
+        coors.z += veh && veh->GetBaseVehicleType() == VEHICLE_TYPE_BOAT ? HELI_CAM_DIST_AWAY_FOUR : -HELI_CAM_DIST_AWAY_FOUR;
 
         auto dir = FindPlayerSpeed();
         const auto ang = CGeneral::GetATanOfXY(dir.x, dir.y) + DegreesToRadians(145.0f);
@@ -3592,7 +3592,7 @@ bool CCamera::TryToStartNewCamMode(int32 camSequence) {
     case MOVIECAM19: { // Directly above the player, to the side
         auto coors = FindPlayerCoors();
         const auto* veh = FindPlayerVehicle();
-        coors.z += veh && veh->m_nVehicleType == VEHICLE_TYPE_BOAT ? 4.0f : -1.0f;
+        coors.z += veh && veh->GetBaseVehicleType() == VEHICLE_TYPE_BOAT ? 4.0f : -1.0f;
 
         auto dir = FindPlayerSpeed();
         const auto ang = CGeneral::GetATanOfXY(dir.x, dir.y) + DegreesToRadians(28.0f);
@@ -3654,7 +3654,7 @@ bool CCamera::CameraColDetAndReact(CVector* source, CVector* target) {
     if (gCurCamColVars >= 10) {
         if (auto* const ignore = CWorld::pIgnoreEntity) {
             // Note: the sub type, not the type - a vortex counts as a car here
-            if (ignore->GetIsTypeVehicle() && ignore->AsVehicle()->m_nVehicleSubType == VEHICLE_TYPE_AUTOMOBILE) {
+            if (ignore->GetIsTypeVehicle() && ignore->AsVehicle()->GetVehicleType() == VEHICLE_TYPE_AUTOMOBILE) {
                 if (ignore->m_nModelIndex != cachedModelIndex) {
                     cachedLowestZ = 100.0f;
                     if (const auto* colData = ignore->GetColModel()->m_pColData) {
@@ -3685,7 +3685,7 @@ bool CCamera::CameraColDetAndReact(CVector* source, CVector* target) {
     auto bIsBike = false;
     if (gCurCamColVars >= 10) {
         auto* const ignore = CWorld::pIgnoreEntity;
-        if (ignore && ignore->GetIsTypeVehicle() && ignore->AsVehicle()->m_nVehicleType == VEHICLE_TYPE_BIKE) {
+        if (ignore && ignore->GetIsTypeVehicle() && ignore->AsVehicle()->GetBaseVehicleType() == VEHICLE_TYPE_BIKE) {
             minDist = 0.05f;
             bIsBike = true;
         }
@@ -3809,7 +3809,7 @@ void CCamera::CamControl() {
                     NeedToRestoreCamera = true;
 
                 } else {
-                    if (m_pTargetEntity->AsVehicle()->m_nVehicleType != VEHICLE_TYPE_TRAIN) {
+                    if (m_pTargetEntity->AsVehicle()->GetBaseVehicleType() != VEHICLE_TYPE_TRAIN) {
                         NeedToRestoreCamera = true;
                     }
                 }
@@ -3832,10 +3832,10 @@ void CCamera::CamControl() {
                     }
                 }
 
-                if (m_pTargetEntity->AsVehicle()->m_nVehicleType == VEHICLE_TYPE_TRAIN) {
+                if (m_pTargetEntity->AsVehicle()->GetBaseVehicleType() == VEHICLE_TYPE_TRAIN) {
                     ReqMode = MODE_BEHINDCAR;
                 } else {
-                    if (m_pTargetEntity->AsVehicle()->m_nVehicleType == VEHICLE_TYPE_BOAT) {
+                    if (m_pTargetEntity->AsVehicle()->GetBaseVehicleType() == VEHICLE_TYPE_BOAT) {
                         if ((m_pTargetEntity->GetModelIndex()) != MODEL_SKIMMER) {
                             TargetIsBoat = true;
                         }
@@ -3873,7 +3873,7 @@ void CCamera::CamControl() {
                     if (m_bFailedCullZoneTestPreviously && m_nCarZoom != 4 && m_nCarZoom != 0) {
                         ReqMode = MODE_CAM_ON_A_STRING;
                     }
-                    int32 iVehicleType = m_pTargetEntity->AsVehicle()->m_nVehicleType;
+                    int32 iVehicleType = m_pTargetEntity->AsVehicle()->GetBaseVehicleType();
 
                     if (iVehicleType == VEHICLE_TYPE_BOAT) {
                         if ((m_pTargetEntity->GetModelIndex()) == MODEL_SKIMMER) {
@@ -4663,7 +4663,7 @@ void CCamera::CamControl() {
     }
 
     if (FindPlayerVehicle() != nullptr) {
-        if ((FindPlayerVehicle()->m_nVehicleType) == VEHICLE_TYPE_TRAIN) {
+        if ((FindPlayerVehicle()->GetBaseVehicleType()) == VEHICLE_TYPE_TRAIN) {
             m_bObbeCinematicCarCamOn = true;
         }
     }
@@ -4715,7 +4715,7 @@ void CCamera::CamControl() {
         CPostEffects::m_bSpeedFXUserFlagCurrentFrame = false; // no speed blur please....
 
         if (m_pTargetEntity->GetIsTypeVehicle()) {
-            int32 vehicleType = m_pTargetEntity->AsVehicle()->m_nVehicleType;
+            int32 vehicleType = m_pTargetEntity->AsVehicle()->GetBaseVehicleType();
 
             if (vehicleType == VEHICLE_TYPE_PLANE) {
                 ProcessObbeCinemaCameraPlane();
