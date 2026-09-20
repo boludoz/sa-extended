@@ -505,44 +505,108 @@ int32 CWanted::WorkOutPolicePresence(CVector posn, float radius) {
 }
 
 // 0x5627D0
-bool CWanted::IsClosestCop(CPed* ped, int32 numCopsToCheck) const {
-    CCopPed* cops[MAX_COPS_IN_PURSUIT]{};
-    int32 numCops = 0;
-    for (auto* cop : m_CopsInPursuit) {
-        if (cop) cops[numCops++] = cop;
+// ASM Match
+bool CWanted::IsClosestCop(CPed* ped, int numCopsToCheck) const
+{
+    CCopPed* cops[10];
+    int numCops = 0;
+
+    if (this->m_CopsInPursuit[0])
+    {
+        cops[numCops++] = m_CopsInPursuit[0];
+    }
+    if (m_CopsInPursuit[1])
+    {
+        cops[numCops++] = m_CopsInPursuit[1];
+    }
+    if (m_CopsInPursuit[2])
+    {
+        cops[numCops++] = m_CopsInPursuit[2];
+    }
+    if (m_CopsInPursuit[3])
+    {
+        cops[numCops++] = m_CopsInPursuit[3];
+    }
+    if (m_CopsInPursuit[4])
+    {
+        cops[numCops++] = m_CopsInPursuit[4];
+    }
+    if (m_CopsInPursuit[5])
+    {
+        cops[numCops++] = m_CopsInPursuit[5];
+    }
+    if (m_CopsInPursuit[6])
+    {
+        cops[numCops++] = m_CopsInPursuit[6];
+    }
+    if (m_CopsInPursuit[7])
+    {
+        cops[numCops++] = m_CopsInPursuit[7];
+    }
+    if (m_CopsInPursuit[8])
+    {
+        cops[numCops++] = m_CopsInPursuit[8];
+    }
+    if (m_CopsInPursuit[9])
+    {
+        cops[numCops++] = m_CopsInPursuit[9];
     }
 
-    const CVector playerPos = FindPlayerCoors();
-    float dists[MAX_COPS_IN_PURSUIT];
-    for (int32 i = 0; i < numCops; i++) {
-        dists[i] = DistanceBetweenPointsSquared(playerPos, cops[i]->GetPosition());
-    }
-
-    for (int32 i = numCops; i < MAX_COPS_IN_PURSUIT; i++) {
+    float dists[10];
+    for (int i = 0; i < 10; ++i)
+    {
         dists[i] = FLT_MAX;
     }
 
-    CCopPed* result[MAX_COPS_IN_PURSUIT]{};
-    for (int32 pass = 0; pass < numCopsToCheck; pass++) {
-        int32 bestIdx = -1;
-        float bestDist = FLT_MAX;
-        for (int32 i = 0; i < numCops; i++) {
-            if (dists[i] < bestDist) {
-                bestDist = dists[i];
-                bestIdx  = i;
-            }
-        }
-        if (bestIdx == -1) break;
-        result[pass]     = cops[bestIdx];
-        cops[bestIdx]    = nullptr;   // eliminar del pool
-        dists[bestIdx]   = FLT_MAX;
+    CCopPed* result[10];
+    memset(result, 0, sizeof(result));
+
+    CPlayerPed* player = FindPlayerPed(-1);
+    const CVector* pPlayerPos = &player->GetPosition();
+
+    for (int i = 0; i < numCops; ++i)
+    {
+        const CVector* pCopPos = &cops[i]->GetPosition();
+
+        float dx = pPlayerPos->x - pCopPos->x;
+        float dy = pPlayerPos->y - pCopPos->y;
+        float dz = pPlayerPos->z - pCopPos->z;
+
+        dists[i] = (dx * dx) + (dy * dy) + (dz * dz);
     }
 
-    for (int32 i = 0; i < numCopsToCheck; i++) {
-        if (result[i] == ped->AsCop())
-            return true;
+    for (int pass = 0; pass < numCopsToCheck; ++pass)
+    {
+        float bestDist = FLT_MAX;
+        int bestIdx = -1;
+
+        for (int i = 0; i < numCops; ++i)
+        {
+            if (dists[i] < bestDist)
+            {
+                bestDist = dists[i];
+                bestIdx = i;
+            }
+        }
+
+        if (bestIdx != -1)
+        {
+            result[pass] = cops[bestIdx];
+            cops[bestIdx] = nullptr;
+            dists[bestIdx] = FLT_MAX;
+        }
     }
-    return false;
+
+    bool bFound = false;
+    for (int i = 0; i < numCopsToCheck; i++)
+    {
+        if (result[i] == (CCopPed*)ped)
+        {
+            bFound = true;
+            break;
+        }
+    }
+    return bFound;
 }
 
 // 0x562B00
