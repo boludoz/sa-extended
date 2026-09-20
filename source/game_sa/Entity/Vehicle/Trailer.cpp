@@ -167,9 +167,11 @@ bool CTrailer::SetTowLink(CVehicle* vehicle, bool setMyPosToTowBar) {
         return true;
     }
 
-    m_fTrailerTowedRatio = std::clamp(m_fTrailerTowedRatio, 0.0f, BAGGAGE_TRAILER_TOWED_RATIO);
+    if (m_fTrailerTowedRatio > BAGGAGE_TRAILER_TOWED_RATIO) {
+        m_fTrailerTowedRatio = 0.0f;
+    }
 
-    SetHeading(GetHeading());
+    SetHeading(vehicle->GetHeading());
 
     CVector towBarPos{}, towHitchPos{};
     if (!GetTowHitchPos(towHitchPos, true, this) || !vehicle->GetTowBarPos(towBarPos, true, this)) {

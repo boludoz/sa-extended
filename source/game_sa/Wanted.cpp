@@ -547,22 +547,27 @@ bool CWanted::IsClosestCop(CPed* ped, int32 numCopsToCheck) const {
 
 // 0x562B00
 CCopPed* CWanted::ComputePursuitCopToDisplace(CCopPed* cop, CCopPed** copsArray) {
-    const auto& playerPos = FindPlayerPed()->GetPosition();
+    const auto* player = FindPlayerPed();
+    if (!player) {
+        return nullptr;
+    }
+
+    const CVector playerPos = player->GetPosition();
     CCopPed* displacedCop = nullptr;
     auto distTargetCop = 1.0f;
 
-    if (cop) {
+    if (cop && GetPedPool()->IsObjectValid(cop)) {
         distTargetCop = std::max(DistanceBetweenPointsSquared(playerPos, cop->GetPosition()), 1.0f);
     }
 
     for (auto i = 0u; i < MAX_COPS_IN_PURSUIT; i++) {
-        const auto& copInPursuit = copsArray[i];
+        auto* const copInPursuit = copsArray[i];
 
         if (!copInPursuit) {
             continue;
         }
 
-        if (!copInPursuit->IsAlive()) {
+        if (!GetPedPool()->IsObjectValid(copInPursuit) || !copInPursuit->IsAlive()) {
             return copInPursuit;
         }
 
@@ -607,7 +612,11 @@ void CWanted::RemovePursuitCop(CCopPed* cop) {
 // 0x562C40
 void CWanted::RemoveExcessPursuitCops() {
     while (m_NumCopsInPursuit > m_MaxCopsInPursuit) {
-        RemovePursuitCop(ComputePursuitCopToDisplace(nullptr, m_CopsInPursuit));
+        auto* cop = ComputePursuitCopToDisplace(nullptr, m_CopsInPursuit);
+        if (!cop) {
+            break;
+        }
+        RemovePursuitCop(cop);
     }
 }
 
@@ -757,7 +766,11 @@ bool CWanted::SetPursuitCop(CCopPed* cop) {
     }
 
     while (m_NumCopsInPursuit >= m_MaxCopsInPursuit) {
-        RemovePursuitCop(ComputePursuitCopToDisplace(cop, m_CopsInPursuit));
+        auto* copToDisplace = ComputePursuitCopToDisplace(cop, m_CopsInPursuit);
+        if (!copToDisplace) {
+            break;
+        }
+        RemovePursuitCop(copToDisplace);
     }
 
     for (auto& copInPursuit : m_CopsInPursuit) {

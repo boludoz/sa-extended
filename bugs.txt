@@ -3,3 +3,7 @@
 - The radio is shut down every time i press ESC.
 - CJ Tatoos are not visible.
 - Fallen peds and peds.
+- The menu effects cant sound.
+- CJ's stucks sometimes.
+- CJ is 'BUSTED' CJ gets "busted" the moment a cop approaches him while he has wanted stars.
+- He walks all the way around to get into the truck when it's towing.

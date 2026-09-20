@@ -1737,7 +1737,7 @@ bool CPhysical::ApplyFriction(float fFriction, CColPoint& colPoint)
     auto* vehicle = AsVehicle();
     if (fMoveSpeedMagnitude > 0.1f
         && g_surfaceInfos.GetFrictionEffect(colPoint.m_nSurfaceTypeB)
-        && (g_surfaceInfos.GetFrictionEffect(colPoint.m_nSurfaceTypeA) == FRICTION_EFFECT_SPARKS || GetIsTypeVehicle())
+        && (g_surfaceInfos.GetFrictionEffect(colPoint.m_nSurfaceTypeA) == FRICTION_FX_SPARKS || GetIsTypeVehicle())
         && (!GetIsTypeVehicle() || !vehicle->IsSubBMX() || !vehicle->m_pDriver
             || fabs(DotProduct(&colPoint.m_vecNormal, &GetRight())) >= 0.86669999f))
     {

@@ -137,13 +137,11 @@ void CAutomobile::InjectHooks()
     RH_ScopedVMTInstall(ProcessFlyingCarStuff, 0x6A8500);
     RH_ScopedVMTInstall(DoHoverSuspensionRatios, 0x6A45C0);
     RH_ScopedVMTInstall(ProcessSuspension, 0x6AFB10);
-    // todo: fix/review Tow funcs
     RH_ScopedVMTInstall(GetTowHitchPos, 0x6AF1D0);
     RH_ScopedVMTInstall(GetTowBarPos, 0x6AF250);
     RH_ScopedVMTInstall(SetTowLink, 0x6B4410);
     RH_ScopedVMTInstall(BreakTowLink, 0x6A4400);
     RH_ScopedVMTInstall(FindWheelWidth, 0x6A6090);
-
     RH_ScopedVMTInstall(SetupSuspensionLines, 0x6A65D0);
     RH_ScopedVMTInstall(ProcessEntityCollision, 0x6ACE70);
     RH_ScopedVMTInstall(ProcessControlCollisionCheck, 0x6A29C0);
@@ -2288,39 +2286,116 @@ void CAutomobile::RemoveRefsToVehicle(CEntity* entity) {
     }
 }
 
-// NOTSA - Combined implementation of `BlowUpCar` and `BlowUpCarCutSceneNoExtras`
-void CAutomobile::BlowUpCar_Impl(CEntity* dmgr, bool bDontShakeCam, bool bDontSpawnStuff, bool bNoExplosion, bool bHideExplosionFx, bool bIsForCutScene, bool bMakeSound) {
+// 0x6B3780
+void CAutomobile::BlowUpCar(CEntity* pCulprit, bool bInACutscene)
+{
     if (!vehicleFlags.bCanBeDamaged) {
         return;
     }
 
-    const bool bFixBugs = // TODO: Make a function for this in `notsa::`
-#ifdef FIX_BUGS
-        true;
-#else
-        false;
-#endif
+    if (pCulprit == FindPlayerPed() || pCulprit == FindPlayerVehicle()) {
+        CWorld::Players[CWorld::PlayerInFocus].m_nHavocCaused += 20;
+        CWorld::Players[CWorld::PlayerInFocus].m_fCurrentChaseValue += 10.0f;
+        CStats::IncrementStat(STAT_COST_OF_PROPERTY_DAMAGED, 4000.0f + static_cast<float>(CGeneral::GetRandomNumber() % 6'000));
+    }
 
-    if (bIsForCutScene) {
-        if (IsSubPlane() && GetStatus() != STATUS_PLAYER) {
-            switch (m_autoPilot.Mission) {
-            case MISSION_PLANE_FLYTOCOORS:
-            case MISSION_PLANE_ATTACK_PLAYER:
-            case MISSION_PLANE_FLYINDIRECTION:
-            case MISSION_PLANE_FOLLOW_ENTITY:
-            case MISSION_PLANE_ATTACK_PLAYER_POLICE:
-            case MISSION_PLANE_DOG_FIGHT_ENTITY:
-            case MISSION_PLANE_DOG_FIGHT_PLAYER:
-                m_autoPilot.SetCarMission(MISSION_PLANE_CRASH_AND_BURN);
-                return;
-            }
+    if (m_nModelIndex == eModelID::MODEL_VCNMAV) {
+        CWanted::UseNewsHeliInAdditionToPolice = false;
+    }
+
+    GetMoveSpeed().z += 0.13f;
+    SetStatus(STATUS_WRECKED);
+    physicalFlags.bRenderScorched = true;
+    m_nTimeWhenBlowedUp           = CTimer::GetTimeInMS();
+
+    CVisibilityPlugins::SetClumpForAllAtomicsFlag(GetRpClump(), eAtomicComponentFlag::ATOMIC_PIPE_NO_EXTRA_PASSES);
+
+    m_damageManager.FuckCarCompletely(false);
+
+    if (m_nModelIndex != eModelID::MODEL_RCTIGER && m_nModelIndex != eModelID::MODEL_RCBANDIT) {
+        SetBumperDamage(FRONT_BUMPER, false);
+        SetBumperDamage(REAR_BUMPER, false);
+
+        SetDoorDamage(DOOR_BONNET, false);
+        SetDoorDamage(DOOR_BOOT, false);
+
+        SetDoorDamage(DOOR_LEFT_FRONT, false);
+        SetDoorDamage(DOOR_RIGHT_FRONT, false);
+        SetDoorDamage(DOOR_LEFT_REAR, false);
+        SetDoorDamage(DOOR_RIGHT_REAR, false);
+
+        SpawnFlyingComponent(CAR_WHEEL_LF, 1);
+
+        if (const auto pCurrentAtomic = GetCurrentAtomicObject(m_aCarNodes[CAR_WHEEL_LF])) {
+            RpAtomicSetFlags(pCurrentAtomic, 0);
         }
+    }
+
+    m_fHealth          = 0.0f;
+    m_DelayedExplosion = 0;
+    m_nBombOnBoard     = 0;
+
+    TheCamera.CamShake(0.4f, GetPosition());
+
+    KillPedsInVehicle();
+    KillPedsGettingInVehicle();
+
+    vehicleFlags.bEngineOn     = false;
+    m_nOverrideLights          = NO_CAR_LIGHT_OVERRIDE;
+    vehicleFlags.bLightsOn     = false;
+    vehicleFlags.bSirenOrAlarm = false;
+    autoFlags.bTaxiLight       = false;
+
+    if (vehicleFlags.bIsAmbulanceOnDuty) {
+        vehicleFlags.bIsAmbulanceOnDuty = false;
+        CCarCtrl::NumAmbulancesOnDuty--;
+    }
+    if (vehicleFlags.bIsFireTruckOnDuty) {
+        vehicleFlags.bIsFireTruckOnDuty = false;
+        CCarCtrl::NumFireTrucksOnDuty--;
+    }
+
+    ChangeLawEnforcerState(false);
+
+    gFireManager.StartFire((CEntity*)this, pCulprit, DEFAULT_FIRE_PARTICLE_SIZE, true, FIRE_AVERAGE_BURNTIME, 0);
+
+    CDarkel::RegisterCarBlownUpByPlayer(*this, 0);
+
+    CVector vecExplosionPos = GetPosition();
+    float   fOffsetRange    = 0.1f;
+    if (IsSubAutomobile() || IsSubQuad()) {
+        fOffsetRange = 0.75f;
+    }
+
+    vecExplosionPos += CGeneral::GetRandomNumberInRange(-fOffsetRange, fOffsetRange) * GetColModel()->GetBoundingBox().m_vecMax.x * GetRight();
+    vecExplosionPos += CGeneral::GetRandomNumberInRange(-fOffsetRange, fOffsetRange) * GetColModel()->GetBoundingBox().m_vecMax.y * GetForward();
+    vecExplosionPos.z -= CGeneral::GetRandomNumberInRange(0.5f, 1.5f) * GetColModel()->GetBoundingBox().m_vecMax.z;
+
+    if (m_nModelIndex == eModelID::MODEL_RCTIGER || m_nModelIndex == eModelID::MODEL_RCBANDIT) {
+        CExplosion::AddExplosion(this, pCulprit, EXPLOSION_QUICK_CAR, vecExplosionPos, 0, true, -1.0f, bInACutscene);
     } else {
-        if (dmgr == FindPlayerPed() || dmgr == FindPlayerVehicle()) {
-            auto& plyrinfo = FindPlayerInfo();
-            plyrinfo.m_nHavocCaused += 20;
-            plyrinfo.m_fCurrentChaseValue += 10.f;
-            CStats::IncrementStat(STAT_COST_OF_PROPERTY_DAMAGED, CGeneral::GetRandomNumberInRange(4000.f, 10'000.f - 1.f));
+        CExplosion::AddExplosion(this, pCulprit, EXPLOSION_CAR, vecExplosionPos, 0, true, -1.0f, bInACutscene);
+    }
+}
+// 0x6B3BB0
+void CAutomobile::BlowUpCarCutSceneNoExtras(bool bDontShakeCam, bool bDontSpawnStuff, bool bNoExplosion, bool bMakeSound)
+{
+    if (!vehicleFlags.bCanBeDamaged) {
+        return;
+    }
+
+    if (IsSubPlane() && GetStatus() != STATUS_PLAYER) {
+        switch (m_autoPilot.Mission) {
+        case MISSION_PLANE_FLYTOCOORS:
+        case MISSION_PLANE_ATTACK_PLAYER:
+        case MISSION_PLANE_DOG_FIGHT_ENTITY:
+        case MISSION_PLANE_DOG_FIGHT_PLAYER:
+        case MISSION_PLANE_ATTACK_PLAYER_POLICE:
+        case MISSION_PLANE_FLYINDIRECTION:
+        case MISSION_PLANE_FOLLOW_ENTITY:
+            m_autoPilot.Mission = MISSION_PLANE_CRASH_AND_BURN;
+            return;
+            break;
         }
     }
 
@@ -2333,60 +2408,67 @@ void CAutomobile::BlowUpCar_Impl(CEntity* dmgr, bool bDontShakeCam, bool bDontSp
     }
 
     SetStatus(STATUS_WRECKED);
-
     physicalFlags.bRenderScorched = true;
-    m_nTimeWhenBlowedUp      = CTimer::GetTimeInMS();
+    m_nTimeWhenBlowedUp           = CTimer::GetTimeInMS();
 
     CVisibilityPlugins::SetClumpForAllAtomicsFlag(GetRpClump(), eAtomicComponentFlag::ATOMIC_PIPE_NO_EXTRA_PASSES);
-    m_damageManager.FuckCarCompletely(false);
 
-    const auto isRcShit = (bFixBugs || !bIsForCutScene)
-        ? notsa::contains({ MODEL_RCTIGER, MODEL_RCBANDIT }, GetModelId()) // I'm 99% sure they forgot to copy paste this too, but let it be.
-        : GetModelId() == MODEL_RCBANDIT;
-    if (!isRcShit) { // 0x6B3C61
-        for (auto bumper : { FRONT_BUMPER, REAR_BUMPER }) {
-            SetBumperDamage(bumper, bDontSpawnStuff);
-        }
-        for (auto door : { DOOR_BONNET, DOOR_BOOT, DOOR_LEFT_FRONT, DOOR_RIGHT_FRONT, DOOR_LEFT_REAR, DOOR_RIGHT_REAR }) {
-            SetDoorDamage(door, bDontSpawnStuff);
-        }
-        if (!bDontSpawnStuff) {
+    if (bNoExplosion) {
+        m_damageManager.FuckCarCompletely(true); // keep wheels
+    } else {
+        m_damageManager.FuckCarCompletely(false); // remove only 1 wheel
+    }
+
+#if FIX_BUGS
+    if (m_nModelIndex != eModelID::MODEL_RCTIGER && m_nModelIndex != eModelID::MODEL_RCBANDIT) {
+#else
+    if (m_nModelIndex != eModelID::MODEL_RCBANDIT) {
+#endif
+        SetBumperDamage(FRONT_BUMPER, bDontSpawnStuff);
+        SetBumperDamage(REAR_BUMPER, bDontSpawnStuff);
+
+        SetDoorDamage(DOOR_BONNET, bDontSpawnStuff);
+        SetDoorDamage(DOOR_BOOT, bDontSpawnStuff);
+
+        SetDoorDamage(DOOR_LEFT_FRONT, bDontSpawnStuff);
+        SetDoorDamage(DOOR_RIGHT_FRONT, bDontSpawnStuff);
+        SetDoorDamage(DOOR_LEFT_REAR, bDontSpawnStuff);
+        SetDoorDamage(DOOR_RIGHT_REAR, bDontSpawnStuff);
+
+        if (bDontSpawnStuff == false) {
             SpawnFlyingComponent(CAR_WHEEL_LF, 1);
         }
+
         if (!bNoExplosion) {
-            if (const auto obj = GetCurrentAtomicObject(m_aCarNodes[CAR_WHEEL_LF])) {
-                RpAtomicSetFlags(obj, 0); // TODO: Use appropriate enum (if any?)
+            if (const auto pCurrentAtomic = GetCurrentAtomicObject(m_aCarNodes[CAR_WHEEL_LF])) {
+                RpAtomicSetFlags(pCurrentAtomic, 0);
             }
         }
     }
 
-    m_nBombOnBoard = 0;
-    m_fHealth      = 0.f;
-    m_DelayedExplosion   = 0;
+    m_fHealth          = 0.0f;
+    m_DelayedExplosion = 0;
+    m_nBombOnBoard     = 0;
 
-    if (!bDontShakeCam) {
+    if (bDontShakeCam == false) {
         TheCamera.CamShake(0.4f, GetPosition());
     }
 
     KillPedsInVehicle();
-    if (bFixBugs || !bIsForCutScene) { // Originally not in `BlowUpCarCutSceneNoExtras`, but they probably just forgot to copy paste it
-        KillPedsGettingInVehicle();  
-    }
-
-    vehicleFlags.bLightsOn     = false;
+#if FIX_BUGS
+    KillPedsGettingInVehicle();
+#endif
     vehicleFlags.bEngineOn     = false;
-    vehicleFlags.bSirenOrAlarm = false;
     m_nOverrideLights          = NO_CAR_LIGHT_OVERRIDE;
-    autoFlags.bTaxiLight     = false;
+    vehicleFlags.bLightsOn     = false;
+    vehicleFlags.bSirenOrAlarm = false;
+    autoFlags.bTaxiLight       = false;
 
-    if (vehicleFlags.bIsAmbulanceOnDuty) { //> 0x6B3DAE
-        assert(!vehicleFlags.bIsFireTruckOnDuty);
+    if (vehicleFlags.bIsAmbulanceOnDuty) {
         vehicleFlags.bIsAmbulanceOnDuty = false;
         CCarCtrl::NumAmbulancesOnDuty--;
     }
-
     if (vehicleFlags.bIsFireTruckOnDuty) {
-        assert(!vehicleFlags.bIsAmbulanceOnDuty);
         vehicleFlags.bIsFireTruckOnDuty = false;
         CCarCtrl::NumFireTrucksOnDuty--;
     }
@@ -2394,50 +2476,11 @@ void CAutomobile::BlowUpCar_Impl(CEntity* dmgr, bool bDontShakeCam, bool bDontSp
     ChangeLawEnforcerState(false);
 
     if (!bNoExplosion) {
-        CDarkel::RegisterCarBlownUpByPlayer(*this, 0); // Um.... Okay
+        CDarkel::RegisterCarBlownUpByPlayer(*this, 0);
 
-        gFireManager.StartFire(this, dmgr);
-
-        if (bIsForCutScene) { //> 0x6B3E0D
-            CExplosion::AddExplosion(this, dmgr, EXPLOSION_MOLOTOV, GetPosition(), 0, bMakeSound, -1.f, bHideExplosionFx);
-        } else { //> 0x6B3A17 - Add explosion fx (cancer inducing code)
-            const auto tcm = GetColModel();
-            const auto maxOffset = IsSubAutomobile() || IsSubQuad()
-                ? 0.75f
-                : 0.1f;
-            const auto RandomOffset = [&]() { return CGeneral::GetRandomNumberInRange(-maxOffset, maxOffset); };
-            const auto explOffset = CVector{
-                RandomOffset(),
-                RandomOffset(),
-                maxOffset + 0.5f
-            } * GetColModel()->GetBoundingBox().m_vecMax;
-            const auto explPos = // Do a matrix transform... manually, because that's fun!
-                  GetPosition()
-                + GetRight() * explOffset.x
-                + GetForward() * explOffset.y
-                - CVector{0.f, 0.f, explOffset.z};
-            CExplosion::AddExplosion(
-                this,
-                dmgr,
-                isRcShit ? EXPLOSION_QUICK_CAR : EXPLOSION_CAR,
-                explPos,
-                0,
-                bMakeSound,
-                -1.f,
-                bHideExplosionFx
-            );
-        }
+        gFireManager.StartFire((CEntity*)this, nullptr, DEFAULT_FIRE_PARTICLE_SIZE, true, FIRE_AVERAGE_BURNTIME, 0);
+        CExplosion::AddExplosion(this, nullptr, EXPLOSION_MOLOTOV, GetPosition(), 0, bMakeSound, -1.0f, false);
     }
-}
-
-// 0x6B3780
-void CAutomobile::BlowUpCar(CEntity* dmgr, bool bHideExplosionFx) {
-    BlowUpCar_Impl(dmgr, false, false, false, bHideExplosionFx, false, true);
-}
-
-// 0x6B3BB0
-void CAutomobile::BlowUpCarCutSceneNoExtras(bool bDontShakeCam, bool bDontSpawnStuff, bool bNoExplosion, bool bMakeSound) {
-    BlowUpCar_Impl(nullptr, bDontShakeCam, bDontSpawnStuff, bNoExplosion, false, true, bMakeSound);
 }
 
 // 0x6A3060
@@ -3224,201 +3267,204 @@ void CAutomobile::VehicleDamage(float damageIntensity, eVehicleCollisionComponen
 }
 
 //0x6AF1D0
-bool CAutomobile::GetTowHitchPos(CVector& outPos, bool bCheckModelInfo, CVehicle* attachTo) {
-    if (!bCheckModelInfo) {
-        return false;
+constexpr float CAR_HITCH_OFFSET_Y = -0.5f;
+constexpr float TOW_LINK_DEFAULT_Z = 0.5f;
+
+bool CAutomobile::GetTowHitchPos(CVector &vecResult, bool bGenericPosOk, CVehicle *pVeh)
+{
+    if(bGenericPosOk)
+    {
+        vecResult.x = 0.0f;
+        vecResult.y = CModelInfo::GetModelInfo(m_nModelIndex)->GetColModel()->m_boundBox.m_vecMax.y + CAR_HITCH_OFFSET_Y;
+        vecResult.z = TOW_LINK_DEFAULT_Z - m_fFrontHeightAboveRoad;
+        
+        vecResult = GetMatrix() * vecResult;
+        return true;
     }
-    outPos.x = 0.0f;
-    outPos.y = CModelInfo::GetModelInfo(m_nModelIndex)->GetColModel()->m_boundBox.m_vecMax.y - 0.5f;
-    outPos.z = 0.5f - m_fFrontHeightAboveRoad;
-    outPos = m_matrix->TransformPoint(outPos);
-    return true;
+    return false;
 }
 
 // 0x6AF250
-bool CAutomobile::GetTowBarPos(CVector& outPos, bool ignoreModelType, CVehicle* attachTo) {
-    switch (m_nModelIndex) {
-    case eModelID::MODEL_TOWTRUCK:
-    case eModelID::MODEL_TRACTOR: {
-        float baseY = -1.05f;
-        if (m_nModelIndex == MODEL_TRACTOR) {
-            if (attachTo && attachTo->IsSubTrailer() && attachTo->m_nModelIndex != MODEL_FARMTR1) {
-                return false;
-            }
-            baseY = -0.6f;
-        } else if (attachTo && attachTo->IsSubTrailer()) {
-            return false;
-        }
+constexpr float CAR_TOWBAR_OFFSET_Y = -0.5f;
+constexpr float TOWTRUCK_OFFSET_Y   = -1.05f;
+constexpr float TOWTRUCK_OFFSET_Z   = 1.0f;
+constexpr float TRACTOR_OFFSET_Y    = -0.6f;
+constexpr float TRACTOR_OFFSET_Z    = 0.5f;
 
-        outPos.x = 0.0f;
-        outPos.y = baseY + CModelInfo::GetModelInfo(m_nModelIndex)->GetColModel()->m_boundBox.m_vecMin.y;
-        outPos.z = (1.0f - (float)m_wMiscComponentAngle / (float)TOWTRUCK_HOIST_DOWN_LIMIT) * 0.5f + 0.5f - m_fFrontHeightAboveRoad;
-        outPos = m_matrix->TransformPoint(outPos);
+bool CAutomobile::GetTowBarPos(CVector &vecResult, bool bGenericPosOk, CVehicle *pVeh)
+{
+    if(m_nModelIndex == eModelID::MODEL_TOWTRUCK || m_nModelIndex == eModelID::MODEL_TRACTOR)
+    {
+        float fOffsetY = TOWTRUCK_OFFSET_Y;
+        float fOffsetZ = TOWTRUCK_OFFSET_Z;
+        if(m_nModelIndex == eModelID::MODEL_TRACTOR)
+        {
+            if(pVeh && pVeh->IsSubTrailer() && pVeh->m_nModelIndex != eModelID::MODEL_FARMTR1)
+                return false;
+
+                fOffsetY = TRACTOR_OFFSET_Y;
+            fOffsetZ = TRACTOR_OFFSET_Z;
+        }
+        else if(pVeh && pVeh->IsSubTrailer())
+            return false;
+
+        vecResult.x = 0.0f;
+        vecResult.y = CModelInfo::GetModelInfo(m_nModelIndex)->GetColModel()->m_boundBox.m_vecMin.y + fOffsetY;
+        vecResult.z = (1.0f - m_wMiscComponentAngle/(float)TOWTRUCK_HOIST_DOWN_LIMIT)*TRACTOR_OFFSET_Z + TOW_LINK_DEFAULT_Z - m_fFrontHeightAboveRoad;
+        
+        vecResult = GetMatrix() * vecResult;
         return true;
     }
-    default: { // TODO: Move out to after switch (deindentate)
-        if (!m_aCarNodes[CAR_MISC_A]) {
-            break;
-        }
-
-        switch (m_nModelIndex) {
-        case eModelID::MODEL_PETRO:
-        case eModelID::MODEL_RDTRAIN:
-        case eModelID::MODEL_LINERUN:
-        case eModelID::MODEL_ARTICT3: {
-            outPos = *RwMatrixGetPos(RwFrameGetLTM(m_aCarNodes[CAR_MISC_A]));
+    else
+    {
+        bool bUseMiscA = false;
+        if(m_nModelIndex == eModelID::MODEL_PETRO || m_nModelIndex == eModelID::MODEL_RDTRAIN || m_nModelIndex == eModelID::MODEL_LINERUN || m_nModelIndex == eModelID::MODEL_ARTICT3)
+            bUseMiscA = true;
+        else if(m_nModelIndex == eModelID::MODEL_UTILITY && pVeh && pVeh->m_nModelIndex == eModelID::MODEL_UTILTR1)
+            bUseMiscA = true;
+        else if((m_nModelIndex == eModelID::MODEL_BAGGAGE || m_nModelIndex == eModelID::MODEL_TUG || m_nModelIndex == eModelID::MODEL_BAGBOXA || m_nModelIndex == eModelID::MODEL_BAGBOXB)
+        && pVeh && (pVeh->m_nModelIndex == eModelID::MODEL_BAGBOXA || pVeh->m_nModelIndex == eModelID::MODEL_BAGBOXB || pVeh->m_nModelIndex == eModelID::MODEL_TUGSTAIR))
+            bUseMiscA = true;
+        
+        if(bUseMiscA && m_aCarNodes[CAR_MISC_A])
+        {
+            vecResult = *RwMatrixGetPos(RwFrameGetLTM(m_aCarNodes[CAR_MISC_A]));
             return true;
         }
-        case eModelID::MODEL_UTILITY: {
-            if (attachTo && attachTo->m_nModelIndex == MODEL_UTILTR1) {
-                outPos = *RwMatrixGetPos(RwFrameGetLTM(m_aCarNodes[CAR_MISC_A]));
-                return true;
-            }
-            break;
+        else if(bGenericPosOk)
+        {
+            vecResult.x = 0.0f;
+            vecResult.y = CModelInfo::GetModelInfo(m_nModelIndex)->GetColModel()->m_boundBox.m_vecMin.y + CAR_TOWBAR_OFFSET_Y;
+            vecResult.z = TOW_LINK_DEFAULT_Z - m_fFrontHeightAboveRoad;
+            
+            vecResult = GetMatrix() * vecResult;
+            return true;
         }
-        case eModelID::MODEL_BAGGAGE:
-        case eModelID::MODEL_TUG:
-        case eModelID::MODEL_BAGBOXA:
-        case eModelID::MODEL_BAGBOXB: {
-            if (attachTo) {
-                switch (attachTo->m_nModelIndex) {
-                case eModelID::MODEL_BAGBOXA:
-                case eModelID::MODEL_BAGBOXB:
-                case eModelID::MODEL_TUGSTAIR:
-                    outPos = *RwMatrixGetPos(RwFrameGetLTM(m_aCarNodes[CAR_MISC_A]));
-                    return true;
-                }
-            }
-            break;
-        }
-        }
-        break;
     }
-    }
-
-    return GetTowHitchPos(outPos, ignoreModelType, attachTo);
+    
+    return false;
 }
 
 // 0x6B4410
-bool CAutomobile::SetTowLink(CVehicle* tractor, bool placeMeOnRoadProperly) {
-    if (!tractor) {
+bool CAutomobile::SetTowLink(CVehicle *pTractor, bool bWarpPosition)
+{
+    if(pTractor == nullptr || m_pTowingVehicle)
         return false;
-    }
+    
+    if(GetStatus() == eEntityStatus::STATUS_PHYSICS || GetStatus() == eEntityStatus::STATUS_IS_TOWED || GetStatus() == eEntityStatus::STATUS_ABANDONED
+    || GetStatus() == eEntityStatus::STATUS_SIMPLE)
+    {
+        if(GetStatus() == eEntityStatus::STATUS_SIMPLE)
+            CCarCtrl::SwitchVehicleToRealPhysics(this);
+    
+        SetStatus(STATUS_IS_TOWED);
+    
+        m_pTowingVehicle = pTractor;
+        m_pTowingVehicle->RegisterReference(reinterpret_cast<CEntity*&>(m_pTowingVehicle));
+        
+        pTractor->m_pVehicleBeingTowed = this;
+        pTractor->m_pVehicleBeingTowed->RegisterReference(reinterpret_cast<CEntity*&>(pTractor->m_pVehicleBeingTowed));
+        
+        this->RemoveFromMovingList();
+        m_pTowingVehicle->RemoveFromMovingList();
+        
+        this->AddToMovingList();
+        m_pTowingVehicle->AddToMovingList();
+        
+        if(bWarpPosition)
+        {
+            CVector vecTowBarPos(0.0f,0.0f,0.0f), vecTowHitchPos(0.0f,0.0f,0.0f);
 
-    if (m_pTowingVehicle) {
-        return false;
-    }
-
-    switch (GetStatus()) {
-    case eEntityStatus::STATUS_PHYSICS:
-    case eEntityStatus::STATUS_IS_TOWED:
-    case eEntityStatus::STATUS_ABANDONED:
-        break;
-    case eEntityStatus::STATUS_SIMPLE:
-        CCarCtrl::SwitchVehicleToRealPhysics(this);
-        break;
-    default:
-        return false;
-    }
-
-    SetStatus(STATUS_IS_TOWED);
-
-    m_pTowingVehicle = tractor;
-    tractor->RegisterReference(m_pTowingVehicle);
-
-    m_pTowingVehicle->m_pVehicleBeingTowed = this;
-    RegisterReference(m_pTowingVehicle->m_pVehicleBeingTowed);
-
-    for (auto&& entity : { AsVehicle(), tractor }) {
-        entity->RemoveFromMovingList();
-        entity->AddToMovingList();
-    }
-
-    if (placeMeOnRoadProperly) {
-        switch (tractor->m_nModelIndex) {
-        case eModelID::MODEL_TOWTRUCK:
-        case eModelID::MODEL_TRACTOR: {
-            tractor->AsAutomobile()->m_wMiscComponentAngle = TOWTRUCK_HOIST_UP_LIMIT;
-            break;
-        }
-        }
-
-        SetHeading(tractor->GetHeading());
-
-        CVector towHitchPos{}, towBarPos{};
-        if (GetTowHitchPos(towHitchPos, true, this) && tractor->GetTowBarPos(towBarPos, true, this)) {
-            SetPosn(towBarPos - (towHitchPos - GetPosition()));
+            if(pTractor->m_nModelIndex == eModelID::MODEL_TOWTRUCK || pTractor->m_nModelIndex == eModelID::MODEL_TRACTOR)
+                ((CAutomobile *)m_pTowingVehicle)->m_wMiscComponentAngle = TOWTRUCK_HOIST_UP_LIMIT;
+            
+            SetHeading(pTractor->GetHeading());
+            if(!GetTowHitchPos(vecTowHitchPos, true, this))
+                return false;
+                
+            if(!pTractor->GetTowBarPos(vecTowBarPos, true, this))
+                return false;
+            
+            vecTowHitchPos -= GetPosition();
+            SetPosn(vecTowBarPos - vecTowHitchPos);
             PlaceOnRoadProperly();
-            return true;
         }
-    } else {
-        UpdateTrailerLink(true, false);
+        else
+        {
+            UpdateTrailerLink(true, false);
+        }
+
         return true;
     }
+    
     return false;
 }
 
 // 0x6A4400
 bool CAutomobile::BreakTowLink() {
     if (m_pTowingVehicle) {
-        CEntity::ClearReference(m_pTowingVehicle->m_pVehicleBeingTowed);
-        CEntity::ClearReference(m_pTowingVehicle);
+        if (m_pTowingVehicle->m_pVehicleBeingTowed) {
+            CEntity::ClearReference(reinterpret_cast<CEntity*&>(m_pTowingVehicle->m_pVehicleBeingTowed));
+            m_pTowingVehicle->m_pVehicleBeingTowed = nullptr;
+        }
+        CEntity::ClearReference(reinterpret_cast<CEntity*&>(m_pTowingVehicle));
+        m_pTowingVehicle = nullptr;
     }
 
-    switch (GetStatus()) {
-    case STATUS_IS_TOWED:
-    case STATUS_IS_SIMPLE_TOWED: {
-        if (m_pDriver) { // TODO: Use ternary
-            if (m_pDriver->IsPlayer()) {
-                SetStatus(STATUS_PLAYER);
-            } else {
-                SetStatus(STATUS_PHYSICS);
-            }
+    if (GetStatus() != eEntityStatus::STATUS_IS_TOWED && GetStatus() != eEntityStatus::STATUS_IS_SIMPLE_TOWED) {
+        return false;
+    }
+
+    if (m_pDriver) {
+        if (m_pDriver->IsPlayer()) {
+            SetStatus(STATUS_PLAYER);
         } else {
-            if (m_fHealth >= 1.f) {
-                SetStatus(STATUS_ABANDONED);
-            } else {
-                SetStatus(STATUS_WRECKED);
-            }
+            SetStatus(STATUS_PHYSICS);
         }
-        return true;
+    } else if (m_fHealth < 1.0f) {
+        SetStatus(STATUS_WRECKED);
+    } else {
+        SetStatus(STATUS_ABANDONED);
     }
-    }
-    return false;
+
+    return true;
 }
 
 // 0x6A6090
+constexpr float STD_CAR_WHEEL_WIDTH = 0.25f;
+constexpr float STD_CAR_WHEEL_SCALE = 0.7f;
+constexpr float KART_WHEEL_SKID_MULT = 1.5f;
+
 float CAutomobile::FindWheelWidth(bool bRear) {
-    static constexpr struct { eVehicleHandlingFlags flag; float mult; } mapping[2][4]{
-        { // Rear wheel flags
-            { VEHICLE_HANDLING_WHEEL_R_NARROW2, 0.65f },
-            { VEHICLE_HANDLING_WHEEL_R_NARROW,  0.8f  },
-            { VEHICLE_HANDLING_WHEEL_R_WIDE,    1.1f  },
-            { VEHICLE_HANDLING_WHEEL_R_WIDE2,   1.25f }
-        },
-        { // Front wheel flags
-            { VEHICLE_HANDLING_WHEEL_F_NARROW2, 0.65f },
-            { VEHICLE_HANDLING_WHEEL_F_NARROW,  0.8f  },
-            { VEHICLE_HANDLING_WHEEL_F_WIDE,    1.1f  },
-            { VEHICLE_HANDLING_WHEEL_F_WIDE2,   1.25f }
-        }
-    };
+    const auto mi = GetVehicleModelInfo();
+    float fWidth = STD_CAR_WHEEL_WIDTH;
+    fWidth *= (bRear ? mi->m_fWheelSizeRear : mi->m_fWheelSizeFront) / STD_CAR_WHEEL_SCALE;
 
-    const auto& mi = *GetVehicleModelInfo();
+    if (bRear && (m_nHandlingFlagsIntValue & 0x0000F000)) {
+        if (m_nHandlingFlagsIntValue & VEHICLE_HANDLING_WHEEL_R_NARROW2)
+            fWidth *= 0.65f;
+        else if (m_nHandlingFlagsIntValue & VEHICLE_HANDLING_WHEEL_R_NARROW)
+            fWidth *= 0.8f;
+        else if (m_nHandlingFlagsIntValue & VEHICLE_HANDLING_WHEEL_R_WIDE)
+            fWidth *= 1.1f;
+        else if (m_nHandlingFlagsIntValue & VEHICLE_HANDLING_WHEEL_R_WIDE2)
+            fWidth *= 1.25f;
+    } else if (!bRear && (m_nHandlingFlagsIntValue & 0x00000F00)) {
+        if (m_nHandlingFlagsIntValue & VEHICLE_HANDLING_WHEEL_F_NARROW2)
+            fWidth *= 0.65f;
+        else if (m_nHandlingFlagsIntValue & VEHICLE_HANDLING_WHEEL_F_NARROW)
+            fWidth *= 0.8f;
+        else if (m_nHandlingFlagsIntValue & VEHICLE_HANDLING_WHEEL_F_WIDE)
+            fWidth *= 1.1f;
+        else if (m_nHandlingFlagsIntValue & VEHICLE_HANDLING_WHEEL_F_WIDE2)
+            fWidth *= 1.25f;
+    }
 
-    auto wheelWidth = (bRear ? mi.m_fWheelSizeRear : mi.m_fWheelSizeFront) / 2.8f;
     if (m_nModelIndex == eModelID::MODEL_KART) {
-        wheelWidth *= 1.5f;
+        fWidth *= KART_WHEEL_SKID_MULT;
     }
 
-    // mapping[0] = rear flags, mapping[1] = front flags
-    for (auto&& [flag, mult] : mapping[bRear ? 0 : 1]) {
-        if (m_nHandlingFlagsIntValue & flag) {
-            return wheelWidth * mult;
-        }
-    }
-
-    return wheelWidth;
+    return fWidth;
 }
 
 // 0x5D47E0
@@ -4577,8 +4623,9 @@ void CAutomobile::ProcessCarWheelPair(eCarWheel leftWheel, eCarWheel rightWheel,
             if (driveWheels && m_bDoingBurnout) {
                 brake = 0.0f;
                 traction = 0.0f;
-                CVector point = std::min(1.0f, 3000.0f / m_fTurnMass) * -0.002f * m_fTurnMass * m_fSteerAngle * GetRight();
-                ApplyTurnForce(contactPoints[leftWheel], point);
+                constexpr float BURNOUT_STEER_MULT = -0.002f;
+                float burnoutRotForce = BURNOUT_STEER_MULT * m_fTurnMass * std::min(1.0f, 3000.0f / m_fTurnMass);
+                ApplyTurnForce(m_fSteerAngle * burnoutRotForce * GetRight(), contactPoints[leftWheel]);
             } else if (!handlingFlags.bNosInst && gHandlingDataMgr.HasRearWheelDrive(m_pHandlingData->m_nVehicleId)) {
                 traction *= m_fTireTemperature;
             }

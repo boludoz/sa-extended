@@ -5608,18 +5608,18 @@ void CCam::Process_M16_1stPerson(const CVector& ThisCamsTarget, float TargetOrie
         return;
     }
 
-    auto*       targetPed           = m_pCamTargetEntity->AsPed();
-    CVector     TargetCoors;
-    const float MaxVerticalRotation = DegreesToRadians(89.5f);
-    float       MaxRotationUp       = DegreesToRadians(60.0f);
-    float       MaxRotationDown     = DegreesToRadians(85.5f);
-    float       fStickX             = 0.0f;
-    float       fStickY             = 0.0f;
-    float       StickBetaOffset     = 0.0f;
-    float       StickAlphaOffset    = 0.0f;
-    float       HeightToNose        = 0.10f;
-    float       DistToNose          = 0.19f;
-    float       DistBack            = 0.3f;
+    auto*               targetPed           = m_pCamTargetEntity->AsPed();
+    CVector             TargetCoors;
+    constexpr float     MaxVerticalRotation    = DegreesToRadians(89.5f);
+    float               MaxRotationUp       = DegreesToRadians(60.0f);
+    float               MaxRotationDown     = DegreesToRadians(85.5f);
+    float               fStickX             = 0.0f;
+    float               fStickY             = 0.0f;
+    float               StickBetaOffset     = 0.0f;
+    float               StickAlphaOffset    = 0.0f;
+    float               HeightToNose        = 0.10f;
+    float               DistToNose          = 0.19f;
+    float               DistBack            = 0.3f;
 
     static bool  FailedTestTwelveFramesAgo = false;
     static float DPadHorizontal;

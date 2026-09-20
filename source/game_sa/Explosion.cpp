@@ -31,30 +31,30 @@ void CExplosion::Initialise() {
 
 // 0x7368F0
 void CExplosion::Shutdown() {
-    // NOP
 }
 
 // 0x736840
 void CExplosion::ClearAllExplosions() {
     for (auto& exp : aExplosions) {
-        exp.m_vecPosition = CVector{0.0f, 0.0f, 0.0f};
-        exp.m_nType = EXPLOSION_GRENADE;
-        exp.m_fRadius = 1.0f;
+        exp.SetVictim(nullptr);
+        exp.SetCreator(nullptr);
+
+        exp.m_vecPosition      = CVector{ 0.0f, 0.0f, 0.0f };
+        exp.m_nType            = EXPLOSION_GRENADE;
+        exp.m_fRadius          = 1.0f;
         exp.m_fVisibleDistance = 0.0f;
         exp.m_fPropagationRate = 0.0f;
-        exp.m_fGroundZ = 0.0f;
-        exp.m_pCreator = nullptr;
-        exp.m_pVictim = nullptr;
-        exp.m_nExpireTime = 0.0f;
-        exp.m_nActiveCounter = 0;
-        exp.m_nCreatedTime = 0.0f;
-        exp.m_bMakeSound = true;
-        exp.m_nFuelTimer = 0;
+        exp.m_fGroundZ         = 0.0f;
+        exp.m_nExpireTime      = 0.0f;
+        exp.m_nActiveCounter   = 0;
+        exp.m_nCreatedTime     = 0.0f;
+        exp.m_bMakeSound       = true;
+        exp.m_nFuelTimer       = 0;
 
         for (auto i = 0; i < NUM_FUEL; i++) {
-            exp.m_vecFuelDirection[i] = CVector{0.0f, 0.0f, 0.0f};
+            exp.m_vecFuelDirection[i]    = CVector{ 0.0f, 0.0f, 0.0f };
             exp.m_fFuelOffsetDistance[i] = 0.0f;
-            exp.m_fFuelSpeed[i] = 0.0f;
+            exp.m_fFuelSpeed[i]          = 0.0f;
         }
     }
 }
@@ -65,7 +65,10 @@ uint8 CExplosion::GetExplosionActiveCounter(uint8 id) {
 
 // 0x736910
 void CExplosion::ResetExplosionActiveCounter(uint8 id) {
-    aExplosions[id].m_nActiveCounter = 0;
+    auto& exp            = aExplosions[id];
+    exp.m_nActiveCounter = 0;
+    exp.SetVictim(nullptr);
+    exp.SetCreator(nullptr);
 }
 
 // 0x736920
@@ -86,15 +89,21 @@ const CVector& CExplosion::GetExplosionPosition(uint8 id) {
 // 0x736950
 bool CExplosion::TestForExplosionInArea(eExplosionType type, float minX, float maxX, float minY, float maxY, float minZ, float maxZ) {
     for (auto& exp : aExplosions) {
-        if (!exp.m_nActiveCounter)
+        if (!exp.m_nActiveCounter) {
             continue;
+        }
 
-        if (exp.m_nType != type && type != eExplosionType::EXPLOSION_UNDEFINED)
+        if (exp.m_nType != type && type != eExplosionType::EXPLOSION_UNDEFINED) {
             continue;
+        }
 
-        const CBoundingBox boundingBox{{ minX, minY, minZ }, { maxX, maxY, maxZ }};
-        if (boundingBox.IsPointWithin(exp.m_vecPosition))
+        const CBoundingBox boundingBox{
+            { minX, minY, minZ },
+            { maxX, maxY, maxZ }
+        };
+        if (boundingBox.IsPointWithin(exp.m_vecPosition)) {
             return true;
+        }
     }
     return false;
 }
@@ -102,11 +111,14 @@ bool CExplosion::TestForExplosionInArea(eExplosionType type, float minX, float m
 // 0x7369E0
 void CExplosion::RemoveAllExplosionsInArea(CVector pos, float radius) {
     for (auto& exp : aExplosions) {
-        if (!exp.m_nActiveCounter)
+        if (!exp.m_nActiveCounter) {
             continue;
+        }
 
         if (DistanceBetweenPointsSquared(exp.m_vecPosition, pos) < sq(radius)) {
             exp.m_nActiveCounter = 0;
+            exp.SetVictim(nullptr);
+            exp.SetCreator(nullptr);
         }
     }
 }
@@ -114,24 +126,35 @@ void CExplosion::RemoveAllExplosionsInArea(CVector pos, float radius) {
 // NOTSA
 CExplosion* CExplosion::GetFree() {
     for (auto& exp : aExplosions) {
-        if (!exp.m_nActiveCounter)
+        if (!exp.m_nActiveCounter) {
             return &exp;
+        }
     }
     return nullptr;
 }
 
 // NOTSA
 void CExplosion::SetCreator(CEntity* newCreator) noexcept {
-    CEntity::SafeCleanUpRef(m_pCreator);
-    CEntity::SafeRegisterRef(newCreator);
-    m_pCreator = newCreator;
+    if (m_pCreator) {
+        m_pCreator->CleanUpOldReference(reinterpret_cast<CEntity**>(&m_pCreator));
+        m_pCreator = nullptr;
+    }
+    if (newCreator) {
+        newCreator->RegisterReference(reinterpret_cast<CEntity**>(&m_pCreator));
+        m_pCreator = newCreator;
+    }
 }
 
 // NOTSA
 void CExplosion::SetVictim(CEntity* newVictim) noexcept {
-    CEntity::SafeCleanUpRef(m_pVictim);
-    CEntity::SafeRegisterRef(newVictim);
-    m_pVictim = newVictim;
+    if (m_pVictim) {
+        m_pVictim->CleanUpOldReference(reinterpret_cast<CEntity**>(&m_pVictim));
+        m_pVictim = nullptr;
+    }
+    if (newVictim) {
+        newVictim->RegisterReference(reinterpret_cast<CEntity**>(&m_pVictim));
+        m_pVictim = newVictim;
+    }
 }
 
 bool DoesNeedToVehProcessBombTimer(eExplosionType type) {
@@ -144,7 +167,7 @@ bool DoesNeedToVehProcessBombTimer(eExplosionType type) {
         return true;
     }
     return false;
-};
+}
 
 // 0x736A50
 void CExplosion::AddExplosion(CEntity* victim, CEntity* creator, eExplosionType type, CVector pos, uint32 lifetime, uint8 usesSound, float cameraShake, uint8 bInvisible) {
@@ -155,26 +178,27 @@ void CExplosion::AddExplosion(CEntity* victim, CEntity* creator, eExplosionType 
     }
 
     auto exp = GetFree();
-    if (!exp)
+    if (!exp) {
         return;
+    }
 
-    exp->m_vecPosition = pos;
-    exp->m_nType = type;
-    exp->m_fRadius = 1.0f;
-    exp->m_fVisibleDistance = 0.0f;
-    exp->m_fGroundZ = 0.0f;
+    exp->m_vecPosition       = pos;
+    exp->m_nType             = type;
+    exp->m_fRadius           = 1.0f;
+    exp->m_fVisibleDistance  = 0.0f;
+    exp->m_fGroundZ          = 0.0f;
     exp->m_fDamagePercentage = 1.0f;
-    exp->m_nActiveCounter = 1;
-    exp->m_bMakeSound = usesSound;
-    exp->m_nFuelTimer = 0;
+    exp->m_nActiveCounter    = 1;
+    exp->m_bMakeSound        = usesSound;
+    exp->m_nFuelTimer        = 0;
 
     exp->SetCreator(creator);
     exp->SetVictim(victim);
 
     for (auto i = 0; i < NUM_FUEL; i++) {
-        float& fOffsetDistance = exp->m_fFuelOffsetDistance[i];
-        float& fFuelSpeed = exp->m_fFuelSpeed[i];
-        CVector& vecFuelDir = exp->m_vecFuelDirection[i];
+        float&   fOffsetDistance = exp->m_fFuelOffsetDistance[i];
+        float&   fFuelSpeed      = exp->m_fFuelSpeed[i];
+        CVector& vecFuelDir      = exp->m_vecFuelDirection[i];
 
         if (i && CGeneral::GetRandomNumber() >= RAND_MAX / 2) {
             fOffsetDistance = 0.0f;
@@ -182,14 +206,14 @@ void CExplosion::AddExplosion(CEntity* victim, CEntity* creator, eExplosionType 
             vecFuelDir = CVector{
                 2 * CGeneral::GetRandomNumberInRange(0.0f, 1.0f) - 1.0f,
                 2 * CGeneral::GetRandomNumberInRange(0.0f, 1.0f) - 1.0f,
-                    CGeneral::GetRandomNumberInRange(0.2f, 1.0f)
+                CGeneral::GetRandomNumberInRange(0.2f, 1.0f)
             };
             fOffsetDistance = CGeneral::GetRandomNumberInRange(0.5f, 2.0f);
-            fFuelSpeed = CGeneral::GetRandomNumberInRange(20.0f, 30.0f);
+            fFuelSpeed      = CGeneral::GetRandomNumberInRange(20.0f, 30.0f);
         }
     }
 
-    exp->m_nParticlesExpireTime = lifetime ? CTimer::GetTimeInMS() + lifetime : 0;
+    exp->m_nParticlesExpireTime   = lifetime ? CTimer::GetTimeInMS() + lifetime : 0;
 
     const auto PlaySoundIfEnabled = [&](float volume = .0f) {
         if (exp->m_bMakeSound) {
@@ -197,15 +221,13 @@ void CExplosion::AddExplosion(CEntity* victim, CEntity* creator, eExplosionType 
         }
     };
 
-    // Originally most likely a separate function
-    // but this way its nicer
     const auto CreateAndPlayFxWithSound = [&](const char* name, float volume = .0f) {
-        FxSystem_c* fx{nullptr};
+        FxSystem_c* fx{ nullptr };
         if (exp->m_pVictim) {
             if (exp->m_pVictim->GetRwObject()) {
                 if (RwMatrix* matrix = exp->m_pVictim->GetModellingMatrix()) {
                     CVector expToVictimDir = pos - exp->m_pVictim->GetPosition();
-                    fx = g_fxMan.CreateFxSystem(name, expToVictimDir, matrix, false);
+                    fx                     = g_fxMan.CreateFxSystem(name, expToVictimDir, matrix, false);
                 }
             }
         } else {
@@ -218,7 +240,7 @@ void CExplosion::AddExplosion(CEntity* victim, CEntity* creator, eExplosionType 
     };
 
     if (bInvisible) {
-        exp->m_fRadius = 0.0f;
+        exp->m_fRadius          = 0.0f;
         exp->m_fVisibleDistance = 0.0f;
     }
 
@@ -226,13 +248,12 @@ void CExplosion::AddExplosion(CEntity* victim, CEntity* creator, eExplosionType 
     switch (type) {
     case eExplosionType::EXPLOSION_GRENADE: {
         if (!bInvisible) {
-            exp->m_fRadius = 9.0f;
+            exp->m_fRadius          = 9.0f;
             exp->m_fVisibleDistance = 300.0f;
         }
-        exp->m_nExpireTime = (float)(CTimer::GetTimeInMS() + lifetime + 750);
+        exp->m_nExpireTime      = (float)(CTimer::GetTimeInMS() + lifetime + 750);
         exp->m_fPropagationRate = 0.5f;
         if (exp->m_pVictim) {
-
         } else {
             CreateAndPlayFxWithSound("explosion_small");
         }
@@ -242,16 +263,16 @@ void CExplosion::AddExplosion(CEntity* victim, CEntity* creator, eExplosionType 
         if (!bInvisible) {
             exp->m_fRadius = 6.0f;
         }
-        exp->m_nExpireTime = (float)(CTimer::GetTimeInMS() + lifetime + 3000);
+        exp->m_nExpireTime     = (float)(CTimer::GetTimeInMS() + lifetime + 3'000);
 
-        bool bHit = false;
-        const float fGroundPos = CWorld::FindGroundZFor3DCoord({pos.x, pos.y, pos.z + 3.0f}, &bHit, nullptr);
-        if (bHit)
+        bool        bHit       = false;
+        const float fGroundPos = CWorld::FindGroundZFor3DCoord({ pos.x, pos.y, pos.z + 3.0f }, &bHit, nullptr);
+        if (bHit) {
             pos.z = fGroundPos;
+        }
 
         float fWaterLevel{};
         if (CWaterLevel::GetWaterLevelNoWaves(pos, &fWaterLevel, nullptr, nullptr)) {
-            /* must be done like this because of call order */
             if (pos.z < fWaterLevel) {
                 bNoFire = true;
                 break;
@@ -259,20 +280,19 @@ void CExplosion::AddExplosion(CEntity* victim, CEntity* creator, eExplosionType 
         }
 
         CreateAndPlayFxWithSound("explosion_molotov", -36.f);
-
         break;
     }
     case eExplosionType::EXPLOSION_ROCKET:
     case eExplosionType::EXPLOSION_WEAK_ROCKET: {
         if (!bInvisible) {
-            exp->m_fRadius = 10.0f;
+            exp->m_fRadius          = 10.0f;
             exp->m_fVisibleDistance = 300.0f;
         }
         if (type == eExplosionType::EXPLOSION_WEAK_ROCKET) {
-            exp->m_fVisibleDistance = 200.0f;
+            exp->m_fVisibleDistance  = 200.0f;
             exp->m_fDamagePercentage = 0.2f;
         }
-        exp->m_nExpireTime = (float)(CTimer::GetTimeInMS() + lifetime + 750);
+        exp->m_nExpireTime      = (float)(CTimer::GetTimeInMS() + lifetime + 750);
         exp->m_fPropagationRate = 0.5f;
 
         CreateAndPlayFxWithSound("explosion_small");
@@ -281,15 +301,15 @@ void CExplosion::AddExplosion(CEntity* victim, CEntity* creator, eExplosionType 
     case eExplosionType::EXPLOSION_CAR:
     case eExplosionType::EXPLOSION_QUICK_CAR: {
         if (!bInvisible) {
-            exp->m_fRadius = 9.0f;
+            exp->m_fRadius          = 9.0f;
             exp->m_fVisibleDistance = 300.0f;
         }
-        exp->m_nExpireTime = (float)(CTimer::GetTimeInMS() + lifetime + 4250);
+        exp->m_nExpireTime      = (float)(CTimer::GetTimeInMS() + lifetime + 4'250);
         exp->m_fPropagationRate = 0.5f;
-        exp->m_nCreatedTime = (float)CTimer::GetTimeInMS();
+        exp->m_nCreatedTime     = (float)CTimer::GetTimeInMS();
 
         if (exp->m_pVictim) {
-            CCrime::ReportCrime(eCrimeType::CRIME_EXPLOSION, exp->m_pVictim->AsPed(), nullptr); /* won't do anything as second ped is nullptr */
+            CCrime::ReportCrime(eCrimeType::CRIME_EXPLOSION, exp->m_pVictim->AsPed(), nullptr);
         }
         CreateAndPlayFxWithSound("explosion_medium");
         break;
@@ -297,10 +317,10 @@ void CExplosion::AddExplosion(CEntity* victim, CEntity* creator, eExplosionType 
     case eExplosionType::EXPLOSION_BOAT:
     case eExplosionType::EXPLOSION_HELI: {
         if (!bInvisible) {
-            exp->m_fRadius = 25.0f;
+            exp->m_fRadius          = 25.0f;
             exp->m_fVisibleDistance = 600.0f;
         }
-        exp->m_nExpireTime = (float)(CTimer::GetTimeInMS() + lifetime + 3000);
+        exp->m_nExpireTime  = (float)(CTimer::GetTimeInMS() + lifetime + 3'000);
         exp->m_nCreatedTime = (float)CTimer::GetTimeInMS();
 
         CreateAndPlayFxWithSound("explosion_large");
@@ -308,33 +328,33 @@ void CExplosion::AddExplosion(CEntity* victim, CEntity* creator, eExplosionType 
     }
     case eExplosionType::EXPLOSION_MINE: {
         if (!bInvisible) {
-            exp->m_fRadius = 10.0f;
+            exp->m_fRadius          = 10.0f;
             exp->m_fVisibleDistance = 150.0f;
         }
-        exp->m_nExpireTime = (float)(CTimer::GetTimeInMS() + lifetime + 750);
+        exp->m_nExpireTime      = (float)(CTimer::GetTimeInMS() + lifetime + 750);
         exp->m_fPropagationRate = 0.5f;
 
         PlaySoundIfEnabled();
-        /* No fx for this */
         break;
     }
     case eExplosionType::EXPLOSION_OBJECT: {
         if (!bInvisible) {
-            exp->m_fRadius = 10.0f;
+            exp->m_fRadius          = 10.0f;
             exp->m_fVisibleDistance = 150.0f;
         }
-        exp->m_nExpireTime = (float)(CTimer::GetTimeInMS() + lifetime + 750);
+        exp->m_nExpireTime      = (float)(CTimer::GetTimeInMS() + lifetime + 750);
         exp->m_fPropagationRate = 0.5f;
-        if (exp->m_bMakeSound)
+        if (exp->m_bMakeSound) {
             m_ExplosionAudioEntity.AddAudioEvent(AE_EXPLOSION, exp->m_vecPosition, 0.0f);
+        }
         break;
     }
     case eExplosionType::EXPLOSION_TANK_GRENADE: {
         if (!bInvisible) {
-            exp->m_fRadius = 10.0f;
+            exp->m_fRadius          = 10.0f;
             exp->m_fVisibleDistance = 150.0f;
         }
-        exp->m_nExpireTime = (float)(CTimer::GetTimeInMS() + lifetime + 750);
+        exp->m_nExpireTime      = (float)(CTimer::GetTimeInMS() + lifetime + 750);
         exp->m_fPropagationRate = 0.5f;
 
         CreateAndPlayFxWithSound("explosion_large");
@@ -342,10 +362,10 @@ void CExplosion::AddExplosion(CEntity* victim, CEntity* creator, eExplosionType 
     }
     case eExplosionType::EXPLOSION_SMALL: {
         if (!bInvisible) {
-            exp->m_fRadius = 3.0f;
+            exp->m_fRadius          = 3.0f;
             exp->m_fVisibleDistance = 90.0f;
         }
-        exp->m_nExpireTime = (float)(CTimer::GetTimeInMS() + lifetime + 750);
+        exp->m_nExpireTime      = (float)(CTimer::GetTimeInMS() + lifetime + 750);
         exp->m_fPropagationRate = 0.5f;
 
         CreateAndPlayFxWithSound("explosion_small");
@@ -353,10 +373,10 @@ void CExplosion::AddExplosion(CEntity* victim, CEntity* creator, eExplosionType 
     }
     case eExplosionType::EXPLOSION_TINY: {
         if (!bInvisible) {
-            exp->m_fRadius = 3.0f;
+            exp->m_fRadius          = 3.0f;
             exp->m_fVisibleDistance = 90.0f;
         }
-        exp->m_nExpireTime = (float)(CTimer::GetTimeInMS() + lifetime + 750);
+        exp->m_nExpireTime      = (float)(CTimer::GetTimeInMS() + lifetime + 750);
         exp->m_fPropagationRate = 0.5f;
 
         CreateAndPlayFxWithSound("explosion_tiny");
@@ -369,14 +389,14 @@ void CExplosion::AddExplosion(CEntity* victim, CEntity* creator, eExplosionType 
         case eExplosionType::EXPLOSION_MOLOTOV:
         case eExplosionType::EXPLOSION_ROCKET:
         case eExplosionType::EXPLOSION_WEAK_ROCKET:
-        case eExplosionType::EXPLOSION_OBJECT: {
+        case eExplosionType::EXPLOSION_OBJECT:      {
             const auto numFires = (type == eExplosionType::EXPLOSION_MOLOTOV) ? (CGeneral::GetRandomNumber() - 2) % 4 : (CGeneral::GetRandomNumber() + 1) % 4;
 
             if (numFires) {
                 for (auto i = 0; i < numFires; i++) {
-                    CVector firePos = exp->m_vecPosition + CVector{CGeneral::GetRandomNumberInRange(-4.0f, 4.0f), CGeneral::GetRandomNumberInRange(-4.0f, 4.0f), 0.0f};
-                    bool bHitGround{};
-                    firePos.z = CWorld::FindGroundZFor3DCoord({firePos.x, firePos.y, firePos.z + 3.0f}, &bHitGround, nullptr); // 0x73735C
+                    CVector firePos = exp->m_vecPosition + CVector{ CGeneral::GetRandomNumberInRange(-4.0f, 4.0f), CGeneral::GetRandomNumberInRange(-4.0f, 4.0f), 0.0f };
+                    bool    bHitGround{};
+                    firePos.z = CWorld::FindGroundZFor3DCoord({ firePos.x, firePos.y, firePos.z + 3.0f }, &bHitGround, nullptr);
                     if (bHitGround && std::fabs(firePos.z - exp->m_vecPosition.z) < 10.0f) {
                         gFireManager.StartFire(firePos, 0.8f, 0, exp->m_pCreator, (uint32)(CGeneral::GetRandomNumberInRange(5'600.0f, 12'600.0f) * 0.4f), 3, 1);
                     }
@@ -390,10 +410,11 @@ void CExplosion::AddExplosion(CEntity* victim, CEntity* creator, eExplosionType 
         }
     }
 
-    if (victim)
+    if (victim) {
         g_InterestingEvents.Add(CInterestingEvents::EExplosion, victim);
+    }
 
-    CShadows::AddPermanentShadow(eShadowType::SHADOW_DEFAULT, gpShadowHeliTex, &pos, 8.0f, 0.0f, 0.0f, -8.0f, 200, 0, 0, 0, 10.0f, 30000, 1.0f);
+    CShadows::AddPermanentShadow(eShadowType::SHADOW_DEFAULT, gpShadowHeliTex, &pos, 8.0f, 0.0f, 0.0f, -8.0f, 200, 0, 0, 0, 10.0f, 30'000, 1.0f);
 
     if (exp->m_fVisibleDistance != 0.0f && !exp->m_nParticlesExpireTime) {
         CWorld::TriggerExplosion(pos, exp->m_fRadius, exp->m_fVisibleDistance, victim, creator, DoesNeedToVehProcessBombTimer(type), exp->m_fDamagePercentage);
@@ -402,21 +423,24 @@ void CExplosion::AddExplosion(CEntity* victim, CEntity* creator, eExplosionType 
     if (type == eExplosionType::EXPLOSION_MOLOTOV) {
         TheCamera.CamShake(cameraShake == -1.0f ? 0.2f : cameraShake, pos);
     } else {
-        if (cameraShake == -1.0f)
+        if (cameraShake == -1.0f) {
             cameraShake = 0.6f;
+        }
         TheCamera.CamShake(cameraShake, pos);
 
         CPad::GetPad(0)->StartShake_Distance(300, 128, pos);
-        if (CGameLogic::IsCoopGameGoingOn())
+        if (CGameLogic::IsCoopGameGoingOn()) {
             CPad::GetPad(1)->StartShake_Distance(300, 128, pos);
+        }
     }
 }
 
 // 0x737620
 void CExplosion::Update() {
     for (auto& exp : aExplosions) {
-        if (!exp.m_nActiveCounter)
+        if (!exp.m_nActiveCounter) {
             continue;
+        }
 
         if (exp.m_nParticlesExpireTime) {
             if (CTimer::GetTimeInMS() > exp.m_nParticlesExpireTime) {
@@ -441,7 +465,7 @@ void CExplosion::Update() {
             case eExplosionType::EXPLOSION_WEAK_ROCKET:
             case eExplosionType::EXPLOSION_HELI:
             case eExplosionType::EXPLOSION_MINE:
-            case eExplosionType::EXPLOSION_OBJECT: {
+            case eExplosionType::EXPLOSION_OBJECT:      {
                 if (CTimer::GetFrameCounter() % 2) {
                     CPointLights::AddLight(ePointLightType::PLTYPE_POINTLIGHT, exp.m_vecPosition, {}, 20.0f, 1.0f, 1.0f, 0.5f, 0, false, nullptr);
                 }
@@ -459,18 +483,18 @@ void CExplosion::Update() {
                 CWorld::SetCarsOnFire(pos, 0.1f, exp.m_pCreator);
 
                 if (exp.m_nActiveCounter < 10 && exp.m_nActiveCounter == 1) {
-                    CEntity* hitEntity;
-                    CColPoint colPoint{};
+                    CEntity*   hitEntity;
+                    CColPoint  colPoint{};
                     const bool bGroundHit = CWorld::ProcessVerticalLine(pos, -1000.0f, colPoint, hitEntity, true, false, false, false, true, false, nullptr);
-                    exp.m_fGroundZ = bGroundHit ? colPoint.m_vecPoint.z : pos.z;
+                    exp.m_fGroundZ        = bGroundHit ? colPoint.m_vecPoint.z : pos.z;
                 }
                 break;
             }
             case eExplosionType::EXPLOSION_CAR:
             case eExplosionType::EXPLOSION_QUICK_CAR:
-            case eExplosionType::EXPLOSION_BOAT: {
+            case eExplosionType::EXPLOSION_BOAT:      {
                 if (exp.m_pVictim && CGeneral::GetRandomNumber() % 32 == 0) {
-                    CVector rndOffset = {CGeneral::GetRandomNumberInRange(-0.5f, 0.5f), CGeneral::GetRandomNumberInRange(-0.5f, 0.5f), 0.0f};
+                    CVector rndOffset = { CGeneral::GetRandomNumberInRange(-0.5f, 0.5f), CGeneral::GetRandomNumberInRange(-0.5f, 0.5f), 0.0f };
                     rndOffset.Normalise();
                     rndOffset *= CGeneral::GetRandomNumberInRange(1.0f, 2.0f);
                     CCreepingFire::TryToStartFireAtCoors(exp.m_vecPosition + rndOffset, 0, true, false, 10.0f);
@@ -482,21 +506,25 @@ void CExplosion::Update() {
             }
             }
 
-            if ((uint32)exp.m_nExpireTime - CTimer::GetTimeInMS() <= 0)
+            if ((uint32)exp.m_nExpireTime - CTimer::GetTimeInMS() <= 0) {
                 exp.m_nActiveCounter = 0;
-            else
+                exp.SetVictim(nullptr);
+                exp.SetCreator(nullptr);
+            } else {
                 exp.m_nActiveCounter++;
+            }
 
             exp.m_nFuelTimer += (int32)CTimer::GetTimeStepInMS();
 
-            if (exp.m_nFuelTimer > 200)
+            if (exp.m_nFuelTimer > 200) {
                 continue;
+            }
 
             switch (exp.m_nType) {
             case eExplosionType::EXPLOSION_CAR:
             case eExplosionType::EXPLOSION_QUICK_CAR:
             case eExplosionType::EXPLOSION_BOAT:
-            case eExplosionType::EXPLOSION_HELI: {
+            case eExplosionType::EXPLOSION_HELI:      {
                 const float fFuelTimerProgress = (float)exp.m_nFuelTimer / 1000.0f;
                 for (auto i = 0; i < NUM_FUEL; i++) {
                     const float& fOffsetDistance = exp.m_fFuelOffsetDistance[i];

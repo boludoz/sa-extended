@@ -39,7 +39,8 @@ public:
 
     eCollisionSoundStatus GetCollisionSoundStatus(CEntity* entity1, CEntity* entity2, eSurfaceType surf1, eSurfaceType surf2, int32& outIndex);
 
-    void PlayLoopingCollisionSound(CEntity* entity1, CEntity* entity2, eSurfaceType surf1, eSurfaceType surf2, float a5, const CVector& posn, bool isForceLooping);
+    void PlayOneShotCollisionSound(CEntity* pEntityA, CEntity* pEntityB, uint8 SurfaceA, uint8 SurfaceB, float fImpulseMagnitude, const CVector& vPosition);
+    void PlayLoopingCollisionSound(CEntity* pEntityA, CEntity* pEntityB, uint8 SurfaceA, uint8 SurfaceB, float fImpulseMagnitude, const CVector& vPosition, bool bForceLooping);
     void UpdateLoopingCollisionSound(
         CAESound*      pSound,
         CEntity*       entityA,
@@ -52,10 +53,8 @@ public:
     );
 
     std::pair<float, float> GetLoopingCollisionSoundVolumeAndSpeed(CEntity* entityA, CEntity* entityB, eSurfaceType surfA, eSurfaceType surfB, bool isForceLooping); // notsa
-    void PlayOneShotCollisionSound(CEntity* entity1, CEntity* entity2, eSurfaceType surf1, eSurfaceType surf2, float a5, const CVector& posn);
-    void PlayBulletHitCollisionSound(eSurfaceType surface, const CVector& posn, float angleWithColPointNorm);
-
-    void ReportGlassCollisionEvent(eAudioEvents glassSoundType, const CVector& posn, uint32 time);
+    void                    PlayBulletHitCollisionSound(uint8 HitSurface, const CVector& vPosition, float fAngleOfIncidence);
+    void                    ReportGlassCollisionEvent(eAudioEvents glassSoundType, const CVector& posn, uint32 time);
     void ReportWaterSplash(CVector posn, float volume);
     void ReportWaterSplash(CPhysical* physical, float height, bool splashMoreThanOnce);
     void ReportObjectDestruction(CEntity* entity);

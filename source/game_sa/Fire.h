@@ -10,6 +10,9 @@ class CEntity;
 class CFire;
 class FxSystem_c;
 
+constexpr float DEFAULT_FIRE_PARTICLE_SIZE = 0.8f;
+constexpr int32 FIRE_AVERAGE_BURNTIME = 7000;
+
 class CFire {
 public:
     static void InjectHooks();

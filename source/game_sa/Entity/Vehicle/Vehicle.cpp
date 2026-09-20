@@ -3231,7 +3231,13 @@ void CVehicle::ProcessWheel(CVector& wheelFwd, CVector& wheelRight,
 
     if (bDriving) {
         fwd = thrust;
-        right = std::clamp(right, -adhesion, adhesion);
+        if (right < 0.0f) {
+            float negAdhesion = -adhesion;
+            if (right < negAdhesion)
+                right = negAdhesion;
+        } else if (right > adhesion) {
+            right = adhesion;
+        }
     }
     else if (contactSpeedFwd != 0.0f) {
         fwd = -contactSpeedFwd / wheelsOnGround;
@@ -3258,7 +3264,13 @@ void CVehicle::ProcessWheel(CVector& wheelFwd, CVector& wheelRight,
                 *wheelState = WHEEL_STATE_FIXED;
             }
         } else {
-            fwd = std::clamp(fwd, -brake, brake);
+            if (fwd < 0.0f) {
+                float negBrake = -brake;
+                if (fwd < negBrake)
+                    fwd = negBrake;
+            } else if (fwd > brake) {
+                fwd = brake;
+            }
         }
     }
 
@@ -3440,7 +3452,13 @@ void CVehicle::ProcessBikeWheel(
             if (std::abs(contactSpeedFwd) > 0.005f)
                 *wheelState = WHEEL_STATE_FIXED;
         } else {
-            fwd = std::clamp(fwd, -currentTurnForce, currentTurnForce);
+            if (fwd < 0.0f) {
+                float negTurnForce = -currentTurnForce;
+                if (fwd < negTurnForce)
+                    fwd = negTurnForce;
+            } else if (fwd > currentTurnForce) {
+                fwd = currentTurnForce;
+            }
         }
     }
 

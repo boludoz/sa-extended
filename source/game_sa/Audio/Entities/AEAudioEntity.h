@@ -14,6 +14,8 @@ class CEntity;
 
 class NOTSA_EXPORT_VTABLE CAEAudioEntity {
 public:
+    static inline int8*& m_pAudioEventVolumes = StaticRef<int8*>(0xBD00F8);
+
     CEntity* m_Entity{};
     CAESound m_tempSound{};
 

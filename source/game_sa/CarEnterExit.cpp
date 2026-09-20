@@ -17,7 +17,9 @@ void CCarEnterExit::InjectHooks() {
     RH_ScopedInstall(CarHasPartiallyOpenDoor, 0x64EE70);
     RH_ScopedInstall(ComputeDoorFlag, 0x64E550);
     RH_ScopedInstall(ComputeOppositeDoorFlag, 0x64E610);
+    RH_ScopedInstall(IsDriverDoorFlag, 0x64E6D0);
     RH_ScopedInstall(ComputePassengerIndexFromCarDoor, 0x64F1E0);
+    RH_ScopedInstall(ComputeQuickJackedPed, 0x64F040);
     RH_ScopedInstall(ComputeSlowJackedPed, 0x64F070);
     RH_ScopedInstall(ComputeTargetDoorToEnterAsPassenger, 0x64F190);
     RH_ScopedInstall(ComputeTargetDoorToExit, 0x64F110);
@@ -99,52 +101,95 @@ bool CCarEnterExit::CarHasPartiallyOpenDoor(const CVehicle* vehicle, int32 doorI
 }
 
 // 0x64E550
+// ASM Match
 int32 CCarEnterExit::ComputeDoorFlag(const CVehicle* vehicle, int32 doorId, bool bSettingFlags) {
     if (bSettingFlags && (vehicle->IsBike() || vehicle->m_pHandlingData->m_bTandemSeats)) {
         switch (doorId) {
         case 8:
         case 10:
-        case 18: return 5;
+        case 18:
+            return 5;
         case 9:
-        case 11: return 10;
-        default: return 0;
+        case 11:
+            return 10;
+        default:
+            return 0;
         }
     } else {
         switch (doorId) {
-        case 8:  return 4;
-        case 9:  return 8;
+        case 8:
+            return 4;
+        case 9:
+            return 8;
         case 10:
-        case 18: return 1;
-        case 11: return 2;
-        default: return 0;
+        case 18:
+            return 1;
+        case 11:
+            return 2;
+        default:
+            return 0;
         }
     }
 }
 
 // 0x64E610
+// ASM Match
 int32 CCarEnterExit::ComputeOppositeDoorFlag(const CVehicle* vehicle, int32 doorId, bool bCheckVehicleType) {
     if (bCheckVehicleType && (vehicle->IsBike() || vehicle->m_pHandlingData->m_bTandemSeats)) {
         switch (doorId) {
         case 8:
         case 10:
-        case 18: return 5;
+        case 18:
+            return 5;
         case 9:
-        case 11: return 10;
-        default: return 0;
+        case 11:
+            return 10;
+        default:
+            return 0;
         }
     } else {
         switch (doorId) {
-        case 8: return 1;
-        case 9: return 2;
+        case 8:
+            return 1;
+        case 9:
+            return 2;
         case 10:
-        case 18: return 4;
-        case 11: return 8;
-        default: return 0;
+        case 18:
+            return 4;
+        case 11:
+            return 8;
+        default:
+            return 0;
+        }
+    }
+}
+
+// 0x64E6D0
+// ASM Match
+bool CCarEnterExit::IsDriverDoorFlag(const CVehicle* vehicle, uint8 flag, bool bSettingFlags) {
+    if (bSettingFlags && (vehicle->IsBike() || vehicle->m_pHandlingData->m_bTandemSeats)) {
+        switch (flag) {
+        case 5:
+            return true;
+        case 10:
+        default:
+            return false;
+        }
+    } else {
+        switch (flag) {
+        case 1:
+            return true;
+        case 2:
+        case 4:
+        case 8:
+        default:
+            return false;
         }
     }
 }
 
 // 0x64F1E0
+// ASM Match
 int32 CCarEnterExit::ComputePassengerIndexFromCarDoor(const CVehicle* vehicle, int32 doorId) {
     if (vehicle->IsBike() || vehicle->m_pHandlingData->m_bTandemSeats) {
         switch (doorId) {
@@ -181,7 +226,20 @@ CPed* CCarEnterExit::ComputePedInPassengerSeatFromCarDoor(const CVehicle* vehicl
     return psgrIdx < 0 ? vehicle->m_pDriver : vehicle->m_apPassengers[psgrIdx];
 }
 
+// 0x64F040
+// ASM Match
+CPed* CCarEnterExit::ComputeQuickJackedPed(const CVehicle* vehicle, int32 doorId) {
+    if (doorId == 10) {
+        return vehicle->m_pDriver;
+    }
+    if (doorId == 11) {
+        return vehicle->m_apPassengers[1];
+    }
+    return nullptr;
+}
+
 // 0x64F070
+// ASM Match
 CPed* CCarEnterExit::ComputeSlowJackedPed(const CVehicle* vehicle, int32 doorId) {
     if (vehicle->IsBike() || vehicle->m_pHandlingData->m_bTandemSeats) {
         switch (doorId) {
@@ -195,23 +253,24 @@ CPed* CCarEnterExit::ComputeSlowJackedPed(const CVehicle* vehicle, int32 doorId)
         default:
             return nullptr;
         }
-    }
-
-    switch (doorId) {
-    case 8:
-        return vehicle->m_apPassengers[0];
-    case 9:
-        return vehicle->m_apPassengers[2];
-    case 10:
-        return vehicle->m_pDriver;
-    case 11:
-        return vehicle->m_apPassengers[1];
-    default:
-        return nullptr;
+    } else {
+        switch (doorId) {
+        case 8:
+            return vehicle->m_apPassengers[0];
+        case 9:
+            return vehicle->m_apPassengers[2];
+        case 10:
+            return vehicle->m_pDriver;
+        case 11:
+            return vehicle->m_apPassengers[1];
+        default:
+            return nullptr;
+        }
     }
 }
 
 // 0x64F190
+// ASM Match
 int32 CCarEnterExit::ComputeTargetDoorToEnterAsPassenger(const CVehicle* vehicle, int32 psgrIdx) {
     if (vehicle->vehicleFlags.bIsBus) {
         return 8;
@@ -219,7 +278,10 @@ int32 CCarEnterExit::ComputeTargetDoorToEnterAsPassenger(const CVehicle* vehicle
 
     switch (psgrIdx) {
     case 0:
-        return (vehicle->IsBike() || vehicle->m_pHandlingData->m_bTandemSeats) ? 11 : 8; // Inverted condition
+        if (vehicle->IsBike() || vehicle->m_pHandlingData->m_bTandemSeats) {
+            return 11;
+        }
+        return 8;
     case 1:
         return 11;
     case 2:
@@ -230,22 +292,29 @@ int32 CCarEnterExit::ComputeTargetDoorToEnterAsPassenger(const CVehicle* vehicle
 }
 
 // 0x64F110
+// ASM Match
 int32 CCarEnterExit::ComputeTargetDoorToExit(const CVehicle* vehicle, const CPed* ped) {
     if (vehicle->m_pDriver == ped) {
         return 10;
     }
 
-    // Theoritically the rest here is the same as `ComputeTargetDoorToEnterAsPassenger`
-    // but I'm not quite sure, as in that function they just check `bIsBus`, while here they check the anim groups
-    // So, using the below switch I make sure the theory is right.
-    switch (vehicle->GetAnimGroupId()) {
-    case ANIM_GROUP_COACHCARANIMS:
-    case ANIM_GROUP_BUSCARANIMS:
-        assert(vehicle->vehicleFlags.bIsBus);
+    if (vehicle->GetAnimGroupId() == ANIM_GROUP_BUSCARANIMS || vehicle->GetAnimGroupId() == ANIM_GROUP_COACHCARANIMS) {
+        return 8;
     }
 
-    if (const auto optIndex = vehicle->GetPassengerIndex(ped)) {
-        return ComputeTargetDoorToEnterAsPassenger(vehicle, *optIndex);
+    if (vehicle->m_apPassengers[0] == ped) {
+        if (vehicle->IsBike() || vehicle->m_pHandlingData->m_bTandemSeats) {
+            return 11;
+        }
+        return 8;
+    }
+
+    if (vehicle->m_apPassengers[1] == ped) {
+        return 11;
+    }
+
+    if (vehicle->m_apPassengers[2] == ped) {
+        return 9;
     }
 
     return -1;
@@ -294,10 +363,12 @@ bool CCarEnterExit::GetNearestCarDoor(const CPed* ped, const CVehicle* vehicle, 
 
     if (vehicle->m_pVehicleBeingTowed) {
         if (dir2DToDoorFLeft.SquaredMagnitude() < dir2DToDoorFRight.SquaredMagnitude()) {
-            if (IsPathToDoorBlockedByVehicleCollisionModel(ped, vehicle, posDoorFRight)) {
-                dir2DToDoorFRight = { 999.90002f, 999.90002f };
-            } else if (IsPathToDoorBlockedByVehicleCollisionModel(ped, vehicle, posDoorFLeft)) {
+            if (IsPathToDoorBlockedByVehicleCollisionModel(ped, vehicle->m_pVehicleBeingTowed, posDoorFLeft)) {
                 dir2DToDoorFLeft = { 999.90002f, 999.90002f };
+            }
+        } else {
+            if (IsPathToDoorBlockedByVehicleCollisionModel(ped, vehicle->m_pVehicleBeingTowed, posDoorFRight)) {
+                dir2DToDoorFRight = { 999.90002f, 999.90002f };
             }
         }
     }
@@ -404,22 +475,37 @@ CVector CCarEnterExit::GetPositionToOpenCarDoor(const CVehicle* vehicle, int32 d
 }
 
 // 0x64EC90
+// ASM Match
 bool CCarEnterExit::IsCarDoorInUse(const CVehicle* vehicle, int32 firstDoorId, int32 secondDoorId) {
-    const auto CheckIsDoorInUse = [vehicle](int32 door) {
-        const auto CheckInOutFlags = [vehicle](uint32 n) {
-            const auto flag = 1 << n;
-            return (flag & vehicle->m_nGettingInFlags) || (flag & vehicle->m_nGettingOutFlags);
-        };
-        switch (door) {
-        case 8: return CheckInOutFlags(2);
-        case 9: return CheckInOutFlags(3);
+    const auto CheckIsDoorInUse = [vehicle](int32 doorId) {
+        uint8 flag = 0;
+        switch (doorId) {
         case 10:
-        case 18: return CheckInOutFlags(0);
-        case 11: return CheckInOutFlags(1);
-        default: return false;
+        case 18:
+            flag = 1;
+            break;
+        case 11:
+            flag = 2;
+            break;
+        case 8:
+            flag = 4;
+            break;
+        case 9:
+            flag = 8;
+            break;
+        default:
+            return false;
         }
+        return ((vehicle->m_nGettingInFlags & flag) != 0) || ((vehicle->m_nGettingOutFlags & flag) != 0);
     };
-    return CheckIsDoorInUse(firstDoorId) || CheckIsDoorInUse(secondDoorId);
+
+    if (firstDoorId != 0 && CheckIsDoorInUse(firstDoorId)) {
+        return true;
+    }
+    if (secondDoorId != 0 && CheckIsDoorInUse(secondDoorId)) {
+        return true;
+    }
+    return false;
 }
 
 // 0x64ED90
@@ -442,44 +528,52 @@ bool CCarEnterExit::IsCarQuickJackPossible(CVehicle* vehicle, int32 doorId, cons
 }
 
 // 0x64EF70
+// ASM Match
 bool CCarEnterExit::IsCarSlowJackRequired(const CVehicle* vehicle, int32 doorId) {
-    if (vehicle->IsBike() || (vehicle->m_pHandlingData->m_bTandemSeats)) {
+    CPed* pPed = nullptr;
+    if (vehicle->IsBike() || vehicle->m_pHandlingData->m_bTandemSeats) {
         switch (doorId) {
         case 8:
         case 10:
         case 18:
-            return vehicle->HasDriver();
+            pPed = vehicle->m_pDriver;
+            break;
         case 9:
         case 11:
-            return vehicle->HasPassengerAtSeat(0);
+            pPed = vehicle->m_apPassengers[0];
+            break;
         default:
             return false;
         }
-    }
-
-    int group = vehicle->GetAnimGroupId();
-    if (group == ANIM_GROUP_COACHCARANIMS || group == ANIM_GROUP_BUSCARANIMS) {
+    } else if (vehicle->GetAnimGroupId() == ANIM_GROUP_BUSCARANIMS || vehicle->GetAnimGroupId() == ANIM_GROUP_COACHCARANIMS) {
         switch (doorId) {
         case 8:
             return false;
         case 10:
-            return vehicle->HasDriver();
+            pPed = vehicle->m_pDriver;
+            break;
+        default:
+            return false;
         }
     } else {
         switch (doorId) {
         case 8:
-            return vehicle->HasPassengerAtSeat(0);
+            pPed = vehicle->m_apPassengers[0];
+            break;
         case 9:
-            return vehicle->HasPassengerAtSeat(2);
+            pPed = vehicle->m_apPassengers[2];
+            break;
         case 10:
-            return vehicle->HasDriver();
+            pPed = vehicle->m_pDriver;
+            break;
         case 11:
-            return vehicle->HasPassengerAtSeat(1);
+            pPed = vehicle->m_apPassengers[1];
+            break;
         default:
             return false;
         }
     }
-    return false;
+    return pPed != nullptr;
 }
 
 // 0x6509B0
@@ -533,27 +627,18 @@ bool CCarEnterExit::IsVehicleHealthy(const CVehicle* vehicle) {
 }
 
 // 0x6510D0
+// ASM Match
 bool CCarEnterExit::IsVehicleStealable(const CVehicle* vehicle, const CPed* ped) {
-    switch (vehicle->GetVehicleType()) {
-    case VEHICLE_TYPE_PLANE:
-    case VEHICLE_TYPE_HELI:
+    if (vehicle->GetVehicleType() == VEHICLE_TYPE_PLANE || vehicle->GetVehicleType() == VEHICLE_TYPE_HELI) {
         return false;
     }
 
-    switch (vehicle->GetBaseVehicleType()) {
-    case VEHICLE_TYPE_AUTOMOBILE:
-    case VEHICLE_TYPE_BIKE:
-        break;
-    default:
+    if (vehicle->GetBaseVehicleType() != VEHICLE_TYPE_AUTOMOBILE && vehicle->GetBaseVehicleType() != VEHICLE_TYPE_BIKE) {
         return false;
     }
 
-    if (ped->m_pVehicle != vehicle) {
-        switch (vehicle->GetCreatedBy()) {
-        case RANDOM_VEHICLE:
-        case PARKED_VEHICLE:
-            break;
-        default:
+    if (vehicle->GetCreatedBy() != RANDOM_VEHICLE && vehicle->GetCreatedBy() != PARKED_VEHICLE) {
+        if (ped->m_pVehicle != vehicle) {
             return false;
         }
     }
@@ -617,8 +702,8 @@ void CCarEnterExit::MakeUndraggedPassengerPedsLeaveCar(const CVehicle* targetVeh
     plugin::Call<0x64F540, const CVehicle*, const CPed*, const CPed*>(targetVehicle, draggedPed, ped);
 }
 
-// unused
 // 0x650130
+// ASM Match
 void CCarEnterExit::QuitEnteringCar(CPed* ped, CVehicle* vehicle, int32 doorId, bool bCarWasBeingJacked) {
     RemoveGetInAnims(ped);
     ped->RestartNonPartialAnims();
@@ -627,39 +712,38 @@ void CCarEnterExit::QuitEnteringCar(CPed* ped, CVehicle* vehicle, int32 doorId, 
     }
 
     if (bCarWasBeingJacked) {
-        vehicle->vehicleFlags.bIsBeingCarJacked = true;
+        vehicle->vehicleFlags.bIsBeingCarJacked = false;
     }
-    vehicle->m_nNumGettingIn--;
+    if (vehicle->m_nNumGettingIn > 0) {
+        vehicle->m_nNumGettingIn--;
+    }
 
     if (vehicle->IsBike() || vehicle->m_pHandlingData->m_bTandemSeats) {
-        switch (doorId) {
-        case 8:
-        case 10:
-            vehicle->SetGettingInFlags(5);
-            break;
-        case 9:
-        case 11:
-            vehicle->SetGettingInFlags(10);
-            break;
+        if (doorId == 8 || doorId == 10) {
+            vehicle->ClearGettingInFlags(5);
+        } else if (doorId == 9 || doorId == 11) {
+            vehicle->ClearGettingInFlags(10);
         }
-        vehicle->vehicleFlags.bIsBig = false;
+        if (vehicle->IsBike()) {
+            static_cast<CBike*>(vehicle)->bikeFlags.bGettingPickedUp = false;
+        }
     } else {
         switch (doorId) {
         case 8:
-            vehicle->SetGettingInFlags(4);
+            vehicle->ClearGettingInFlags(4);
             break;
         case 9:
-            vehicle->SetGettingInFlags(8);
+            vehicle->ClearGettingInFlags(8);
             break;
         case 10:
-            vehicle->SetGettingInFlags(vehicle->m_nMaxPassengers ? 1 : 3);
+            vehicle->ClearGettingInFlags(vehicle->m_nMaxPassengers != 0 ? 1 : 3);
             break;
         case 11:
-            vehicle->SetGettingInFlags(vehicle->m_nMaxPassengers ? 2 : 3);
+            vehicle->ClearGettingInFlags(vehicle->m_nMaxPassengers != 0 ? 2 : 3);
             break;
         }
     }
-    ped->SetUsesCollision(false);
+    ped->SetUsesCollision(true);
 }
 
 // 0x64F680

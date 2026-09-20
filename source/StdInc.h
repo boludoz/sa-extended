@@ -222,7 +222,6 @@
 #include "Events/EventScanner.h"
 #include "Events/Event.h"
 #include "Crime.h"
-#include "SurfaceInfo_c.h"
 #include "SurfaceInfos_c.h"
 #include "Replay.h"
 #include "VehicleAnimGroupData.h"

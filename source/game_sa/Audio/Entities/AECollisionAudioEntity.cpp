@@ -59,6 +59,7 @@ void CAECollisionAudioEntity::Reset() {
 }
 
 // 0x4DAAC0
+/*
 void CAECollisionAudioEntity::AddCollisionSoundToList(
     CEntity* entityA,
     CEntity* entityB,
@@ -87,6 +88,49 @@ void CAECollisionAudioEntity::AddCollisionSoundToList(
         : 0;
 
     m_NumActiveCollisionSounds++;
+}*/
+// 0x4DAAC0
+void CAECollisionAudioEntity::AddCollisionSoundToList(
+    CEntity*              entityA,
+    CEntity*              entityB,
+    eSurfaceType          surfaceA,
+    eSurfaceType          surfaceB,
+    CAESound*             sound,
+    eCollisionSoundStatus status
+) {
+    if (!sound) {
+        return;
+    }
+
+    // Buscar el primer slot disponible (0 a 299)
+    int32 freeIndex = -1;
+    for (int32 i = 0; i < 300; ++i) {
+        if (!m_CollisionSoundList[i].Sound || m_CollisionSoundList[i].Status == COLLISION_SOUND_INACTIVE) {
+            freeIndex = i;
+            break;
+        }
+    }
+
+    // Si los 300 slots están ocupados, salir de inmediato sin tocar memoria
+    if (freeIndex < 0 || freeIndex >= 300) {
+        return;
+    }
+
+    tCollisionSound& entry = m_CollisionSoundList[freeIndex];
+    entry.EntityA          = entityA;
+    entry.EntityB          = entityB;
+    entry.SurfaceA         = surfaceA;
+    entry.SurfaceB         = surfaceB;
+    entry.Sound            = sound;
+    entry.Status           = status;
+
+    if (status == COLLISION_SOUND_LOOPING) {
+        entry.LoopStopTimeMs = CTimer::GetTimeInMS() + 100;
+    } else {
+        entry.LoopStopTimeMs = CTimer::GetTimeInMS() + 1'000;
+    }
+
+    ++m_NumActiveCollisionSounds;
 }
 
 // 0x4DA830
@@ -105,7 +149,7 @@ eCollisionSoundStatus CAECollisionAudioEntity::GetCollisionSoundStatus(CEntity* 
 }
 
 // 0x4DB150
-void CAECollisionAudioEntity::PlayOneShotCollisionSound(CEntity* entityA, CEntity* entityB, eSurfaceType surfaceA, eSurfaceType surfaceB, float impulseMagnitude, const CVector& posn) {
+void CAECollisionAudioEntity::PlayOneShotCollisionSound(CEntity* pEntityA, CEntity* pEntityB, uint8 SurfaceA, uint8 SurfaceB, float fImpulseMagnitude, const CVector& vPosition) {
     const auto ProcessSound = [&](CEntity* eA, CEntity* eB, eSurfaceType sA, eSurfaceType sB) {
         if (sB >= TOTAL_NUM_COLLISION_SURFACE_TYPES) {
             return false;
@@ -131,7 +175,7 @@ void CAECollisionAudioEntity::PlayOneShotCollisionSound(CEntity* entityA, CEntit
         if (soundID == -1) {
             return true;
         }
-        auto offset = ((float)(gCollisionLookup[sA].ParamD) * impulseMagnitude) / 100.f;
+        auto offset = ((float)(gCollisionLookup[sA].ParamD) * fImpulseMagnitude) / 100.f;
         if (sB == AE_SURFACE_TYPE_BMX && sA == SURFACE_PED) { // 0x4DB2A6
             offset *= 10.f;
         }
@@ -149,7 +193,7 @@ void CAECollisionAudioEntity::PlayOneShotCollisionSound(CEntity* entityA, CEntit
                 .BankSlotID        = slot,
                 .SoundID           = soundID,
                 .AudioEntity       = this,
-                .Pos               = posn,
+                .Pos               = vPosition,
                 .Volume            = volume,
                 .RollOffFactor     = 2.f,
                 .Flags             = SOUND_ROLLED_OFF | SOUND_START_PERCENTAGE | SOUND_REQUEST_UPDATES,
@@ -157,7 +201,7 @@ void CAECollisionAudioEntity::PlayOneShotCollisionSound(CEntity* entityA, CEntit
             });
             m_CollisionSoundIDHistory[sB] = soundID;
             if (sound) { // 0x4DB3E7
-                AddCollisionSoundToList(entityA, entityB, sA, sB, sound, COLLISION_SOUND_ONE_SHOT);
+                AddCollisionSoundToList(pEntityA, pEntityB, sA, sB, sound, COLLISION_SOUND_ONE_SHOT);
             }
         };
         const auto maxStartAt = gCollisionLookup[sB].MaxStartAtPercentage;
@@ -169,10 +213,10 @@ void CAECollisionAudioEntity::PlayOneShotCollisionSound(CEntity* entityA, CEntit
         return true;
     };
 
-    if (!ProcessSound(entityA, entityB, surfaceA, surfaceB)) {
+    if (!ProcessSound(pEntityA, pEntityB, static_cast<eSurfaceType>(SurfaceA), static_cast<eSurfaceType>(SurfaceB))) {
         return;
     }
-    if (!ProcessSound(entityB, entityA, surfaceB, surfaceA)) {
+    if (!ProcessSound(pEntityB, pEntityA, static_cast<eSurfaceType>(SurfaceB), static_cast<eSurfaceType>(SurfaceA))) {
         return;
     }
 }
@@ -212,6 +256,7 @@ std::pair<float, float> CAECollisionAudioEntity::GetLoopingCollisionSoundVolumeA
 }
 
 // 0x4DB450
+/*
 void CAECollisionAudioEntity::PlayLoopingCollisionSound(CEntity* entityA, CEntity* entityB, eSurfaceType surfaceA, eSurfaceType surfaceB, float force, const CVector& pos, bool isForceLooping) {
     const auto [volume, speed] = GetLoopingCollisionSoundVolumeAndSpeed(entityA, entityB, surfaceA, surfaceB, isForceLooping);
 
@@ -269,6 +314,114 @@ void CAECollisionAudioEntity::PlayLoopingCollisionSound(CEntity* entityA, CEntit
             PlaySound(SND_GENRL_COLLISIONS_GRAVEL_SKID);
         }
     }
+}*/
+// 0x4DB450
+void CAECollisionAudioEntity::PlayLoopingCollisionSound(
+    CEntity*       pEntityA,
+    CEntity*       pEntityB,
+    uint8          SurfaceA,
+    uint8          SurfaceB,
+    float          fImpulseMagnitude,
+    const CVector& vPosition,
+    bool           bForceLooping
+) {
+    float fVolume = -100.0f;
+    float fSpeed  = 0.0f;
+
+    CVector vecDiff(0.0f, 0.0f, 0.0f);
+
+    CPhysical* physA = (pEntityA && pEntityA->GetIsTypePhysical()) ? pEntityA->AsPhysical() : nullptr;
+    CPhysical* physB = (pEntityB && pEntityB->GetIsTypePhysical()) ? pEntityB->AsPhysical() : nullptr;
+
+    if (SurfaceA == SURFACE_CAR) {
+        if (SurfaceB == SURFACE_CAR && physA && physB) {
+            CVector vecMoveDiff = physA->m_vecMoveSpeed - physB->m_vecMoveSpeed;
+            CVector vecTurnDiff = physA->m_vecTurnSpeed - physB->m_vecTurnSpeed;
+
+            if (vecMoveDiff.SquaredMagnitude() > vecTurnDiff.SquaredMagnitude()) {
+                vecDiff = vecMoveDiff;
+            } else {
+                vecDiff = vecTurnDiff;
+            }
+        } else if (SurfaceB != SURFACE_PED && physA) {
+            if (physA->m_vecMoveSpeed.SquaredMagnitude() > physA->m_vecTurnSpeed.SquaredMagnitude()) {
+                vecDiff = physA->m_vecMoveSpeed;
+            } else {
+                vecDiff = physA->m_vecTurnSpeed;
+            }
+        }
+    } else if (SurfaceB == SURFACE_CAR && SurfaceA != SURFACE_PED && physA) {
+        if (physA->m_vecMoveSpeed.SquaredMagnitude() > physA->m_vecTurnSpeed.SquaredMagnitude()) {
+            vecDiff = physA->m_vecMoveSpeed;
+        } else {
+            vecDiff = physA->m_vecTurnSpeed;
+        }
+    }
+
+    float fVelocity = vecDiff.Magnitude();
+    if (fVelocity != 0.0f) {
+        float fCalculatedSpeed = std::sqrt(fVelocity * (gCollisionLookup[SurfaceA].ParamD * gCollisionLookup[SurfaceB].ParamD) * 0.0001f) * 3.0f;
+        if (fCalculatedSpeed >= 0.3f) {
+            fCalculatedSpeed = 0.3f;
+        }
+
+        if (bForceLooping) {
+            fSpeed = fCalculatedSpeed * (1.0f / 6.0f);
+        } else {
+            fSpeed = fCalculatedSpeed;
+        }
+
+        float fLogRatio = 1.3333334f * fSpeed;
+        if (fLogRatio >= 1.0f) {
+            fLogRatio = 1.0f;
+        }
+
+        fVolume = std::log10(fLogRatio) * 20.0f + GetDefaultVolume(AE_GENERAL_COLLISION);
+    }
+
+    float fSoundSpeed = fSpeed;
+    if (fSoundSpeed <= 0.75f) {
+        fSoundSpeed = 0.75f;
+    }
+    fSoundSpeed *= 0.8f;
+
+    eSoundID nSoundId;
+    if (g_surfaceInfos.IsAudioGrass(SurfaceA) || g_surfaceInfos.IsAudioGrass(SurfaceB)) {
+        nSoundId = SND_GENRL_COLLISIONS_GRASS_SKID;
+    } else if (g_surfaceInfos.IsAudioWater(SurfaceA) || g_surfaceInfos.IsAudioWater(SurfaceB)) {
+        nSoundId = SND_GENRL_COLLISIONS_WATER_LOOP;
+    } else if (g_surfaceInfos.IsAudioMetal(SurfaceA) || g_surfaceInfos.IsAudioMetal(SurfaceB)) {
+        nSoundId = SND_GENRL_COLLISIONS_METAL_SCRAPE;
+    } else {
+        nSoundId = SND_GENRL_COLLISIONS_GRAVEL_SKID;
+    }
+
+    CAESound sound;
+    sound.Initialise(
+        SND_BANK_SLOT_COLLISIONS,
+        nSoundId,
+        this,
+        vPosition,
+        fVolume,
+        2.0f,
+        fSoundSpeed,
+        1.0f,
+        0,
+        SOUND_REQUEST_UPDATES,
+        0.0f,
+        0
+    );
+
+    if (physA) {
+        sound.RegisterWithPhysicalEntity(physA);
+    } else if (physB) {
+        sound.RegisterWithPhysicalEntity(physB);
+    }
+
+    CAESound* pSound = AESoundManager.RequestNewSound(&sound);
+    if (pSound) {
+        AddCollisionSoundToList(pEntityA, pEntityB, static_cast<eSurfaceType>(SurfaceA), static_cast<eSurfaceType>(SurfaceB), pSound, COLLISION_SOUND_LOOPING);
+    }
 }
 
 // 0x4DA540
@@ -289,46 +442,72 @@ void CAECollisionAudioEntity::UpdateLoopingCollisionSound(
 }
 
 // 0x4DB7C0
-void CAECollisionAudioEntity::PlayBulletHitCollisionSound(eSurfaceType surface, const CVector& posn, float angleWithColPointNorm) {
-    if (surface >= TOTAL_NUM_COLLISION_SURFACE_TYPES) {
+void CAECollisionAudioEntity::PlayBulletHitCollisionSound(uint8 HitSurface, const CVector& vPosition, float fAngleOfIncidence) {
+    if (HitSurface >= 195) {
         return;
     }
-    const auto PlayRandomSound = [&](int32 minID, int32 maxID, float volumeOffset = 0.f, float rollOff = 1.5f) { // 0x4DB9BF
-        //! Find a new random sound ID that is not the same as the last one.
-        const auto GetNewRandomSoundID = [&]{
-            while (true) {
-                const auto id = CAEAudioUtility::GetRandomNumberInRange(minID, maxID);
-                if (id != m_LastBulletHitSoundID) {
-                    return id;
-                }
-            }
-        };
-        AESoundManager.PlaySound({
-            .BankSlotID        = SND_BANK_SLOT_BULLET_HITS,
-            .SoundID           = m_LastBulletHitSoundID = GetNewRandomSoundID(),
-            .AudioEntity       = this,
-            .Pos               = posn,
-            .Volume            = GetDefaultVolume(AE_BULLET_HIT) + volumeOffset,
-            .RollOffFactor     = rollOff,
-            .FrequencyVariance = 0.02f
-        });
-    };
-    if (surface == SURFACE_PED) {
-        PlayRandomSound(7, 9);
-    } else if (g_surfaceInfos.IsAudioWater(surface)) {
-        PlayRandomSound(16, 18, 6.f, 2.f);
-    } else if (g_surfaceInfos.IsAudioWood(surface)) {
-        PlayRandomSound(19, 21);
-    } else if (g_surfaceInfos.IsAudioMetal(surface)) {
-        if (CAEAudioUtility::ResolveProbability((90.0f - angleWithColPointNorm) / 180.0f)) { // see BoneNode_c::EulerToQuat
-            PlayRandomSound(10, 12);
+
+    float volume      = GetDefaultVolume(AE_BULLET_HIT);
+    float maxDistance = 1.5f;
+    int16 soundId     = -1;
+
+    if (HitSurface == SURFACE_PED) {
+        do {
+            soundId = static_cast<int16>(CAEAudioUtility::GetRandomNumberInRange(7, 9));
+        } while (soundId == m_LastBulletHitSoundID);
+    } else if (g_surfaceInfos.IsAudioWater(HitSurface)) {
+        do {
+            soundId = static_cast<int16>(CAEAudioUtility::GetRandomNumberInRange(16, 18));
+        } while (soundId == m_LastBulletHitSoundID);
+
+        maxDistance = 2.0f;
+        volume += 6.0f;
+    } else if (g_surfaceInfos.IsAudioWood(HitSurface)) {
+        do {
+            soundId = static_cast<int16>(CAEAudioUtility::GetRandomNumberInRange(19, 21));
+        } while (soundId == m_LastBulletHitSoundID);
+    } else if (g_surfaceInfos.IsAudioMetal(HitSurface)) {
+        const float ricochetChance = (90.0f - fAngleOfIncidence) * 0.0055555557f;
+        if (CAEAudioUtility::ResolveProbability(ricochetChance)) {
+            do {
+                soundId = static_cast<int16>(CAEAudioUtility::GetRandomNumberInRange(10, 12));
+            } while (soundId == m_LastBulletHitSoundID);
         } else {
-            PlayRandomSound(4, 6);
+            do {
+                soundId = static_cast<int16>(CAEAudioUtility::GetRandomNumberInRange(4, 6));
+            } while (soundId == m_LastBulletHitSoundID);
         }
-    } else if (g_surfaceInfos.IsAudioGravelConcreteOrTile(surface)) {
-        PlayRandomSound(13, 15);
+    } else if (g_surfaceInfos.IsAudioConcrete(HitSurface)
+               || g_surfaceInfos.IsAudioGravel(HitSurface)
+               || g_surfaceInfos.IsAudioTile(HitSurface)) {
+        do {
+            soundId = static_cast<int16>(CAEAudioUtility::GetRandomNumberInRange(13, 15));
+        } while (soundId == m_LastBulletHitSoundID);
     } else {
-        PlayRandomSound(1, 3);
+        do {
+            soundId = static_cast<int16>(CAEAudioUtility::GetRandomNumberInRange(1, 3));
+        } while (soundId == m_LastBulletHitSoundID);
+    }
+
+    if (soundId >= 0) {
+        CAESound sound;
+        sound.Initialise(
+            SND_BANK_SLOT_BULLET_HITS,
+            static_cast<eSoundID>(soundId),
+            this,
+            vPosition,
+            volume,
+            maxDistance,
+            1.0f,
+            1.0f,
+            0,
+            0,
+            0.02f,
+            0
+        );
+
+        AESoundManager.RequestNewSound(&sound);
+        m_LastBulletHitSoundID = soundId;
     }
 }
 
@@ -586,7 +765,7 @@ void CAECollisionAudioEntity::ReportCollision(
             if (eA->AsVehicle()->IsSubBMX()) {
                 return AE_SURFACE_TYPE_BMX;
             }
-            if (g_surfaceInfos.GetFrictionEffect(sB) != FRICTION_EFFECT_SPARKS) {
+            if (g_surfaceInfos.GetFrictionEffect(sB) != FRICTION_FX_SPARKS) {
                 return SURFACE_RUBBER;
             }
         }
@@ -646,17 +825,38 @@ void CAECollisionAudioEntity::ReportBulletHit(CEntity* entity, eSurfaceType surf
 
 // 0x4DA2C0
 void CAECollisionAudioEntity::Service() {
-    const auto time = CTimer::GetTimeInMS();
-    for (auto& entry : m_CollisionSoundList) {
-        if (entry.Status != COLLISION_SOUND_LOOPING || time < entry.LoopStopTimeMs)
-            continue;
+    const uint32 currentTime = CTimer::GetTimeInMS();
 
-        if (entry.Sound) {
-            entry.Sound->StopSoundAndForget();
+    for (int32 i = 0; i < 300; ++i) {
+        tCollisionSound& entry = m_CollisionSoundList[i];
+
+        if (entry.Status == COLLISION_SOUND_INACTIVE) {
+            continue;
         }
 
-        entry = {};
-        --m_NumActiveCollisionSounds;
+        bool bShouldClear = false;
+
+        if (entry.Status == COLLISION_SOUND_LOOPING) {
+            if (currentTime >= entry.LoopStopTimeMs) {
+                bShouldClear = true;
+            }
+        } else if (entry.Status == COLLISION_SOUND_ONE_SHOT) {
+            // Si el puntero es nulo o ya expiró el tiempo asignado en AddCollisionSoundToList
+            if (!entry.Sound || (entry.LoopStopTimeMs != 0 && currentTime >= entry.LoopStopTimeMs)) {
+                bShouldClear = true;
+            }
+        }
+
+        if (bShouldClear) {
+            if (entry.Sound) {
+                entry.Sound->StopSoundAndForget();
+            }
+
+            entry = {};
+            if (m_NumActiveCollisionSounds > 0) {
+                --m_NumActiveCollisionSounds;
+            }
+        }
     }
 }
 

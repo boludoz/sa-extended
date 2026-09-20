@@ -2812,23 +2812,19 @@ void CEventHandler::ComputeVehiclePotentialCollisionResponse(CEventPotentialGetR
 
 // 0x4B96D0
 void CEventHandler::ComputeVehiclePotentialPassiveCollisionResponse(CEventPotentialWalkIntoVehicle* e, CTask* tactive, CTask* tsimplest) {
-    m_EventResponseTask = [&]() -> CTask* {
-        if (!e->m_vehicle || !m_Ped->bInVehicle || !CTask::IsGoToTask(tsimplest)) {
-            return nullptr;
+    if (e->m_vehicle && !m_Ped->bInVehicle) {
+        if (tsimplest && CTask::IsGoToTask(tsimplest)) {
+            const auto& targetPos = static_cast<CTaskSimpleGoTo*>(tsimplest)->m_vecTargetPoint;
+            auto moveState = (eMoveState)e->m_moveState;
+            if (moveState != PEDMOVE_STILL) {
+                if (m_Ped->GetGroup()) {
+                    moveState = PEDMOVE_RUN;
+                }
+                const bool isGoingForCarDoor = m_Ped->GetIntelligence()->IsPedGoingForCarDoor();
+                m_EventResponseTask = new CTaskComplexWalkRoundCar(moveState, targetPos, e->m_vehicle, isGoingForCarDoor, 0);
+            }
         }
-        const auto tGoTo = static_cast<CTaskSimpleGoTo*>(tsimplest);
-        if (tGoTo->m_moveState == PEDMOVE_STILL) {
-            return nullptr;
-        }
-        return new CTaskComplexWalkRoundCar{
-            m_Ped->GetGroup()
-            ? PEDMOVE_RUN
-            : (eMoveState)e->m_moveState,
-            static_cast<CTaskSimpleGoTo*>(tsimplest)->m_vecTargetPoint,
-            e->m_vehicle,
-            m_Ped->GetIntelligence()->IsPedGoingForCarDoor(),
-        };
-    }();
+    }
 }
 
 // 0x4B9F80
