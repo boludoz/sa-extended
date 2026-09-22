@@ -16,6 +16,7 @@ class CCarEnterExit {
 public:
     static inline auto& ms_fMaxSpeed_CanDragPedOut = StaticRef<float>(0x86F104); // 0.1
     static inline auto& ms_fMaxSpeed_PlayerCanDragPedOut = StaticRef<float>(0x86F108); // 0.2
+    static inline auto& ms_fPlayerMinQuitTime = StaticRef<float>(0x8D2ED8);
 
     static inline auto& ms_bPedOffsetsCalculated = StaticRef<bool>(0xC18C20);
     static inline auto& ms_vecPedGetUpAnimOffset = StaticRef<CVector>(0xC18C3C);
