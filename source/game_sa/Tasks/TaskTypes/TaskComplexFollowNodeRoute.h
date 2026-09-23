@@ -8,6 +8,10 @@ class CPointRoute;
 class NOTSA_EXPORT_VTABLE CTaskComplexFollowNodeRoute final : public CTaskComplex {
 public:
     static constexpr auto Type = TASK_COMPLEX_FOLLOW_NODE_ROUTE;
+    static constexpr int32 ms_iDefaultTime = -1;
+    static constexpr float ms_fTargetRadius = 0.5f;
+    static constexpr float ms_fSlowDownDistance = 3.0f;
+    static constexpr float ms_fFollowNodeThresholdHeightChange = 2.0f;
 
     CTaskComplexFollowNodeRoute(
         eMoveState     moveState,

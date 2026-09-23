@@ -181,6 +181,11 @@ public:
     void ApplyFrictionTurnForce(CVector posn, CVector velocity);
     void ApplyFrictionForce(CVector vecMoveForce, CVector point);
 
+    void SetMoveSpeed(const CVector& v) { m_vecMoveSpeed = v; }
+    void SetMoveSpeed(float x, float y, float z) { m_vecMoveSpeed = CVector(x, y, z); }
+    void SetTurnSpeed(const CVector& v) { m_vecTurnSpeed = v; }
+    void SetTurnSpeed(float x, float y, float z) { m_vecTurnSpeed = CVector(x, y, z); }
+
     void SkipPhysics();
     void AddCollisionRecord(CEntity* collidedEntity);
     bool GetHasCollidedWith(CEntity* entity);

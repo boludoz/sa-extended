@@ -20,6 +20,7 @@ public:
 
 public:
     static constexpr auto Type = TASK_COMPLEX_GO_TO_POINT_ANY_MEANS;
+    static constexpr float ms_fTargetRadius = 0.5f;
 
     CTaskComplexGoToPointAnyMeans(int32 moveState, const CVector& posn, float radius, int32 modelId);
     CTaskComplexGoToPointAnyMeans(int32 moveState, const CVector& posn, CVehicle* vehicle, float radius, int32 modelId);

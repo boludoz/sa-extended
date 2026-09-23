@@ -100,6 +100,10 @@ public:
 
     //! This shit does modify `posn`, sadly we can't make it into a constant....
     static void PlaceMarkerSet(uint32 id, e3dMarkerType type, CVector& posn, float size, uint8 red, uint8 green, uint8 blue, uint8 alpha, uint16 pulsePeriod, float pulseFraction, int16 rotateRate);
+    static void PlaceMarkerSet(uint32 id, e3dMarkerType type, const CVector& posn, float size, uint8 red, uint8 green, uint8 blue, uint8 alpha, uint16 pulsePeriod, float pulseFraction, int16 rotateRate) {
+        CVector p = posn;
+        PlaceMarkerSet(id, type, p, size, red, green, blue, alpha, pulsePeriod, pulseFraction, rotateRate);
+    }
 
     static void Render3dMarkers();
 

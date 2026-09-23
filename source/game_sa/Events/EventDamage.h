@@ -76,6 +76,8 @@ public:
     auto GetAnimGroup() const { return m_nAnimGroup; }
 
     auto& GetDamageResponse() const { return m_damageResponse; }
+    auto& GetDamageResponseData() { return m_damageResponse; }
+    const auto& GetDamageResponseData() const { return m_damageResponse; }
 private:
     friend void InjectHooksMain();
     static void InjectHooks();

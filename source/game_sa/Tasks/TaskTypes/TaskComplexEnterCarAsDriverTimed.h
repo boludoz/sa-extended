@@ -36,6 +36,7 @@ public:
     CTask*    CreateNextSubTask(CPed* ped) override { return nullptr; }
     CTask*    CreateFirstSubTask(CPed* ped) override;
     CTask*    ControlSubTask(CPed* ped) override;
+    void      SetMoveState(eMoveState moveState) { m_moveState = moveState; }
 
     /// Stop `m_enterBeganTimer` under given conditions - Doesn't seem to be used anywhere.
     virtual void StopTimer(CEvent const* event);

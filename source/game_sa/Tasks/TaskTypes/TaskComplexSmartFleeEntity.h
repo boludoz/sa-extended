@@ -20,6 +20,8 @@ public:
 
 public:
     static constexpr auto Type = TASK_COMPLEX_SMART_FLEE_ENTITY;
+    static constexpr int32 ms_iEntityPosCheckPeriod = 1000;
+    static constexpr float ms_fEntityPosChangeThreshold = 1.0f;
 
     /*!
     * @param fleeEntity @copybrief m_entity

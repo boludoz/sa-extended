@@ -9,6 +9,8 @@
 #include "TaskTimer.h"
 
 class C2dEffect;
+class CEntity;
+class CVector;
 
 class CAttractorScanner {
 public:
@@ -22,6 +24,11 @@ public:
     int32      field_68[10];
 
     void Clear();
+
+    // 0x6002F0
+    static bool GetClosestAttractorOfType(const CVector& pos, float radius, int32 modelIndexToFind, int32 queueType, const char* triggeredScriptName, bool bMustBeFree, const C2dEffect* effectToNeglect, C2dEffect*& closestEffect, CEntity*& closestEntity) {
+        return plugin::CallAndReturn<bool, 0x6002F0, const CVector&, float, int32, int32, const char*, bool, const C2dEffect*, C2dEffect*&, CEntity*&>(pos, radius, modelIndexToFind, queueType, triggeredScriptName, bMustBeFree, effectToNeglect, closestEffect, closestEntity);
+    }
 };
 
 VALIDATE_SIZE(CAttractorScanner, 0x90);

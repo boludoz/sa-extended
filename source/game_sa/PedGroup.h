@@ -58,6 +58,8 @@ public:
     CPedGroupIntelligence* GetGroupIntelligence() { return &m_groupIntelligence; }
     auto& GetMembership() const { return m_groupMembership; }
     auto& GetMembership()       { return m_groupMembership; }
+    CPedGroupMembership* GetGroupMembership() { return &m_groupMembership; }
+    const CPedGroupMembership* GetGroupMembership() const { return &m_groupMembership; }
 
 private: // Wrappers for hooks
     // 0x5FC150

@@ -25,8 +25,8 @@ void CMessages::InjectHooks() {
     RH_ScopedInstall(AddMessageJumpQWithNumber, 0x69E4E0);
     RH_ScopedInstall(AddBigMessageWithNumber, 0x69E5F0);
     RH_ScopedInstall(AddBigMessageWithNumberQ, 0x69E6E0);
-    RH_ScopedInstall(AddMessageWithStringQ, 0x69E800);
-    RH_ScopedInstall(AddMessageJumpQWithString, 0x69E950);
+    RH_ScopedOverloadedInstall(AddMessageWithStringQ, "", 0x69E800, void(*)(const GxtChar*, uint32, uint16, GxtChar*, bool));
+    RH_ScopedOverloadedInstall(AddMessageJumpQWithString, "", 0x69E950, void(*)(const GxtChar*, uint32, uint16, GxtChar*, bool));
     RH_ScopedInstall(ClearThisPrint, 0x69EA30);
     RH_ScopedInstall(ClearThisBigPrint, 0x69EBE0);
     RH_ScopedInstall(ClearThisPrintBigNow, 0x69ED80);

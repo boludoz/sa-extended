@@ -21,7 +21,7 @@ void C3dMarkers::InjectHooks() {
     RH_ScopedInstall(ForceRender, 0x722870);
     RH_ScopedInstall(PlaceMarker, 0x725120);
     RH_ScopedInstall(PlaceMarkerCone, 0x726D40);
-    RH_ScopedInstall(PlaceMarkerSet, 0x725BA0);
+    RH_ScopedOverloadedInstall(PlaceMarkerSet, "", 0x725BA0, void(*)(uint32, e3dMarkerType, CVector&, float, uint8, uint8, uint8, uint8, uint16, float, int16));
     RH_ScopedInstall(User3dMarkerAtomicCB, 0x7210D0);
     RH_ScopedInstall(User3dMarkerDelete, 0x721090);
     RH_ScopedInstall(User3dMarkerDeleteAll, 0x7210B0);

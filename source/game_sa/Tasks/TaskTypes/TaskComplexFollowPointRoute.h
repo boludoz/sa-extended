@@ -46,6 +46,9 @@ public:
     static void InjectHooks();
 
     static constexpr auto Type = eTaskType::TASK_COMPLEX_FOLLOW_POINT_ROUTE;
+    static constexpr float ms_fTargetRadius = 0.5f;
+    static constexpr float ms_fSlowDownDistance = 5.0f;
+    static inline CPointRoute ms_pointRoute{};
 
     CTaskComplexFollowPointRoute(
         eMoveState         moveState,

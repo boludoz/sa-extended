@@ -32,6 +32,7 @@ public:
     bool HasVisibleTattoo();
     void SetTextureAndModel(uint32 texture, uint32 model, eClothesTexturePart texturePart);
     void SetTextureAndModel(const char* textureName, const char* modelName, eClothesTexturePart texturePart);
+    [[nodiscard]] uint32 GetTexture(int32 texture) const { return m_anTextureKeys[texture]; }
 
     // NOTSA
     bool IsWearingModel(const char* model, std::optional<eClothesModelPart> modelPart = {}) const {

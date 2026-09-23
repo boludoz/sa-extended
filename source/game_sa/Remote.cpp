@@ -11,3 +11,8 @@ void CRemote::GivePlayerRemoteControlledCar(CVector pos, float rotation, int16 m
 {
     return plugin::Call<0x45AB10, CVector, float, int16>(pos, rotation, modelId);
 }
+
+void CRemote::TakeRemoteControlOfCar(CVehicle* vehicle)
+{
+    return plugin::Call<0x45AD40, CVehicle*>(vehicle);
+}

@@ -66,3 +66,4 @@ compile_commands.json
 
 ## TODO: These files can be put into a better place?
 /source/libs/imgui/*
+/scratch

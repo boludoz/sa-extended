@@ -124,6 +124,7 @@ public:
     bool     TryToExplode();
     void     SetObjectTargettable(bool targetable);
     [[nodiscard]] bool CanBeTargetted() const;
+    [[nodiscard]] bool IsObjectDamaged() const { return objectFlags.bDamaged; }
     void     RefModelInfo(int32 modelIndex);
     void     SetRemapTexture(RwTexture* remapTexture, int16 txdIndex);
     float    GetRopeHeight();

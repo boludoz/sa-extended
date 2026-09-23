@@ -259,6 +259,9 @@ public:
     static void PreRenderWater();
     static bool GetWaterDepth(const CVector& vecPos, float* pOutWaterDepth, float* pOutWaterLevel, float* pOutGroundLevel);
     static bool GetWaterLevel(float x, float y, float z, float& pOutWaterLevel, uint8 bTouchingWater, CVector* pVecNormals);
+    static bool GetWaterLevel(float x, float y, float z, float* pOutWaterLevel, uint8 bTouchingWater, CVector* pVecNormals) {
+        return pOutWaterLevel ? GetWaterLevel(x, y, z, *pOutWaterLevel, bTouchingWater, pVecNormals) : false;
+    }
     static bool LoadDataFile();
     static void LoadTextures();
     static void WaterLevelInitialise();

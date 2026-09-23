@@ -68,7 +68,7 @@ void CWorld::InjectHooks() {
     RH_ScopedInstall(FindUnsuspectingTargetCar, 0x566C90);
     RH_ScopedInstall(FindLowestZForCoord, 0x5697F0);
     RH_ScopedInstall(FindRoofZFor3DCoord, 0x569750);
-    RH_ScopedInstall(FindGroundZFor3DCoord, 0x5696C0);
+    RH_ScopedOverloadedInstall(FindGroundZFor3DCoord, "", 0x5696C0, float(*)(CVector, bool*, CEntity**));
     RH_ScopedInstall(FindGroundZForCoord, 0x569660);
     RH_ScopedInstall(FindNearestObjectOfType, 0x5693F0);
     RH_ScopedInstall(FindMissionEntitiesIntersectingCube, 0x569240);

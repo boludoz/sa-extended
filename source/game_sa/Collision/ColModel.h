@@ -53,6 +53,8 @@ public:
     auto& GetBoundCenter() { return m_boundSphere.m_vecCenter; }
     auto& GetBoundingBox() { return m_boundBox; }
     [[nodiscard]] const auto& GetBoundingBox() const noexcept { return m_boundBox; }
+    auto& GetBoundBox() { return m_boundBox; }
+    [[nodiscard]] const auto& GetBoundBox() const noexcept { return m_boundBox; }
     auto& GetBoundingSphere() { return m_boundSphere; }
     [[nodiscard]] const auto& GetBoundingSphere() const noexcept { return m_boundSphere; }
     CCollisionData* GetData() const { return m_pColData; }

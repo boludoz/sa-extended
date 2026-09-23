@@ -169,6 +169,29 @@ public:
         bool         isAtAttractor = false, 
         const char*  attractorScriptName = nullptr
     );
+    static eModelID ChooseCivilianOccupation(
+        int32 mustBeMale,
+        int32 mustBeFemale,
+        int32 mustUseThisAnimGroup,
+        int32 mustNotBeThisModel,
+        uint32 mustBeCompatibleWithThisPedStat,
+        int32 bOnlyOnFoots,
+        int32 doTestForUsedOccupations,
+        int32 isAtAttractor,
+        const char* attractorScriptName
+    ) {
+        return ChooseCivilianOccupation(
+            mustBeMale != 0,
+            mustBeFemale != 0,
+            static_cast<AssocGroupId>(mustUseThisAnimGroup),
+            static_cast<eModelID>(mustNotBeThisModel),
+            static_cast<ePedStats>(mustBeCompatibleWithThisPedStat),
+            bOnlyOnFoots != 0,
+            doTestForUsedOccupations != 0,
+            isAtAttractor != 0,
+            attractorScriptName
+        );
+    }
     static void     ChooseCivilianCoupleOccupations(eModelID& husbandOccupation, eModelID& wifeyOccupation);
     static eModelID ChooseCivilianOccupationForVehicle(bool mustBeMale, CVehicle* vehicle);
     static void  CreateWaitingCoppers(CVector createAt, float createaWithHeading);

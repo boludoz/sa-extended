@@ -20,6 +20,16 @@ public:
     static constexpr auto Type = TASK_COMPLEX_USE_MOBILE_PHONE;
 
     CTaskComplexUseMobilePhone(int32 nDuration);
+
+    // 0x634A40
+    void Stop(CPed* ped) { plugin::CallMethod<0x634A40, CTaskComplexUseMobilePhone*, CPed*>(this, ped); }
+
+    //! NOTSA: not reversed yet (abstract here), so build it through the original ctor (0x6348A0)
+    static CTaskComplexUseMobilePhone* Create(int32 duration) {
+        auto* task = static_cast<CTaskComplexUseMobilePhone*>(CTask::operator new(sizeof(CTaskComplexUseMobilePhone)));
+        plugin::CallMethod<0x6348A0, CTaskComplexUseMobilePhone*, int32>(task, duration);
+        return task;
+    }
 };
 
 VALIDATE_SIZE(CTaskComplexUseMobilePhone, 0x20);

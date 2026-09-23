@@ -38,6 +38,17 @@ public:
         eDirection nFallToDeathDir = eDirection::FORWARD,
         bool bFallToDeathOverRailing = false
     );
+    CTaskComplexDie(
+        eWeaponType nWeaponType,
+        AssocGroupId animGroup,
+        AnimationId animID,
+        float fBlendDelta,
+        float fAnimSpeed,
+        bool bBeingKilledByStealth,
+        bool bFallingToDeath,
+        int32 nFallToDeathDir,
+        bool bFallToDeathOverRailing = false
+    ) : CTaskComplexDie(nWeaponType, animGroup, animID, fBlendDelta, fAnimSpeed, bBeingKilledByStealth, bFallingToDeath, static_cast<eDirection>(nFallToDeathDir), bFallToDeathOverRailing) {}
     ~CTaskComplexDie() override = default; // 0x6300C0 0x637910
 
     eTaskType GetTaskType() const override { return Type; } // 0x6300B0

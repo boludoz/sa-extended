@@ -168,6 +168,7 @@ public:
     static float FindGroundZForCoord(float x, float y);
 
     static float FindGroundZFor3DCoord(CVector coord, bool* outResult = nullptr, CEntity** outEntity = nullptr);
+    static float FindGroundZFor3DCoord(float x, float y, float z, bool* outResult = nullptr, CEntity** outEntity = nullptr) { return FindGroundZFor3DCoord(CVector(x, y, z), outResult, outEntity); }
 
     static float FindRoofZFor3DCoord(float x, float y, float z, bool* outResult);
 

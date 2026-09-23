@@ -262,6 +262,9 @@ public:
 public:
     static void InjectHooks();
 
+    static void EnableStreaming() { ms_disableStreaming = false; }
+    static void DisableStreaming() { ms_disableStreaming = true; }
+
     static CLink<CEntity*>* AddEntity(CEntity* entity);
     static uint32 AddImageToList(const char* fileName, bool bNotPlayerImg);
     static void AddLodsToRequestList(const CVector& point, int32 flags);

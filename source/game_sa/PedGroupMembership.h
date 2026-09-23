@@ -58,6 +58,8 @@ public:
     //! Set a new leader
     void SetLeader(CPed* ped);
 
+    void SetMaxSeparation(float sep) { m_separationRange = sep; }
+
     //! Whenever there's a leader
     bool HasLeader() const { return GetLeader() != nullptr; }
 

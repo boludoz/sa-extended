@@ -21,6 +21,8 @@ void CEntryExitManager::InjectHooks() {
     RH_ScopedInstall(FindNearestDoor, 0x43F630);
     RH_ScopedInstall(FindNearestEntryExit, 0x43F4B0);
     RH_ScopedInstall(EnableBurglaryHouses, 0x43F180);
+    RH_ScopedInstall(SetEntryExitFlag, 0x43EF20);
+    RH_ScopedInstall(SetEnabledByName, 0x43F9B0);
     RH_ScopedInstall(GetPositionRelativeToOutsideWorld, 0x43F150, {.locked = true});
     RH_ScopedInstall(PostEntryExitsCreation, 0x43F0A0);
     RH_ScopedInstall(LinkEntryExit, 0x43F050);
@@ -287,6 +289,35 @@ void CEntryExitManager::EnableBurglaryHouses(bool enable) {
     ms_bBurglaryHousesEnabled = enable;
     for (auto& enex : mp_poolEntryExits->GetAllValid()) {
         enex.bBurglaryAccess = enable;
+    }
+}
+
+// 0x43EF20
+void CEntryExitManager::SetEntryExitFlag(const char* name, uint32 flag, bool enable) {
+    for (auto& enex : mp_poolEntryExits->GetAllValid()) {
+        if (_strnicmp(enex.m_szName, name, sizeof(enex.m_szName)) == 0) {
+            if (enable) {
+                enex.m_nFlags |= flag;
+            } else {
+                enex.m_nFlags &= ~flag;
+            }
+        }
+    }
+}
+
+// 0x43F9B0
+void CEntryExitManager::SetEnabledByName(const char* name, bool enable) {
+    SetEntryExitFlag(name, CEntryExit::ENABLE_ACCESS, enable);
+}
+
+// NOTSA: inlined into the script command handler
+void CEntryExitManager::SetEntryExitFlagWithIndex(int32 index, uint32 flag, bool enable) {
+    if (auto* enex = GetInSlot(index)) {
+        if (enable) {
+            enex->m_nFlags |= flag;
+        } else {
+            enex->m_nFlags &= ~flag;
+        }
     }
 }
 

@@ -160,6 +160,7 @@ public:
 
     /// Get uncompressed world position
     CVector GetPosition() const { return m_vPos; }
+    CVector GetCoors() const { return m_vPos; }
 
     CNodeAddress GetAddress() const {
         return { m_wAreaId, m_wNodeId };

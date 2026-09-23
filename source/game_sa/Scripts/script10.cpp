@@ -54,10 +54,29 @@ void CTheScripts::ClearAllSuppressedCarModels() {
     rng::fill(SuppressedVehicleModels, MODEL_INVALID);
 }
 
+// 0x46A7E0
+void CTheScripts::RemoveFromSuppressedCarModelArray(int32 modelIndex) {
+    for (auto& model : SuppressedVehicleModels) {
+        if (model == static_cast<eModelID>(modelIndex)) {
+            model = MODEL_INVALID;
+        }
+    }
+}
 
 // 0x46A810
 bool CTheScripts::HasCarModelBeenSuppressed(eModelID carModelId) {
     return notsa::contains(SuppressedVehicleModels, carModelId);
+}
+
+// 0x46B1A0
+void CTheScripts::AddToSuppressedCarModelArray(int32 modelIndex) {
+    if (HasCarModelBeenSuppressed(static_cast<eModelID>(modelIndex))) {
+        return;
+    }
+    const auto free = rng::find(SuppressedVehicleModels, MODEL_INVALID);
+    if (free != SuppressedVehicleModels.end()) {
+        *free = static_cast<eModelID>(modelIndex);
+    }
 }
 
 

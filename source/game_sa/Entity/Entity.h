@@ -112,7 +112,9 @@ protected:
     CLink<CEntity*>* m_pStreamingLink;
 
     uint16     m_ScanCode;
+public:
     uint8      m_IplIndex;
+protected:
     eAreaCodesS8 m_AreaCode;
 
     union {

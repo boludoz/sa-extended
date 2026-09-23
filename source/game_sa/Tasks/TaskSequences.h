@@ -5,6 +5,7 @@
 class CTaskSequences {
 public:
     static constexpr auto NUM_SEQUENCES = 64;
+    static constexpr auto MAX_NUM_SEQUENCE_TASKS = NUM_SEQUENCES;
 
     static inline auto& ms_iActiveSequence = StaticRef<int32>(0x8D2E98);
     static inline auto& ms_taskSequence = StaticRef<CTaskComplexSequence[NUM_SEQUENCES]>(0xC178F0);

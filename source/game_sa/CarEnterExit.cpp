@@ -22,7 +22,7 @@ void CCarEnterExit::InjectHooks() {
     RH_ScopedInstall(ComputePassengerIndexFromCarDoor, 0x64F1E0);
     RH_ScopedInstall(ComputeQuickJackedPed, 0x64F040);
     RH_ScopedInstall(ComputeSlowJackedPed, 0x64F070);
-    RH_ScopedInstall(ComputeTargetDoorToEnterAsPassenger, 0x64F190);
+    RH_ScopedOverloadedInstall(ComputeTargetDoorToEnterAsPassenger, "", 0x64F190, int32(*)(const CVehicle*, int32));
     RH_ScopedInstall(ComputeTargetDoorToExit, 0x64F110);
     RH_ScopedInstall(GetNearestCarDoor, 0x6528F0);
     RH_ScopedInstall(GetNearestCarPassengerDoor, 0x650BB0);

@@ -50,7 +50,7 @@ void CPopulation::InjectHooks() {
     RH_ScopedGlobalInstall(TestSafeForRealObject, 0x6123A0);
     RH_ScopedGlobalInstall(AddPed, 0x612710);
     RH_ScopedGlobalInstall(AddDeadPedInFrontOfCar, 0x612CD0);
-    RH_ScopedGlobalInstall(ChooseCivilianOccupation, 0x612F90);
+    RH_ScopedGlobalOverloadedInstall(ChooseCivilianOccupation, "", 0x612F90, eModelID(*)(bool, bool, AssocGroupId, eModelID, ePedStats, bool, bool, bool, const char*));
     RH_ScopedGlobalInstall(ChooseCivilianCoupleOccupations, 0x613180);
     RH_ScopedGlobalInstall(ChooseCivilianOccupationForVehicle, 0x613260);
     RH_ScopedGlobalInstall(CreateWaitingCoppers, 0x6133F0);

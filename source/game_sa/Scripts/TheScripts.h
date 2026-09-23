@@ -481,8 +481,14 @@ public:
     static void ReadMultiScriptFileOffsetsFromScript();
 
     static uint32 AddScriptCheckpoint(CVector at, CVector pointTo, float radius, eCheckpointType type);
+    static uint32 AddScriptCheckpoint(float x1, float y1, float z1, float x2, float y2, float z2, float radius, int32 type) {
+        return AddScriptCheckpoint(CVector(x1, y1, z1), CVector(x2, y2, z2), radius, static_cast<eCheckpointType>(type));
+    }
     static uint32 AddScriptEffectSystem(FxSystem_c* system);
     static uint32 AddScriptSearchLight(CVector start, CEntity* entity, CVector target, float targetRadius, float baseRadius);
+    static uint32 AddScriptSearchLight(float x1, float y1, float z1, CEntity* entity, float x2, float y2, float z2, float targetRadius, float baseRadius) {
+        return AddScriptSearchLight(CVector(x1, y1, z1), entity, CVector(x2, y2, z2), targetRadius, baseRadius);
+    }
     static uint32 AddScriptSphere(uint32 id, CVector posn, float radius);
 
     static void AddToBuildingSwapArray(CBuilding* building, int32 oldModelId, int32 newModelId);
@@ -494,11 +500,16 @@ public:
     static void AddToWaitingForScriptBrainArray(CEntity* entity, int16 arg2);
 
     static void AttachSearchlightToSearchlightObject(int32 searchLightId, CObject* tower, CObject* housing, CObject* bulb, CVector offset);
+    static void AttachSearchlightToSearchlightObject(int32 searchLightId, CObject* tower, CObject* housing, CObject* bulb, float ox, float oy, float oz) {
+        AttachSearchlightToSearchlightObject(searchLightId, tower, housing, bulb, CVector(ox, oy, oz));
+    }
     static bool CheckStreamedScriptVersion(RwStream* stream, const char* filename);
     static void CleanUpThisObject(CObject* obj);
     static void CleanUpThisPed(CPed* ped);
     static void CleanUpThisVehicle(CVehicle* vehicle);
     static void ClearAllSuppressedCarModels();
+    static void AddToSuppressedCarModelArray(int32 modelIndex);
+    static void RemoveFromSuppressedCarModelArray(int32 modelIndex);
     static void ClearAllVehicleModelsBlockedByScript();
     static void ClearSpaceForMissionEntity(const CVector& pos, CEntity* entity);
     static void DoScriptSetupAfterPoolsHaveLoaded();

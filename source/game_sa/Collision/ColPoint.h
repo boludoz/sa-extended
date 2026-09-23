@@ -52,5 +52,10 @@ public:
 
 public:
     CColPoint& operator=(CColPoint const&) = default;
+    auto GetSurfaceTypeA() const { return m_nSurfaceTypeA; }
+    auto GetSurfaceTypeB() const { return m_nSurfaceTypeB; }
+    auto& GetPosition() const { return m_vecPoint; }
+    auto& GetNormal() const { return m_vecNormal; }
+    auto GetDepth() const { return m_fDepth; }
 };
 VALIDATE_SIZE(CColPoint, 0x2C);

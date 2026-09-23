@@ -24,6 +24,7 @@ public:
     CTask*    CreateNextSubTask(CPed* ped) override { return nullptr; }
     CTask*    CreateFirstSubTask(CPed* ped) override;
     CTask*    ControlSubTask(CPed* ped) override;
+    void      SetMoveState(eMoveState moveState) { m_MoveState = moveState; }
 
 private: // Wrappers for hooks
     // 0x63B030

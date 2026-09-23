@@ -76,6 +76,7 @@ public:
                uint8 iplId, bool ignorePopulationLimit);
     void SwitchOff();
     void SwitchOn();
+    void SwitchOnAndGenerateNumber(int16 n) { SwitchOn(); m_nGenerateCount = n; }
 
     static uint32 CalcNextGen();
 

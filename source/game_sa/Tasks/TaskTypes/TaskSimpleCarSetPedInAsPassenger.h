@@ -29,6 +29,10 @@ public:
     static constexpr auto Type = TASK_SIMPLE_CAR_SET_PED_IN_AS_PASSENGER;
 
     CTaskSimpleCarSetPedInAsPassenger(CVehicle* targetVehicle, eTargetDoor nTargetDoor, bool warpingInToCar /* notsa arg */ = false, CTaskUtilityLineUpPedWithCar* utility = nullptr);
+    CTaskSimpleCarSetPedInAsPassenger(CVehicle* targetVehicle, int32 nTargetDoor, CTaskUtilityLineUpPedWithCar* utility = nullptr)
+        : CTaskSimpleCarSetPedInAsPassenger(targetVehicle, static_cast<eTargetDoor>(nTargetDoor), false, utility) {}
+    CTaskSimpleCarSetPedInAsPassenger(CVehicle* targetVehicle, int32 nTargetDoor, bool warpingInToCar, CTaskUtilityLineUpPedWithCar* utility = nullptr)
+        : CTaskSimpleCarSetPedInAsPassenger(targetVehicle, static_cast<eTargetDoor>(nTargetDoor), warpingInToCar, utility) {}
     CTaskSimpleCarSetPedInAsPassenger(const CTaskSimpleCarSetPedInAsPassenger&);
     ~CTaskSimpleCarSetPedInAsPassenger() override;
 

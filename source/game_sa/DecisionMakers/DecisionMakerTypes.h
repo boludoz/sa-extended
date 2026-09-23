@@ -56,6 +56,7 @@ public:
     void AddEventResponse(int32 decisionMakerIndex, eEventType eventType, eTaskType taskId, float* responseChances, int32* flags);
     void FlushDecisionMakerEventResponse(int32 decisionMakerIndex, eEventType eventId);
     void LoadEventIndices();
+    int32 CopyDecisionMaker(int32 srcIndex, int32 decisionMakerType, bool bDecisionMakerForMission) { return plugin::CallMethodAndReturn<int32, 0x6070F0, CDecisionMakerTypes*, int32, int32, bool>(this, srcIndex, decisionMakerType, bDecisionMakerForMission); } // 0x6070F0
 
 public:
     int32                                                              m_NoOfDecisionMakers{};

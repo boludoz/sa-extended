@@ -317,13 +317,13 @@ void InjectHooks_Script9() {
     RH_ScopedClass(CTheScripts);
     RH_ScopedCategory("Scripts");
 
-    RH_ScopedInstall(AddScriptCheckpoint, 0x4935A0);
+    RH_ScopedOverloadedInstall(AddScriptCheckpoint, "", 0x4935A0, uint32(*)(CVector, CVector, float, eCheckpointType));
     RH_ScopedInstall(AddScriptEffectSystem, 0x492F90);
-    RH_ScopedInstall(AddScriptSearchLight, 0x493000);
+    RH_ScopedOverloadedInstall(AddScriptSearchLight, "", 0x493000, uint32(*)(CVector, CEntity*, CVector, float, float));
     RH_ScopedInstall(RemoveScriptCheckpoint, 0x4936C0);
     RH_ScopedInstall(RemoveScriptEffectSystem, 0x492FD0);
     RH_ScopedInstall(RemoveScriptSearchLight, 0x493160);
     RH_ScopedInstall(ProcessAllSearchLights, 0x4939F0);
     RH_ScopedInstall(RenderAllSearchLights, 0x493E30);
-    RH_ScopedInstall(AttachSearchlightToSearchlightObject, 0x4934F0);
+    RH_ScopedOverloadedInstall(AttachSearchlightToSearchlightObject, "", 0x4934F0, void(*)(int32, CObject*, CObject*, CObject*, CVector));
 }

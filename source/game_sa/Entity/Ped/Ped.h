@@ -263,7 +263,7 @@ public:
         bool bUsedForReplay : 1 = false; // This ped is controlled by replay and should be removed when replay is done.
     };
 
-protected:
+public:
     CPedIntelligence*   m_pIntelligence;
     CPlayerPedData*     m_pPlayerData;
     ePedCreatedBy       m_nCreatedBy;
@@ -565,7 +565,11 @@ public:
     CWeapon& GetWeaponInSlot(size_t slot) noexcept { return m_aWeapons[slot]; }
     CWeapon& GetWeaponInSlot(eWeaponSlot slot) noexcept { return m_aWeapons[(size_t)slot]; }
     CWeapon& GetActiveWeapon() noexcept { return GetWeaponInSlot(m_nActiveWeaponSlot); }
+    CWeapon* GetWeapon() noexcept { return &GetActiveWeapon(); }
+    const CWeapon* GetWeapon() const noexcept { return const_cast<CPed*>(this)->GetWeapon(); }
     CWeapon& GetWeapon(eWeaponType wt) noexcept { return GetWeaponInSlot(GetWeaponSlot(wt)); }
+    CEntity* GetWeaponLockOnTarget() const { return m_pTargetedObject; }
+    void SetWeaponLockOnTarget(CEntity* target) { m_pTargetedObject = target; }
 
     eWeaponType GetSavedWeapon() const { return m_nSavedWeapon; }
     void SetSavedWeapon(eWeaponType weapon) { m_nSavedWeapon = weapon; }

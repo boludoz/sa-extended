@@ -33,6 +33,12 @@ public:
                              float speed = 0.25f,
                              int32 blendTime = 1000,
                              int32 priority = 3);
+    ~CTaskSimpleTriggerLookAt() override = default;
+
+    eTaskType GetTaskType() const override { return Type; }
+    CTask* Clone() const override { return plugin::CallMethodAndReturn<CTask*, 0x634560, const CTaskSimpleTriggerLookAt*>(this); } // 0x634560
+    bool MakeAbortable(CPed* ped, eAbortPriority priority = ABORT_PRIORITY_URGENT, const CEvent* event = nullptr) override { return plugin::CallMethodAndReturn<bool, 0x634610, CTaskSimpleTriggerLookAt*, CPed*, eAbortPriority, const CEvent*>(this, ped, priority, event); } // 0x634610
+    bool ProcessPed(CPed* ped) override { return plugin::CallMethodAndReturn<bool, 0x634620, CTaskSimpleTriggerLookAt*, CPed*>(this, ped); } // 0x634620
 };
 
 VALIDATE_SIZE(CTaskSimpleTriggerLookAt, 0x30);

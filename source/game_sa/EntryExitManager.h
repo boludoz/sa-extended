@@ -65,7 +65,11 @@ public:
     static void GotoNextEntryExit();
     static void GotoPreviousEntryExit();
     static void SetEnabledByName(const char* name, bool enable);
+    static void SetEntryExitFlag(const char* name, uint32 flag, bool enable);
     static void SetEntryExitFlagWithIndex(int32 index, uint32 flag, bool enable);
+    static void DisableAllEntryExits(bool disable) { ms_bDisabled = disable; }
+    static void ClearEntryExitStack() { ms_entryExitStackPosn = 0; }
+    static CEntryExit* GetEntryExit(int32 index) { return GetInSlot(index); } // 0x43EF00
     static bool WeAreInInteriorTransition();
 
     static bool Load();

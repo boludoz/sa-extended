@@ -119,6 +119,7 @@ public:
 
     static void LoadWeaponData();
     static CWeaponInfo *GetWeaponInfo(eWeaponType weaponType, eWeaponSkill skill = eWeaponSkill::STD);
+    static CWeaponInfo *GetWeaponInfo(eWeaponType weaponType, int32 skill) { return GetWeaponInfo(weaponType, static_cast<eWeaponSkill>(skill)); }
     static eWeaponType FindWeaponType(const char *name);
     static eWeaponFire FindWeaponFireType(const char *name);
     static eStats GetSkillStatIndex(eWeaponType weaponType);
@@ -142,6 +143,7 @@ public:
     static uint32 GetWeaponInfoIndex(eWeaponType weaponType, eWeaponSkill skill);
     // Return both model IDs as an array
     [[nodiscard]] auto GetModels() const { return std::to_array({ m_nModelId1, m_nModelId2 }); }
+    [[nodiscard]] bool IsThrowWeapon() const { return flags.bThrow; }
 
     //! NOTSA: Load models of this weapon (Blocks thread until loaded)
     void StreamModelsForWeapon(eStreamingFlags streamingFlags);

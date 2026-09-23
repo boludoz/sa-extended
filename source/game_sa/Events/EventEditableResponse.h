@@ -26,6 +26,7 @@ public:
     bool ComputeResponseTaskOfType(CPed* ped, eTaskType taskId);
 
     auto GetFacialExpressionType() const { return (eFacialExpression)m_FacialExpressionType; }
+    [[nodiscard]] eTaskType GetResponseTaskType() const { return m_TaskId; }
 
 private:
     friend void InjectHooksMain();

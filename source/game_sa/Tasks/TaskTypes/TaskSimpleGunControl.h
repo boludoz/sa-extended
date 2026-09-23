@@ -47,6 +47,8 @@ public:
     static constexpr auto Type = eTaskType::TASK_SIMPLE_GUN_CTRL;
 
     CTaskSimpleGunControl(CEntity* targetEntity, CVector const& targetPos, CVector const& moveTarget, eGunCommand firingTask, int16 burstAmmoCnt, int32 leisureDurMs);
+    CTaskSimpleGunControl(CEntity* targetEntity, const CVector* targetPos, const CVector* moveTarget, int32 firingTask, int16 burstAmmoCnt, int32 leisureDurMs)
+        : CTaskSimpleGunControl(targetEntity, targetPos ? *targetPos : CVector{}, moveTarget ? *moveTarget : CVector{}, static_cast<eGunCommand>(firingTask), burstAmmoCnt, leisureDurMs) {}
     CTaskSimpleGunControl(const CTaskSimpleGunControl&);
     ~CTaskSimpleGunControl();
 

@@ -97,6 +97,9 @@ public:
     CVector GetDown() const { return -GetUp(); }
 
     auto& GetPosition(this auto&& self) { return self.m_pos; }
+    auto& GetTranslate(this auto&& self) { return self.m_pos; }
+    void Translate(CVector translation) { m_pos += translation; }
+    void Translate(float x, float y, float z) { m_pos += CVector(x, y, z); }
 
     void Attach(RwMatrix* matrix, bool bOwnsMatrix);
     void Detach();

@@ -69,6 +69,7 @@ public:
 
     void SetPosn(CVector posn) { m_vecPos = posn; } // 0x454960
     [[nodiscard]] CVector GetPosn() const { return m_vecPos; } // 0x4549A0
+    [[nodiscard]] CVector GetCoors() const { return m_vecPos; }
     [[nodiscard]] CVector2D GetPosn2D() const { return GetPosn(); };    // NOTSA
     [[nodiscard]] float GetXCoord() const { return m_vecPos.x; } // 0x4549F0
     [[nodiscard]] float GetYCoord() const { return m_vecPos.y; } // 0x454A10

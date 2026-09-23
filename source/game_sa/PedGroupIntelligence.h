@@ -101,6 +101,8 @@ public:
 
     auto&& GetPedGroup(this auto&& self) { return *self.m_pPedGroup; }
 
+    void SetGroupSequenceTaskID(int32 seqId) { m_TaskSeqId = seqId; }
+
 private:
     bool ShouldSetHighestPriorityEventAsCurrent();
 

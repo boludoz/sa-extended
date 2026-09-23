@@ -390,6 +390,9 @@ public:
     auto& GetSeekPosCalculator() {
         return m_entitySeekPosCalculator;
     }
+    void SetEntitySeekPosCalculator(const T_PosCalc& calc) {
+        m_entitySeekPosCalculator = calc;
+    }
 
     void SetEntityMinDist2D(float v) {
         m_minEntityDist2D = v;

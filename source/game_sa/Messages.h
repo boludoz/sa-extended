@@ -76,10 +76,16 @@ public:
     static void AddMessage2(const GxtChar* text, uint32 time, uint16 flag, bool bPreviousBrief, bool showInstantly = false, GxtChar* str = nullptr, std::optional<std::array<int32, 6>> numbers = {});
     static void AddMessageQ(const GxtChar* text, uint32 time, uint16 flag, bool bPreviousBrief); // Renamed from AddMessage
     static void AddMessageWithStringQ(const GxtChar* text, uint32 time, uint16 flag, GxtChar* string, bool bPreviousBrief);
+    static void AddMessageWithStringQ(const GxtChar* text, uint32 time, uint16 flag, const GxtChar* string, bool bPreviousBrief) {
+        AddMessageWithStringQ(text, time, flag, const_cast<GxtChar*>(string), bPreviousBrief);
+    }
     static void AddMessageWithNumberQ(const GxtChar* text, uint32 time, uint16 flag, int32 n1 = -1, int32 n2 = -1, int32 n3 = -1, int32 n4 = -1, int32 n5 = -1, int32 n6 = -1, bool bPreviousBrief = false);
     static void AddMessageJump(const GxtChar* text, uint32 time, uint16 flag, bool bPreviousBrief); // Renamed from AddMessageJumpQ
     static void AddMessageJumpQWithNumber(const GxtChar* text, uint32 time, uint16 flag, int32 n1 = -1, int32 n2 = -1, int32 n3 = -1, int32 n4 = -1, int32 n5 = -1, int32 n6 = -1, bool bPreviousBrief = false);
     static void AddMessageJumpQWithString(const GxtChar* text, uint32 time, uint16 flag, GxtChar* string, bool bPreviousBrief);
+    static void AddMessageJumpQWithString(const GxtChar* text, uint32 time, uint16 flag, const GxtChar* string, bool bPreviousBrief) {
+        AddMessageJumpQWithString(text, time, flag, const_cast<GxtChar*>(string), bPreviousBrief);
+    }
 
     static void AddBigMessage2(const GxtChar* text, uint32 time, eMessageStyle style, bool showInstantly, GxtChar* str = nullptr, std::optional<std::array<int32, 6>> numbers = {});
     static void AddBigMessageWithNumberQ(const GxtChar* text, uint32 time, eMessageStyle style, int32 n1 = -1, int32 n2 = -1, int32 n3 = -1, int32 n4 = -1, int32 n5 = -1, int32 n6 = -1);

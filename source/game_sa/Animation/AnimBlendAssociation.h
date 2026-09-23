@@ -10,10 +10,10 @@
 #include "eAnimBlendCallbackType.h"
 #include "RenderWare.h"
 
+#include "AnimBlendHierarchy.h"
 #include <extensions/WEnum.hpp>
 
 class CAnimBlendNode;
-class CAnimBlendHierarchy;
 class CAnimBlendStaticAssociation;
 
 enum eAnimationFlags {
@@ -179,6 +179,7 @@ public:
     void SetBlendTo(float blendAmount, float blendDelta);
     void SetCurrentTime(float currentTime);
     float GetCurrentTime() const { return m_CurrentTime; }
+    [[nodiscard]] float GetTotalTime() const { return m_BlendHier ? m_BlendHier->GetTotalTime() : 0.0f; }
 
     void SetDeleteCallback(void(*callback)(CAnimBlendAssociation*, void*), void* data = nullptr);
     void SetDefaultDeleteCallback() { SetDeleteCallback(CDefaultAnimCallback::DefaultAnimCB, nullptr); }

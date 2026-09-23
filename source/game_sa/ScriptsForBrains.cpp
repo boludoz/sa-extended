@@ -27,6 +27,21 @@ void CScriptsForBrains::Init() {
     }
 }
 
+// 0x46A900
+void CScriptsForBrains::SwitchAllObjectBrainsWithThisID(int8 ID, bool bStatus) {
+    plugin::CallMethod<0x46A900, CScriptsForBrains*, int8, bool>(this, ID, bStatus);
+}
+
+// 0x46A930
+void CScriptsForBrains::AddNewScriptBrain(int16 ImgIndex, int16 Model, uint16 priority, int8 attachType, int8 Type, float Radius) {
+    plugin::CallMethod<0x46A930, CScriptsForBrains*, int16, int16, uint16, int8, int8, float>(this, ImgIndex, Model, priority, attachType, Type, Radius);
+}
+
+// 0x46A9C0
+void CScriptsForBrains::AddNewStreamedScriptBrainForCodeUse(int16 a2, char* a3, int8 attachtype) {
+    plugin::CallMethod<0x46A9C0, CScriptsForBrains*, int16, char*, int8>(this, a2, a3, attachtype);
+}
+
 void CScriptsForBrains::CheckIfNewEntityNeedsScript(CEntity* entity, int8 attachType, void* unused) {
     plugin::CallMethod<0x46FF20, CScriptsForBrains*, CEntity*, int8, void*>(this, entity, attachType, unused);
 }
@@ -54,8 +69,9 @@ bool CScriptsForBrains::HasAttractorScriptBrainWithThisNameLoaded(const char* na
     return false;
 }
 
+// 0x46B3D0
 bool CScriptsForBrains::IsObjectWithinBrainActivationRange(CObject* entity, const CVector& point) {
-    NOTSA_UNREACHABLE();
+    return plugin::CallMethodAndReturn<bool, 0x46B3D0, CScriptsForBrains*, CObject*, const CVector&>(this, entity, point);
 }
 
 int16 CScriptsForBrains::GetIndexOfScriptBrainWithThisName(const char* name, int8 type) {

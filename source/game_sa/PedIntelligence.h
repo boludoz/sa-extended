@@ -94,9 +94,16 @@ public:
     void AddTaskPrimaryMaybeInGroup(CTask* task, bool bAffectsPed);
     void AddTaskDefault(CTask* task, bool bForce = false) { m_TaskMgr.SetTask(task, TASK_PRIMARY_DEFAULT, bForce); }
     void AddTaskPrimary(CTask* task, bool bForce = false) { m_TaskMgr.SetTask(task, TASK_PRIMARY_PRIMARY, bForce); }
+    void AddTaskSecondaryDuck(CTask* task) { m_TaskMgr.SetTaskSecondary(task, TASK_SECONDARY_DUCK); }
+    void AddTaskSecondarySay(CTask* task) { m_TaskMgr.SetTaskSecondary(task, TASK_SECONDARY_SAY); }
+    void AddTaskSecondaryAttack(CTask* task) { m_TaskMgr.SetTaskSecondary(task, TASK_SECONDARY_ATTACK); }
+    void AddTaskSecondaryFacialComplex(CTask* task) { m_TaskMgr.SetTaskSecondary(task, TASK_SECONDARY_FACIAL_COMPLEX); }
+    void AddTaskSecondaryPartialAnim(CTask* task) { m_TaskMgr.SetTaskSecondary(task, TASK_SECONDARY_PARTIAL_ANIM); }
+    void AddTaskSecondaryIK(CTask* task) { m_TaskMgr.SetTaskSecondary(task, TASK_SECONDARY_IK); }
 
     //!< Can be replaced using `CTaskManager::Find<T>(false);`
     CTask* FindTaskByType(eTaskType taskId);
+    CTask* FindTaskActiveByType(eTaskType taskId) { return m_TaskMgr.FindActiveTaskByType(taskId); }
     CTaskSimpleFight* GetTaskFighting();
     CTaskSimpleUseGun* GetTaskUseGun();
     CTaskSimpleThrowProjectile* GetTaskThrow();
@@ -137,11 +144,13 @@ public:
     void ProcessFirst();
     void Process();
     CTask* GetActivePrimaryTask() const;
+    CTask* GetTaskPrimary(int32 idx = 3) const { return m_TaskMgr.GetTaskPrimary(idx); }
     float GetPedFOVRange() const;
     void IncrementAngerAtPlayer(uint8 anger);
 
     void SetDmRadius(float r) { m_fDmRadius = r; }
     void SetNumPedsToScan(uint32 n) { m_nDmNumPedsToScan = n; }
+    void SetFollowNodeThresholdDistance(float d) { m_FollowNodeThresholdDistance = d; }
 
     // NOTSA
     bool IsUsingGun() {
@@ -170,7 +179,7 @@ public:
     CEntity**        GetVehicleEntities()              { return m_vehicleScanner.m_apEntities.data(); }
     auto&            GetStuckChecker(this auto&& self) { return self.m_pedStuckChecker; }
 
-    void AddEvent(CEvent& event, bool bFlag = false) { m_eventGroup.Add(&event, bFlag); }
+    CEvent* AddEvent(CEvent& event, bool bFlag = false) { return m_eventGroup.Add(&event, bFlag); }
     static inline int32 ms_iDesiredMoveState = 0;
 
 private:

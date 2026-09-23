@@ -52,6 +52,8 @@ public:
     void DeleteRwObject() override;
     void SetClump(RpClump* clump) override;
 
+    ePedType GetDefaultPedType() const { return m_nPedType; }
+
 
     void AddXtraAtomics(RpClump* clump);
     void SetFaceTexture(RwTexture* texture);

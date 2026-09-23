@@ -41,6 +41,18 @@ struct tUserList {
     std::array<int32, 4> m_UserTypes{ -1, -1, -1, -1 };
     std::array<int32, 4> m_UserTypesByPedType{ -1, -1, -1, -1 };
     bool  m_bUseList{};
+
+    bool AddUserByType(int32 pedType) {
+        m_bUseList = true;
+        for (size_t i = 0; i < 4; i++) {
+            if (m_UserTypes[i] == -1) {
+                m_UserTypes[i] = 1;
+                m_UserTypesByPedType[i] = pedType;
+                return true;
+            }
+        }
+        return false;
+    }
 };
 VALIDATE_SIZE(tUserList, 0x24);
 

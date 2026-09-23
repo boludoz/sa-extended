@@ -20,6 +20,7 @@ public:
 
     //! Mark the damage as calculated
     void SetDamageAsCalculated() { m_bDamageCalculated = true; }
+    void SetDamageCalculated() { m_bDamageCalculated = true; }
 
     //! Get the total damage done [Armor and HP]
     auto GetTotalDamage() const { return m_fDamageArmor + m_fDamageHealth; }
