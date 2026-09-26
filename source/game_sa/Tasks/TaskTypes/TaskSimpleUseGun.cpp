@@ -377,7 +377,7 @@ void CTaskSimpleUseGun::AimGun(CPed* ped) {
         }
     } else if (m_TargetPos.x == 0.f && m_TargetPos.y == 0.f) { // 0x61F30C - Free aim / camera aim
         ped->m_pedIK.PointGunInDirection(
-            ped->m_fCurrentRotation,
+            ped->m_fCurrentHeading,
             ped->IsPlayer() ? ped->GetPlayerData()->m_fLookPitch : 0.f,
             false,
             m_Anim->GetBlendAmount()
@@ -573,8 +573,8 @@ bool CTaskSimpleUseGun::ProcessPed(CPed* ped) {
             }
             if (m_TargetEntity) {
                 const auto vecDir = m_TargetEntity->GetPosition() - ped->GetPosition();
-                ped->m_fCurrentRotation = std::atan2(-vecDir.x, vecDir.y);
-                ped->SetHeading(ped->m_fCurrentRotation);
+                ped->m_fCurrentHeading = std::atan2(-vecDir.x, vecDir.y);
+                ped->SetHeading(ped->m_fCurrentHeading);
             }
         } else if (m_LastCmd > eGunCommand::NONE && m_LastCmd < eGunCommand::RELOAD && m_Anim->GetBlendDelta() >= 0.0f) {
             const auto bDucking = ped->bIsDucking != 0;
@@ -755,7 +755,7 @@ bool CTaskSimpleUseGun::ProcessPed(CPed* ped) {
             if (vecTempTarget.x != 0.0f || vecTempTarget.y != 0.0f) {
                 vecTempTarget -= ped->GetPosition();
                 vecTempTarget.Normalise();
-                float fTargetHeading = CGeneral::LimitRadianAngle(std::atan2(-vecTempTarget.x, vecTempTarget.y) - ped->m_fCurrentRotation);
+                float fTargetHeading = CGeneral::LimitRadianAngle(std::atan2(-vecTempTarget.x, vecTempTarget.y) - ped->m_fCurrentHeading);
                 float deadTargetOffset = (targetDead ? 1.0f : 0.0f) * PISTOL_AIM_DEAD_TARGET;
                 if (fTargetHeading > PISTOL_AIM_LEFT_LIMIT - deadTargetOffset ||
                     fTargetHeading < PISTOL_AIM_RIGHT_LIMIT + deadTargetOffset)

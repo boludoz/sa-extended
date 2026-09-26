@@ -189,4 +189,7 @@ public:
 
 public:
     NodeType* m_Head{};
+
+public:
+    NodeType* GetHeadPtr() const { return m_Head; } //!< calineva API
 };

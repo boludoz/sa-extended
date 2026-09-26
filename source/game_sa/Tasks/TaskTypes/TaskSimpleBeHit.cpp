@@ -174,7 +174,7 @@ bool CTaskSimpleBeHit::ProcessPed(CPed* ped) {
     }
 
     if (m_nDirn == 0 && m_Attacker && !m_Attacker->IsPlayer()) { // todo: m_nDirn == 0
-        ped->m_fAimingRotation = (m_Attacker->GetPosition() - ped->GetPosition()).Heading();
+        ped->m_fDesiredHeading = (m_Attacker->GetPosition() - ped->GetPosition()).Heading();
     }
 
     if (m_Anim) {

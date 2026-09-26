@@ -125,7 +125,7 @@ CTask* CTaskComplexDestroyCarMelee::CreateFirstSubTask(CPed* ped) {
     CalculateSearchPositionAndRanges(ped);
     const auto& pedPos = ped->GetPosition();
     if (IsPointInSphere(pedPos, m_VehToDestroy->GetPosition(), m_MaxArriveRange)) {
-        ped->m_fAimingRotation = CGeneral::GetRadianAngleBetweenPoints(m_VehPos, pedPos);
+        ped->m_fDesiredHeading = CGeneral::GetRadianAngleBetweenPoints(m_VehPos, pedPos);
         return CreateSubTask(TASK_SIMPLE_FIGHT_CTRL, ped);
     }
     return CreateSubTask(ped->bStayInSamePlace ? TASK_SIMPLE_PAUSE : TASK_COMPLEX_SEEK_ENTITY, ped);

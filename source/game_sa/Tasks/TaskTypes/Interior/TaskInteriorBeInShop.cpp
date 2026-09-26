@@ -60,7 +60,7 @@ void CTaskInteriorBeInShop::ScanForStuff(CPed* ped) {
     const auto PedAddUseInfoEvent = [&]{
         ped->GetEventGroup().Add(CEventInteriorUseInfo{ closestIntInfo, closestInt, 0, false });
     };
-    switch (closestIntInfo->Type) {
+    switch (closestIntInfo->type) {
     case eInteriorInfoType::RUN_ANIM: {
         if (CGeneral::DoCoinFlip()) {
             g_ikChainMan.LookAt(
@@ -69,7 +69,7 @@ void CTaskInteriorBeInShop::ScanForStuff(CPed* ped) {
                 nullptr,
                 3'000,
                 eBoneTag::BONE_UNKNOWN,
-                &closestIntInfo->Pos,
+                &closestIntInfo->pos,
                 true,
                 0.25f,
                 500,

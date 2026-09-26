@@ -75,7 +75,7 @@ void CPlaceName::Display() const {
 CVector CPlaceName::CalcPosition() {
     auto player = FindPlayerPed();
     if (player->bInVehicle) {
-        return player->m_pVehicle->GetPosition();
+        return player->m_pMyVehicle->GetPosition();
     } else {
         auto posn = player->GetPosition();
         CEntryExitManager::GetPositionRelativeToOutsideWorld(posn);

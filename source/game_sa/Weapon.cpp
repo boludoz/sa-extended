@@ -447,7 +447,7 @@ float CWeapon::TargetWeaponRangeMultiplier(CEntity* target, CEntity* weaponOwner
     case ENTITY_TYPE_PED: {
         CPed* pedVictim = target->AsPed();
 
-        if (pedVictim->m_pVehicle && !pedVictim->m_pVehicle->IsBike()) {
+        if (pedVictim->m_pMyVehicle && !pedVictim->m_pMyVehicle->IsBike()) {
             return 3.0f;
         }
 
@@ -547,7 +547,7 @@ void CWeapon::DoBulletImpact(CEntity* firedBy, CEntity* victim, const CVector& s
                                 return false;
                             }
                         }
-                        if (victimVeh->physicalFlags.bBulletProof || !victimVeh->vehicleFlags.bCanBeDamaged) {
+                        if (victimVeh->m_nPhysicalFlags.bNotDamagedByBullets || !victimVeh->vehicleFlags.bCanBeDamaged) {
                             return false;
                         }
                         if (victimVeh->m_fHealth <= 0.f || victimVeh->GetStatus() == STATUS_WRECKED) {
@@ -645,14 +645,14 @@ void CWeapon::DoBulletImpact(CEntity* firedBy, CEntity* victim, const CVector& s
 
                 DoBulletImpactFx();
                 if (victimObj->m_nColDamageEffect < 200) {
-                    if (!victimObj->physicalFlags.bDisableCollisionForce && oinfo->m_fColDamageMultiplier < 99.9f) {
+                    if (!victimObj->m_nPhysicalFlags.bInfiniteMass && oinfo->m_fColDamageMultiplier < 99.9f) {
                         if (victimObj->GetIsStatic() && oinfo->m_fUprootLimit <= 0.f) {
                             victimObj->SetIsStatic(false);
                             victimObj->AddToMovingList();
                         }
                         if (!victimObj->GetIsStatic()) { // 0x73BC6B - Move the object a little
                             float force = -2.f;
-                            if (victimObj->physicalFlags.bDisableZ || victimObj->physicalFlags.bDisableMoveForce) {
+                            if (victimObj->m_nPhysicalFlags.bPoolBallPhysics || victimObj->m_nPhysicalFlags.bDoorPhysics) {
                                 force *= 0.1f;
                             }
                             if (incrementalHit) {
@@ -839,7 +839,7 @@ bool CWeapon::TakePhotograph(CEntity* owner, const CVector* point) {
         }
 
         if (!CheckIsLOSBlocked(objPos, &obj)) {
-            obj.objectFlags.bIsPhotographed = true;
+            obj.m_nObjectFlags.bHasBeenPhotographed = true;
         }
     }
 
@@ -1064,7 +1064,7 @@ void CWeapon::Update(CPed* owner) {
                     return CTimer::GetPreviousTimeInMS() < audioTimeMs && CTimer::GetTimeInMS() >= audioTimeMs;
                 });
             };
-            if (wi->flags.bReload && (!owner->IsPlayer() || !FindPlayerInfo().m_bFastReload)) { // 0x73DCCE
+            if (wi->flags.bReload && (!owner->IsPlayer() || !FindPlayerInfo().FastReload)) { // 0x73DCCE
                 auto animRLoad = RpAnimBlendClumpGetAssociation(
                     owner->GetRpClump(),
                     ANIM_ID_RELOAD //(wi->m_Flags & 0x1000) != 0 ? ANIM_ID_RELOAD : ANIM_ID_WALK // Always going to be `ANIM_ID_RELOAD`
@@ -1921,7 +1921,7 @@ bool CWeapon::Fire(CEntity* firedBy, CVector* startPosn, CVector* barrelPosn, CE
                 m_State = WEAPONSTATE_RELOADING;
                 m_TimeForNextShotMs = s_DebugSettings.NoShotDelay
                     ? 0
-                    : firedBy == FindPlayerPed() && FindPlayerInfo().m_bFastReload
+                    : firedBy == FindPlayerPed() && FindPlayerInfo().FastReload
                         ? wi->GetWeaponReloadTime() / 4
                         : wi->GetWeaponReloadTime();
                 m_TimeForNextShotMs += CTimer::GetTimeInMS();

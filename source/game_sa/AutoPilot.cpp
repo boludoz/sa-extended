@@ -4,16 +4,16 @@
 
 // 0x6D5E20
 CAutoPilot::CAutoPilot() {
-    OldNode.m_wAreaId     = (uint16)-1;
-    NewNode.m_wAreaId     = (uint16)-1;
-    VeryOldNode.m_wAreaId = (uint16)-1;
+    OldNode.Region     = (uint16)-1;
+    NewNode.Region     = (uint16)-1;
+    VeryOldNode.Region = (uint16)-1;
 
     OldLink               = CCarPathLinkAddress();
     NewLink               = CCarPathLinkAddress();
     VeryOldLink           = CCarPathLinkAddress();
 
     for (int32 i = 0; i < CAR_NUM_PATHNODES_LOOKAHEAD; ++i) {
-        aPathNodeList[i].m_wAreaId = (uint16)-1;
+        aPathNodeList[i].Region = (uint16)-1;
     }
 
     InvertDirOldLink     = 1;

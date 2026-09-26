@@ -16,20 +16,20 @@ enum eScriptResourceType {
 };
 
 struct tScriptResource {
-    int32               m_nModelId;
-    void*               m_pThread;
-    eScriptResourceType m_nType;
+    int32               ResourceIndex;
+    void*               pUsedBy;
+    eScriptResourceType ResourceType;
 
     tScriptResource() {
-        m_nModelId = -1;
-        m_nType    = RESOURCE_TYPE_DEFAULT;
-        m_pThread  = nullptr;
+        ResourceIndex = -1;
+        ResourceType    = RESOURCE_TYPE_DEFAULT;
+        pUsedBy  = nullptr;
     }
 };
 
 class CScriptResourceManager {
 public:
-    std::array<tScriptResource, 75> m_aScriptResources;
+    std::array<tScriptResource, 75> ScriptResources;
 
 public:
     static void InjectHooks();

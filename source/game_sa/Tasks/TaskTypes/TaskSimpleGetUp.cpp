@@ -97,7 +97,7 @@ bool CTaskSimpleGetUp::StartAnim(CPed* ped) {
         || vehicle->IsBike()
         || vehicle->IsSubQuad()
         || vehicle == ped->m_pAttachedTo
-        || vehicle == ped->m_standingOnEntity
+        || vehicle == ped->m_pGroundPhysical
     ) {
         auto& entity = ped->m_pEntityIgnoredCollision;
         if (!entity
@@ -105,7 +105,7 @@ bool CTaskSimpleGetUp::StartAnim(CPed* ped) {
             || entity->AsVehicle()->IsBike()
             || entity->AsVehicle()->IsSubQuad()
             || !IsVehiclePointerValid(entity->AsVehicle())
-            || (ped->m_nRandomSeed + CTimer::GetFrameCounter() - 3) % 8 == 0
+            || (ped->RandomSeed + CTimer::GetFrameCounter() - 3) % 8 == 0
             || CCollision::ProcessColModels(
                 ped->GetMatrix(),
                 *CModelInfo::GetModelInfo(ped->m_nModelIndex)->GetColModel(),

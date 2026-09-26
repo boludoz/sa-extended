@@ -43,7 +43,7 @@ bool CEventVehicleDamage::AffectsPed(CPed* ped)
 {
     if (ped->IsAlive() && m_attacker) {
         if (!ped->IsInVehicleThatHasADriver())
-            return m_vehicle && ped->m_pVehicle == m_vehicle;
+            return m_vehicle && ped->m_pMyVehicle == m_vehicle;
     }
     return false;
 }

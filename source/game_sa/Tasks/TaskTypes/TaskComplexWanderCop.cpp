@@ -158,8 +158,8 @@ void CTaskComplexWanderCop::LookForStolenCopCars(CPed* ped) {
         wanted = player->GetPlayerWanted();
     }
 
-    if (wanted && wanted->GetWantedLevel() == eWantedLevel::WANTED_CLEAN && player->m_pVehicle) {
-        if (player->m_pVehicle->vehicleFlags.bIsLawEnforcer) {
+    if (wanted && wanted->GetWantedLevel() == eWantedLevel::WANTED_CLEAN && player->m_pMyVehicle) {
+        if (player->m_pMyVehicle->vehicleFlags.bIsLawEnforcer) {
             player->SetWantedLevelNoDrop(eWantedLevel::WANTED_LEVEL_1);
         }
     }

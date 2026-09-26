@@ -102,7 +102,7 @@ bool CTaskComplexGangLeader::ShouldLoadGangAnims() {
     }
 
     const auto player = FindPlayerPed();
-    return !player->IsInVehicle() || player->m_pVehicle->m_vecMoveSpeed.SquaredMagnitude() <= sq(0.02f);
+    return !player->IsInVehicle() || player->m_pMyVehicle->m_vecMoveSpeed.SquaredMagnitude() <= sq(0.02f);
 }
 
 // 0x65E860

@@ -51,7 +51,7 @@ bool CEventEditableResponse::WillRespond() const {
 
 // 0x4AC4A0
 void CEventEditableResponse::InformVehicleOccupants(CPed* ped) {
-    CVehicle* vehicle = ped->m_pVehicle;
+    CVehicle* vehicle = ped->m_pMyVehicle;
     if (!ped->bInVehicle || !DoInformVehicleOccupants(ped) || !m_bAddToEventGroup) {
         return;
     }

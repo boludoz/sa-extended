@@ -65,42 +65,43 @@ class NOTSA_EXPORT_VTABLE CPhysical : public CEntity {
 public:
     float  field_38;
     uint32 m_nLastCollisionTime;
+    struct CPhysicalFlags {
+        uint32 bExtraHeavy                :1; // bExtraHeavy
+        uint32 bDoGravity                      :1; // bDoGravity
+        uint32 bInfiniteMass               :1; // bInfiniteMass
+        uint32 bInfiniteMassFixed                        :1; // bInfiniteMassFixed
+        uint32 bPedPhysics                  :1; // bPedPhysics
+        uint32 bDoorPhysics                  :1; // bDoorPhysics
+        uint32 bHangingPhysics                      :1; // bHangingPhysics
+        uint32 bPoolBallPhysics                          :1; // bPoolBallPhysics
+        uint32 bIsInWater                  :1; // bIsInWater
+        uint32 bCollidedThisFrame                    :1; // bCollidedThisFrame
+        uint32 bUnFreezable                            :1; // bUnFreezable
+        uint32 bTrainForceCol  :1; // bTrainForceCol
+        uint32 bSkipLineCol                       :1; // bSkipLineCol
+        uint32 bCoorsFrozenByScript                    :1; // bCoorsFrozenByScript
+        uint32 bDontLoadCollision                 :1; // bDontLoadCollision
+        uint32 bHalfSpeedCollision                   :1; // bHalfSpeedCollision
+        uint32 bForceHitReturnFalse               :1; // bForceHitReturnFalse
+        uint32 bDontProcessCollisionOurSelves            :1; // bDontProcessCollisionOurSelves
+        uint32 bNotDamagedByBullets                       :1; // bNotDamagedByBullets
+        uint32 bNotDamagedByFlames                         :1; // bNotDamagedByFlames
+        uint32 bNotDamagedByCollisions                    :1; // bNotDamagedByCollisions
+        uint32 bNotDamagedByMelee                        :1; // bNotDamagedByMelee
+        uint32 bOnlyDamagedByPlayer                      :1; // bOnlyDamagedByPlayer
+        uint32 bIgnoresExplosions                    :1; // bIgnoresExplosions
+        uint32 bFlyer             :1; // bFlyer
+        uint32 bNeverGoStatic                  :1; // bNeverGoStatic
+        uint32 bUsingSpecialColModel           :1; // bUsingSpecialColModel
+        uint32 bForceFullWaterCheck                     :1; // bForceFullWaterCheck
+        uint32 bUsesCollisionRecords                 :1; // bUsesCollisionRecords
+        uint32 bRenderScorched                    :1; // bRenderScorched
+        uint32 bDoorHitEndStop                    :1; // bDoorHitEndStop
+        uint32 bCarriedByRope                     :1; // bCarriedByRope
+    };
     union {
-        struct {
-            uint32 bMakeMassTwiceAsBig                :1; // bExtraHeavy
-            uint32 bApplyGravity                      :1; // bDoGravity
-            uint32 bDisableCollisionForce             :1; // bInfiniteMass
-            uint32 bCollidable                        :1; // bInfiniteMassFixed
-            uint32 bDisableTurnForce                  :1; // bPedPhysics
-            uint32 bDisableMoveForce                  :1; // bDoorPhysics
-            uint32 bInfiniteMass                      :1; // bHangingPhysics
-            uint32 bDisableZ                          :1; // bPoolBallPhysics
-            uint32 bSubmergedInWater                  :1; // bIsInWater
-            uint32 bOnSolidSurface                    :1; // bCollidedThisFrame
-            uint32 bBroken                            :1; // bUnFreezable
-            uint32 bProcessCollisionEvenIfStationary  :1; // bTrainForceCol
-            uint32 bSkipLineCol                       :1; // bSkipLineCol
-            uint32 bDontApplySpeed                    :1; // bCoorsFrozenByScript
-            uint32 bDontLoadCollision                 :1; // bDontLoadCollision
-            uint32 bProcessingShift                   :1; // bHalfSpeedCollision
-            uint32 bForceHitReturnFalse               :1; // bForceHitReturnFalse
-            uint32 bDisableSimpleCollision            :1; // bDontProcessCollisionOurSelves
-            uint32 bBulletProof                       :1; // bNotDamagedByBullets
-            uint32 bFireProof                         :1; // bNotDamagedByFlames
-            uint32 bCollisionProof                    :1; // bNotDamagedByCollisions
-            uint32 bMeleeProof                        :1; // bNotDamagedByMelee
-            uint32 bInvulnerable                      :1; // bOnlyDamagedByPlayer
-            uint32 bExplosionProof                    :1; // bIgnoresExplosions
-            uint32 bDontCollideWithFlyers             :1; // bFlyer
-            uint32 bAttachedToEntity                  :1; // bNeverGoStatic
-            uint32 bAddMovingCollisionSpeed           :1; // bUsingSpecialColModel
-            uint32 bTouchingWater                     :1; // bForceFullWaterCheck
-            uint32 bCanBeCollidedWith                 :1; // bUsesCollisionRecords
-            uint32 bRenderScorched                    :1; // bRenderScorched
-            uint32 bDoorHitEndStop                    :1; // bDoorHitEndStop
-            uint32 bCarriedByRope                     :1; // bCarriedByRope
-        } physicalFlags;
-        uint32 m_nPhysicalFlags;
+        CPhysicalFlags m_nPhysicalFlags;
+        uint32 m_nPhysicalFlagsRaw;
     };
     CVector             m_vecMoveSpeed;
     CVector             m_vecTurnSpeed;
@@ -245,7 +246,7 @@ public:
     }
 
 // HELPERS
-    [[nodiscard]] bool IsImmovable() const { return physicalFlags.bDisableZ || physicalFlags.bInfiniteMass || physicalFlags.bDisableMoveForce; }
+    [[nodiscard]] bool IsImmovable() const { return m_nPhysicalFlags.bPoolBallPhysics || m_nPhysicalFlags.bHangingPhysics || m_nPhysicalFlags.bDoorPhysics; }
 
     auto GetCollidingEntities() const { return std::span{ m_apCollidedEntities, m_nNumEntitiesCollided }; }
 

@@ -178,13 +178,13 @@ CTask* CTaskComplexWander::ControlSubTask(CPed* ped) {
 void CTaskComplexWander::UpdateDir(CPed* ped) {
     uint8 newDir = m_nDir;
     if (m_NextNode.IsAreaValid()) {
-        const CPathNode* pathNodes = ThePaths.m_pPathNodes[m_NextNode.m_wAreaId];
+        const CPathNode* pathNodes = ThePaths.m_pPathNodes[m_NextNode.Region];
         if (pathNodes) {
-            const CPathNode* pathNode = &pathNodes[m_NextNode.m_wNodeId];
+            const CPathNode* pathNode = &pathNodes[m_NextNode.Index];
             if (pathNode) {
-                if (pathNode->m_nNumLinks >= 3u && CTimer::GetFrameCounter() != m_nLastUpdateDirFrameCount && m_bWanderSensibly) {
+                if (pathNode->NumberAdjNodes >= 3u && CTimer::GetFrameCounter() != m_nLastUpdateDirFrameCount && m_bWanderSensibly) {
                     m_nLastUpdateDirFrameCount = CTimer::GetFrameCounter();
-                    uint8 remainder = (3 * CTimer::GetFrameCounter() + ped->m_nRandomSeed) % 100;
+                    uint8 remainder = (3 * CTimer::GetFrameCounter() + ped->RandomSeed) % 100;
                     if (remainder <= 90u) {
                         if (remainder > 80u) {
                             newDir = (newDir + 10) % 8;
@@ -222,7 +222,7 @@ void CTaskComplexWander::UpdateDir(CPed* ped) {
 // 0x0
 void CTaskComplexWander::UpdatePathNodes(const CPed* ped, uint8 dir, CNodeAddress& originNode, CNodeAddress& targetNode, uint8& outDir) {
     originNode = targetNode;
-    targetNode.m_wAreaId = (uint16)-1;
+    targetNode.Region = (uint16)-1;
     const CVector& pos = ped->GetPosition();
     ThePaths.FindNextNodeWandering(PATH_TYPE_PED, pos, &originNode, &targetNode, dir, &outDir);
 }
@@ -231,7 +231,7 @@ void CTaskComplexWander::UpdatePathNodes(const CPed* ped, uint8 dir, CNodeAddres
 CTask* CTaskComplexWander::CreateSubTask(CPed* ped, eTaskType taskType) {
     switch (taskType) {
     case TASK_SIMPLE_CAR_DRIVE_TIMED: {
-        return new CTaskSimpleCarDriveTimed(ped->m_pVehicle, 2000);
+        return new CTaskSimpleCarDriveTimed(ped->m_pMyVehicle, 2000);
     }
     case TASK_SIMPLE_GO_TO_POINT: {
         CVector outTargetPos;
@@ -242,7 +242,7 @@ CTask* CTaskComplexWander::CreateSubTask(CPed* ped, eTaskType taskType) {
         return nullptr;
     }
     case TASK_COMPLEX_LEAVE_CAR: {
-        return new CTaskComplexLeaveCar(ped->m_pVehicle, 0, 0, true, false);
+        return new CTaskComplexLeaveCar(ped->m_pMyVehicle, 0, 0, true, false);
     }
     case TASK_COMPLEX_OBSERVE_TRAFFIC_LIGHTS_AND_ACHIEVE_HEADING: {
         return new CTaskComplexObserveTrafficLightsAndAchieveHeading(2000, ComputeTargetHeading(ped));
@@ -261,7 +261,7 @@ CTask* CTaskComplexWander::CreateSubTask(CPed* ped, eTaskType taskType) {
 
 // 0x66F530
 float CTaskComplexWander::ComputeTargetHeading(CPed* ped) {
-    auto position = ThePaths.TakeWidthIntoAccountForWandering(m_NextNode, ped->m_nRandomSeed);
+    auto position = ThePaths.TakeWidthIntoAccountForWandering(m_NextNode, ped->RandomSeed);
     position -= ped->GetPosition();
     float radianAngle = CGeneral::GetRadianAngleBetweenPoints(position.x, position.y, 0.0f, 0.0f);
     return CGeneral::LimitRadianAngle(radianAngle);
@@ -269,7 +269,7 @@ float CTaskComplexWander::ComputeTargetHeading(CPed* ped) {
 
 // 0x669F60
 void CTaskComplexWander::ComputeTargetPos(const CPed* ped, CVector& outTargetPos, const CNodeAddress& targetNodeAddress) {
-    outTargetPos = ThePaths.TakeWidthIntoAccountForWandering(targetNodeAddress, ped->m_nRandomSeed);
+    outTargetPos = ThePaths.TakeWidthIntoAccountForWandering(targetNodeAddress, ped->RandomSeed);
     outTargetPos.z += 1.0f;
 }
 
@@ -295,7 +295,7 @@ void CTaskComplexWander::ScanForBlockedNodes(CPed* ped) {
 
 // 0x671EF0
 bool CTaskComplexWander::ScanForBlockedNode(CPed* ped, const CNodeAddress& targetNodeAddress) {
-    auto outVec = ThePaths.TakeWidthIntoAccountForWandering(targetNodeAddress, ped->m_nRandomSeed);
+    auto outVec = ThePaths.TakeWidthIntoAccountForWandering(targetNodeAddress, ped->RandomSeed);
     if (DistanceBetweenPointsSquared2D(outVec, ped->GetPosition()) <= sq(3.0f)) {
         CPed* closestPed = ped->GetIntelligence()->GetPedScanner().GetClosestPedInRange();
         if (ScanForBlockedNode(outVec, closestPed)) {

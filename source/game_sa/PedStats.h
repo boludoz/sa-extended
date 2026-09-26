@@ -4,18 +4,18 @@
 
 class CPedStat {
 public:
-    uint32 m_nId;
-    char   m_acName[24];
+    uint32 m_ePedStatType;
+    char   m_sPedStatName[24];
     float  m_fFleeDistance;
-    float  m_fHeadingChangeRate;
+    float  m_fMaxHeadingChange;
     uint8  m_nFear;
     uint8  m_nTemper;
     uint8  m_nLawfulness;
     uint8  m_nSexiness;
-    float  m_fAttackStrength;
-    float  m_fDefendWeakness;
-    uint16 m_flags;
-    char   m_nDefaultDecisionMaker;
+    float  m_fAttackMult;
+    float  m_fDefendMult;
+    uint16 m_nStatFlags;
+    char   m_iDefaultDecisionMaker;
 };
 
 VALIDATE_SIZE(CPedStat, 0x34);

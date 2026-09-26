@@ -149,8 +149,8 @@ bool CTaskInteriorLieInBed::ProcessPed(CPed* ped) {
             const auto animOffsetWS = ped->m_matrix->TransformPoint(animOffsetOS); // Transform to world space
             ped->SetPosn({ animOffsetWS.x, animOffsetWS.y, ped->GetPosition().z });
             if (currAnimId == GetAnimIdInSeq(AnimSeqIdx::LOOP)) {
-                ped->m_fAimingRotation = ped->m_fCurrentRotation = CGeneral::LimitRadianAngle(ped->m_fCurrentRotation + PI);
-                ped->SetHeading(ped->m_fCurrentRotation);
+                ped->m_fDesiredHeading = ped->m_fCurrentHeading = CGeneral::LimitRadianAngle(ped->m_fCurrentHeading + PI);
+                ped->SetHeading(ped->m_fCurrentHeading);
             }
         }
 
@@ -162,7 +162,7 @@ bool CTaskInteriorLieInBed::ProcessPed(CPed* ped) {
 
         // Update ped's anim shift and rotation
         if (currAnimId != GetAnimIdInSeq(AnimSeqIdx::GET_OUT)) {
-            auto pedToIntDir           = m_IntInfo->Pos - ped->GetPosition();
+            auto pedToIntDir           = m_IntInfo->pos - ped->GetPosition();
             const auto pedToIntMag     = pedToIntDir.NormaliseAndMag();
             const auto pedToIntShiftWS = pedToIntDir * std::min(pedToIntMag, 0.2f);
 
@@ -173,7 +173,7 @@ bool CTaskInteriorLieInBed::ProcessPed(CPed* ped) {
                 pedToIntShiftWS.Dot(ped->GetForward()),
             };
 
-            ped->m_fAimingRotation = m_IntInfo->Dir.Heading();
+            ped->m_fDesiredHeading = m_IntInfo->dir.Heading();
         }
     } else if (InteriorManager_c::AreAnimsLoaded(ANIM_GROUP_DEFAULT)) { // Create animation
         const auto CreateNextAnimAndStartTimer = [&, this](AnimSeqIdx offset, float blendDelta = 1000.f) {

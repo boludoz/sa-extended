@@ -12,7 +12,7 @@ void CCustomBuildingRenderer::InjectHooks() {
     RH_ScopedInstall(Initialise, 0x5D7EC0);
     RH_ScopedInstall(Shutdown, 0x5D7EE0);
     RH_ScopedInstall(PluginAttach, 0x5D7EF0);
-    RH_ScopedInstall(AtomicSetup, 0x5D7F00, { .reversed = false });
+    RH_ScopedInstall(AtomicSetup, 0x5D7F00);
     RH_ScopedInstall(IsCBPCPipelineAttached, 0x5D7F40, { .reversed = false });
     RH_ScopedInstall(UpdateDayNightBalanceParam, 0x5D7F80, { .reversed = false });
     RH_ScopedInstall(Update, 0x5D8050, { .reversed = false });
@@ -39,8 +39,20 @@ bool CCustomBuildingRenderer::PluginAttach() {
 }
 
 // 0x5D7F00
-void CCustomBuildingRenderer::AtomicSetup(RpAtomic* atomic) {
-    plugin::Call<0x5D7F00, RpAtomic*>(atomic);
+// ASM Match: not measured
+RpAtomic* CCustomBuildingRenderer::AtomicSetup(RpAtomic* pAtomic)
+{
+    RpGeometry* pGeom = RpAtomicGetGeometry(pAtomic);
+    assert(pGeom);
+
+    if (CCustomBuildingDNPipeline::GetExtraVertColourPtr(pGeom) != nullptr && RpGeometryGetPreLightColors(pGeom))
+    {
+        // DN lighting:
+        return CCustomBuildingDNPipeline::CustomPipeAtomicSetup(pAtomic);
+    }
+
+    // standard lighting:
+    return CCustomBuildingPipeline::CustomPipeAtomicSetup(pAtomic);
 }
 
 // 0x5D7F40

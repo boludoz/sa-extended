@@ -216,11 +216,11 @@ bool CTaskSimpleHoldEntity::ProcessPed(CPed* ped) {
                     objectToHold->SetIsStatic(false);
                     objectToHold->AddToMovingList();
                 }
-                objectToHold->physicalFlags.bAttachedToEntity = true;
+                objectToHold->m_nPhysicalFlags.bNeverGoStatic = true;
                 objectToHold->m_nFakePhysics = 0;
             }
 
-            m_fRotation = entityToHold->GetHeading() - ped->m_fCurrentRotation;
+            m_fRotation = entityToHold->GetHeading() - ped->m_fCurrentHeading;
         }
     }
 
@@ -258,7 +258,7 @@ bool CTaskSimpleHoldEntity::ProcessPed(CPed* ped) {
                     ped->m_vecAnimMovingShiftLocal.x += DotProduct(&outPoint, &ped->GetRight()) / CTimer::GetTimeStep() * 0.1f;
                     ped->m_vecAnimMovingShiftLocal.y += DotProduct(&outPoint, &ped->GetForward()) / CTimer::GetTimeStep() * 0.1f ;
                     CVector direction = entityToHold->GetPosition() - ped->GetPosition();
-                    ped->m_fAimingRotation = atan2(-direction.x, direction.y);
+                    ped->m_fDesiredHeading = atan2(-direction.x, direction.y);
                 }
             }
         }
@@ -422,8 +422,8 @@ void CTaskSimpleHoldEntity::DropEntity(CPed* ped, bool bAddEventSoundQuiet) {
         }
         objectToHold = m_pEntityToHold->AsObject();
         objectToHold->m_pEntityIgnoredCollision = ped;
-        if (objectToHold->physicalFlags.bDisableCollisionForce && bAddEventSoundQuiet) {
-            if (!objectToHold->objectFlags.bIsLiftable) {
+        if (objectToHold->m_nPhysicalFlags.bInfiniteMass && bAddEventSoundQuiet) {
+            if (!objectToHold->m_nObjectFlags.bIsStealable) {
                 uint8 objectType = objectToHold->m_nObjectType;
                 if (objectType != OBJECT_MISSION && objectType != OBJECT_MISSION2) {
                     if (objectType != OBJECT_TEMPORARY) {
@@ -438,7 +438,7 @@ void CTaskSimpleHoldEntity::DropEntity(CPed* ped, bool bAddEventSoundQuiet) {
             }
         }
         else {
-            objectToHold->physicalFlags.bAttachedToEntity = false;
+            objectToHold->m_nPhysicalFlags.bNeverGoStatic = false;
             if (!bAddEventSoundQuiet) {
                 bUpdateEntityPosition = false;
             }
@@ -458,7 +458,7 @@ void CTaskSimpleHoldEntity::DropEntity(CPed* ped, bool bAddEventSoundQuiet) {
         }
 
         CVector objectToHoldPosition(0.0f, 0.0f, 0.0f);
-        if (objectToHold->objectFlags.bIsLiftable && ped->GetPlayerData() && bAddEventSoundQuiet) {
+        if (objectToHold->m_nObjectFlags.bIsStealable && ped->GetPlayerData() && bAddEventSoundQuiet) {
             CEventSoundQuiet eventSoundQuiet(ped, 60.0f, -1, objectToHoldPosition);
             GetEventGlobalGroup()->Add(&eventSoundQuiet, false);
         }

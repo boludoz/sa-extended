@@ -40,7 +40,7 @@ bool CEventDeadPed::AffectsPed(CPed* ped) {
     if (g_ikChainMan.IsLooking(ped) && g_ikChainMan.GetLookAtEntity(ped) == m_ped)
         return false;
 
-    if (m_ped->physicalFlags.bSubmergedInWater)
+    if (m_ped->m_nPhysicalFlags.bIsInWater)
         return false;
 
     const CVector distance = m_ped->GetPosition() - ped->GetPosition();

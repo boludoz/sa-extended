@@ -73,7 +73,7 @@ bool CTaskSimplePickUpBike::MakeAbortable(CPed* ped, eAbortPriority priority, CE
     if (m_anim) {
         m_anim->m_BlendDelta = -1000.f;
     }
-    m_veh->AsBike()->bikeFlags.bGettingPickedUp = false;
+    m_veh->AsBike()->m_nBikeFlags.bGettingPickedUp = false;
     return true;
 }
 
@@ -87,10 +87,10 @@ bool CTaskSimplePickUpBike::ProcessPed(CPed* ped) {
         StartAnim(ped);
     }
 
-    if (const auto bike = m_veh->AsBike(); !bike->bikeFlags.bGettingPickedUp) {
+    if (const auto bike = m_veh->AsBike(); !bike->m_nBikeFlags.bGettingPickedUp) {
         if (m_anim) {
             if (m_anim->m_CurrentTime > 0.47f) { // Simplified...
-                bike->bikeFlags.bGettingPickedUp = true;
+                bike->m_nBikeFlags.bGettingPickedUp = true;
             }        
         }        
     }

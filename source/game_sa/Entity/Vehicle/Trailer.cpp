@@ -68,7 +68,7 @@ void CTrailer::SetupSuspensionLines() {
     for (int32 i = 0; i < NUM_TRAILER_WHEELS; ++i) {
         CVector wheelPos;
         mi->GetWheelPosn(i, wheelPos, false);
-        m_wheelPosition[i] = wheelPos.z;
+        m_aWheelSuspensionHeights[i] = wheelPos.z;
 
         CVector lineStart = wheelPos;
         lineStart.z += m_pHandlingData->m_fSuspensionUpperLimit;
@@ -123,7 +123,7 @@ void CTrailer::SetupSuspensionLines() {
     const float heightAboveRoad = m_fSuspensionLength[0] * (1.0f - weightRatio / suspensionForceFactor)
                                 + mi->m_fWheelSizeFront / 2 - colData->m_pLines[0].m_vecStart.z;
 
-    m_fFrontHeightAboveRoad = heightAboveRoad;
+    m_fHeightAboveRoad = heightAboveRoad;
     m_fRearHeightAboveRoad  = heightAboveRoad;
 
     const float supportForce = CTrailer::m_fTrailerSuspensionForce * 2.0f;
@@ -132,7 +132,7 @@ void CTrailer::SetupSuspensionLines() {
 
     for (int i = 0; i < NUM_TRAILER_SUPPORTS; ++i) {
         supportLines[i].m_vecEnd.z = newEndZ;
-        m_wheelPosition[i] = mi->m_fWheelSizeFront / 2 - m_fFrontHeightAboveRoad;
+        m_aWheelSuspensionHeights[i] = mi->m_fWheelSizeFront / 2 - m_fHeightAboveRoad;
     }
 }
 
@@ -305,7 +305,7 @@ int32 CTrailer::ProcessEntityCollision(CEntity* entity, CColPoint* outColPoints)
     }
 #endif
 
-    if (physicalFlags.bSkipLineCol || physicalFlags.bProcessingShift || entity->GetIsTypePed() || entity->GetIsTypeVehicle()) {
+    if (m_nPhysicalFlags.bSkipLineCol || m_nPhysicalFlags.bHalfSpeedCollision || entity->GetIsTypePed() || entity->GetIsTypeVehicle()) {
         tcd->m_nNumLines = 0; // Later reset back to original value
     }
 
@@ -320,8 +320,8 @@ int32 CTrailer::ProcessEntityCollision(CEntity* entity, CColPoint* outColPoints)
     std::array<CColPoint, NUM_TRAILER_SUSP_LINES> suspLineCPs{};
     std::array<float, NUM_TRAILER_SUSP_LINES> suspLineTouchDists{};
 
-    rng::copy(m_fWheelsSuspensionCompression, suspLineTouchDists.begin());
-    rng::copy(m_supportRatios, suspLineTouchDists.begin() + m_fWheelsSuspensionCompression.size());
+    rng::copy(m_aWheelRatios, suspLineTouchDists.begin());
+    rng::copy(m_supportRatios, suspLineTouchDists.begin() + m_aWheelRatios.size());
 
     const auto numColPts = CCollision::ProcessColModels(
         GetMatrix(), *GetColModel(),
@@ -345,19 +345,19 @@ int32 CTrailer::ProcessEntityCollision(CEntity* entity, CColPoint* outColPoints)
             // 0x6AD0D4
             const auto& cp = suspLineCPs[i];
             const auto touchDist = suspLineTouchDists[i];
-            if (touchDist < BILLS_EXTENSION_LIMIT && touchDist < m_fWheelsSuspensionCompression[i]) {
+            if (touchDist < BILLS_EXTENSION_LIMIT && touchDist < m_aWheelRatios[i]) {
                 numProcessedLines++;
-                m_fWheelsSuspensionCompression[i] = touchDist;
-                m_wheelColPoint[i] = cp;
+                m_aWheelRatios[i] = touchDist;
+                m_aWheelColPoints[i] = cp;
                 m_anCollisionLighting[i] = cp.m_nLightingB;
                 m_nContactSurface = cp.m_nSurfaceTypeB;
 
                 switch (entity->GetType()) {
                 case ENTITY_TYPE_VEHICLE:
                 case ENTITY_TYPE_OBJECT: {
-                    CEntity::ChangeEntityReference(m_apWheelCollisionEntity[i], entity->AsPhysical());
+                    CEntity::ChangeEntityReference(m_aGroundPhysicalPtrs[i], entity->AsPhysical());
 
-                    m_vWheelCollisionPos[i] = cp.m_vecPoint - entity->GetPosition();
+                    m_aGroundOffsets[i] = cp.m_vecPoint - entity->GetPosition();
                     if (entity->GetIsTypeVehicle()) {
                         m_anCollisionLighting[i] = entity->AsVehicle()->m_anCollisionLighting[i];
                     }
@@ -396,7 +396,7 @@ int32 CTrailer::ProcessEntityCollision(CEntity* entity, CColPoint* outColPoints)
             entity->AsPhysical()->AddCollisionRecord(this);
         }
         if (numColPts > 0 && entity->GetIsTypeBuilding()
-            || (entity->GetIsTypeObject() && entity->AsPhysical()->physicalFlags.bDisableCollisionForce)) {
+            || (entity->GetIsTypeObject() && entity->AsPhysical()->m_nPhysicalFlags.bInfiniteMass)) {
             SetHasHitWall(true);
         }
     }
@@ -490,7 +490,7 @@ void CTrailer::PreRender() {
 
             CVector newPos = mat.GetPosition();
             const float targetZ = (supportTravel + supportLegLine.m_vecStart.z) * verticalPosRatio
-                - (1.0f - verticalPosRatio) * m_fFrontHeightAboveRoad;
+                - (1.0f - verticalPosRatio) * m_fHeightAboveRoad;
             newPos.z = std::min(targetZ, m_fHeight);
 
             mat.SetTranslate(newPos);
@@ -523,7 +523,7 @@ bool CTrailer::GetTowHitchPos(CVector& outPos, bool bCheckModelInfo, CVehicle* v
         }
         outPos.x = 0.0f;
         outPos.y = mi->GetColModel()->GetBoundingBox().m_vecMax.y + 1.0f;
-        outPos.z = 0.5f - m_fFrontHeightAboveRoad;
+        outPos.z = 0.5f - m_fHeightAboveRoad;
         outPos = m_matrix->TransformPoint(outPos);
         return true;
     }
@@ -542,7 +542,7 @@ bool CTrailer::GetTowBarPos(CVector& outPos, bool bCheckModelInfo, CVehicle* veh
     auto mi = GetVehicleModelInfo();
     outPos.x = 0.0f;
     outPos.y = mi->GetColModel()->GetBoundingBox().m_vecMin.y - TRAILER_TOWBAR_OFFSET_Y;
-    outPos.z = 0.5f - m_fFrontHeightAboveRoad;
+    outPos.z = 0.5f - m_fHeightAboveRoad;
     outPos = m_matrix->TransformPoint(outPos);
     return true;
 }

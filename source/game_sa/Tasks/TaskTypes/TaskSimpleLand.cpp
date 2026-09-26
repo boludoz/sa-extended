@@ -59,7 +59,7 @@ bool CTaskSimpleLand::ProcessPed(CPed* ped) {
         if (bPedNotUpdated) {
             if (!(ped->GetUp().z == 1.0F && ped->m_vecTurnSpeed.IsZero())) {
                 ped->ResetTurnSpeed();
-                ped->SetHeading(ped->m_fCurrentRotation);
+                ped->SetHeading(ped->m_fCurrentHeading);
             }
 
             ped->bIsLanding = true;

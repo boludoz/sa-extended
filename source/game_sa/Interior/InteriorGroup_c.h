@@ -23,16 +23,16 @@ public:
     uint8       m_groupId;             // 0xD
     uint8       m_groupType;           // 0xE - TODO: eInteriorGroupType
     uint8       m_numInteriors;        // 0xF
-    Interior_c* m_interiors[8];        // 0x10
-    CEntryExit* m_EnEx;                // 0x30
+    Interior_c* m_pInteriors[8];        // 0x10
+    CEntryExit* m_pEntryExit;                // 0x30
     bool        m_isVisible;           // 0x34
     bool        m_lastIsVisible;       // 0x35
     int8        m_numPeds;             // 0x36
-    CPed*       m_peds[16];            // 0x38
-    CPed*       m_pedsToRemove[16];    // 0x78
-    int8        m_pathSetupComplete;   // 0xB8
-    int8        m_updatePeds;          // 0xB9
-    int8        m_animBlockReferenced; // 0xBA
+    CPed*       m_pPeds[16];            // 0x38
+    CPed*       m_pPedsToRemove[16];    // 0x78
+    int8        m_pathsSetup;   // 0xB8
+    int8        m_pedsSetup;          // 0xB9
+    int8        m_animsReferenced; // 0xBA
 
 public:
     static void InjectHooks();
@@ -40,38 +40,40 @@ public:
     InteriorGroup_c() = default;  // 0x597FE0
     ~InteriorGroup_c() = default; // 0x597FF0
 
-    auto GetInteriors() { return m_interiors | rng::views::take(m_numInteriors); }
-    auto GetPeds() { return m_peds | rng::views::take(m_numPeds); }
+    auto GetInteriors() { return m_pInteriors | rng::views::take(m_numInteriors); }
+    auto GetPeds() { return m_pPeds | rng::views::take(m_numPeds); }
 
     void Init(CEntity* entity, int32 id);
     void Update();
-    int32 AddInterior(Interior_c* interior);
+    void AddInterior(Interior_c* interior);
     void SetupPeds();
     void UpdatePeds();
-    int32 SetupHousePeds();
-    int8 SetupPaths();
+    void SetupHousePeds();
+    void SetupPaths();
     int8 ArePathsLoaded();
     void Setup();
-    int8 Exit();
+    void Exit();
     int8 ContainsInteriorType(int32 a2);
-    int8 CalcIsVisible();
+    void CalcIsVisible();
 
     void DereferenceAnims();
     void ReferenceAnims();
 
     void UpdateOfficePeds();
-    int8 RemovePed(CPed* a2);
-    int32 SetupShopPeds();
+    void RemovePed(CPed* a2);
+    void UpdateHousePeds() {} // empty in the original (inlined away)
+    void UpdateShopPeds() {}  // empty in the original (inlined away)
+    void SetupShopPeds();
     void SetupOfficePeds();
     CEntity* GetEntity();
     CPed* GetPed(int32);
     bool FindClosestInteriorInfo(int32 a, CVector point, float b, InteriorInfo_t** interiorInfo, Interior_c** interior, float* pSome);
     bool FindInteriorInfo(eInteriorInfoType infoType, InteriorInfo_t** a3, Interior_c** a4);
     int32 GetNumInteriorInfos(int32 a2);
-    int32 GetRandomInterior();
+    Interior_c* GetRandomInterior();
     auto GetId() const { return m_id; }
 
-    auto GetInteriors() const { return m_interiors | std::views::take(m_numInteriors); }
+    auto GetInteriors() const { return m_pInteriors | std::views::take(m_numInteriors); }
 private:
 
     //! @notsa

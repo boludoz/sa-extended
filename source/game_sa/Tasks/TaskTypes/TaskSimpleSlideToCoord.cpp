@@ -74,7 +74,7 @@ bool CTaskSimpleSlideToCoord::ProcessPed(CPed* ped) {
         if (ped->IsPlayer()) {
             ped->GetTaskManager().GetTaskPrimary(TASK_PRIMARY_DEFAULT)->MakeAbortable(ped, ABORT_PRIORITY_IMMEDIATE, nullptr);
         }
-        ped->m_fAimingRotation = m_fAimingRotation;
+        ped->m_fDesiredHeading = m_fAimingRotation;
     }
 
     const auto pedToSlidePosDir = (m_SlideToPos - ped->GetPosition()) * m_Speed; // Originally they calculated this twice, but thats a waste of performance, so.. :D
@@ -94,7 +94,7 @@ bool CTaskSimpleSlideToCoord::ProcessPed(CPed* ped) {
     }
 
     if (hasSuccessfullyProcessedRunAnim && pedToSlidePosDistSq2D < sq(0.05f)) {
-        if (std::abs(ped->m_fCurrentRotation - ped->m_fAimingRotation) < 0.1f) {
+        if (std::abs(ped->m_fCurrentHeading - ped->m_fDesiredHeading) < 0.1f) {
             return true;
         }
     }

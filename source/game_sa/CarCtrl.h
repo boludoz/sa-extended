@@ -75,7 +75,7 @@ public:
     static float FindGhostRoadHeight(CVehicle* vehicle);
     static void FireHeliRocketsAtTarget(CAutomobile* entityLauncher, CEntity* entity);
     static void FlyAIHeliInCertainDirection(CHeli* heli, float arg2, float arg3, bool arg4);
-    static void FlyAIHeliToTarget_FixedOrientation(CHeli* heli, float fOrientation, CVector posn);
+    static void FlyAIHeliToTarget_FixedOrientation(CHeli* heli, float fOrientation, CVector posn, bool bSlowDownAtTarget);
     static void FlyAIPlaneInCertainDirection(CPlane* pPlane);
     //! @param dir            Direction the spawn point is tested against (normalized 2D)
     //! @param cosLimit       Minimum `dot(dirToSpawnPoint, dir)`; `invertTest` flips the comparison
@@ -94,14 +94,14 @@ public:
     static void GetAIPlaneToDoDogFightAgainstPlayer(CAutomobile* automobile);
     static CVehicle* GetNewVehicleDependingOnCarModel(int32 modelID, eVehicleCreatedBy createdBy);
     static bool IsAnyoneParking();
-    static bool IsThisAnAppropriateNode(CVehicle* vehicle, CNodeAddress nodeAddress1, CNodeAddress nodeAddress2, CNodeAddress nodeAddress3, bool arg5);
+    static bool IsThisAnAppropriateNode(CVehicle* vehicle, CNodeAddress veryOldNode, CNodeAddress oldNode, CNodeAddress candidateNode, bool bGoingAgainstTraffic, bool bGoingDownOneWayStreet);
     static bool IsThisVehicleInteresting(CVehicle* vehicle);
     static void JoinCarWithRoadAccordingToMission(CVehicle* vehicle);
     static void JoinCarWithRoadSystem(CVehicle* vehicle);
     static bool JoinCarWithRoadSystemGotoCoors(CVehicle* vehicle, const CVector& posn, bool unused = true, bool bIsBoat = false);
     static bool PickNextNodeAccordingStrategy(CVehicle* vehicle);
     static void PickNextNodeRandomly(CVehicle* vehicle);
-    static bool PickNextNodeToChaseCar(CVehicle* vehicle, float destX, float destY, float destZ);
+    static bool PickNextNodeToChaseCar(CVehicle* vehicle, float destX, float destY, float destZ, CVehicle* carWeChase);
     static bool PickNextNodeToFollowPath(CVehicle* vehicle);
     static void PossiblyFireHSMissile(CVehicle* entityLauncher, CEntity* targetEntity);
     static void PossiblyRemoveVehicle(CVehicle* vehicle);
@@ -161,6 +161,7 @@ public:
     static void UpdateCarOnRails(CVehicle* vehicle);
     static void WeaveForObject(CEntity* entity, CVehicle* vehicle, float* arg3, float* arg4);
     static void WeaveForOtherCar(CEntity* entity, CVehicle* vehicle, float* arg3, float* arg4);
+    static void WeaveForPed(CEntity* entity, CVehicle* vehicle, float* leftAngle, float* rightAngle);
     template<typename PtrListType>
     static void WeaveThroughCarsSectorList(PtrListType& ptrList, CVehicle* vehicle, CPhysical* physical, float arg4, float arg5, float arg6, float arg7, float* arg8, float* arg9);
     template<typename PtrListType>

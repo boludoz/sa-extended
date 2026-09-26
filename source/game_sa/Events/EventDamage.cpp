@@ -98,12 +98,12 @@ bool CEventDamage::AffectsPed(CPed* ped) {
     }
 
     if (ped == FindPlayerPed()) {
-        if (FindPlayerInfo().m_bFireProof) {
+        if (FindPlayerInfo().FireProof) {
             if (m_weaponType == WEAPON_MOLOTOV || m_weaponType == WEAPON_FLAMETHROWER)
                 return false;
         }
     }
-    if (ped->physicalFlags.bInvulnerable) {
+    if (ped->m_nPhysicalFlags.bOnlyDamagedByPlayer) {
         if (pedSourceEntity != FindPlayerPed()) {
             if (m_weaponType != WEAPON_DROWNING && m_weaponType != WEAPON_EXPLOSION && ped->m_fHealth > 0.0f)
                 return false;
@@ -153,7 +153,7 @@ bool CEventDamage::AffectsPed(CPed* ped) {
     }
     bool bAffectsPed = ped->CanPhysicalBeDamaged(m_weaponType, nullptr);
     if (    m_weaponType == WEAPON_FALL
-        && (ped->physicalFlags.bCollisionProof || ped->m_pAttachedTo || ped->m_fHealth > 0.0f && ped->GetIntelligence()->GetTaskJetPack())
+        && (ped->m_nPhysicalFlags.bNotDamagedByCollisions || ped->m_pAttachedTo || ped->m_fHealth > 0.0f && ped->GetIntelligence()->GetTaskJetPack())
     ) {
         bAffectsPed = false;
     }
@@ -419,7 +419,7 @@ void CEventDamage::ComputeDeathAnim(CPed* ped, bool bMakeActiveTaskAbortable) {
     {
         m_nAnimID = ANIM_ID_NO_ANIMATION_SET;
     }
-    else if (m_weaponType == WEAPON_DROWNING || ped->physicalFlags.bSubmergedInWater && !ped->bIsStanding)
+    else if (m_weaponType == WEAPON_DROWNING || ped->m_nPhysicalFlags.bIsInWater && !ped->bIsStanding)
     {
         m_nAnimID = ANIM_ID_DROWN;
     }
@@ -636,7 +636,7 @@ void CEventDamage::ComputeDeathAnim(CPed* ped, bool bMakeActiveTaskAbortable) {
 
 // 0x4B3FC0
 void CEventDamage::ComputeDamageAnim(CPed* ped, bool bMakeActiveTaskAbortable) {
-    if (ped->bInVehicle && ped->m_pVehicle) {
+    if (ped->bInVehicle && ped->m_pMyVehicle) {
         CWeaponInfo* pWeaponInfo = CWeaponInfo::GetWeaponInfo((eWeaponType)this->m_weaponType, eWeaponSkill::STD);
         if (!pWeaponInfo->m_nWeaponFire
             && m_weaponType

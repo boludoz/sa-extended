@@ -44,7 +44,7 @@ void CTaskAllocatorKillOnFoot::AllocateTasks(CPedGroupIntelligence* intel) {
             CTaskComplexSequence tseq{};
 
             if (mem->IsInVehicle()) { // 0x69BEC4 and 0x69C109
-                tseq.AddTask(new CTaskComplexLeaveCar{ mem->m_pVehicle, 0, 0, true, false });
+                tseq.AddTask(new CTaskComplexLeaveCar{ mem->m_pMyVehicle, 0, 0, true, false });
             }
 
             if (m_GroupTargetID == -1) { // 0x69BEC9 and 0x69C185

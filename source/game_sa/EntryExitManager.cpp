@@ -247,7 +247,7 @@ CObject* CEntryExitManager::FindNearestDoor(CEntryExit const& exit, float radius
     CObject* closest{};
     for (auto&& entity : std::span{ objsInRange, (size_t)numObjsInRange }) {
         const auto obj = entity->AsObject();
-        if (!obj->physicalFlags.bDisableMoveForce) {
+        if (!obj->m_nPhysicalFlags.bDoorPhysics) {
             continue;
         }
 

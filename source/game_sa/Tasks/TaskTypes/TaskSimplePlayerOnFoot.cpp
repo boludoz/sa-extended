@@ -325,8 +325,8 @@ void CTaskSimplePlayerOnFoot::ProcessPlayerWeapon(CPlayerPed* player) {
         if (weaponInfo->m_nWeaponFire == WEAPON_FIRE_USE) {
             if (pad->WeaponJustDown(nullptr)) {
                 uint8 activeWeaponSlot = player->m_nActiveWeaponSlot;
-                weaponType = player->m_aWeapons[activeWeaponSlot].m_Type;
-                CWeapon* playerWeapon = &player->m_aWeapons[activeWeaponSlot];
+                weaponType = player->m_WeaponSlots[activeWeaponSlot].m_Type;
+                CWeapon* playerWeapon = &player->m_WeaponSlots[activeWeaponSlot];
                 if (weaponType == WEAPON_DETONATOR) {
                     playerWeapon->Fire(player, &player->GetPosition(), &player->GetPosition(), nullptr, nullptr, nullptr);
                 } else if (weaponType > WEAPON_CAMERA && weaponType <= WEAPON_INFRARED && !taskManager->GetTaskPrimary(TASK_PRIMARY_PRIMARY)) {
@@ -383,7 +383,7 @@ void CTaskSimplePlayerOnFoot::ProcessPlayerWeapon(CPlayerPed* player) {
                     }
                     case WEAPON_FIRE_PROJECTILE: {
                         uint8 activeWeaponSlot = player->m_nActiveWeaponSlot;
-                        CWeapon* activeWeapon = &player->m_aWeapons[activeWeaponSlot];
+                        CWeapon* activeWeapon = &player->m_WeaponSlots[activeWeaponSlot];
                         if (activeWeapon->m_Type == WEAPON_RLAUNCHER || activeWeapon->m_Type == WEAPON_RLAUNCHER_HS) {
                             const auto gunCmd = activeWeapon->m_State == WEAPONSTATE_RELOADING
                                 ? eGunCommand::AIM
@@ -420,7 +420,7 @@ void CTaskSimplePlayerOnFoot::ProcessPlayerWeapon(CPlayerPed* player) {
                     }
                     case WEAPON_FIRE_CAMERA: {
                         uint8 activeWeaponSlot = player->m_nActiveWeaponSlot;
-                        CWeapon* activeWeapon = &player->m_aWeapons[activeWeaponSlot];
+                        CWeapon* activeWeapon = &player->m_WeaponSlots[activeWeaponSlot];
                         if (CCamera::GetActiveCamera().m_nMode == MODE_CAMERA && CTimer::GetTimeInMS() > activeWeapon->m_TimeForNextShotMs) {
                             CVector firingPoint(0.0f, 0.0f, 0.6f);
                             CVector outputFiringPoint = player->m_matrix->TransformPoint(firingPoint);
@@ -503,7 +503,7 @@ void CTaskSimplePlayerOnFoot::ProcessPlayerWeapon(CPlayerPed* player) {
 
                 CCam* camera = &CCamera::GetActiveCamera();
                 if (!weaponInfo->flags.bAimWithArm && camera->m_nMode == MODE_FOLLOWPED) {
-                    player->m_fAimingRotation = atan2(-camera->m_vecFront.x, camera->m_vecFront.y);
+                    player->m_fDesiredHeading = atan2(-camera->m_vecFront.x, camera->m_vecFront.y);
                 }
                 if (player->m_pTargetedObject || playerData->m_bFreeAiming) {
                     CTaskSimpleUseGun* taskUseGun = intelligence->GetTaskUseGun();
@@ -804,7 +804,7 @@ void CTaskSimplePlayerOnFoot::PlayerControlZeldaWeapon(CPlayerPed* player) {
                 moveSpeed.x = (cosRadian * pedMatrix->GetRight().y + negativeSinRadian * pedMatrix->GetRight().x + pedMatrix->GetRight().z * 0.0f) * moveBlendRatio;
                 moveSpeed.y = -((cosRadian * pedMatrix->GetForward().y + negativeSinRadian * pedMatrix->GetForward().x + pedMatrix->GetForward().z * 0.0f) * moveBlendRatio);
             } else {
-                player->m_fAimingRotation = limitedRadianAngle;
+                player->m_fDesiredHeading = limitedRadianAngle;
                 float moveSpeedY = 0.0f;
                 if (CGameLogic::IsPlayerAllowedToGoInThisDirection(player, {negativeSinRadian, cosRadian, 0.0f}, 0.0f)) {
                     moveSpeedY = moveBlendRatio;
@@ -816,7 +816,7 @@ void CTaskSimplePlayerOnFoot::PlayerControlZeldaWeapon(CPlayerPed* player) {
 
         if (targetedObject) {
             CVector2D distance = targetedObject->GetPosition() - player->GetPosition();
-            player->m_fAimingRotation = atan2(-distance.x, distance.y);
+            player->m_fDesiredHeading = atan2(-distance.x, distance.y);
         }
     }
 
@@ -894,7 +894,7 @@ void CTaskSimplePlayerOnFoot::PlayerControlDucked(CPlayerPed* player) {
         if (pedMoveBlendRatio > 0.0f) {
             float radianAngle = CGeneral::GetRadianAngleBetweenPoints(0.0f, 0.0f, -moveSpeed.x, moveSpeed.y) - TheCamera.m_fOrientation;
             float limitedRadianAngle = CGeneral::LimitRadianAngle(radianAngle);
-            player->m_fAimingRotation = limitedRadianAngle;
+            player->m_fDesiredHeading = limitedRadianAngle;
             if (!CGameLogic::IsPlayerAllowedToGoInThisDirection(player, {0.0f, -std::sin(limitedRadianAngle), 0.0f}, 0.0f)) {
                 pedMoveBlendRatio = 0.0f;
             }
@@ -918,9 +918,9 @@ void CTaskSimplePlayerOnFoot::PlayerControlDucked(CPlayerPed* player) {
             moveSpeed.y = -((moveDirection.y * matrix->GetForward().y + matrix->GetForward().z * 0.0f + moveDirection.x * matrix->GetForward().x) * pedMoveBlendRatio);
             if (targetedObject) {
                 CVector distance = targetedObject->GetPosition() - player->GetPosition();
-                player->m_fAimingRotation = atan2(-distance.x, distance.y);
+                player->m_fDesiredHeading = atan2(-distance.x, distance.y);
             } else {
-                player->m_fAimingRotation = limitedRadianAngle;
+                player->m_fDesiredHeading = limitedRadianAngle;
             }
         }
         duckTask->ControlDuckMove(moveSpeed);
@@ -951,7 +951,7 @@ int32 CTaskSimplePlayerOnFoot::PlayerControlZelda(CPlayerPed* player, bool bAvoi
         updateMoveBlendRatio = false;
     }
     if (updateMoveBlendRatio) {
-        player->m_fAimingRotation = limitedRadianAngle;
+        player->m_fDesiredHeading = limitedRadianAngle;
         if (CGameLogic::IsPlayerAllowedToGoInThisDirection(player, {-std::sin(limitedRadianAngle), std::cos(limitedRadianAngle), 0.0f}, 0.0f)) {
             float fMaximumMoveBlendRatio = CTimer::GetTimeStep() * 0.07f;
             if (pedMoveBlendRatio - playerData->m_fMoveBlendRatio <= fMaximumMoveBlendRatio) {
@@ -967,7 +967,7 @@ int32 CTaskSimplePlayerOnFoot::PlayerControlZelda(CPlayerPed* player, bool bAvoi
         }
     }
     if (!(CWeaponInfo::GetWeaponInfo(player->GetActiveWeapon().m_Type, eWeaponSkill::STD)->flags.bHeavy)) {
-        if (!player->m_standingOnEntity || !player->m_standingOnEntity->m_bIsStatic || player->m_standingOnEntity->GetHasContacted()) {
+        if (!player->m_pGroundPhysical || !player->m_pGroundPhysical->m_bIsStatic || player->m_pGroundPhysical->GetHasContacted()) {
             if (!player->GetIntelligence()->GetTaskHold(false) || !((CTaskSimpleHoldEntity*)player->GetIntelligence()->GetTaskHold(false))->m_pAnimBlendAssociation) {
                 CAnimBlendHierarchy* animHierarchy = nullptr;
                 CAnimBlendAssocGroup* animGroup = &CAnimManager::GetAssocGroups()[player->m_nAnimGroup];

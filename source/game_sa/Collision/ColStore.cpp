@@ -310,7 +310,7 @@ void CColStore::LoadCollision(CVector pos, bool bIgnorePlayerVeh)
                 continue;
         }
 
-        if (!entity || entity->AsPhysical()->physicalFlags.bDontLoadCollision || entity->AsPhysical()->physicalFlags.bDontApplySpeed)
+        if (!entity || entity->AsPhysical()->m_nPhysicalFlags.bDontLoadCollision || entity->AsPhysical()->m_nPhysicalFlags.bCoorsFrozenByScript)
             continue;
 
         ms_EntityAreaCode = entity->GetAreaCode();

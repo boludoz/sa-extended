@@ -173,7 +173,7 @@ void CBulletInfo::Update() {
                     };
 
                     if (hitObject->m_nColDamageEffect < 200u) {
-                        if (hitObject->physicalFlags.bDisableCollisionForce || hitObject->m_pObjectInfo->m_fColDamageMultiplier >= 99.9f) {
+                        if (hitObject->m_nPhysicalFlags.bInfiniteMass || hitObject->m_pObjectInfo->m_fColDamageMultiplier >= 99.9f) {
                             /* empty */
                         } else {
                             if (hitObject->GetIsStatic() && hitObject->m_pObjectInfo->m_fUprootLimit <= 0.0f) {

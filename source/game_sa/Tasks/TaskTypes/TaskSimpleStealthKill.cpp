@@ -56,12 +56,12 @@ bool CTaskSimpleStealthKill::ProcessPed(CPed* ped) {
 
     if (!m_bKeepTargetAlive) {
         if (!m_anim || m_anim->m_AnimId == ANIM_ID_KILL_KNIFE_PED_DAMAGE) {
-            ped->m_fAimingRotation = -pedToTarget.Heading();
+            ped->m_fDesiredHeading = -pedToTarget.Heading();
         }
         return false;
     }
 
-    ped->m_fAimingRotation = pedToTarget.Heading();
+    ped->m_fDesiredHeading = pedToTarget.Heading();
 
     if (const auto shift = pedToTarget.Magnitude() - 1.0f; std::abs(shift) > 0.02f) {
         ped->m_vecAnimMovingShiftLocal.y = std::min(CTimer::GetTimeStep() * 0.05f, shift);

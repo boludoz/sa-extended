@@ -50,7 +50,7 @@ void CCrime::ReportCrime(eCrimeType crimeType, CEntity* pVictim, CPed* pCommited
                 CMessages::AddBigMessage(text, 5'000, eMessageStyle::STYLE_MIDDLE);
             }
             if (pCommitedby->m_nPedType == PED_TYPE_PLAYER1) {
-                pCommitedby->AsPlayer()->GetPlayerInfoForThisPlayerPed()->m_nMoney += 50;
+                pCommitedby->AsPlayer()->GetPlayerInfoForThisPlayerPed()->Score += 50;
             }
         }
         return;

@@ -2,9 +2,34 @@
 
 #include "Remote.h"
 
-void CRemote::TakeRemoteControlledCarFromPlayer(bool bCreateRemoteVehicleExplosion)
+void CRemote::InjectHooks() {
+    RH_ScopedClass(CRemote);
+    RH_ScopedCategoryGlobal();
+
+    RH_ScopedInstall(TakeRemoteControlledCarFromPlayer, 0x45AE80);
+}
+
+// 0x45AE80
+// ASM Match: not measured
+void CRemote::TakeRemoteControlledCarFromPlayer(bool bCreateExplosion)
 {
-    return plugin::Call<0x45AE80, bool>(bCreateRemoteVehicleExplosion);
+    assert(CWorld::Players[CWorld::PlayerInFocus].pRemoteVehicle != nullptr);
+
+    if (CWorld::Players[CWorld::PlayerInFocus].pRemoteVehicle->GetCreatedBy() == MISSION_VEHICLE)
+    {
+        CWorld::Players[CWorld::PlayerInFocus].pRemoteVehicle->SetVehicleCreatedBy(RANDOM_VEHICLE);
+
+        int32 VehiclePoolIndex = (*GetVehiclePool()).GetIndex(CWorld::Players[CWorld::PlayerInFocus].pRemoteVehicle);
+
+        CTheScripts::MissionCleanUp.RemoveEntityFromList(VehiclePoolIndex, MISSION_CLEANUP_ENTITY_TYPE_VEHICLE);
+    }
+
+    CWorld::Players[CWorld::PlayerInFocus].pRemoteVehicle->vehicleFlags.bIsLocked = false;
+
+    CWorld::Players[CWorld::PlayerInFocus].TimeOfRemoteVehicleExplosion = CTimer::GetTimeInMS();
+    CWorld::Players[CWorld::PlayerInFocus].bAfterRemoteVehicleExplosion = true;
+    CWorld::Players[CWorld::PlayerInFocus].bCreateRemoteVehicleExplosion = bCreateExplosion;
+    CWorld::Players[CWorld::PlayerInFocus].bFadeAfterRemoteVehicleExplosion = true;
 }
 
 void CRemote::GivePlayerRemoteControlledCar(CVector pos, float rotation, int16 modelId)

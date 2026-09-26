@@ -56,7 +56,7 @@ void CTaskComplexPolicePursuit::SetWeapon(CPed* ped) { // `ped` is the pursuer
         }
     } else /*wantedLevel == 1*/ {
         const auto player = FindPlayerPed();
-        if (player->m_standingOnEntity || ped->m_nPedState == PEDSTATE_ARREST_PLAYER) {
+        if (player->m_pGroundPhysical || ped->m_nPedState == PEDSTATE_ARREST_PLAYER) {
             return;
         }
         if (ped->DoWeHaveWeaponAvailable(WEAPON_NIGHTSTICK)) {
@@ -87,7 +87,7 @@ bool CTaskComplexPolicePursuit::SetPursuit(CPed* ped) {
     float minDistSq = FLT_MAX;
     CPlayerPed* closestPlayer{};
     for (const auto& v : CWorld::Players) {
-        const auto plyr = v.m_pPed;
+        const auto plyr = v.pPed;
         if (!plyr) {
             continue;
         }
@@ -96,7 +96,7 @@ bool CTaskComplexPolicePursuit::SetPursuit(CPed* ped) {
             continue;
         }
         if (plyr->bInVehicle) {
-            if (distSq * plyr->m_pVehicle->GetMoveSpeed().SquaredMagnitude() >= sq(4.f)) { // TODO/BUG: Why `*`?
+            if (distSq * plyr->m_pMyVehicle->GetMoveSpeed().SquaredMagnitude() >= sq(4.f)) { // TODO/BUG: Why `*`?
                 continue;
             }
         }
@@ -139,10 +139,10 @@ CTask* CTaskComplexPolicePursuit::CreateSubTask(eTaskType taskType, CPed* ped) {
         return new CTaskComplexArrestPed{m_Pursued};
     case TASK_COMPLEX_SEEK_ENTITY:
         return new CTaskComplexSeekEntity<CEntitySeekPosCalculatorStandard>{
-            ped->m_pVehicle,
+            ped->m_pMyVehicle,
             50'000,
             1'000,
-            ped->m_pVehicle->GetColModel()->GetBoundRadius() + 1.f,
+            ped->m_pMyVehicle->GetColModel()->GetBoundRadius() + 1.f,
             2.f,
             2.f,
             true,
@@ -184,7 +184,7 @@ CTask* CTaskComplexPolicePursuit::ControlSubTask(CPed* ped) {
         return CreateSubTask(nextSubTaskType, ped);
     }
 
-    ped->GetEventGroup().Add(CEventVehicleToSteal{ ped->m_pVehicle });
+    ped->GetEventGroup().Add(CEventVehicleToSteal{ ped->m_pMyVehicle });
     return new CTaskSimpleScratchHead{};
 }
 
@@ -207,7 +207,7 @@ eTaskType CTaskComplexPolicePursuit::GetNextSubTaskType(CCopPed* pursuer) { // p
             return TASK_FINISHED;
         }
 
-        if (!pursuer->m_pVehicle) {
+        if (!pursuer->m_pMyVehicle) {
             return TASK_SIMPLE_STAND_STILL;
         }
 
@@ -215,7 +215,7 @@ eTaskType CTaskComplexPolicePursuit::GetNextSubTaskType(CCopPed* pursuer) { // p
             return TASK_COMPLEX_ENTER_CAR_AS_DRIVER;
         }
 
-        if ((pursuer->m_pVehicle->GetPosition() - pursuer->GetPosition()).SquaredMagnitude() <= sq(5.f)) {
+        if ((pursuer->m_pMyVehicle->GetPosition() - pursuer->GetPosition()).SquaredMagnitude() <= sq(5.f)) {
             return TASK_COMPLEX_SEEK_ENTITY;
         }
     }

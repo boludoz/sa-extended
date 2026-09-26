@@ -177,8 +177,8 @@ bool CTaskSimpleCarJumpOut::ProcessPed(CPed* ped) {
     // Change rotation of ped
     {
         const auto rot = m_veh->GetHeading();
-        ped->m_fAimingRotation = ped->m_fCurrentRotation = m_veh->IsTotallyUpsideDown() ? CGeneral::LimitRadianAngle(rot + PI) : rot;
-        ped->SetHeading(ped->m_fCurrentRotation);
+        ped->m_fDesiredHeading = ped->m_fCurrentHeading = m_veh->IsTotallyUpsideDown() ? CGeneral::LimitRadianAngle(rot + PI) : rot;
+        ped->SetHeading(ped->m_fCurrentHeading);
     }
     ped->GetMoveSpeed() = m_veh->GetMoveSpeed();
     ped->m_pEntityIgnoredCollision = m_veh;

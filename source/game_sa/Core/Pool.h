@@ -157,6 +157,7 @@ public:
         assert(IsIndexInBounds(idx));
         return !IsFreeSlotAtIndex(idx) ? (T*)&m_Storage[idx] : nullptr;
     }
+    T* GetSlot(size_t idx) { return GetAt(idx); } //!< calineva API
 
     /*!
     * @brief Marks slot as free / used (0x404970)

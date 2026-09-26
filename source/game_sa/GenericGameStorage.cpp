@@ -174,12 +174,12 @@ void CGenericGameStorage::DoGameSpecificStuffBeforeSave() {
     CPickups::RemovePickupObjects();
 
     auto& pinfo             = FindPlayerInfo(0);
-    pinfo.m_pPed->m_fHealth = (float)std::min((uint8)200u, pinfo.m_nMaxHealth);
+    pinfo.pPed->m_fHealth = (float)std::min((uint8)200u, pinfo.MaxHealth);
 
     CGangWars::EndGangWar(false);
     CStats::IncrementStat(eStats::STAT_SAFEHOUSE_VISITS, 1.f);
     CGameLogic::PassTime(6 * 60);
-    FindPlayerInfo().m_nNumHoursDidntEat = 0;
+    FindPlayerInfo().TimeLastEaten = 0;
     FindPlayerPed()->ResetSprintEnergy();
     FindPlayerPed()->SetWantedLevel(eWantedLevel::WANTED_CLEAN);
     CGame::TidyUpMemory(true, false);

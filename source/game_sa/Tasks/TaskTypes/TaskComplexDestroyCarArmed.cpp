@@ -163,7 +163,7 @@ CTask* CTaskComplexDestroyCarArmed::CreateFirstSubTask(CPed* ped) {
     CalculateSearchPositionAndRanges(ped);
 
     if (m_PedVehDist <= m_fWeaponRangeClamped) {
-        ped->m_fAimingRotation = CGeneral::GetRadianAngleBetweenPoints(m_VehiclePos, m_PedPos);
+        ped->m_fDesiredHeading = CGeneral::GetRadianAngleBetweenPoints(m_VehiclePos, m_PedPos);
         return CreateSubTask(TASK_SIMPLE_GUN_CTRL, ped);
     } else if (ped->bStayInSamePlace) {
         return CreateSubTask(TASK_SIMPLE_PAUSE, ped);

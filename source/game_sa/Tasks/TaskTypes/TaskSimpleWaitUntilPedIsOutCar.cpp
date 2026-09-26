@@ -42,7 +42,7 @@ bool CTaskSimpleWaitUntilPedIsOutCar::ProcessPed(CPed* ped) {
         CTaskSimpleStandStill standStillTask;
         standStillTask.ProcessPed(ped);
 
-        ped->m_fAimingRotation = CGeneral::LimitRadianAngle(CGeneral::GetAngleBetweenPoints(m_Pos.x, m_Pos.y, 0.f, 0.f));
+        ped->m_fDesiredHeading = CGeneral::LimitRadianAngle(CGeneral::GetAngleBetweenPoints(m_Pos.x, m_Pos.y, 0.f, 0.f));
     }
 
     return !m_PedToWaitFor->bInVehicle;

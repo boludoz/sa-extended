@@ -51,12 +51,12 @@ void CDecisionMakerTypesFileLoader::LoadDefaultDecisionMaker() {
 
     CDecisionMakerTypes::GetInstance()->LoadEventIndices();
 
-    LoadDecisionMaker("RANDOM.ped", &CDecisionMakerTypes::GetInstance()->m_DefaultRandomPedDecisionMaker);
-    LoadDecisionMaker("m_norm.ped", &CDecisionMakerTypes::GetInstance()->m_DefaultMissionPedDecisionMaker);
-    LoadDecisionMaker("m_plyr.ped", &CDecisionMakerTypes::GetInstance()->m_DefaultPlayerPedDecisionMaker);
+    LoadDecisionMaker("RANDOM.ped", &CDecisionMakerTypes::GetInstance()->m_defaultRandomPedDecisionMaker);
+    LoadDecisionMaker("m_norm.ped", &CDecisionMakerTypes::GetInstance()->m_defaultMissionPedDecisionMaker);
+    LoadDecisionMaker("m_plyr.ped", &CDecisionMakerTypes::GetInstance()->m_defaultPlayerPedDecisionMaker);
 
-    LoadDecisionMaker("RANDOM.grp", &CDecisionMakerTypes::GetInstance()->m_DefaultRandomPedGroupDecisionMaker);
-    LoadDecisionMaker("MISSION.grp", &CDecisionMakerTypes::GetInstance()->m_DefaultMissionPedGroupDecisionMaker);
+    LoadDecisionMaker("RANDOM.grp", &CDecisionMakerTypes::GetInstance()->m_defaultRandomPedGroupDecisionMaker);
+    LoadDecisionMaker("MISSION.grp", &CDecisionMakerTypes::GetInstance()->m_defaultMissionPedGroupDecisionMaker);
 
     LoadDecisionMaker("GangMbr.ped", DEFAULT_DECISION_MAKER, false);
     LoadDecisionMaker("Cop.ped", DEFAULT_DECISION_MAKER, false);
@@ -132,7 +132,7 @@ bool CDecisionMakerTypesFileLoader::LoadDecisionMaker(const char* filepath, CDec
             off += n;
         };
 
-        auto* const d = &decisionMaker->m_aDecisions[CDecisionMakerTypes::GetInstance()->m_EventIndices[eventType]];
+        auto* const d = &decisionMaker->m_aDecisions[CDecisionMakerTypes::GetInstance()->m_eventIndices[eventType]];
         d->SetDefault();
         d->Set(tasks, probs, bools, facialProbs);
     }

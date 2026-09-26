@@ -36,7 +36,7 @@ bool CEventPotentialWalkIntoObject::AffectsPed(CPed* ped) {
     if (m_moveState != PEDMOVE_STILL
         && !ped->m_pAttachedTo
         && m_object->m_pAttachedTo != ped
-        && !m_object->physicalFlags.bDisableMoveForce
+        && !m_object->m_nPhysicalFlags.bDoorPhysics
     ) {
         CColModel* colModel = m_object->GetModelInfo()->GetColModel();
         CVector length = colModel->GetBoundingBox().GetSize();

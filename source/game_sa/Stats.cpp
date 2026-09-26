@@ -134,7 +134,7 @@ int32 CStats::FindCriminalRatingNumber() {
         GetStatValue(STAT_TOTAL_LEGITIMATE_KILLS)
         - (GetStatValue(STAT_TIMES_BUSTED) - GetStatValue(STAT_NUMBER_OF_HOSPITAL_VISITS)) * 3.0f
         + (GetStatValue(STAT_HIGHEST_FIREFIGHTER_MISSION_LEVEL) + GetStatValue(STAT_HIGHEST_PARAMEDIC_MISSION_LEVEL)) * 10.0f
-        + int32((float)playerInfo->m_nMoney / 5000.0f)
+        + int32((float)playerInfo->Score / 5000.0f)
         + GetStatValue(STAT_PLANES_HELICOPTERS_DESTROYED) * 30.0f
         + GetStatValue(STAT_TOTAL_FIRES_EXTINGUISHED)
         + GetStatValue(STAT_CRIMINALS_KILLED_ON_VIGILANTE_MISSION)
@@ -501,7 +501,7 @@ void CStats::IncrementStat(eStats stat, float value)
     CPlayerInfo* playerInfo = player->GetPlayerInfoForThisPlayerPed();
 
     if (stat == STAT_CALORIES) {
-        float healthDiff = playerInfo->m_nMaxHealth - player->m_fHealth;
+        float healthDiff = playerInfo->MaxHealth - player->m_fHealth;
 
         IncrementStat(STAT_RIOT_MISSION_ACCOMPLISHED, value);
 
@@ -533,13 +533,13 @@ void CStats::IncrementStat(eStats stat, float value)
 
     // STAT_RIOT_MISSION_ACCOMPLISHED increment, enum name incorrect?
 
-    float kcals = playerInfo->m_nNumHoursDidntEat - value / 2.0f;
+    float kcals = playerInfo->TimeLastEaten - value / 2.0f;
     kcals = std::clamp(kcals, 0.0f, 36.0f);
 
-    float healthDiff = playerInfo->m_nMaxHealth - player->m_fHealth;
+    float healthDiff = playerInfo->MaxHealth - player->m_fHealth;
 
     if (value >= healthDiff) {
-        playerInfo->m_nNumHoursDidntEat = 0;
+        playerInfo->TimeLastEaten = 0;
     }
 
     player->m_fHealth += value;
@@ -604,7 +604,7 @@ void CStats::UpdateStatsWhenOnMotorBike(CBike* bike) {
         const float bikeMoveSpeed = bike->m_vecMoveSpeed.Magnitude();
         const auto  fTimeStep = CTimer::GetTimeStepInMS();
 
-        if (bikeMoveSpeed > 0.6f || bike->m_nNoOfContactWheels < 3u && bikeMoveSpeed > 0.1f)
+        if (bikeMoveSpeed > 0.6f || bike->nNoOfContactWheels < 3u && bikeMoveSpeed > 0.1f)
             m_BikeCounter = static_cast<uint32>(fTimeStep * 1.5f + bikeCounter);
         else if (bikeMoveSpeed > 0.2f)
             m_BikeCounter = static_cast<uint32>(fTimeStep * 0.5f + bikeCounter);

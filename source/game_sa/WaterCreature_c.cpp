@@ -40,7 +40,7 @@ bool WaterCreature_c::Init(int32 nType, CVector* vecPos, WaterCreature_c* parent
     m_pObject->SetAreaCode(static_cast<eAreaCodes>(CGame::currArea));
     m_pObject->SetIsStatic(true);
     m_pObject->m_bUnderwater = true;
-    m_pObject->physicalFlags.bApplyGravity = false;
+    m_pObject->m_nPhysicalFlags.bDoGravity = false;
     m_pObject->SetUsesCollision(false);
     m_pObject->m_nObjectType = eObjectType::OBJECT_TYPE_DECORATION;
     

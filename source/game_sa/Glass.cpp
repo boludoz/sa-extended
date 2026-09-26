@@ -61,7 +61,7 @@ bool CGlass::HasGlassBeenShatteredAtCoors(CVector point) {
             FindWindowSectorList(CWorld::GetSector(sectorX, sectorY).Dummies, maxDist, entity, point);
         }
     }
-    return entity && !entity->GetIsTypeDummy() && entity->AsObject()->objectFlags.bHasBrokenGlass;
+    return entity && !entity->GetIsTypeDummy() && entity->AsObject()->m_nObjectFlags.bGlassShattered;
 }
 
 // 0x71C2B0
@@ -176,12 +176,12 @@ void CGlass::WasGlassHitByBullet(CEntity* entity, CVector hitPos) {
         return;
 
     const auto object = entity->AsObject();
-    if (object->objectFlags.bHasBrokenGlass) {
+    if (object->m_nObjectFlags.bGlassShattered) {
         if (CGeneral::GetRandomNumber() % 4 == 2) {
             WindowRespondsToCollision(entity, 0.0f, {}, hitPos, false);
         }
     } else {
-        object->objectFlags.bHasBrokenGlass = true; // Just mark it as broken
+        object->m_nObjectFlags.bGlassShattered = true; // Just mark it as broken
     }
 }
 
@@ -194,10 +194,10 @@ std::pair<float, float> FindMinMaxZOfVertices(CVector (&vertices)[N]) {
 // 0x71BC40
 void CGlass::WindowRespondsToCollision(CEntity* entity, float fDamageIntensity, CVector vecMoveSpeed, CVector vecPoint, bool max1PaneSection) {
     auto object = entity->AsObject();
-    if (object->objectFlags.bGlassBrokenAltogether)
+    if (object->m_nObjectFlags.bGlassBrokenAltogether)
         return;
 
-    object->objectFlags.bHasBrokenGlass = true;
+    object->m_nObjectFlags.bGlassShattered = true;
 
     if (const auto cd = object->GetColModel()->m_pColData; cd && cd->m_nNumTriangles == 2) {
         // Object space vertices
@@ -223,7 +223,7 @@ void CGlass::WindowRespondsToCollision(CEntity* entity, float fDamageIntensity, 
             vecPoint,
             0.1f,
             //object->objectFlags.bGlassBroken,
-            (bool)((object->m_nObjectFlags >> 4) & 0xFFFFFF01),
+            (bool)((object->m_nObjectFlagsRaw >> 4) & 0xFFFFFF01),
             max1PaneSection,
             1,
             false
@@ -232,7 +232,7 @@ void CGlass::WindowRespondsToCollision(CEntity* entity, float fDamageIntensity, 
 
     object->SetUsesCollision(false);
     object->SetIsVisible(false);
-    object->objectFlags.bGlassBrokenAltogether = true;
+    object->m_nObjectFlags.bGlassBrokenAltogether = true;
 }
 
 /*
@@ -515,9 +515,9 @@ CFallingGlassPane* CGlass::FindFreePane() {
 
 // 0x71AF70
 void CGlass::WindowRespondsToSoftCollision(CEntity* entity, float fDamageIntensity) {
-    if (entity->GetUsesCollision() && fDamageIntensity > 50.f && !entity->AsObject()->objectFlags.bHasBrokenGlass) {
+    if (entity->GetUsesCollision() && fDamageIntensity > 50.f && !entity->AsObject()->m_nObjectFlags.bGlassShattered) {
         AudioEngine.ReportGlassCollisionEvent(AE_GLASS_HIT, entity->GetPosition());
-        entity->AsObject()->objectFlags.bHasBrokenGlass = true;
+        entity->AsObject()->m_nObjectFlags.bGlassShattered = true;
     }
 }
 
@@ -563,9 +563,9 @@ void CGlass::BreakGlassPhysically(CVector point, float radius) {
 
         LastColCheckMS = CTimer::GetTimeInMS();
 
-        if (!object.objectFlags.bHasBrokenGlass) {
+        if (!object.m_nObjectFlags.bGlassShattered) {
             AudioEngine.ReportGlassCollisionEvent(AE_GLASS_HIT, objPos);
-            object.objectFlags.bHasBrokenGlass = true;
+            object.m_nObjectFlags.bGlassShattered = true;
             return;
         }
 
@@ -594,14 +594,14 @@ void CGlass::BreakGlassPhysically(CVector point, float radius) {
             {},
             point,
             0.1f,
-            object.objectFlags.bHasBrokenGlass,
+            object.m_nObjectFlags.bGlassShattered,
             false,
             1,
             false
         );
         object.SetUsesCollision(false);
         object.SetIsVisible(false);
-        object.objectFlags.bHasBrokenGlass = true;
+        object.m_nObjectFlags.bGlassShattered = true;
     }
 }
 
@@ -616,7 +616,7 @@ void CGlass::WindowRespondsToExplosion(CEntity* entity, CVector pos) {
     const auto dist = entityToPosDir.Magnitude();
     if (dist >= 10.f) {
         if (dist < 30.f) {
-            entity->AsObject()->objectFlags.bHasBrokenGlass = true;
+            entity->AsObject()->m_nObjectFlags.bGlassShattered = true;
         }
     } else {
         WindowRespondsToCollision(entity, 10000.f, entityToPosDir * (0.3f / dist), entityPos, true);

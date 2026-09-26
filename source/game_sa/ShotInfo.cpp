@@ -113,7 +113,7 @@ void CShotInfo::Update() {
                 if (!ped || !ped->IsPointerValid() || ped->bInVehicle) {
                     continue;
                 }
-                if (ped->physicalFlags.bFireProof) {
+                if (ped->m_nPhysicalFlags.bNotDamagedByFlames) {
                     continue;
                 }
                 if (!ped->IsPedInControl()) {

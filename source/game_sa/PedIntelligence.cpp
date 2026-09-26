@@ -97,6 +97,7 @@ void CPedIntelligence::InjectHooks()
     RH_ScopedInstall(ProcessFirst, 0x6073A0);
     RH_ScopedInstall(Process, 0x608260);
     RH_ScopedInstall(GetActivePrimaryTask, 0x4B85B0);
+    RH_ScopedInstall(HasInterestingEntites, 0x602080);
 }
 
 // 0x607140
@@ -124,7 +125,7 @@ CPedIntelligence::CPedIntelligence(CPed* ped) :
         m_fSeeingRange = 40.f;
         m_fHearingRange = 40.f;
     }
-    std::ranges::fill(m_apInterestingEntities, nullptr);
+    std::ranges::fill(m_pInterestingEntities, nullptr);
 }
 
 // 0x607300
@@ -336,7 +337,7 @@ bool CPedIntelligence::GetUsingParachute() {
         return false;
     }
 
-    if (m_pPed->physicalFlags.bSubmergedInWater) {
+    if (m_pPed->m_nPhysicalFlags.bIsInWater) {
         return false;
     }
 
@@ -403,18 +404,18 @@ void CPedIntelligence::ClearTaskDuckSecondary() {
 void CPedIntelligence::ClearTasks(bool bClearPrimaryTasks, bool bClearSecondaryTasks) {
     if (bClearPrimaryTasks)
     {
-        if (m_pPed->bInVehicle && m_pPed->m_pVehicle)
+        if (m_pPed->bInVehicle && m_pPed->m_pMyVehicle)
         {
             if (!m_eventGroup.HasScriptCommandOfTaskType(TASK_SIMPLE_CAR_DRIVE))
             {
                 CTask* driveTask = nullptr;
                 if (m_TaskMgr.GetTaskPrimary(TASK_PRIMARY_DEFAULT)->GetTaskType() == TASK_SIMPLE_CAR_DRIVE)
                 {
-                    driveTask = static_cast<CTask*>(new CTaskSimpleCarDriveTimed(m_pPed->m_pVehicle, 0));
+                    driveTask = static_cast<CTask*>(new CTaskSimpleCarDriveTimed(m_pPed->m_pMyVehicle, 0));
                 }
                 else
                 {
-                    driveTask = new CTaskSimpleCarDrive(m_pPed->m_pVehicle, nullptr, false);
+                    driveTask = new CTaskSimpleCarDrive(m_pPed->m_pMyVehicle, nullptr, false);
                 }
                 CEventScriptCommand eventScriptCommand(TASK_PRIMARY_PRIMARY, driveTask, false);
                 m_eventGroup.Add(&eventScriptCommand, false);
@@ -603,7 +604,7 @@ void CPedIntelligence::ProcessAfterPreRender() {
 
     if (m_pPed->bInVehicle)
     {
-        CVehicle* vehicle = m_pPed->m_pVehicle;
+        CVehicle* vehicle = m_pPed->m_pMyVehicle;
         if (vehicle && vehicle->IsBike()) {
             vehicle->AsBike()->FixHandsToBars(m_pPed);
         }
@@ -750,13 +751,23 @@ void CPedIntelligence::RecordEventForScript(int32 eventId, int32 eventPriority) 
 // Unused
 // typo: Entities
 // 0x602080
-bool CPedIntelligence::HasInterestingEntites() {
-    return plugin::CallMethodAndReturn<bool, 0x602080, CPedIntelligence*>(this);
+// ASM Match
+bool CPedIntelligence::HasInterestingEntites()
+{
+    for (int32 i = 0; i < 3; ++i)
+    {
+        if (m_pInterestingEntities[i] != nullptr)
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 // 0x6020A0
 bool CPedIntelligence::IsInterestingEntity(CEntity* entity) {
-    for (CEntity* interestingEntity : m_apInterestingEntities) {
+    for (CEntity* interestingEntity : m_pInterestingEntities) {
         if (interestingEntity == entity) {
             return true;
         }
@@ -770,7 +781,7 @@ void CPedIntelligence::LookAtInterestingEntities() {
         return;
 
     bool bInterestingEntityExists = false;
-    for (CEntity* interestingEntity : m_apInterestingEntities) {
+    for (CEntity* interestingEntity : m_pInterestingEntities) {
         if (interestingEntity) {
             bInterestingEntityExists = true;
             break;
@@ -934,7 +945,7 @@ void CPedIntelligence::ProcessFirst() {
 
     if (m_pPed->bInVehicle)
     {
-        CVehicle* vehicle = m_pPed->m_pVehicle;
+        CVehicle* vehicle = m_pPed->m_pMyVehicle;
         if (vehicle && vehicle->IsBike()) {
             auto* bike = vehicle->AsBike();
             bike->m_nFixLeftHand = false;

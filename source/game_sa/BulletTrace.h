@@ -15,21 +15,21 @@ public:
     CVector m_vecStart;
     CVector m_vecEnd;
     bool    m_bExists;
-    uint32  m_nCreationTime;
+    uint32  m_TimeOfCreation;
     uint32  m_nLifeTime;
     float   m_fRadius;
     uint8   m_nTransparency;
 
 public:
     void Update() {
-        if (CTimer::GetTimeInMS() - m_nCreationTime >= m_nLifeTime) {
+        if (CTimer::GetTimeInMS() - m_TimeOfCreation >= m_nLifeTime) {
             m_bExists = false;
         }
     }
 
     // NOTSA
     CVector GetDirection() const noexcept { return m_vecEnd - m_vecStart; }
-    uint32 GetRemainingLifetime() const noexcept { return CTimer::GetTimeInMS() - m_nCreationTime; }
+    uint32 GetRemainingLifetime() const noexcept { return CTimer::GetTimeInMS() - m_TimeOfCreation; }
 };
 
 VALIDATE_SIZE(CBulletTrace, 0x2C);

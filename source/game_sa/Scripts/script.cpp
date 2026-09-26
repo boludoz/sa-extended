@@ -247,7 +247,7 @@ void CRunningScript::ShutdownThisScript() {
     case 4: { // CODE_OBJECT
         const auto pLocalVariable = GetPointerToLocalVariable(0);
         if (const auto obj = GetObjectPool()->GetAtRef(pLocalVariable->iParam)) {
-            obj->objectFlags.b0x100000_0x200000 = 0;
+            obj->m_nObjectFlags.ScriptBrainStatus = 0;
         }
         break;
     }
@@ -1076,7 +1076,7 @@ void CTheScripts::Load() {
     const auto remainder = totalSize % MAX_SAVED_GVAR_PART_SIZE;
     CGenericGameStorage::LoadDataFromWorkBuffer(p, remainder);
 
-    for (auto& sfb : ScriptsForBrains.m_aScriptForBrains) {
+    for (auto& sfb : ScriptsForBrains.ScriptBrainArray) {
         CGenericGameStorage::LoadDataFromWorkBuffer(sfb);
     }
 
@@ -1224,7 +1224,7 @@ void CTheScripts::Save() {
     CGenericGameStorage::SaveDataToWorkBuffer(p, remainder);
 
 
-    for (auto& sfb : ScriptsForBrains.m_aScriptForBrains) {
+    for (auto& sfb : ScriptsForBrains.ScriptBrainArray) {
         CGenericGameStorage::SaveDataToWorkBuffer(sfb);
     }
 

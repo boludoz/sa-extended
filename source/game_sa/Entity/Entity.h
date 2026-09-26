@@ -101,7 +101,7 @@ public:
             uint16 m_nRandomSeedSecondByte : 8;
         };
 
-        uint16 m_nRandomSeed;
+        uint16 RandomSeed;
     };
 
     uint16 m_nModelIndex;
@@ -423,6 +423,12 @@ private:
 };
 
 VALIDATE_SIZE(CEntity, 0x38);
+// calineva API: helpers around CleanUpOldReference/RegisterReference
+#define TIDYREF(entityPtr, refPtr) do { if (entityPtr) { (entityPtr)->CleanUpOldReference(reinterpret_cast<CEntity**>(refPtr)); } } while (false)
+#define REGREF(entityPtr, refPtr) (entityPtr)->RegisterReference(reinterpret_cast<CEntity**>(refPtr))
+#define TIDYREF_NOTINWORLD(entityPtr, refPtr) TIDYREF(entityPtr, refPtr)
+#define REGREF_NOTINWORLD(entityPtr, refPtr) REGREF(entityPtr, refPtr)
+
 
 inline bool CEntity::IsInCurrentArea() const {
     return GetAreaCode() == CGame::currArea || GetAreaCode() == AREA_CODE_13;

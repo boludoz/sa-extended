@@ -18,7 +18,7 @@ void CWaterCannon::InjectHooks() {
 void CWaterCannon::Init() {
     m_nId = 0;
     m_nSectionsCount = 0;
-    m_nCreationTime = CTimer::GetTimeInMS();
+    m_TimeOfCreation = CTimer::GetTimeInMS();
     std::ranges::fill(m_abUsed, false);
     m_auRenderIndices = { 0, 1, 2, 1, 3, 2, 4, 5, 6, 5, 7, 6, 8, 9, 10, 9, 11, 10 };
     m_Audio.Initialise(this);
@@ -28,7 +28,7 @@ void CWaterCannon::Init() {
 void CWaterCannon::Update_OncePerFrame(int16 index) {
     const auto LIFETIME = 150;
 
-    if (CTimer::GetTimeInMS() > m_nCreationTime + LIFETIME) {
+    if (CTimer::GetTimeInMS() > m_TimeOfCreation + LIFETIME) {
         m_nSectionsCount = (m_nSectionsCount + 1) % SECTIONS_COUNT;
         m_abUsed[m_nSectionsCount] = false;
     }
@@ -93,7 +93,7 @@ void CWaterCannon::PushPeds() {
         if (!bbox.IsPointWithin(pedPosn))
             continue;
 
-        if (ped.physicalFlags.bMakeMassTwiceAsBig)
+        if (ped.m_nPhysicalFlags.bExtraHeavy)
             continue;
 
         for (auto i = 0; i < SECTIONS_COUNT; i++) {

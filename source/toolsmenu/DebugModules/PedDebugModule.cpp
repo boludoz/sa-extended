@@ -48,23 +48,23 @@ void VisualiseTaskIfPossible(CTask* task, CPed& ped) {
 template<>
 void VisualiseTask<CTaskComplexWander>(CTaskComplexWander& task, CPed& ped) {
     if (task.m_LastNode && task.m_LastNode.IsValid()) {
-        CPathNode& lastPathNode = ThePaths.m_pPathNodes[task.m_LastNode.m_wAreaId][task.m_LastNode.m_wNodeId];
+        CPathNode& lastPathNode = ThePaths.m_pPathNodes[task.m_LastNode.Region][task.m_LastNode.Index];
         auto       nodePos      = lastPathNode.GetPosition();
         auto       color        = CRGBA(0, 255, 0, 255).ToIntARGB();
         CLines::RenderLineNoClipping(nodePos + CVector{ 0.f, 0.f, 0.5f }, nodePos - CVector{ 0.f, 0.f, 0.5f }, color, color);
     }
 
     if (task.m_NextNode && task.m_NextNode.IsValid()) {
-        CPathNode& nextPathNode = ThePaths.m_pPathNodes[task.m_NextNode.m_wAreaId][task.m_NextNode.m_wNodeId];
+        CPathNode& nextPathNode = ThePaths.m_pPathNodes[task.m_NextNode.Region][task.m_NextNode.Index];
         auto       nodePos      = nextPathNode.GetPosition();
         auto       color        = CRGBA(0, 0, 255, 255).ToIntARGB();
         CLines::RenderLineNoClipping(nodePos + CVector{ 0.f, 0.f, 0.5f }, nodePos - CVector{ 0.f, 0.f, 0.5f }, color, color);
     }
 
     if (task.m_LastNode && task.m_LastNode.IsValid() && task.m_NextNode && task.m_NextNode.IsValid()) {
-        CPathNode& lastPathNode = ThePaths.m_pPathNodes[task.m_LastNode.m_wAreaId][task.m_LastNode.m_wNodeId];
+        CPathNode& lastPathNode = ThePaths.m_pPathNodes[task.m_LastNode.Region][task.m_LastNode.Index];
         auto       lastNodePos  = lastPathNode.GetPosition() + CVector{ 0.f, 0.f, 0.4f };
-        CPathNode& nextPathNode = ThePaths.m_pPathNodes[task.m_NextNode.m_wAreaId][task.m_NextNode.m_wNodeId];
+        CPathNode& nextPathNode = ThePaths.m_pPathNodes[task.m_NextNode.Region][task.m_NextNode.Index];
         auto       nextNodePos  = nextPathNode.GetPosition() + CVector{ 0.f, 0.f, 0.4f };
         auto       startColor   = CRGBA(0, 255, 0, 255).ToIntARGB();
         auto       endColor     = CRGBA(0, 0, 255, 255).ToIntARGB();
@@ -145,7 +145,7 @@ void ProcessPed(CPed& ped) {
         }
         SameLine();
         if (Button("Catapult")) {
-            const auto entity = ped.IsInVehicle() ? (CPhysical*)ped.m_pVehicle : &ped;
+            const auto entity = ped.IsInVehicle() ? (CPhysical*)ped.m_pMyVehicle : &ped;
             entity->ApplyMoveForce(entity->GetUpVector() * 10000.f);
         }
 
@@ -229,7 +229,7 @@ void PedDebugModule::ProcessPed(PedInfo& pi) {
 
     // Format a title with a custom ID that should hopefully match only this ped
     char title[1024];
-    *std::format_to(title, "Ped Debug###{}{}", (ptrdiff_t)(pi.ped), pi.ped->m_nRandomSeed) = 0; // Null terminate :D
+    *std::format_to(title, "Ped Debug###{}{}", (ptrdiff_t)(pi.ped), pi.ped->RandomSeed) = 0; // Null terminate :D
 
     if (m_AutoCollapseEnabled) {
         SetNextWindowCollapsed((pi.ped->GetPosition() - TheCamera.GetPosition()).SquaredMagnitude() >= sq(m_CollapseToggleDist));

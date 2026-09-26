@@ -34,36 +34,36 @@ void InteriorManager_c::InjectHooks() {
 
 // 0x5C0500
 void InteriorManager_c::Init() {
-    m_IsFrozen       = false;
-    m_IsActive       = true;
-    m_ArePedsEnabled = true;
-    for (auto& i : m_Interiors) {
-        m_InteriorPool.AddItem(&i);
+    m_freeze       = false;
+    m_active       = true;
+    m_activePeds = true;
+    for (auto& i : m_interiors) {
+        m_interiorPool.AddItem(&i);
     }
-    for (auto&& [i, g] : rngv::enumerate(m_InteriorGroups)) {
+    for (auto&& [i, g] : rngv::enumerate(m_interiorGroups)) {
         g.m_id = (uint8)i;
-        m_InteriorGroupPool.AddItem(&g);
+        m_interiorGroupPool.AddItem(&g);
     }
     g_furnitureMan.Init();
-    m_EnEx          = nullptr;
-    m_InteriorCount = 0;
-    m_ObjectCount   = 0;
-    rng::fill(m_InteriorPedsAliveState, true);
-    m_TimeLastPickupsGenerated = UINT32_MAX;
+    m_pEntryExit          = nullptr;
+    m_numStealInfosIds = 0;
+    m_numStealableObjects   = 0;
+    rng::fill(m_pedsAlive, true);
+    m_timeLastPickupsGenerated = UINT32_MAX;
 }
 
 // 0x598F50
 bool InteriorManager_c::Update() {
     ZoneScoped;
 
-    if (m_IsFrozen) {
+    if (m_freeze) {
         return false;
     }
 
     const auto plyr = FindPlayerPed();
 
     InteriorEffectInfo_t visibleIntFxBuf[32];
-    const auto numVisibleIntFx = plyr->GetAreaCode() != eAreaCodes::AREA_CODE_NORMAL_WORLD && m_IsActive && !plyr->GetTaskManager().GetActiveTaskAs<CTaskSimpleCarDrive>()
+    const auto numVisibleIntFx = plyr->GetAreaCode() != eAreaCodes::AREA_CODE_NORMAL_WORLD && m_active && !plyr->GetTaskManager().GetActiveTaskAs<CTaskSimpleCarDrive>()
         ? GetVisibleEffects(visibleIntFxBuf, std::size(visibleIntFxBuf))
         : 0;
     PruneVisibleEffects(visibleIntFxBuf, numVisibleIntFx, 8, 20.f);
@@ -74,15 +74,15 @@ bool InteriorManager_c::Update() {
     };
 
     // Remove interiors that are associated with effects that aren't visible anymore
-    for (auto it = m_InteriorGroupList.begin(); it != m_InteriorGroupList.end();) {
+    for (auto it = m_interiorGroupList.begin(); it != m_interiorGroupList.end();) {
         auto& g = *it;
         it++; // `RemoveItem` below invalidates the iterator, so increment here
         if (rng::none_of(visibleIntFx, [&](InteriorEffectInfo_t& fx) {
             return IsFxAssociatedWithGroup(fx, g) && !fx.IsCulled;
         })) {
             g.Exit();
-            m_InteriorGroupList.RemoveItem(&g);
-            m_InteriorGroupPool.AddItem(&g);
+            m_interiorGroupList.RemoveItem(&g);
+            m_interiorGroupPool.AddItem(&g);
         }
     }
 
@@ -94,22 +94,22 @@ bool InteriorManager_c::Update() {
         }
 
         //> 0x59909F - Check if there's an existing interior group for this effect
-        if (rng::any_of(m_InteriorGroupList, [&](InteriorGroup_c& g) {
+        if (rng::any_of(m_interiorGroupList, [&](InteriorGroup_c& g) {
             return IsFxAssociatedWithGroup(ifx, g);
         })) {
             continue;
         }
 
         //> 0x5990B8 - Make an interior group for this effect
-        const auto grp = m_InteriorGroupPool.RemoveHead();
+        const auto grp = m_interiorGroupPool.RemoveHead();
         assert(grp);
         grp->Init(ifx.Entity, ifx.Effects[0]->m_groupId);
-        grp->m_EnEx = m_EnEx;
-        m_InteriorGroupList.AddItem(grp);
+        grp->m_pEntryExit = m_pEntryExit;
+        m_interiorGroupList.AddItem(grp);
 
         //> 0x59910C - Create interiors for it
         for (auto k = 0u; k < ifx.NumFx; k++) {
-            const auto i = m_InteriorPool.RemoveHead();
+            const auto i = m_interiorPool.RemoveHead();
             if (!i) { // No more interiors to allocate
                 break;
             }
@@ -128,11 +128,11 @@ bool InteriorManager_c::Update() {
 
         grp->Setup();
 
-        m_TimeLastPickupsGenerated = CTimer::GetTimeInMS();
+        m_timeLastPickupsGenerated = CTimer::GetTimeInMS();
     }
 
     // Update all created groups
-    for (auto& g : m_InteriorGroupList) {
+    for (auto& g : m_interiorGroupList) {
         g.Update();
     }
 
@@ -224,12 +224,12 @@ bool InteriorManager_c::AreAnimsLoaded(int32 animBlock) {
 
 // 0x598010
 void InteriorManager_c::Exit() {
-    for (auto& g : m_InteriorGroupList) {
+    for (auto& g : m_interiorGroupList) {
         g.Exit();
     }
-    m_InteriorGroupList.RemoveAll();
-    m_InteriorPool.RemoveAll();
-    m_InteriorGroupPool.RemoveAll();
+    m_interiorGroupList.RemoveAll();
+    m_interiorPool.RemoveAll();
+    m_interiorGroupPool.RemoveAll();
     g_furnitureMan.Exit();
 }
 
@@ -333,17 +333,17 @@ Interior_c* InteriorManager_c::GetPedsInterior(const CPed* ped) {
 
 // 0x5984B0
 void InteriorManager_c::ReturnInteriorToPool(Interior_c* interior) {
-    m_InteriorPool.AddItem(interior);
+    m_interiorPool.AddItem(interior);
 }
 
 // 0x5984A0
 Interior_c* InteriorManager_c::GetInteriorFromPool() {
-    return m_InteriorPool.RemoveHead();
+    return m_interiorPool.RemoveHead();
 }
 
 // 0x5983D0
 Interior_c* InteriorManager_c::GetVectorsInterior(const CVector& pt) { // TODO: Name is shit, should be `GetInteriorOfPoint` or something similar
-    for (auto& g : m_InteriorGroupList) {
+    for (auto& g : m_interiorGroupList) {
         for (auto& i : g.GetInteriors()) {
             if (i && i->IsPtInside(pt)) {
                 return i;
@@ -356,7 +356,7 @@ Interior_c* InteriorManager_c::GetVectorsInterior(const CVector& pt) { // TODO: 
 // 0x598390
 void InteriorManager_c::SetStealableObjectStolen(CEntity* entity, uint8 isStolen) {
     if (const auto idx = FindStealableObjectId(entity); idx != -1) {
-        m_Objects[idx].wasStolen = isStolen;
+        m_stealableInfos[idx].wasStolen = isStolen;
     }
 }
 
@@ -382,19 +382,19 @@ int32 InteriorManager_c::FindStealableObjectId(int32 interiorId, int32 modelId, 
 
 // 0x5982B0
 bool InteriorManager_c::HasInteriorHadStealDataSetup(Interior_c* interior) const {
-    return m_InteriorCount && notsa::contains(GetInteriorIds(), interior->m_id);
+    return m_numStealInfosIds && notsa::contains(GetInteriorIds(), interior->m_id);
 }
 
 // 0x598280
 int8 InteriorManager_c::IsGroupActive(int32 groupType) const {
-    return rng::any_of(m_InteriorGroupList, [&](const InteriorGroup_c& g) {
+    return rng::any_of(m_interiorGroupList, [&](const InteriorGroup_c& g) {
         return g.m_groupType == groupType;
     });
 }
 
 // 0x598240
 InteriorGroup_c* InteriorManager_c::GetPedsInteriorGroup(const CPed* ped) {
-    for (auto& grp : m_InteriorGroupList) {
+    for (auto& grp : m_interiorGroupList) {
         if (notsa::contains(grp.GetPeds(), ped)) {
             return &grp;
         }
@@ -407,22 +407,22 @@ void InteriorManager_c::SetEntryExitPtr(CEntryExit* enex) {
     if (enex->GetLinkedOrThis()->m_nArea == eAreaCodes::AREA_CODE_NORMAL_WORLD) {
         return;
     }
-    if (enex->m_recEntrance == m_EnExRect) {
+    if (enex->m_recEntrance == m_entryExitRect) {
         return;
     }
 
-    m_ObjectCount   = 0;
-    m_InteriorCount = 0;
+    m_numStealableObjects   = 0;
+    m_numStealInfosIds = 0;
 
-    rng::fill(m_InteriorPedsAliveState, true);
+    rng::fill(m_pedsAlive, true);
 
-    m_EnEx     = enex;
-    m_EnExRect = enex->m_recEntrance;
+    m_pEntryExit     = enex;
+    m_entryExitRect = enex->m_recEntrance;
 }
 
 // 0x598090
 bool InteriorManager_c::GetBoundingBox(FurnitureEntity_c* entity, CVector* pos) {
-    for (auto& grp : m_InteriorGroupList) {
+    for (auto& grp : m_interiorGroupList) {
         for (const auto i : grp.GetInteriors()) {
             if (i) {
                 return i->GetBoundingBox(entity, pos);
@@ -434,5 +434,5 @@ bool InteriorManager_c::GetBoundingBox(FurnitureEntity_c* entity, CVector* pos) 
 
 // 0x598080
 void InteriorManager_c::ActivatePeds(bool enable) {
-    m_ArePedsEnabled = enable;
+    m_activePeds = enable;
 }

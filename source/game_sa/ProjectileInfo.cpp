@@ -301,7 +301,7 @@ bool CProjectileInfo::AddProjectile(CEntity* creator, eWeaponType projectileType
 
     proj->SetMatrix(mat);
     proj->m_vecMoveSpeed = vecMoveSpeed;
-    proj->physicalFlags.bApplyGravity = bDoGravity;
+    proj->m_nPhysicalFlags.bDoGravity = bDoGravity;
     info.m_fTimeExpires = nDestroyTime;
     proj->m_fElasticity = fElasticity;
     if (nCollisionSpecial == 5) {
@@ -330,7 +330,7 @@ bool CProjectileInfo::AddProjectile(CEntity* creator, eWeaponType projectileType
         }
     }
 
-    proj->m_nPhysicalFlags |= PHYSICAL_CANBECOLLIDEDWITH;
+    proj->m_nPhysicalFlagsRaw |= PHYSICAL_CANBECOLLIDEDWITH;
     proj->m_pEntityIgnoredCollision = creator;
 
     if (creator && creator->GetIsTypePhysical()) {
@@ -436,7 +436,7 @@ void CProjectileInfo::Update() {
         }
 
         // Si está sumergido en agua, apagar el sistema de partículas
-        if (proj->physicalFlags.bSubmergedInWater) {
+        if (proj->m_nPhysicalFlags.bIsInWater) {
             if (info.m_fxSystem) {
                 info.m_fxSystem->Kill();
                 info.m_fxSystem = nullptr;
@@ -558,7 +558,7 @@ void CProjectileInfo::Update() {
 
             bool bExplode = false;
             if (!info.m_pEntProjectileOwner || !bOwnerClose) {
-                if (proj->physicalFlags.bOnSolidSurface || !CWorld::GetIsLineOfSightClear(info.OldCoors, proj->GetPosition(), true, true, true, true, false, false, false)) {
+                if (proj->m_nPhysicalFlags.bCollidedThisFrame || !CWorld::GetIsLineOfSightClear(info.OldCoors, proj->GetPosition(), true, true, true, true, false, false, false)) {
                     bExplode = true;
                 }
             }
@@ -663,7 +663,7 @@ void CProjectileInfo::Update() {
 
         // Comprobación de colisiones / trayectorias para proyectiles tipo ROCKET y ROCKET_HS
         bool bCollided = false;
-        if (!proj->physicalFlags.bOnSolidSurface) {
+        if (!proj->m_nPhysicalFlags.bCollidedThisFrame) {
             CWorld::pIgnoreEntity = info.m_pEntProjectileOwner;
             proj->m_bUsesCollision = false;
             bool isClear = CWorld::GetIsLineOfSightClear(info.OldCoors, proj->GetPosition(), true, true, true, true, false, false, false);

@@ -324,7 +324,7 @@ bool CPickups::GivePlayerGoodiesWithPickUpMI(uint16 modelId, int32 playerId) {
     }
 
     if (modelId == MI_PICKUP_BODYARMOUR) {
-        ped->m_fArmour = (float)FindPlayerInfo(playerId).m_nMaxArmour;
+        ped->m_fArmour = (float)FindPlayerInfo(playerId).MaxArmour;
         AudioEngine.ReportFrontendAudioEvent(AE_FRONTEND_PICKUP_BODY_ARMOUR);
         return true;
     }
@@ -335,7 +335,7 @@ bool CPickups::GivePlayerGoodiesWithPickUpMI(uint16 modelId, int32 playerId) {
     }
 
     if (modelId == MI_PICKUP_HEALTH) {
-        auto maxHealth = FindPlayerInfo(playerId).m_nMaxHealth;
+        auto maxHealth = FindPlayerInfo(playerId).MaxHealth;
         CStats::UpdateStatsAddToHealth((uint32)((float)maxHealth - ped->m_fHealth));
         ped->m_fHealth = (float)maxHealth;
         AudioEngine.ReportFrontendAudioEvent(AE_FRONTEND_PICKUP_HEALTH);
@@ -428,13 +428,13 @@ void CPickups::PickedUpHorseShoe() {
     CStats::IncrementStat(STAT_HORSESHOES_COLLECTED);
     CStats::IncrementStat(STAT_LUCK, 1000.f / CStats::GetStatValue(STAT_TOTAL_HORSESHOES)); // TODO: Is this some inlined stuff? (The division part)
 
-    FindPlayerInfo().m_nMoney += 100; // originally rewarded to the player 1.
+    FindPlayerInfo().Score += 100; // originally rewarded to the player 1.
 
     const auto collected = CStats::GetStatValue(STAT_HORSESHOES_COLLECTED);
     const auto total = CStats::GetStatValue(STAT_TOTAL_HORSESHOES);
     if (collected == total) {
         CGarages::TriggerMessage("HO_ALL");
-        FindPlayerInfo().m_nMoney += 100'000; // originally rewarded to the player 1.
+        FindPlayerInfo().Score += 100'000; // originally rewarded to the player 1.
     } else {
         CGarages::TriggerMessage("HO_ONE", static_cast<int16>(collected), 5000u, static_cast<int16>(total));
     }
@@ -445,13 +445,13 @@ void CPickups::PickedUpOyster() {
     AudioEngine.ReportFrontendAudioEvent(AE_FRONTEND_PICKUP_COLLECTABLE1);
 
     CStats::IncrementStat(STAT_OYSTERS_COLLECTED);
-    FindPlayerInfo().m_nMoney += 100; // originally rewarded to the player 1.
+    FindPlayerInfo().Score += 100; // originally rewarded to the player 1.
 
     const auto collected = CStats::GetStatValue(STAT_OYSTERS_COLLECTED);
     const auto total = CStats::GetStatValue(STAT_TOTAL_OYSTERS);
     if (collected == total) {
         CGarages::TriggerMessage("OY_ALL");
-        FindPlayerInfo().m_nMoney += 100'000; // originally rewarded to the player 1.
+        FindPlayerInfo().Score += 100'000; // originally rewarded to the player 1.
     } else {
         CGarages::TriggerMessage("OY_ONE", static_cast<int16>(collected), 5000u, static_cast<int16>(total));
     }
@@ -483,7 +483,7 @@ void CPickups::PictureTaken() {
 
     aPickUps[*capturedPickup].Remove();
 
-    FindPlayerInfo().m_nMoney += 100'000; // originally rewarded to the player 1.
+    FindPlayerInfo().Score += 100'000; // originally rewarded to the player 1.
 
     AudioEngine.ReportFrontendAudioEvent(AE_FRONTEND_PICKUP_COLLECTABLE1);
     CStats::IncrementStat(STAT_SNAPSHOTS_TAKEN, 1.0f);
@@ -492,7 +492,7 @@ void CPickups::PictureTaken() {
     const auto total = CStats::GetStatValue(STAT_TOTAL_SNAPSHOTS);
     if (taken == total) {
         CGarages::TriggerMessage("SN_ALL");
-        FindPlayerInfo().m_nMoney += 100'000;
+        FindPlayerInfo().Score += 100'000;
     } else {
         CGarages::TriggerMessage("SN_ONE", static_cast<int16>(taken), 5000u, static_cast<int16>(total));
     }

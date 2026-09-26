@@ -109,8 +109,8 @@ void CPedGroup::Teleport(const CVector& pos) {
                 continue;
             }
             CTaskSimpleCarSetPedOut{
-                f->m_pVehicle,
-                (eTargetDoor)CCarEnterExit::ComputeTargetDoorToExit(f->m_pVehicle, f),
+                f->m_pMyVehicle,
+                (eTargetDoor)CCarEnterExit::ComputeTargetDoorToExit(f->m_pMyVehicle, f),
                 false
             }.ProcessPed(f);
         }

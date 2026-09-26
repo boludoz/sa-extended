@@ -290,7 +290,7 @@ float CTaskSimpleFight::GetStrikeDamage(CPed* attacker) {
     if (weaponType != WEAPON_UNARMED) {
         return damage;
     }
-    return damage * (attacker->m_pStats ? attacker->m_pStats->m_fAttackStrength : 1.0f);
+    return damage * (attacker->m_pPedStats ? attacker->m_pPedStats->m_fAttackMult : 1.0f);
 }
 
 // 0x61DAE0

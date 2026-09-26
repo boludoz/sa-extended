@@ -130,7 +130,7 @@ bool CTaskSimpleGoToPoint::ProcessPed(CPed* ped) {
         {
             if (!gotoPointFlags.m_b02) {
                 float fAngleInRadians = CGeneral::GetRadianAngleBetweenPoints(vecDirection.x, vecDirection.y, 0.0f, 0.0f);
-                ped->m_fAimingRotation = CGeneral::LimitRadianAngle(fAngleInRadians);
+                ped->m_fDesiredHeading = CGeneral::LimitRadianAngle(fAngleInRadians);
                 bAimingRotationSet = true;
             }
         }

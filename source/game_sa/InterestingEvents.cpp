@@ -250,7 +250,7 @@ void CInterestingEvents::ScanForNearbyEntities() {
                 if (pPed->m_nPedState == PEDSTATE_DEAD)
                     continue;
 
-                CEntity* pInterstingEntity = (pPed->bInVehicle && pPed->m_pVehicle) ? static_cast<CEntity*>(pPed->m_pVehicle) : static_cast<CEntity*>(pPed);
+                CEntity* pInterstingEntity = (pPed->bInVehicle && pPed->m_pMyVehicle) ? static_cast<CEntity*>(pPed->m_pMyVehicle) : static_cast<CEntity*>(pPed);
                 int32 iPedType = pPed->m_nPedType;
 
                 switch (iPedType) {
@@ -275,7 +275,7 @@ void CInterestingEvents::ScanForNearbyEntities() {
                     continue;
 
                 pVehicle->SetCurrentScanCode();
-                if (pVehicle->physicalFlags.bRenderScorched != 0)
+                if (pVehicle->m_nPhysicalFlags.bRenderScorched != 0)
                     continue;
 
                 if (!pVehicle->m_pDriver)

@@ -73,7 +73,7 @@ CTask* CTaskComplexEvasiveDiveAndGetUp::CreateNextSubTask(CPed* ped) {
     case TASK_SIMPLE_EVASIVE_DIVE:
         return CreateSubTask(TASK_SIMPLE_PAUSE);
     case TASK_SIMPLE_PAUSE: {
-        ped->m_fCurrentRotation = ped->m_fAimingRotation = CGeneral::LimitRadianAngle(ped->m_fCurrentRotation - HALF_PI);
+        ped->m_fCurrentHeading = ped->m_fDesiredHeading = CGeneral::LimitRadianAngle(ped->m_fCurrentHeading - HALF_PI);
         return CreateSubTask(TASK_SIMPLE_GET_UP);
     }
     case TASK_SIMPLE_GET_UP:

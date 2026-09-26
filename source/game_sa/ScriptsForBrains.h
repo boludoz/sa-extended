@@ -12,24 +12,37 @@ class CEntity;
 class CObject;
 
 struct tScriptForBrains {
-    int16 m_StreamedScriptIndex{-1}; /// SCM ID for `CStreaming` (Translated using SCMToModelId)
-    int8  m_TypeOfBrain{ -1 };
-    int8  m_ObjectGroupingId{ -1 };
-    bool  m_bBrainActive{ true };
-    float m_ObjectBrainActivationRadius{ 5.f };
+    int16 StreamedScriptIndex{-1}; /// SCM ID for `CStreaming` (Translated using SCMToModelId)
+    int8  TypeOfBrain{ -1 };
+    int8  ObjectGroupingID{ -1 };
+    bool  bBrainActive{ true };
+    float ObjectBrainActivationRange{ 5.f };
     union {
         struct {
-            int16  m_PedModelOrPedGeneratorIndex;
-            uint16 m_PercentageChance;
-            uint32 m_Pad;
+            int16  PedModelOrPedGeneratorIndex;
+            uint16 PercentageChance;
+            uint32 Pad;
         };
-        char m_ScriptName[8]{};
+        char ScriptName[8]{};
     };
 };
 
+using script_brain_struct = tScriptForBrains; //!< calineva API
+
 class CScriptsForBrains {
 public:
-    std::array<tScriptForBrains, 70> m_aScriptForBrains;
+    //! calineva API
+    enum {
+        PED_STREAMED,
+        OBJECT_STREAMED,
+        PED_GENERATOR_STREAMED,
+        CODE_PED,
+        CODE_OBJECT,
+        CODE_ATTRACTOR_PED
+    };
+    enum { MAX_SCRIPT_BRAINS = 70 };
+
+    std::array<tScriptForBrains, 70> ScriptBrainArray;
 
 public:
     static void InjectHooks();

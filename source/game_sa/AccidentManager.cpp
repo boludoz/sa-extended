@@ -61,7 +61,7 @@ int32 CAccidentManager::GetNumberOfFreeAccidents()
 }
 
 // 0x56CF90
-CAccident* CAccidentManager::GetNearestFreeAccidentExceptThisOne(CVector& posn, CAccident* thisOne, bool bIgnoreHeadless)
+CAccident* CAccidentManager::GetNearestFreeAccidentExceptThisOne(const CVector& posn, CAccident* thisOne, bool bIgnoreHeadless)
 {
     float minDistance = FLT_MAX;
     CAccident* nearestAcc = nullptr;
@@ -86,7 +86,7 @@ CAccident* CAccidentManager::GetNearestFreeAccidentExceptThisOne(CVector& posn, 
 }
 
 // 0x56D050
-CAccident* CAccidentManager::GetNearestFreeAccident(CVector& posn, bool bIgnoreHeadless)
+CAccident* CAccidentManager::GetNearestFreeAccident(const CVector& posn, bool bIgnoreHeadless)
 {
     return GetNearestFreeAccidentExceptThisOne(posn, nullptr, bIgnoreHeadless);
 }

@@ -12,7 +12,7 @@ public:
     static bool Initialise();
     static void Shutdown();
     static bool PluginAttach();
-    static void AtomicSetup(RpAtomic* atomic);
+    static RpAtomic* AtomicSetup(RpAtomic* atomic);
     static bool IsCBPCPipelineAttached(RpAtomic* atomic);
     static void UpdateDayNightBalanceParam();
     static void Update();

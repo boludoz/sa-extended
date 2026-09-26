@@ -613,7 +613,7 @@ bool CCutsceneMgr::LoadCutSceneFile(const char* csFileName) {
 
                 // Warp ped out of the vehicle
                 if (const auto plyr = FindPlayerPed(); plyr->IsInVehicle()) {
-                    CTaskSimpleCarSetPedOut{ plyr->m_pVehicle, TARGET_DOOR_FRONT_LEFT, true }.ProcessPed(plyr);
+                    CTaskSimpleCarSetPedOut{ plyr->m_pMyVehicle, TARGET_DOOR_FRONT_LEFT, true }.ProcessPed(plyr);
                 }
 
                 // Load IPLs

@@ -150,7 +150,7 @@ int32 CTheScripts::GetActualScriptThingIndex(int32 ref, eScriptThingType type) {
         break;
     case SCRIPT_THING_DECISION_MAKER:
         CDecisionMakerTypes::GetInstance();
-        if (CDecisionMakerTypes::m_IsActive[idx] && CDecisionMakerTypes::ScriptReferenceIndex[idx] == id) {
+        if (CDecisionMakerTypes::m_bIsActive[idx] && CDecisionMakerTypes::ScriptReferenceIndex[idx] == id) {
             return idx;
         }
         break;

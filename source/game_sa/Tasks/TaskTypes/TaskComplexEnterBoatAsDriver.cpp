@@ -78,7 +78,7 @@ CTask* CTaskComplexEnterBoatAsDriver::CreateNextSubTask(CPed* ped) {
 // 0x640ED0
 CTask* CTaskComplexEnterBoatAsDriver::CreateFirstSubTask(CPed* ped) {
     return CreateSubTask(
-        ped->m_pContactEntity == m_EnterInto || ped->m_standingOnEntity == m_EnterInto
+        ped->m_pEntityStandingOn == m_EnterInto || ped->m_pGroundPhysical == m_EnterInto
             ? TASK_COMPLEX_GO_TO_BOAT_STEERING_WHEEL
             : TASK_FINISHED
     );

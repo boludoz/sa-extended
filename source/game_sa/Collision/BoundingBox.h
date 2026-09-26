@@ -14,6 +14,9 @@ public:
     constexpr CBoundingBox(CVector min, CVector max) : CBox(min, max) {}
     constexpr explicit CBoundingBox(const CBox& box) : CBox(box) {}
 
+    const CVector& GetBoundBoxMin() const { return m_vecMin; } //!< calineva API
+    const CVector& GetBoundBoxMax() const { return m_vecMax; } //!< calineva API
+
     [[nodiscard]] bool IsPointWithin(const CVector& point) const;
     inline void SetMinMax(CVector min, CVector max);
 };

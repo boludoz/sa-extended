@@ -1091,7 +1091,7 @@ void CShadows::StoreShadowForVehicle(CVehicle* vehicle, VEH_SHD_TYPE vehShadowTy
         case VEH_SHD_CAR:
             return gpShadowCarTex;
         case VEH_SHD_BIKE: {
-            auto mult = vehicle->AsBike()->m_RideAnimData.m_fAnimLean * 5.092958f + 1.f; // TODO: Magic number
+            auto mult = vehicle->AsBike()->RideAnimData.m_fAnimLean * 5.092958f + 1.f; // TODO: Magic number
             if (vehicle->GetStatus() == STATUS_ABANDONED) {
                 if (const auto tilt = std::abs(vehicle->GetMatrix().GetRight().z); tilt >= 0.6f) {
                     mult += tilt * 4.f;

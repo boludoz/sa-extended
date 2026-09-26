@@ -332,7 +332,7 @@ CTask* CTaskComplexKillPedOnFootArmed::ControlSubTask(CPed* ped) {
             if (IsPedInLeaderFiringLine(ped)) {
                 return true;
             }
-            if (m_target->physicalFlags.bSubmergedInWater && LineOfSightClearForAttack(ped)) {
+            if (m_target->m_nPhysicalFlags.bIsInWater && LineOfSightClearForAttack(ped)) {
                 return true;
             }
             if (ped->bStayInSamePlace) {
@@ -376,7 +376,7 @@ CTask* CTaskComplexKillPedOnFootArmed::ControlSubTask(CPed* ped) {
 
         //> 0x62CF88
         const auto actionDir = [&, this]() -> CVector2D {
-            if (m_target->physicalFlags.bSubmergedInWater) {
+            if (m_target->m_nPhysicalFlags.bIsInWater) {
                 return { 0.f, 0.f };
             }
             if (CTimer::GetTimeInMS() >= m_lastStrafeTime || !ped->bStayInSamePlace) {

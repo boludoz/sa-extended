@@ -74,7 +74,7 @@ void CTaskSimpleCarAlign::FixHeading(CPed* ped) {
         return;
     }
 
-    ped->m_fAimingRotation = ped->m_fCurrentRotation = CGeneral::LimitRadianAngle(CGeneral::GetRadianAngleBetweenPoints(pedFwd - carLeftOrRight * dot, {}));
+    ped->m_fDesiredHeading = ped->m_fCurrentHeading = CGeneral::LimitRadianAngle(CGeneral::GetRadianAngleBetweenPoints(pedFwd - carLeftOrRight * dot, {}));
 }
 
 // 0x64AC00

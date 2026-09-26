@@ -31,7 +31,7 @@ public:
                     0.5f,
                 },
                 new CTaskSimpleAchieveHeading{ // 0x5F8311
-                    mem->m_fCurrentRotation
+                    mem->m_fCurrentHeading
                 }
             };
             tseq.SetRepeatMode(true); // 0x5F8338 (I assume this is what that is?)

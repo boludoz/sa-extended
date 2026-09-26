@@ -92,14 +92,14 @@ CTask* CTaskComplexStealCar::CreateNextSubTask(CPed* ped) {
         case TASK_SIMPLE_SET_PED_AS_AUTO_DRIVER: {
             if (ped->m_nPedType == PED_TYPE_CRIMINAL) {
                 ped->bWantedByPolice = true;
-                ped->m_pVehicle->vehicleFlags.bMadDriver = true;
+                ped->m_pMyVehicle->vehicleFlags.bMadDriver = true;
             }
             return TASK_COMPLEX_CAR_DRIVE_MISSION_FLEE_SCENE;
         }
         case TASK_COMPLEX_CAR_DRIVE_MISSION_FLEE_SCENE: {
             if (ped->bInVehicle) {
-                ped->m_pVehicle->m_autoPilot.SetCarMission(MISSION_CRUISE);
-                ped->m_pVehicle->m_autoPilot.SetCruiseSpeed(10);
+                ped->m_pMyVehicle->m_autoPilot.SetCarMission(MISSION_CRUISE);
+                ped->m_pMyVehicle->m_autoPilot.SetCruiseSpeed(10);
             }
             return TASK_FINISHED;
         }

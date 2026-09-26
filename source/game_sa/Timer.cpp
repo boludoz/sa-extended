@@ -31,9 +31,10 @@ void CTimer::InjectHooks()
 
 // 64-bit RsTimer wrapper
 // 0x5617C0
-uint64 GetMillisecondTime() {
-    return plugin::CallAndReturn<uint64, 0x5617C0>();
-    // return RsTimer();
+// ASM Match: not measured
+uint64 GetMillisecondTime()
+{
+    return RsTimer();
 }
 
 // 0x5617E0

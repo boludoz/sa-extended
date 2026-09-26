@@ -253,7 +253,7 @@ CVehicle::CVehicle(eVehicleCreatedBy createdBy) : CPhysical(), m_vehicleAudio(),
     m_fGearChangeCount = 0.0f;
     m_fWheelSpinForAudio = 0.0f;
     m_nCreatedBy = createdBy;
-    m_nForcedRandomRouteSeed = 0;
+    ForcedRandomSeed = 0;
 
     m_nVehicleUpperFlags = 0;
     m_nVehicleLowerFlags = 0;
@@ -293,25 +293,25 @@ CVehicle::CVehicle(eVehicleCreatedBy createdBy) : CPhysical(), m_vehicleAudio(),
     m_nOverrideLights = eVehicleOverrideLightsState::NO_CAR_LIGHT_OVERRIDE;
     m_ropeType = 0;
     m_nGunsCycleIndex = 0;
-    physicalFlags.bCanBeCollidedWith = true;
+    m_nPhysicalFlags.bUsesCollisionRecords = true;
 
     m_nLastWeaponDamageType = -1;
     m_vehicleSpecialColIndex = -1;
 
     m_pWhoInstalledBombOnMe = nullptr;
-    m_DelayedExplosion = 0;
+    DelayedExplosion = 0;
     m_pWhoDetonatedMe = nullptr;
     m_nTimeWhenBlowedUp = 0;
 
     m_nPacMansCollected = 0;
     m_pFire = nullptr;
     m_nGunFiringTime = 0;
-    m_nCopsInCarTimer = 0;
+    GetOutOfCarTimer = 0;
     m_nUsedForCover = 0;
-    m_HornCounter = 0;
+    m_cHorn = 0;
     m_HornPattern = 0;
     m_nCarHornTimer = 0;
-    field_4EC = 0;
+    NumOilSpillsToDo = 0;
     m_pTowingVehicle = nullptr;
     m_pVehicleBeingTowed = nullptr;
     m_nTimeTillWeNeedThisCar = 0;
@@ -322,8 +322,8 @@ CVehicle::CVehicle(eVehicleCreatedBy createdBy) : CPhysical(), m_vehicleAudio(),
     m_nTimeForMinigunFiring = 0;
     m_pLastDamageEntity = nullptr;
     m_pEntityWeAreOn = nullptr;
-    m_fVehicleRearGroundZ = 0.0f;
-    m_fVehicleFrontGroundZ = 0.0f;
+    LastRearHeight = 0.0f;
+    LastFrontHeight = 0.0f;
     field_511 = 0;
     field_512 = 0;
     m_comedyControlState = eComedyControlState::INACTIVE;
@@ -346,9 +346,9 @@ CVehicle::CVehicle(eVehicleCreatedBy createdBy) : CPhysical(), m_vehicleAudio(),
     m_nWindowsOpenFlags = 0;
     m_nNitroBoosts = 0;
     m_nHasslePosId = 0;
-    m_nVehicleWeaponInUse = CAR_WEAPON_NOT_USED;
+    m_SelectedWeapon = CAR_WEAPON_NOT_USED;
     m_fDirtLevel = (float)((CGeneral::GetRandomNumber() % 15));
-    m_nCreationTime = CTimer::GetTimeInMS();
+    m_TimeOfCreation = CTimer::GetTimeInMS();
     SetCollisionLighting(tColLighting(0x48));
 }
 
@@ -408,7 +408,7 @@ CVehicle::~CVehicle() {
         CRopes::GetRope(iRopeInd).Remove();
     }
 
-    if (!physicalFlags.bRenderScorched && m_fHealth < 250.0F) {
+    if (!m_nPhysicalFlags.bRenderScorched && m_fHealth < 250.0F) {
         CDarkel::RegisterCarBlownUpByPlayer(*this, 0);
     }
 }
@@ -456,14 +456,14 @@ void CVehicle::SetModelIndex(uint32 index) {
     switch (m_nModelIndex) {
     case MODEL_RUSTLER:
     case MODEL_STUNT:
-        m_nVehicleWeaponInUse = CAR_WEAPON_HEAVY_GUN;
+        m_SelectedWeapon = CAR_WEAPON_HEAVY_GUN;
         break;
     case MODEL_BEAGLE:
-        m_nVehicleWeaponInUse = CAR_WEAPON_FREEFALL_BOMB;
+        m_SelectedWeapon = CAR_WEAPON_FREEFALL_BOMB;
         break;
     case MODEL_HYDRA:
     case MODEL_TORNADO:
-        m_nVehicleWeaponInUse = CAR_WEAPON_LOCK_ON_ROCKET;
+        m_SelectedWeapon = CAR_WEAPON_LOCK_ON_ROCKET;
         break;
     }
 }
@@ -480,13 +480,13 @@ void CVehicle::SpecialEntityPreCollisionStuff(CPhysical* colPhysical, bool bIgno
     bool& bCollidedEntityCollisionIgnored, bool& bCollidedEntityUnableToMove, bool& bThisOrCollidedEntityStuck) {
     if (colPhysical->GetIsTypePed()
         && colPhysical->AsPed()->bKnockedOffBike
-        && colPhysical->AsPed()->m_pVehicle == this)
+        && colPhysical->AsPed()->m_pMyVehicle == this)
     {
         bCollisionDisabled = true;
         return;
     }
 
-    if (physicalFlags.bSubmergedInWater
+    if (m_nPhysicalFlags.bIsInWater
         && GetStatus() != STATUS_PLAYER
         && (GetStatus() != STATUS_REMOTE_CONTROLLED && colPhysical->DoesNotCollideWithFlyers())) // BUG:? Seems like it should check for it being heli
     {
@@ -496,7 +496,7 @@ void CVehicle::SpecialEntityPreCollisionStuff(CPhysical* colPhysical, bool bIgno
 
     if (m_pEntityIgnoredCollision == colPhysical || colPhysical->m_pEntityIgnoredCollision == this) {
         bCollidedEntityCollisionIgnored = true;
-        physicalFlags.bSkipLineCol = true;
+        m_nPhysicalFlags.bSkipLineCol = true;
         return;
     }
 
@@ -507,21 +507,21 @@ void CVehicle::SpecialEntityPreCollisionStuff(CPhysical* colPhysical, bool bIgno
 
     if (colPhysical->m_pAttachedTo == this) {
         bCollisionDisabled = true;
-        physicalFlags.bSkipLineCol = true;
+        m_nPhysicalFlags.bSkipLineCol = true;
         return;
     }
 
-    if (physicalFlags.bDisableCollisionForce && colPhysical->physicalFlags.bDisableCollisionForce) {
+    if (m_nPhysicalFlags.bInfiniteMass && colPhysical->m_nPhysicalFlags.bInfiniteMass) {
         bCollisionDisabled = true;
         return;
     }
 
     if (GetIsStuck()
         && colPhysical->GetIsTypeVehicle()
-        && (colPhysical->AsVehicle()->physicalFlags.bDisableCollisionForce && !colPhysical->AsVehicle()->physicalFlags.bCollidable)
+        && (colPhysical->AsVehicle()->m_nPhysicalFlags.bInfiniteMass && !colPhysical->AsVehicle()->m_nPhysicalFlags.bInfiniteMassFixed)
     ) {
         bCollidedEntityCollisionIgnored = true;
-        physicalFlags.bSkipLineCol = true;
+        m_nPhysicalFlags.bSkipLineCol = true;
         return;
     }
 
@@ -593,19 +593,19 @@ void CVehicle::SpecialEntityPreCollisionStuff(CPhysical* colPhysical, bool bIgno
 
     if (colPhysical->IsRCCar()) {
         bCollidedEntityCollisionIgnored = true;
-        physicalFlags.bSkipLineCol = true;
+        m_nPhysicalFlags.bSkipLineCol = true;
         return;
     }
 
     if (IsRCCar() && (colPhysical->GetIsTypeVehicle() || colPhysical->GetIsTypePed())) {
         bCollidedEntityCollisionIgnored = true;
-        physicalFlags.bSkipLineCol = true;
+        m_nPhysicalFlags.bSkipLineCol = true;
         return;
     }
 
     if (colPhysical == m_pTowingVehicle || colPhysical == m_pVehicleBeingTowed) {
         bThisOrCollidedEntityStuck = true;
-        physicalFlags.bSkipLineCol = true;
+        m_nPhysicalFlags.bSkipLineCol = true;
         return;
     }
 
@@ -617,7 +617,7 @@ void CVehicle::SpecialEntityPreCollisionStuff(CPhysical* colPhysical, bool bIgno
 
 // 0x6D0E90
 uint8 CVehicle::SpecialEntityCalcCollisionSteps(bool& bProcessCollisionBeforeSettingTimeStep, bool& unk2) {
-    if (physicalFlags.bDisableCollisionForce)
+    if (m_nPhysicalFlags.bInfiniteMass)
         return 1;
 
     const auto fMoveSquared = m_vecMoveSpeed.SquaredMagnitude() * sq(CTimer::GetTimeStep());
@@ -688,7 +688,7 @@ bool CVehicle::SetupLighting() {
 
 // 0x5533D0
 void CVehicle::RemoveLighting(bool bRemove) {
-    if (!physicalFlags.bRenderScorched)
+    if (!m_nPhysicalFlags.bRenderScorched)
         CPointLights::RemoveLightsAffectingObject();
 
     SetAmbientColours();
@@ -1330,7 +1330,7 @@ bool CVehicle::CanVehicleBeDamaged(CEntity* damager, eWeaponType weapon, bool& b
     const auto player = FindPlayerPed();
     const auto vehicle = FindPlayerVehicle();
     if (   GetStatus() != STATUS_PLAYER
-        && physicalFlags.bInvulnerable
+        && m_nPhysicalFlags.bOnlyDamagedByPlayer
         && damager != player
         && damager != vehicle
     ) {
@@ -1350,14 +1350,14 @@ bool CVehicle::CanVehicleBeDamaged(CEntity* damager, eWeaponType weapon, bool& b
 
 // 0x6D1340
 void CVehicle::ProcessDelayedExplosion() {
-    if (!m_DelayedExplosion) {
+    if (!DelayedExplosion) {
         return;
     }
 
     const auto period = (int16)(CTimer::GetTimeStep() * (100.0f / 6.0f));
-    m_DelayedExplosion = std::max(m_DelayedExplosion - period, 0);
+    DelayedExplosion = std::max(DelayedExplosion - period, 0);
 
-    if (!m_DelayedExplosion) {
+    if (!DelayedExplosion) {
         BlowUpCar(m_pWhoDetonatedMe, false);
     }
 }
@@ -1461,11 +1461,11 @@ void CVehicle::SetDriver(CPed* driver) {
         }
         case MODEL_TAXI:
         case MODEL_CABBIE: {
-            FindPlayerInfo().m_nMoney += 12;
+            FindPlayerInfo().Score += 12;
             break;
         }
         case MODEL_ENFORCER: {
-            driver->m_fArmour = std::max((float)FindPlayerInfo(0).m_nMaxArmour, driver->m_fArmour);
+            driver->m_fArmour = std::max((float)FindPlayerInfo(0).MaxArmour, driver->m_fArmour);
             break;
         }
         case MODEL_CADDY: {
@@ -1746,7 +1746,7 @@ void CVehicle::ProcessCarAlarm() {
         m_nAlarmState = ts;
     } else {
         m_nAlarmState = 0;
-        m_HornCounter = 0;
+        m_cHorn = 0;
     }
 }
 
@@ -1847,7 +1847,7 @@ void CVehicle::ActivateBomb() {
     switch (m_nBombOnBoard) {
     case BOMB_TIMED_NOT_ACTIVATED: {
         m_nBombOnBoard = BOMB_TIMED_ACTIVATED;
-        m_DelayedExplosion = 7000;
+        DelayedExplosion = 7000;
         m_pWhoDetonatedMe = FindPlayerPed();
         break;
     }
@@ -1866,7 +1866,7 @@ void CVehicle::ActivateBomb() {
 void CVehicle::ActivateBombWhenEntered() {
     if (m_pDriver) {
         if (!vehicleFlags.bDriverLastFrame && m_nBombOnBoard == BOMB_IGNITION_ACTIVATED) { // If the driver just entered and there's an ignition bomb...
-            m_DelayedExplosion = 1000;
+            DelayedExplosion = 1000;
             m_pWhoDetonatedMe = m_pWhoInstalledBombOnMe; // NOTE: `m_pWhoInstalledBombOnMe` isn't set in `ActivateBomb` weird...
             CEntity::RegisterReference(m_pWhoDetonatedMe);
         }
@@ -2036,7 +2036,7 @@ void CVehicle::AddDamagedVehicleParticles() {
     if (IsSubPlane())
         return;
 
-    if (m_fHealth >= 650.0f || m_fHealth < 250.0f || physicalFlags.bSubmergedInWater) {
+    if (m_fHealth >= 650.0f || m_fHealth < 250.0f || m_nPhysicalFlags.bIsInWater) {
         FxSystem_c::SafeKillAndClear(m_pOverheatParticle);
         return;
     }
@@ -2693,7 +2693,7 @@ void CVehicle::SetFiringRateMultiplier(float multiplier) {
     multiplier = std::clamp(multiplier, 0.0f, 15.9375f);
     switch (GetVehicleType()) {
     case VEHICLE_TYPE_PLANE:
-        AsPlane()->m_nFiringMultiplier = uint8(multiplier * 16.0f);
+        AsPlane()->m_FiringRateMultiplier = uint8(multiplier * 16.0f);
         break;
     case VEHICLE_TYPE_HELI:
         AsHeli()->m_FiringRateMultiplier = uint8(multiplier * 16.0f);
@@ -2705,7 +2705,7 @@ void CVehicle::SetFiringRateMultiplier(float multiplier) {
 float CVehicle::GetFiringRateMultiplier() {
     switch (GetVehicleType()) {
     case VEHICLE_TYPE_PLANE:
-        return float(AsPlane()->m_nFiringMultiplier) / 16.0f;
+        return float(AsPlane()->m_FiringRateMultiplier) / 16.0f;
     case VEHICLE_TYPE_HELI:
         return float(AsHeli()->m_FiringRateMultiplier) / 16.0f;
     default:
@@ -2818,17 +2818,17 @@ void CVehicle::SelectPlaneWeapon(bool bChange, eOrdnanceType type) {
             if (type == 1) {
                 return CAR_WEAPON_DOUBLE_ROCKET;
             } else {
-                return bChange ? CAR_WEAPON_HEAVY_GUN : m_nVehicleWeaponInUse;
+                return bChange ? CAR_WEAPON_HEAVY_GUN : m_SelectedWeapon;
             }
         case MODEL_SEASPAR:
         case MODEL_RCBARON:
-            return bChange ? CAR_WEAPON_HEAVY_GUN : m_nVehicleWeaponInUse;
+            return bChange ? CAR_WEAPON_HEAVY_GUN : m_SelectedWeapon;
 
         case MODEL_RUSTLER:
             if (type == 1) {
                 return CAR_WEAPON_FREEFALL_BOMB;
             } else {
-                return bChange ? CAR_WEAPON_HEAVY_GUN : m_nVehicleWeaponInUse;
+                return bChange ? CAR_WEAPON_HEAVY_GUN : m_SelectedWeapon;
             }
         case MODEL_HYDRA: {
             switch (type) {
@@ -2837,14 +2837,14 @@ void CVehicle::SelectPlaneWeapon(bool bChange, eOrdnanceType type) {
             case 2:
                 return CAR_WEAPON_LOCK_ON_ROCKET;
             default:
-                return bChange ? CAR_WEAPON_HEAVY_GUN : m_nVehicleWeaponInUse;
+                return bChange ? CAR_WEAPON_HEAVY_GUN : m_SelectedWeapon;
             }
         }
         default:
-            return m_nVehicleWeaponInUse;
+            return m_SelectedWeapon;
         }
     };
-    m_nVehicleWeaponInUse = GetWeaponToUse();
+    m_SelectedWeapon = GetWeaponToUse();
 }
 
 // 0x6D4AD0
@@ -2882,7 +2882,7 @@ void CVehicle::DoPlaneGunFireFX(CWeapon* weapon, CVector& particlePos, CVector& 
 
     switch (GetVehicleType()) {
     case VEHICLE_TYPE_PLANE: {
-        DoFx(AsPlane()->m_pGunParticles);
+        DoFx(AsPlane()->m_GunflashFxPtrs);
         break;
     }
     case VEHICLE_TYPE_HELI: {
@@ -3028,7 +3028,7 @@ void CVehicle::FireUnguidedMissile(eOrdnanceType type, bool bCheckTime) {
 
 // 0x6D5400
 bool CVehicle::CanBeDriven() const {
-    if (IsSubTrailer() || IsSubTrain() && AsTrain()->m_nTrackId || vehicleFlags.bIsRCVehicle) {
+    if (IsSubTrailer() || IsSubTrain() && AsTrain()->TrainType || vehicleFlags.bIsRCVehicle) {
         return false;
     }
     return GetDriverSeatDummyPositionOS().SquaredMagnitude() > 0.0f;
@@ -3061,7 +3061,7 @@ bool CVehicle::GetVehicleLightsStatus() {
     // 0x6D566A - This branch overwrites everything, so test it first
     if (   m_pDriver
         && IsPedTypeGang(m_pDriver->m_nPedType)
-        && m_pDriver->m_nRandomSeed % 2
+        && m_pDriver->RandomSeed % 2
         && CPopCycle::m_bCurrentZoneIsGangArea
     ) {
         return false; // Real OG' don't use lights! Vo�l�!
@@ -3073,14 +3073,14 @@ bool CVehicle::GetVehicleLightsStatus() {
         return true;
     }
 
-    if (CClock::GetGameClockHours() == 20 && CClock::GetGameClockMinutes() > (m_nRandomSeed % 64)) {
+    if (CClock::GetGameClockHours() == 20 && CClock::GetGameClockMinutes() > (RandomSeed % 64)) {
         return true;
     }
-    if (CClock::GetGameClockHours() == 6 && CClock::GetGameClockMinutes() < (m_nRandomSeed % 64)) {
+    if (CClock::GetGameClockHours() == 6 && CClock::GetGameClockMinutes() < (RandomSeed % 64)) {
         return true;
     }
 
-    if (const auto treshold = (float)m_nRandomSeed / 50'000.f; CWeather::Foggyness > treshold || CWeather::WetRoads > treshold) {
+    if (const auto treshold = (float)RandomSeed / 50'000.f; CWeather::Foggyness > treshold || CWeather::WetRoads > treshold) {
         return true;
     }
 
@@ -3887,7 +3887,7 @@ void CVehicle::ProcessBoatControl(tBoatHandlingData* boatHandling, float* fLastW
     CVector vecBuoyancyTurnPoint{};
     CVector vecBuoyancyForce{};
     if (!mod_Buoyancy.ProcessBuoyancyBoat(this, m_fBuoyancyConstant, &vecBuoyancyTurnPoint, &vecBuoyancyForce, bCollidedWithWorld)) {
-        physicalFlags.bSubmergedInWater = false;
+        m_nPhysicalFlags.bIsInWater = false;
         if (IsSubBoat()) {
             AsBoat()->m_nBoatFlags.bBoatInWater = false;
         }
@@ -3897,9 +3897,9 @@ void CVehicle::ProcessBoatControl(tBoatHandlingData* boatHandling, float* fLastW
     bool bOnWater = false;
     // FIX_BUGS ? vehicleFlags.bIsDrowning = false;
     if (CTimer::GetTimeStep() * m_fMass * 0.0008F >= vecBuoyancyForce.z) {
-        physicalFlags.bSubmergedInWater = false;
+        m_nPhysicalFlags.bIsInWater = false;
     } else {
-        physicalFlags.bSubmergedInWater = true;
+        m_nPhysicalFlags.bIsInWater = true;
         bOnWater = true;
 
         if (GetUp().z < -0.6F
@@ -3908,7 +3908,7 @@ void CVehicle::ProcessBoatControl(tBoatHandlingData* boatHandling, float* fLastW
         ) {
             vehicleFlags.bIsDrowning = true;
             if (m_pDriver) {
-                m_pDriver->physicalFlags.bTouchingWater = true;
+                m_pDriver->m_nPhysicalFlags.bForceFullWaterCheck = true;
                 if (m_pDriver->IsPlayer()) {
                     m_pDriver->AsPlayer()->HandlePlayerBreath(true, 1.0F);
                 } else {
@@ -4293,7 +4293,7 @@ void CVehicle::DoSunGlare() {
 
     /*
     * Below code should be good so far, I'm lazy to finish it, srry.
-    if (physicalFlags.bDestroyed || GetUp().z < 0.f || GetVehicleAppearance() != eVehicleAppearance::VEHICLE_APPEARANCE_AUTOMOBILE || CWeather::SunGlare <= 0.f) {
+    if (m_nPhysicalFlags.bDestroyed || GetUp().z < 0.f || GetVehicleAppearance() != eVehicleAppearance::VEHICLE_APPEARANCE_AUTOMOBILE || CWeather::SunGlare <= 0.f) {
         return;
     }
     */
@@ -4348,7 +4348,7 @@ void CVehicle::AddExhaustParticles() {
     if (IsSubBike()) {
         auto* bike = AsBike();
         bike->CalculateLeanMatrix();
-        entityMatrix = bike->m_mLeanMatrix;
+        entityMatrix = bike->m_LeanMatrix;
         switch (m_nModelIndex) {
         case MODEL_FCR900:
             if (m_anExtras[0] == 1 || m_anExtras[0] == 2)
@@ -4381,14 +4381,14 @@ void CVehicle::AddExhaustParticles() {
     bool bFirstExhaustSubmergedInWater = false;
     bool bSecondExhaustSubmergedInWater = false;
     float pLevel = 0.0f;
-    if (physicalFlags.bTouchingWater && CWaterLevel::GetWaterLevel(firstExhaustPos, pLevel, true) &&
+    if (m_nPhysicalFlags.bForceFullWaterCheck && CWaterLevel::GetWaterLevel(firstExhaustPos, pLevel, true) &&
         pLevel >= firstExhaustPos.z) {
         bFirstExhaustSubmergedInWater = true;
     }
 
     if (bHasDoubleExhaust) {
         secondExhaustPos = entityMatrix.TransformPoint(secondExhaustPos);
-        if (physicalFlags.bTouchingWater && CWaterLevel::GetWaterLevel(secondExhaustPos, pLevel, true) &&
+        if (m_nPhysicalFlags.bForceFullWaterCheck && CWaterLevel::GetWaterLevel(secondExhaustPos, pLevel, true) &&
             pLevel >= secondExhaustPos.z) {
             bSecondExhaustSubmergedInWater = true;
         }
@@ -4464,7 +4464,7 @@ bool CVehicle::GetSpecialColModel() {
 
     const auto specialCMIdx = rng::distance(m_aSpecialColVehicle.begin(), specialCMSlot);
     m_vehicleSpecialColIndex = specialCMIdx;
-    physicalFlags.bAddMovingCollisionSpeed = true;
+    m_nPhysicalFlags.bUsingSpecialColModel = true;
     *specialCMSlot = this;
     CEntity::RegisterReference(*specialCMSlot);
 
@@ -4523,16 +4523,16 @@ void CVehicle::ProcessSirenAndHorn(bool canHorn) {
     auto& currHorn = currentPad->iCurrHornHistory;
     auto& hornHistory = currentPad->bHornHistory;
     if (UsesSiren()) {
-        m_HornCounter = 0;
+        m_cHorn = 0;
         if (hornHistory[currHorn]) {
             if (hornHistory[(currHorn + 4) % 5] && hornHistory[(currHorn + 3) % 5]) {
-                m_HornCounter = 1;
+                m_cHorn = 1;
             }
         } else if (hornHistory[(currHorn + 4) % 5] && !hornHistory[(currHorn + 1) % 5]) {
             vehicleFlags.bSirenOrAlarm = vehicleFlags.bSirenOrAlarm ? false : true;
         }
     } else if (canHorn && CanUpdateHornCounter()) {
-        m_HornCounter = currentPad->GetHorn() ? 1 : 0;
+        m_cHorn = currentPad->GetHorn() ? 1 : 0;
     }
 }
 #else
@@ -4560,20 +4560,20 @@ void CVehicle::ProcessSirenAndHorn(bool canHorn) {
         // Original siren logic with modifications
         if (currentPad->GetHorn() && CTimer::m_snTimeInMilliseconds - hornPressLastTime >= 150) {
             // Horn held - do horn action (original horn sound)
-            m_HornCounter = 1;
+            m_cHorn = 1;
         } else if (hornJustUp && CTimer::m_snTimeInMilliseconds - hornPressLastTime < 150) {
             // Short press - toggle siren
             hornJustUp = false;
             hornHasPressed = false;
             vehicleFlags.bSirenOrAlarm = vehicleFlags.bSirenOrAlarm ? false : true;
-            m_HornCounter = 0;
+            m_cHorn = 0;
         } else {
             // No action - reset counter
-            m_HornCounter = 0;
+            m_cHorn = 0;
         }
     } else if (canHorn) {
         if (CanUpdateHornCounter()) {
-            m_HornCounter = currentPad->GetHorn();
+            m_cHorn = currentPad->GetHorn();
         }
     }
 }

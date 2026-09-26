@@ -18,7 +18,7 @@ void CObjectSaveStructure::Construct(CObject* obj)
     m_nCostValue   = obj->m_wCostValue;
     m_nRemovalTime = obj->m_nRemovalTime;
     m_nEntityFlags = obj->m_nFlags;
-    m_nObjectFlags = obj->m_nObjectFlags;
+    m_nObjectFlags = obj->m_nObjectFlagsRaw;
     m_nObjectType  = obj->m_nObjectType;
     m_nColDamageEffect = obj->m_nColDamageEffect;
     m_nSpecialColResponseCase = obj->m_nSpecialColResponseCase;
@@ -26,25 +26,25 @@ void CObjectSaveStructure::Construct(CObject* obj)
 
     m_nPhysicalFlags = 0;
 
-    if (obj->physicalFlags.bDisableCollisionForce)
+    if (obj->m_nPhysicalFlags.bInfiniteMass)
         m_bDisableCollisionForce = true;
 
-    if (obj->physicalFlags.bDontApplySpeed)
+    if (obj->m_nPhysicalFlags.bCoorsFrozenByScript)
         m_bDontApplySpeed = true;
 
-    if (obj->physicalFlags.bBulletProof)
+    if (obj->m_nPhysicalFlags.bNotDamagedByBullets)
         m_bBulletProof = true;
 
-    if (obj->physicalFlags.bFireProof)
+    if (obj->m_nPhysicalFlags.bNotDamagedByFlames)
         m_bFireProof = true;
 
-    if (obj->physicalFlags.bCollisionProof)
+    if (obj->m_nPhysicalFlags.bNotDamagedByCollisions)
         m_bCollisionProof = true;
 
-    if (obj->physicalFlags.bMeleeProof)
+    if (obj->m_nPhysicalFlags.bNotDamagedByMelee)
         m_bMeleeProof = true;
 
-    if (obj->physicalFlags.bExplosionProof)
+    if (obj->m_nPhysicalFlags.bIgnoresExplosions)
         m_bExplosionProof = true;
 }
 
@@ -55,16 +55,16 @@ void CObjectSaveStructure::Extract(CObject* obj)
     obj->m_wCostValue = m_nCostValue;
     obj->m_nRemovalTime = m_nRemovalTime;
     obj->m_nFlags = m_nEntityFlags;
-    obj->m_nObjectFlags = m_nObjectFlags;
+    obj->m_nObjectFlagsRaw = m_nObjectFlags;
     obj->m_nObjectType = m_nObjectType;
     obj->m_nColDamageEffect = m_nColDamageEffect;
     obj->m_nSpecialColResponseCase = m_nSpecialColResponseCase;
 
-    obj->physicalFlags.bDisableCollisionForce = m_bDisableCollisionForce;
-    obj->physicalFlags.bDontApplySpeed = m_bDontApplySpeed;
-    obj->physicalFlags.bBulletProof = m_bBulletProof;
-    obj->physicalFlags.bFireProof = m_bFireProof;
-    obj->physicalFlags.bCollisionProof = m_bCollisionProof;
-    obj->physicalFlags.bMeleeProof = m_bMeleeProof;
-    obj->physicalFlags.bExplosionProof = m_bExplosionProof;
+    obj->m_nPhysicalFlags.bInfiniteMass = m_bDisableCollisionForce;
+    obj->m_nPhysicalFlags.bCoorsFrozenByScript = m_bDontApplySpeed;
+    obj->m_nPhysicalFlags.bNotDamagedByBullets = m_bBulletProof;
+    obj->m_nPhysicalFlags.bNotDamagedByFlames = m_bFireProof;
+    obj->m_nPhysicalFlags.bNotDamagedByCollisions = m_bCollisionProof;
+    obj->m_nPhysicalFlags.bNotDamagedByMelee = m_bMeleeProof;
+    obj->m_nPhysicalFlags.bIgnoresExplosions = m_bExplosionProof;
 }

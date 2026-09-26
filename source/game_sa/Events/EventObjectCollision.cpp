@@ -39,7 +39,7 @@ CEventObjectCollision* CEventObjectCollision::Constructor(int16 pieceType, float
 bool CEventObjectCollision::AffectsPed(CPed* ped)
 {
     if (!ped->m_pAttachedTo) {
-        if (m_object && !m_object->physicalFlags.bDisableMoveForce) {
+        if (m_object && !m_object->m_nPhysicalFlags.bDoorPhysics) {
             if (!ped->IsPlayer() && ped->IsAlive()) 
                 return true;
         }

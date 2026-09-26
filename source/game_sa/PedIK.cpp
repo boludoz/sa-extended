@@ -40,13 +40,13 @@ void CPedIK::RotateTorso(AnimBlendFrameData* bone, LimbOrientation& orientation,
 void CPedIK::RotateTorsoForArm(const CVector& direction) {
     float fTargetHeading = std::atan2(-(direction.x - m_pPed->GetPosition().x), direction.y - m_pPed->GetPosition().y);
 
-    if (fTargetHeading > m_pPed->m_fCurrentRotation + PI) {
+    if (fTargetHeading > m_pPed->m_fCurrentHeading + PI) {
         fTargetHeading -= TWO_PI;
-    } else if (fTargetHeading < m_pPed->m_fCurrentRotation - PI) {
+    } else if (fTargetHeading < m_pPed->m_fCurrentHeading - PI) {
         fTargetHeading += TWO_PI;
     }
 
-    float fDiffAngle = fTargetHeading - m_pPed->m_fCurrentRotation;
+    float fDiffAngle = fTargetHeading - m_pPed->m_fCurrentHeading;
     float fResultAngle;
 
     if (fDiffAngle > DegreesToRadians(45.0f)) {
@@ -77,7 +77,7 @@ void CPedIK::RotateTorsoForArm(const CVector& direction) {
 // 0x5FDC00
 bool CPedIK::PointGunInDirection(float zAngle, float distance, bool flag, float normalize) {
     bool rt = true;
-    zAngle = CGeneral::LimitRadianAngle(zAngle - m_pPed->m_fCurrentRotation);
+    zAngle = CGeneral::LimitRadianAngle(zAngle - m_pPed->m_fCurrentHeading);
 
     bGunReachedTarget = false;
     bTorsoUsed = true;
@@ -109,7 +109,7 @@ bool CPedIK::PointGunInDirection(float zAngle, float distance, bool flag, float 
     pHierarchy2 = GetAnimHierarchyFromSkinClump(m_pPed->GetRpClump());
     pMatrix = &RpHAnimHierarchyGetMatrixArray(pHierarchy2)[nTestBone];
 
-    fHipYaw = std::atan2(-pMatrix->at.y, -pMatrix->at.x) - m_pPed->m_fCurrentRotation;
+    fHipYaw = std::atan2(-pMatrix->at.y, -pMatrix->at.x) - m_pPed->m_fCurrentHeading;
     fHipYaw = CGeneral::LimitRadianAngle(fHipYaw);
     fHipYaw = -fHipYaw;
 
@@ -221,7 +221,7 @@ void CPedIK::PitchForSlope() {
         if (std::abs(m_fSlopeRoll) > 0.01f) {
             const auto RotateFoot = [&](eBoneTag bone) {
                 const auto hierMatrix = GetAnimHierarchyMatrix(bone);
-                const auto angle = CGeneral::LimitRadianAngle(atan2(hierMatrix->at.y, hierMatrix->at.x) - m_pPed->m_fCurrentRotation);
+                const auto angle = CGeneral::LimitRadianAngle(atan2(hierMatrix->at.y, hierMatrix->at.x) - m_pPed->m_fCurrentHeading);
 
                 RotateBone(bone, RadiansToDegrees(m_fSlopeRoll), CVector{0.0f, std::cos(angle), std::sin(angle)});
             };

@@ -27,7 +27,7 @@ CEventDanger::~CEventDanger() {
 
 // 0x4B5470
 bool CEventDanger::AffectsPed(CPed* ped) {
-    if (m_dangerFrom && m_dangerFrom != ped->m_pVehicle) {
+    if (m_dangerFrom && m_dangerFrom != ped->m_pMyVehicle) {
         CVector2D distance = ped->GetPosition() - m_dangerFrom->GetPosition();
         if (m_dangerRadius * m_dangerRadius >= distance.SquaredMagnitude())
             return ped->IsAlive();

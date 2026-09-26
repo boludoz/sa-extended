@@ -38,7 +38,7 @@ CTaskInteriorShopKeeper::CTaskInteriorShopKeeper(const CTaskInteriorShopKeeper& 
 // 0x6756A0
 CTaskInteriorShopKeeper::~CTaskInteriorShopKeeper() {
     if (m_IntInfo) {
-        m_IntInfo->IsInUse = false;
+        m_IntInfo->beingUsed = false;
     }
 }
 
@@ -52,7 +52,7 @@ CTask* CTaskInteriorShopKeeper::CreateFirstSubTask(CPed* ped) {
     if (!m_IntInfo) {
         VERIFY(m_IntGrp->FindInteriorInfo(eInteriorInfoType::STANDSTILL_LOOPED, &m_IntInfo, &m_Int));
     }
-    m_IntInfo->IsInUse = true;
+    m_IntInfo->beingUsed = true;
     return new CTaskInteriorUseInfo{ m_IntInfo, m_Int, 0, m_bIsSetup };
 }
 

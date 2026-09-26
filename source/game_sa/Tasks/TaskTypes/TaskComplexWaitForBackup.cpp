@@ -48,13 +48,13 @@ CTask* CTaskComplexWaitForBackup::CreateSubTask(eTaskType taskType, CPed* ped) {
     case TASK_SIMPLE_GUN_CTRL:
         return new CTaskSimpleGunControl{ m_aggressor, {}, {}, eGunCommand::AIM, 100, 2000 };
     case TASK_SIMPLE_ACHIEVE_HEADING: {
-        ped->m_fAimingRotation = (m_aggressor->GetPosition() - ped->GetPosition()).Heading();
-        return new CTaskSimpleAchieveHeading{ ped->m_fAimingRotation, 0.5f, 0.2f };
+        ped->m_fDesiredHeading = (m_aggressor->GetPosition() - ped->GetPosition()).Heading();
+        return new CTaskSimpleAchieveHeading{ ped->m_fDesiredHeading, 0.5f, 0.2f };
     }
     case TASK_SIMPLE_PAUSE:
         return new CTaskSimplePause{ ped->IsInVehicle() ? CGeneral::GetRandomNumberInRange(1000, 2000) : 0 };
     case TASK_COMPLEX_LEAVE_CAR:
-        return new CTaskComplexLeaveCar{ ped->m_pVehicle, TARGET_DOOR_FRONT_LEFT, 0, true, false };
+        return new CTaskComplexLeaveCar{ ped->m_pMyVehicle, TARGET_DOOR_FRONT_LEFT, 0, true, false };
     case TASK_FINISHED:
         return nullptr;
     default:

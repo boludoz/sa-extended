@@ -199,7 +199,7 @@ CTask* CTaskComplexFollowNodeRoute::CreateSubTask(eTaskType taskType, CPed* ped)
     case TASK_COMPLEX_GO_TO_POINT_AND_STAND_STILL:
         return new CTaskComplexGoToPointAndStandStill{ m_MoveState, GetCurrentPt(), m_TargetTolerance, m_SlowDownDist };
     case TASK_COMPLEX_LEAVE_CAR:
-        return new CTaskComplexLeaveCar{ ped->m_pVehicle, TARGET_DOOR_FRONT_LEFT, 0, true, false };
+        return new CTaskComplexLeaveCar{ ped->m_pMyVehicle, TARGET_DOOR_FRONT_LEFT, 0, true, false };
     case TASK_SIMPLE_GO_TO_POINT:
         return new CTaskSimpleGoToPoint{ m_MoveState, GetCurrentPt() };
     case TASK_SIMPLE_STAND_STILL: {

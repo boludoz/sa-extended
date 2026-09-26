@@ -83,7 +83,7 @@ CTaskSimpleJetPack::~CTaskSimpleJetPack() {
 bool CTaskSimpleJetPack::MakeAbortable(class CPed* ped, eAbortPriority priority, const CEvent* event) {
     if (event) {
         if (event->GetEventType() == EVENT_DAMAGE) {
-            if (ped->m_fHealth > 0.f || (!ped->bIsStanding && !ped->physicalFlags.bSubmergedInWater)) {
+            if (ped->m_fHealth > 0.f || (!ped->bIsStanding && !ped->m_nPhysicalFlags.bIsInWater)) {
                 return false;
             }
         }
@@ -138,7 +138,7 @@ bool CTaskSimpleJetPack::ProcessPed(CPed* ped) {
             m_ThrustAngle  = 0.f;
             m_ThrustStrafe = std::clamp(m_ThrustStrafe + CGeneral::DoCoinFlip() ? -1.f : 1.f, -3.f, 3.f);
 
-            ped->m_fAimingRotation +=
+            ped->m_fDesiredHeading +=
                 std::sin((float)CTimer::m_snTimeInMilliseconds * 0.0015707964f) * CTimer::GetTimeStep() * JETPACK_TURN_RATE * CGeneral::GetRandomNumberInRange(0.f, 1.f); // TODO: Magic number
 
             if (ped->GetPlayerData()) {
@@ -167,7 +167,7 @@ void CTaskSimpleJetPack::RenderJetPack(CPed* ped) {
             RwMatrixRotate(jpMat, &JETPACK_ROT_AXIS, 90.f, rwCOMBINEPRECONCAT);
         }
 
-        auto currHeading = ped->m_fAimingRotation;
+        auto currHeading = ped->m_fDesiredHeading;
         if (currHeading >= m_PrevHeading + PI) {
             currHeading -= TWO_PI;
         } else if (currHeading <= m_PrevHeading - PI) {
@@ -212,7 +212,7 @@ void CTaskSimpleJetPack::RenderJetPack(CPed* ped) {
     } else {
         StopJetPackEffect();
     }
-    m_PrevHeading = ped->m_fCurrentRotation;
+    m_PrevHeading = ped->m_fCurrentHeading;
 }
 
 // 0x67EF20
@@ -348,19 +348,19 @@ void CTaskSimpleJetPack::ProcessControlInput(CPlayerPed* player) {
     if (!CCamera::m_bUseMouse3rdPerson || player->bIsStanding) {
         if (player->m_pTargetedObject || player->bIsStanding || pad->GetTarget()) { // 0x67EA51
             if (padMoveMag > 0.f) { // Inverted
-                player->m_fAimingRotation = std::atan2(walkLeftRight, walkUpDown);
+                player->m_fDesiredHeading = std::atan2(walkLeftRight, walkUpDown);
                 m_ThrustAngle = THRUST_MAX_ANGLE * padMoveMag * -0.3515625f; // TODO: Magic
             } else {
                 player->GetPlayerData()->m_fMoveBlendRatio = 0.f;
             }
         } else if (walkLeftRight != 0.f) { // 0x67EAA1
-            player->m_fAimingRotation = CGeneral::LimitRadianAngle(player->m_fAimingRotation + JETPACK_TURN_RATE * CTimer::GetTimeStep() * walkLeftRight / 128.f);
+            player->m_fDesiredHeading = CGeneral::LimitRadianAngle(player->m_fDesiredHeading + JETPACK_TURN_RATE * CTimer::GetTimeStep() * walkLeftRight / 128.f);
             InterpolateThrustAngle();
         }
     } else { // 0x67E8D1
-        player->m_fAimingRotation = TheCamera.GetActiveCam().m_vecFront.Heading();
+        player->m_fDesiredHeading = TheCamera.GetActiveCam().m_vecFront.Heading();
         if (TheCamera.GetLookDirection() != LOOKING_FORWARD) {
-            player->m_fAimingRotation -= PI;
+            player->m_fDesiredHeading -= PI;
         }
         InterpolateThrustAngle();
 

@@ -56,7 +56,7 @@ bool CTaskComplexFallToDeath::MakeAbortable(CPed* ped, eAbortPriority priority, 
 CTask* CTaskComplexFallToDeath::ControlSubTask(CPed* ped) {
     // return plugin::CallMethodAndReturn<CTask*, 0x679510, CTaskComplexFallToDeath*, CPed*>(this, ped);
 
-    if (ped->physicalFlags.bSubmergedInWater) {
+    if (ped->m_nPhysicalFlags.bIsInWater) {
         if (!b0x2) {
             b0x2 = true;
             ped->bIsDrowning = true;
@@ -126,7 +126,7 @@ CTask* CTaskComplexFallToDeath::CreateNextSubTask(CPed* ped) {
     case TASK_SIMPLE_LAND: {
         if (!b0x1) {
             bool v11 = z < 0.0f ? z > -0.01f : z < 0.01f;
-            if (v11 && (!ped->m_pContactEntity || ped->m_pContactEntity->GetIsTypeBuilding())) {
+            if (v11 && (!ped->m_pEntityStandingOn || ped->m_pEntityStandingOn->GetIsTypeBuilding())) {
                 b0x1 = true;
                 return new CTaskSimpleInAir(false, true, false);
             }
@@ -152,7 +152,7 @@ CTask* CTaskComplexFallToDeath::CreateNextSubTask(CPed* ped) {
 
 // 0x6796C0
 bool CTaskComplexFallToDeath::CalcFall(CPed* ped, int32& outFallDir, bool& outFallToDeathOverRailing) {
-    if (ped->bInVehicle || ped->physicalFlags.bSubmergedInWater) {
+    if (ped->bInVehicle || ped->m_nPhysicalFlags.bIsInWater) {
         return false;
     }
 

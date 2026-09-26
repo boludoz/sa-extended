@@ -83,6 +83,10 @@ namespace CGeneral { // More like `Math` (Or `Meth`, given how bad the code is, 
      */
     uint16 GetRandomNumber();
 
+    //! calineva API
+    inline void SetRandomSeed(uint32 seed) { srand(seed); }
+    inline bool GetRandomTrueFalse() { return GetRandomNumber() < 0x3FFF; } // `rand() < 0x3FFF` in 0x42DE80
+
     /*!
      * @returns True `chanceOfTrue` % of the time, false othertimes. Valid value are [0, 100)
      */

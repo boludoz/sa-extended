@@ -32,6 +32,15 @@ enum eTrainNodes {
     TRAIN_NUM_NODES
 };
 
+enum { //!< calineva API
+    TTYPE_MAIN,
+    TTYPE_SF,
+    TTYPE_DOCKS,
+    TTYPE_PARRALLEL_STRETCH,
+    TTYPE_NUMBEROFTHEM
+};
+constexpr int32 MAX_STATIONS = 6; //!< calineva API
+
 enum eTrainPassengersGenerationState {
     TRAIN_PASSENGERS_QUERY_NUM_PASSENGERS_TO_LEAVE = 0,
     TRAIN_PASSENGERS_TELL_PASSENGERS_TO_LEAVE = 1,
@@ -42,40 +51,37 @@ enum eTrainPassengersGenerationState {
 
 class NOTSA_EXPORT_VTABLE CTrain : public CVehicle {
 public:
-    int16    m_nNodeIndex;
-    float    m_fTrainSpeed; // 1.0 - train derails
-    float    m_fCurrentRailDistance;
-    float    m_fLength;
-    float    m_fTrainGas;   // gas pedal pressed: 255.0, moving forward: 0.0f, moving back: -255.0
-    float    m_fTrainBrake; // 255.0 - braking
-    union {
-        struct {
-            uint16 b01 : 1; // initialised with 1
-            uint16 bStoppedAtStation : 1;
-            uint16 bPassengersCanEnterAndLeave : 1;
-            uint16 bIsFrontCarriage : 1;
-            uint16 bIsLastCarriage : 1;
-            uint16 bMissionTrain : 1;
-            uint16 bClockwiseDirection : 1;
-            uint16 bStopsAtStations : 1;
+    int16    CurrentNode;
+    float    LinearSpeed; // 1.0 - train derails
+    float    PositionOnTrack;
+    float    OffsetFromLeader;
+    float    Gas;   // gas pedal pressed: 255.0, moving forward: 0.0f, moving back: -255.0
+    float    Brake; // 255.0 - braking
+    struct {
+        uint16 bDoorsReady : 1; // initialised with 1
+        uint16 bAtStation : 1;
+        uint16 bPassengersCanBoard : 1;
+        uint16 bEngine : 1;
+        uint16 bCaboose : 1;
+        uint16 bMissionTrain : 1;
+        uint16 bDirection : 1;
+        uint16 bStopForStations : 1;
 
-            uint16 bNotOnARailRoad : 1;
-            uint16 bForceSlowDown : 1;
-            uint16 bIsStreakModel : 1;
-        } trainFlags;
-        uint16 m_nTrainFlags;
-    };
-    uint32   m_nTimeWhenStoppedAtStation;
-    int8     m_nTrackId;
-    uint32   m_nTimeWhenCreated;
-    int16    field_5C8;                    // initialized with 0, not referenced
-    uint8    m_nPassengersGenerationState; // see eTrainPassengersGenerationState
-    uint8    m_nNumPassengersToLeave : 4;  // 0 to 4
-    uint8    m_nNumPassengersToEnter : 4;  // 0 to 4
-    CPed*    m_pTemporaryPassenger;        // we tell peds to enter train and then delete them
-    CTrain*  m_pPrevCarriage;
-    CTrain*  m_pNextCarriage;
-    std::array<CDoor, 6>             m_aDoors;
+        uint16 bDerailed : 1;
+        uint16 bIsForcedToSlowDown : 1;
+        uint16 bHasPassengerCarriages : 1;
+    } m_nTrainFlags;
+    uint32   m_StopAtStationTimer;
+    int8     TrainType;
+    uint32   m_nDoorTimer;
+    int16    DoorState;                    // initialized with 0, not referenced
+    uint8    m_PassengersMode; // see eTrainPassengersGenerationState
+    uint8    m_NumPassengersOnTrain : 4;  // 0 to 4
+    uint8    m_NumPassengersToBoard : 4;  // 0 to 4
+    CPed*    m_pRandomPedForTrain;        // we tell peds to enter train and then delete them
+    CTrain*  pLinkedToForward;
+    CTrain*  pLinkedToBackward;
+    std::array<CDoor, 6>             Door;
     std::array<RwFrame*, TRAIN_NUM_NODES> m_aTrainNodes;
 
     static inline auto& GenTrain_Track = StaticRef<uint32>(0xC37FFC);

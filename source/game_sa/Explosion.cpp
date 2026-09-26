@@ -173,8 +173,8 @@ bool DoesNeedToVehProcessBombTimer(eExplosionType type) {
 void CExplosion::AddExplosion(CEntity* victim, CEntity* creator, eExplosionType type, CVector pos, uint32 lifetime, uint8 usesSound, float cameraShake, uint8 bInvisible) {
     if (FindPlayerPed() == creator) {
         auto& info = FindPlayerInfo();
-        info.m_nHavocCaused += 5;
-        info.m_fCurrentChaseValue += 7.0f;
+        info.HavocCaused += 5;
+        info.CurrentChaseValue += 7.0f;
     }
 
     auto exp = GetFree();

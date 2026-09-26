@@ -294,23 +294,23 @@ public:
     float               m_fMaxHealth;
     float               m_fArmour;
     uint32              m_nTimeTillWeNeedThisPed;
-    CVector2D           m_vecAnimMovingShift;
-    float               m_fCurrentRotation;
-    float               m_fAimingRotation;
+    CVector2D           m_vecCurrentVelocity;
+    float               m_fCurrentHeading;
+    float               m_fDesiredHeading;
     float               m_fHeadingChangeRate;
-    float               m_fMoveAnim; // not sure about the name here
-    CEntity*            m_standingOnEntity;
-    CVector             field_56C;
+    float               m_fHeadingChangeRateAccel; // not sure about the name here
+    CEntity*            m_pGroundPhysical;
+    CVector             m_vecGroundOffset;
     CVector             m_vecGroundNormal;
-    CEntity*            m_pContactEntity;
-    float               field_588;
-    CVehicle*           m_pVehicle;         //< Might be set even if the ped isn't in a vehicle, in that case it's the vehicle they should get back into. But (in theory) a ped is guaranteed to be in a vehicle if `bInVehicle` is set.
-    CVehicle*           m_VehDeadInFrontOf; // Set if `bDeadPedInFrontOfCar` 
-    int32               field_594;
+    CEntity*            m_pEntityStandingOn;
+    float               m_fHitHeadHeight;
+    CVehicle*           m_pMyVehicle;         //< Might be set even if the ped isn't in a vehicle, in that case it's the vehicle they should get back into. But (in theory) a ped is guaranteed to be in a vehicle if `bInVehicle` is set.
+    CVehicle*           m_pMyAccidentVehicle; // Set if `bDeadPedInFrontOfCar` 
+    int32               m_pAccident;
     ePedType            m_nPedType;
-    CPedStat*           m_pStats;
-    std::array<CWeapon, NUM_WEAPON_SLOTS> m_aWeapons;
-    eWeaponType         m_nSavedWeapon;   // when we need to hide ped weapon, we save it temporary here
+    CPedStat*           m_pPedStats;
+    std::array<CWeapon, NUM_WEAPON_SLOTS> m_WeaponSlots;
+    eWeaponType         m_eStoredWeapon;   // when we need to hide ped weapon, we save it temporary here
     eWeaponType         m_nDelayedWeapon; // 'delayed' weapon is like an additional weapon, f.e., simple cop has a nitestick as current and pistol as delayed weapons
     uint32              m_nDelayedWeaponAmmo;
     uint8               m_nActiveWeaponSlot;
@@ -353,7 +353,7 @@ public:
     CCoverPoint*        m_pCoverPoint;
     CEntryExit*         m_pEnex; // CEnEx *
     float               m_fRemovalDistMultiplier;
-    int16               m_StreamedScriptBrainToLoad;
+    int16               StreamedScriptBrainToLoad;
     int32               field_798;
 
 public:
@@ -427,6 +427,7 @@ public:
     static void ShoulderBoneRotation(RpClump* clump);
     void SetLookTimer(uint32 time);
     bool IsPlayer() const;
+    float GetCurrentHeading() const { return m_fCurrentHeading; } //!< calineva API
     void SetPedPositionInCar();
     void RestoreHeadingRate();
     static void RestoreHeadingRateCB(CAnimBlendAssociation* association, void* data);
@@ -540,7 +541,7 @@ public:
     void SetWeaponAccuracy(uint8 acc) { m_nWeaponAccuracy = acc; }
 
     CAcquaintance& GetAcquaintance() { return m_acquaintance; }
-    CVehicle* GetVehicleIfInOne() const { return bInVehicle ? m_pVehicle : nullptr; }
+    CVehicle* GetVehicleIfInOne() const { return bInVehicle ? m_pMyVehicle : nullptr; }
 
     uint8 GetCreatedBy() const { return m_nCreatedBy; }
     void SetCreatedBy(ePedCreatedBy v) { m_nCreatedBy = v; }
@@ -562,8 +563,8 @@ public:
     CEventHandlerHistory& GetEventHandlerHistory() { return GetEventHandler().GetHistory(); }
     CPedStuckChecker& GetStuckChecker() { return GetIntelligence()->m_pedStuckChecker; }
 
-    CWeapon& GetWeaponInSlot(size_t slot) noexcept { return m_aWeapons[slot]; }
-    CWeapon& GetWeaponInSlot(eWeaponSlot slot) noexcept { return m_aWeapons[(size_t)slot]; }
+    CWeapon& GetWeaponInSlot(size_t slot) noexcept { return m_WeaponSlots[slot]; }
+    CWeapon& GetWeaponInSlot(eWeaponSlot slot) noexcept { return m_WeaponSlots[(size_t)slot]; }
     CWeapon& GetActiveWeapon() noexcept { return GetWeaponInSlot(m_nActiveWeaponSlot); }
     CWeapon* GetWeapon() noexcept { return &GetActiveWeapon(); }
     const CWeapon* GetWeapon() const noexcept { return const_cast<CPed*>(this)->GetWeapon(); }
@@ -571,8 +572,8 @@ public:
     CEntity* GetWeaponLockOnTarget() const { return m_pTargetedObject; }
     void SetWeaponLockOnTarget(CEntity* target) { m_pTargetedObject = target; }
 
-    eWeaponType GetSavedWeapon() const { return m_nSavedWeapon; }
-    void SetSavedWeapon(eWeaponType weapon) { m_nSavedWeapon = weapon; }
+    eWeaponType GetSavedWeapon() const { return m_eStoredWeapon; }
+    void SetSavedWeapon(eWeaponType weapon) { m_eStoredWeapon = weapon; }
     bool IsStateDriving() const noexcept { return m_nPedState == PEDSTATE_DRIVING; }
     bool IsStateDead() const noexcept { return m_nPedState == PEDSTATE_DEAD; }
     bool IsStateDying() const noexcept { return m_nPedState == PEDSTATE_DEAD || m_nPedState == PEDSTATE_DIE; }
@@ -592,8 +593,8 @@ public:
     void CreateDeadPedPickupCoors(CVector& pickupPos);
     RpHAnimHierarchy& GetAnimHierarchy() const;
     CAnimBlendClumpData& GetAnimBlendData() const;
-    bool IsInVehicle() const { return bInVehicle && m_pVehicle; }
-    bool IsInVehicle(const CVehicle* veh) const { return bInVehicle && m_pVehicle == veh; }
+    bool IsInVehicle() const { return bInVehicle && m_pMyVehicle; }
+    bool IsInVehicle(const CVehicle* veh) const { return bInVehicle && m_pMyVehicle == veh; }
     int32 GetPadNumber() const;
     bool IsCurrentlyUnarmed() { return GetActiveWeapon().m_Type == WEAPON_UNARMED; }
 
@@ -641,7 +642,7 @@ public:
      * @notsa
      * @brief Returns vehicle's position if ped is in one, ped's otherwise.
      */
-    CVector GetRealPosition() const { return IsInVehicle() ? m_pVehicle->GetPosition() : GetPosition(); }
+    CVector GetRealPosition() const { return IsInVehicle() ? m_pMyVehicle->GetPosition() : GetPosition(); }
 
     /*!
     * @notsa

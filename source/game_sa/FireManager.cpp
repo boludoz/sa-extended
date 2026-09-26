@@ -290,7 +290,7 @@ CFire* CFireManager::StartFire(CEntity* target, CEntity* creator, float size, ui
             return nullptr;
         if (pedTarget->m_pFire)
             return nullptr;
-        if (pedTarget->physicalFlags.bFireProof)
+        if (pedTarget->m_nPhysicalFlags.bNotDamagedByFlames)
             return nullptr;
         break;
     }
@@ -304,7 +304,7 @@ CFire* CFireManager::StartFire(CEntity* target, CEntity* creator, float size, ui
                 return nullptr;
         }
 
-        if (vehTarget->physicalFlags.bFireProof)
+        if (vehTarget->m_nPhysicalFlags.bNotDamagedByFlames)
             return nullptr;
         break;
     }

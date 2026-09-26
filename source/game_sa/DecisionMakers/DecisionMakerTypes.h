@@ -43,7 +43,8 @@ public:
     static constexpr auto NUM_TYPES = 20u;
 
     static inline auto& ScriptReferenceIndex = StaticRef<std::array<uint16, NUM_TYPES>>(0xC0AFF4);
-    static inline auto& m_IsActive = StaticRef<std::array<bool, NUM_TYPES>>(0xC0B01C);
+    static inline auto& m_bIsActive = StaticRef<std::array<bool, NUM_TYPES>>(0xC0B01C);
+    static inline auto& m_types = StaticRef<std::array<uint8, NUM_TYPES>>(0xC0AFE0); //!< calineva API
 
     static void InjectHooks();
 
@@ -59,12 +60,12 @@ public:
     int32 CopyDecisionMaker(int32 srcIndex, int32 decisionMakerType, bool bDecisionMakerForMission) { return plugin::CallMethodAndReturn<int32, 0x6070F0, CDecisionMakerTypes*, int32, int32, bool>(this, srcIndex, decisionMakerType, bDecisionMakerForMission); } // 0x6070F0
 
 public:
-    int32                                                              m_NoOfDecisionMakers{};
-    std::array<CDecisionMaker, +eDecisionMakerType::COUNT_TOTAL> m_DecisionMakers{};
-    std::array<int32, +eEventType::EVENT_TOTAL_NUM_EVENTS>                           m_EventIndices{};
-    CDecisionMaker m_DefaultRandomPedDecisionMaker{};
-    CDecisionMaker m_DefaultMissionPedDecisionMaker{};
-    CDecisionMaker m_DefaultPlayerPedDecisionMaker{};
-    CDecisionMaker m_DefaultRandomPedGroupDecisionMaker{};
-    CDecisionMaker m_DefaultMissionPedGroupDecisionMaker{};
+    int32                                                              m_iNoOfDecisionMakers{};
+    std::array<CDecisionMaker, +eDecisionMakerType::COUNT_TOTAL> m_decisionMakers{};
+    std::array<int32, +eEventType::EVENT_TOTAL_NUM_EVENTS>                           m_eventIndices{};
+    CDecisionMaker m_defaultRandomPedDecisionMaker{};
+    CDecisionMaker m_defaultMissionPedDecisionMaker{};
+    CDecisionMaker m_defaultPlayerPedDecisionMaker{};
+    CDecisionMaker m_defaultRandomPedGroupDecisionMaker{};
+    CDecisionMaker m_defaultMissionPedGroupDecisionMaker{};
 };

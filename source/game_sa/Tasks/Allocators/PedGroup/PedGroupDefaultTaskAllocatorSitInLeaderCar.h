@@ -23,7 +23,7 @@ public:
         if (!leader) {
             return;
         }
-        const auto veh = leader->m_pVehicle;
+        const auto veh = leader->m_pMyVehicle;
         if (!veh) {
             return;
         }

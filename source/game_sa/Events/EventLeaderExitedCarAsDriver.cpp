@@ -22,7 +22,7 @@ CEventLeaderExitedCarAsDriver* CEventLeaderExitedCarAsDriver::Constructor()
 bool CEventLeaderExitedCarAsDriver::AffectsPedGroup(CPedGroup* pg) {
     const auto leader = pg->GetMembership().GetLeader();
     for (auto* const m : pg->GetMembership().GetFollowers()) {
-        if (m->m_pVehicle && m->bInVehicle && m->m_pVehicle == leader->m_pVehicle) {
+        if (m->m_pMyVehicle && m->bInVehicle && m->m_pMyVehicle == leader->m_pMyVehicle) {
             return true;
         }
         if (m->GetTaskManager().HasAnyOf<TASK_COMPLEX_ENTER_CAR_AS_PASSENGER, TASK_COMPLEX_ENTER_CAR_AS_PASSENGER_WAIT>(false)) {

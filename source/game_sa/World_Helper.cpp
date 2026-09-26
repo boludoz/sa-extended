@@ -13,7 +13,7 @@ CPlayerInfo& FindPlayerInfo(int32 playerId) {
 // Returns player ped
 // 0x56E210
 CPlayerPed* FindPlayerPed(int32 playerId) {
-    return FindPlayerInfo(playerId).m_pPed;
+    return FindPlayerInfo(playerId).pPed;
 }
 
 // Returns player vehicle
@@ -25,12 +25,12 @@ CVehicle* FindPlayerVehicle(int32 playerId, bool bIncludeRemote) {
 
     if (bIncludeRemote) {
         CPlayerInfo* playerInfo = player->GetPlayerInfoForThisPlayerPed();
-        if (playerInfo->m_pRemoteVehicle) {
-            return playerInfo->m_pRemoteVehicle;
+        if (playerInfo->pRemoteVehicle) {
+            return playerInfo->pRemoteVehicle;
         }
     }
 
-    return player->m_pVehicle;
+    return player->m_pMyVehicle;
 }
 
 // Returns player coors
@@ -54,7 +54,7 @@ CEntity* FindPlayerEntity(int32 playerId) {
         return nullptr;
 
     if (player->IsInVehicle())
-        return player->m_pVehicle;
+        return player->m_pMyVehicle;
 
     return player;
 }
@@ -87,7 +87,7 @@ const CVector& FindPlayerCentreOfWorld_NoSniperShift(int32 playerId) {
     if (CCarCtrl::bCarsGeneratedAroundCamera) {
         return TheCamera.GetPosition();
     }
-    if (const auto* const veh = FindPlayerInfo(playerId).m_pRemoteVehicle) {
+    if (const auto* const veh = FindPlayerInfo(playerId).pRemoteVehicle) {
         return veh->GetPosition();
     }
     if (const auto* const player = FindPlayerPed(playerId)) {
@@ -124,7 +124,7 @@ float FindPlayerHeight(int32 playerId) {
 // Returns player wanted
 // 0x56E230
 CWanted* FindPlayerWanted(int32 playerId) {
-    return FindPlayerInfo(playerId).m_PlayerData.m_pWanted;
+    return FindPlayerInfo(playerId).PlayerPedData.m_pWanted;
 }
 
 // Returns player's group

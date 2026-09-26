@@ -47,6 +47,7 @@ public:
     static constexpr auto Type = TASK_COMPLEX_WANDER;
 
     CTaskComplexWander(eMoveState moveState, uint8 dir, bool bWanderSensibly = true, float fTargetRadius = 0.5f);
+    void SetMoveState(eMoveState moveState) { m_nMoveState = moveState; } //!< calineva API
     ~CTaskComplexWander() override = default;
 
     eTaskType GetTaskType() const override { return Type; } // 0x460CD0

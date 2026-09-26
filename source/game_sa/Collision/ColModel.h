@@ -50,6 +50,8 @@ public:
     // HELPERS
     [[nodiscard]] auto GetTriCount() const noexcept     { return m_pColData ? m_pColData->m_nNumTriangles : 0u; }
     [[nodiscard]] float GetBoundRadius() const noexcept { return m_boundSphere.m_fRadius; }
+    const CVector& GetBoundBoxMin() const { return m_boundBox.m_vecMin; } //!< calineva API
+    const CVector& GetBoundBoxMax() const { return m_boundBox.m_vecMax; } //!< calineva API
     auto& GetBoundCenter() { return m_boundSphere.m_vecCenter; }
     auto& GetBoundingBox() { return m_boundBox; }
     [[nodiscard]] const auto& GetBoundingBox() const noexcept { return m_boundBox; }
@@ -58,6 +60,8 @@ public:
     auto& GetBoundingSphere() { return m_boundSphere; }
     [[nodiscard]] const auto& GetBoundingSphere() const noexcept { return m_boundSphere; }
     CCollisionData* GetData() const { return m_pColData; }
+    CCollisionData* GetCollisionData() { return m_pColData; }             //!< calineva API
+    const CCollisionData* GetCollisionData() const { return m_pColData; } //!< calineva API
 };
 
 VALIDATE_SIZE(CColModel, 0x30);

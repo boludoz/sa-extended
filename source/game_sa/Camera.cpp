@@ -1260,7 +1260,7 @@ void CCamera::RestoreWithJumpCut() {
         return;
     }
 
-    if (player0->m_pVehicle == player1->m_pVehicle) {
+    if (player0->m_pMyVehicle == player1->m_pMyVehicle) {
         if (m_bAllowShootingWith2PlayersInCar) {
             m_nModeToGoTo = m_nModeForTwoPlayersSameCarShootingAllowed;
         } else {
@@ -1270,7 +1270,7 @@ void CCamera::RestoreWithJumpCut() {
         m_nModeToGoTo = m_nModeForTwoPlayersSeparateCars;
     }
 
-    m_pTargetEntity = player0->m_pVehicle;
+    m_pTargetEntity = player0->m_pMyVehicle;
     CEntity::SafeRegisterRef(m_pTargetEntity);
 
     m_bUseScriptZoomValuePed = false;
@@ -1568,24 +1568,24 @@ void CCamera::UpdateTargetEntity() {
         }
 
         bool bTargetCarIsLocked = true;
-        if (player && player->m_pVehicle) {
-            if (player->m_pVehicle->CanPedOpenLocks(player)) {
+        if (player && player->m_pMyVehicle) {
+            if (player->m_pMyVehicle->CanPedOpenLocks(player)) {
                 bTargetCarIsLocked = false;
             }
         }
 
         if (player->m_nPedState == PEDSTATE_ENTER_CAR && !bTargetCarIsLocked) {
             if (!pedInMidWayGettingIntoCarState && m_nCarZoom != 0) {
-                CEntity* newTarget = player->m_pVehicle ? static_cast<CEntity*>(player->m_pVehicle) : static_cast<CEntity*>(player);
+                CEntity* newTarget = player->m_pMyVehicle ? static_cast<CEntity*>(player->m_pMyVehicle) : static_cast<CEntity*>(player);
                 CEntity::ChangeEntityReference(m_pTargetEntity, newTarget);
             }
         }
 
         if ((player->m_nPedState == PEDSTATE_CARJACK || player->m_nPedState == PEDSTATE_OPEN_DOOR) && !bTargetCarIsLocked) {
             if (!pedInMidWayGettingIntoCarState && m_nCarZoom != 0) {
-                CEntity::ChangeEntityReference(m_pTargetEntity, player->m_pVehicle);
+                CEntity::ChangeEntityReference(m_pTargetEntity, player->m_pMyVehicle);
             }
-            if (!player->m_pVehicle) {
+            if (!player->m_pMyVehicle) {
                 CEntity::ChangeEntityReference(m_pTargetEntity, player);
             }
         }
@@ -1669,7 +1669,7 @@ void CCamera::TakeControlAttachToEntity(CEntity* target, CEntity* attached, CVec
     if (!attached) { // Attach to the player if nothing was passed in
         attached = FindPlayerVehicle(-1, false)
             ? (CEntity*)FindPlayerVehicle(-1, false)
-            : (CEntity*)CWorld::Players[CWorld::PlayerInFocus].m_pPed;
+            : (CEntity*)CWorld::Players[CWorld::PlayerInFocus].pPed;
     }
 
     if (target) {
@@ -1830,7 +1830,7 @@ void CCamera::CameraPedAimModeSpecialCases(CPed* ped) {
     CameraPedModeSpecialCases();
 
     if (ped->IsInVehicle()) {
-        m_pExtraEntity[m_nExtraEntitiesCount++] = ped->m_pVehicle;
+        m_pExtraEntity[m_nExtraEntitiesCount++] = ped->m_pMyVehicle;
     }
 }
 
@@ -3762,7 +3762,7 @@ void CCamera::CamControl() {
 
     if ((m_aCams[m_nActiveCam].m_pCamTargetEntity == nullptr) && (m_pTargetEntity == nullptr)) {
         m_pTargetEntity->CleanUpOldReference(&m_pTargetEntity);
-        m_pTargetEntity = CWorld::Players[CWorld::PlayerInFocus].m_pPed;
+        m_pTargetEntity = CWorld::Players[CWorld::PlayerInFocus].pPed;
         m_pTargetEntity->RegisterReference(&m_pTargetEntity);
     }
 
@@ -4424,7 +4424,7 @@ void CCamera::CamControl() {
                         || m_PlayerWeaponMode.m_nMode == MODE_ROCKETLAUNCHER_HS || m_PlayerWeaponMode.m_nMode == MODE_M16_1STPERSON
                         || m_PlayerWeaponMode.m_nMode == MODE_HELICANNON_1STPERSON || m_PlayerWeaponMode.m_nMode == MODE_SNIPER
                         || m_PlayerWeaponMode.m_nMode == MODE_CAMERA || m_aCams[m_nActiveCam].GetWeaponFirstPersonOn()) {
-                        if ((CWorld::Players[CWorld::PlayerInFocus].m_pPed->GetPedState()) == PEDSTATE_SEEK_CAR) {
+                        if ((CWorld::Players[CWorld::PlayerInFocus].pPed->GetPedState()) == PEDSTATE_SEEK_CAR) {
                             if ((ReqMode != MODE_TOP_DOWN_PED) && (!(m_aCams[m_nActiveCam].GetWeaponFirstPersonOn()))) //if we are in top down or 1rst person mode want to stay in it
                             {
                                 ReqMode = MODE_FOLLOWPED;
@@ -4527,19 +4527,19 @@ void CCamera::CamControl() {
         }
     }
 
-    if (m_bCooperativeCamMode && CWorld::Players[0].m_pPed && CWorld::Players[1].m_pPed) {
-        if (CWorld::Players[0].m_pPed->bInVehicle && CWorld::Players[1].m_pPed->bInVehicle && CWorld::Players[0].m_pPed->m_pVehicle && CWorld::Players[1].m_pPed->m_pVehicle) { // Both players are in a car.
-            if (CWorld::Players[0].m_pPed->m_pVehicle == CWorld::Players[1].m_pPed->m_pVehicle) {                                                                               // Both players are in the same car
+    if (m_bCooperativeCamMode && CWorld::Players[0].pPed && CWorld::Players[1].pPed) {
+        if (CWorld::Players[0].pPed->bInVehicle && CWorld::Players[1].pPed->bInVehicle && CWorld::Players[0].pPed->m_pMyVehicle && CWorld::Players[1].pPed->m_pMyVehicle) { // Both players are in a car.
+            if (CWorld::Players[0].pPed->m_pMyVehicle == CWorld::Players[1].pPed->m_pMyVehicle) {                                                                               // Both players are in the same car
                 if (m_bAllowShootingWith2PlayersInCar) {
                     ReqMode         = m_nModeForTwoPlayersSameCarShootingAllowed;
-                    m_pTargetEntity = CWorld::Players[0].m_pPed->m_pVehicle;
+                    m_pTargetEntity = CWorld::Players[0].pPed->m_pMyVehicle;
                 } else {
                     ReqMode         = m_nModeForTwoPlayersSameCarShootingNotAllowed;
-                    m_pTargetEntity = CWorld::Players[0].m_pPed->m_pVehicle;
+                    m_pTargetEntity = CWorld::Players[0].pPed->m_pMyVehicle;
                 }
             } else { // Players are each in their own car.
                 ReqMode         = m_nModeForTwoPlayersSeparateCars;
-                m_pTargetEntity = CWorld::Players[0].m_pPed->m_pVehicle;
+                m_pTargetEntity = CWorld::Players[0].pPed->m_pMyVehicle;
             }
         } else {
             ReqMode = m_nModeForTwoPlayersNotBothInCar;
@@ -4550,7 +4550,7 @@ void CCamera::CamControl() {
     bool        bJustArrested       = false;
     static bool bPreviouslyArrested = false;
     bool        bJustNotArrested    = false;
-    PlayerPed                       = CWorld::Players[CWorld::PlayerInFocus].m_pPed;
+    PlayerPed                       = CWorld::Players[CWorld::PlayerInFocus].pPed;
 
     if (PlayerPed->GetPedState() == PEDSTATE_ARRESTED) {
         bPreviouslyArrested = true;
@@ -4577,7 +4577,7 @@ void CCamera::CamControl() {
         ReqMode = ThePickedArrestMode;
     }
 
-    if (CWorld::Players[CWorld::PlayerInFocus].m_pPed->GetPedState() == PEDSTATE_DEAD) {
+    if (CWorld::Players[CWorld::PlayerInFocus].pPed->GetPedState() == PEDSTATE_DEAD) {
         m_bObbeCinematicCarCamOn = false;
 
         if (m_aCams[m_nActiveCam].m_nMode == MODE_PED_DEAD_BABY) {
@@ -4875,8 +4875,8 @@ void CCamera::CamControl() {
                         || (m_aCams[m_nActiveCam].m_nMode == MODE_CAMERA)) {
                         float CamDirection;
                         CamDirection                                 = CGeneral::GetATanOfXY(m_aCams[m_nActiveCam].m_vecFront.x, m_aCams[m_nActiveCam].m_vecFront.y) - (PI / 2);
-                        m_pTargetEntity->AsPed()->m_fCurrentRotation = CamDirection;
-                        m_pTargetEntity->AsPed()->m_fAimingRotation  = CamDirection;
+                        m_pTargetEntity->AsPed()->m_fCurrentHeading = CamDirection;
+                        m_pTargetEntity->AsPed()->m_fDesiredHeading  = CamDirection;
                     }
 
                     NeedToDoAJumpCutForGameCam = true;
@@ -5269,8 +5269,8 @@ void CCamera::StartTransition(eCamMode newCamMode) {
     // Handle player rotation for weapon modes
     if (m_pTargetEntity && m_pTargetEntity->GetIsTypePed() && notsa::contains({ MODE_SNIPER, MODE_ROCKETLAUNCHER, MODE_ROCKETLAUNCHER_HS, MODE_M16_1STPERSON, MODE_SNIPER_RUNABOUT, MODE_ROCKETLAUNCHER_RUNABOUT, MODE_ROCKETLAUNCHER_RUNABOUT_HS, MODE_M16_1STPERSON_RUNABOUT, MODE_FIGHT_CAM_RUNABOUT, MODE_HELICANNON_1STPERSON, MODE_CAMERA, MODE_1STPERSON_RUNABOUT }, activeCamMode)) {
         const float angle                            = CGeneral::GetATanOfXY(activeCam.m_vecFront.x, activeCam.m_vecFront.y) - HALF_PI;
-        m_pTargetEntity->AsPed()->m_fCurrentRotation = angle;
-        m_pTargetEntity->AsPed()->m_fAimingRotation  = angle;
+        m_pTargetEntity->AsPed()->m_fCurrentHeading = angle;
+        m_pTargetEntity->AsPed()->m_fDesiredHeading  = angle;
     }
 
     // Setup new camera

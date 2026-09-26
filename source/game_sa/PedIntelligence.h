@@ -62,7 +62,7 @@ public:
     int32                  m_AnotherStaticCounter;
     int32                  m_StaticCounter;
     CVector                m_vecLastPedPosDuringDamageEntity;
-    CEntity*               m_apInterestingEntities[3];
+    CEntity*               m_pInterestingEntities[3];
 
     static inline auto& STEALTH_KILL_RANGE = StaticRef<float>(0x8D2398); // 2.5f
     static inline auto& LIGHT_AI_LEVEL_MAX = StaticRef<float>(0x8D2380); // 0.3f
@@ -169,6 +169,7 @@ public:
     CVehicle* GetEnteringVehicle();
 
     CTaskManager&    GetTaskManager()                  { return m_TaskMgr; }
+    CTask*           GetTaskActive()                   { return m_TaskMgr.GetActiveTask(); } //!< calineva API
     CEventHandler&   GetEventHandler()                 { return m_eventHandler; }
     CEventGroup&     GetEventGroup()                   { return m_eventGroup; }
     CEventScanner&   GetEventScanner()                 { return m_eventScanner; }

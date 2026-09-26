@@ -27,7 +27,7 @@ void RemoveRCBuggy() {
 }
 
 void SetCarProofs(CVehicle& veh, bool bullet, bool fire, bool explosion, bool collision, bool melee) {
-    auto& flags           = veh.physicalFlags;
+    auto& flags           = veh.m_nPhysicalFlags;
     flags.bBulletProof    = bullet;
     flags.bFireProof      = fire;
     flags.bExplosionProof = explosion;
@@ -118,7 +118,7 @@ void AddStuckCarCheckWithWarp(CVehicle& vehicle, float stuckRadius, uint32 time,
 
 void PlaneAttackPlayerUsingDogFight(CPlane& plane, CPlayerPed& player, float altitude) {
     plane.m_autoPilot.SetCarMissionUnlessCrashing(eCarMission::MISSION_PLANE_DOG_FIGHT_PLAYER);
-    plane.m_minAltitude = altitude;
+    plane.m_MinHeightAboveTerrain = altitude;
 }
 
 /// SET_CAR_ALWAYS_CREATE_SKIDS(07EE)
@@ -231,7 +231,7 @@ void SetCanResprayCar(CVehicle& veh, bool can) {
 
 /// SET_CAR_ONLY_DAMAGED_BY_PLAYER(02AA)
 void SetCarOnlyDamagedByPlayer(CVehicle& veh, bool enable) {
-    veh.physicalFlags.bInvulnerable = enable;
+    veh.m_nPhysicalFlags.bInvulnerable = enable;
 }
 
 /// IS_CAR_DEAD(0119)

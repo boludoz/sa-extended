@@ -692,7 +692,7 @@ void CTaskSimpleSwim::ProcessControlAI(CPed* ped) {
     CVector vecPosition(m_vecPos - pedPos);
     auto dist2d = vecPosition.Magnitude2D();
     if (m_vecPos != 0.0f) {
-        ped->m_fAimingRotation = std::atan2(-vecPosition.x, vecPosition.y);
+        ped->m_fDesiredHeading = std::atan2(-vecPosition.x, vecPosition.y);
 
         float fMinimum2DDistanceBetweenPeds = 1.0f;
         if (ped->IsPlayer()) {
@@ -719,8 +719,8 @@ void CTaskSimpleSwim::ProcessControlAI(CPed* ped) {
         }
     }
 
-    if (m_pPed && m_pPed->bIsStanding && !m_pPed->physicalFlags.bSubmergedInWater ||
-        ped->bIsDyingStuck && !m_pPed->physicalFlags.bSubmergedInWater && dist2d < 1.0f) {
+    if (m_pPed && m_pPed->bIsStanding && !m_pPed->m_nPhysicalFlags.bIsInWater ||
+        ped->bIsDyingStuck && !m_pPed->m_nPhysicalFlags.bIsInWater && dist2d < 1.0f) {
         if (!((ped->m_nRandomSeedUpperByte + CTimer::GetFrameCounter() - 4) & 127)) {
             if (CTaskSimpleClimb::TestForClimb(ped, m_pClimbPos, m_fAngle, m_nSurfaceType, true)) {
                 m_nSwimState = SWIM_BACK_TO_SURFACE;
@@ -774,24 +774,24 @@ void CTaskSimpleSwim::ProcessControlInput(CPlayerPed* ped) {
                 float angle = CGeneral::LimitRadianAngle(fRadianAngle);
 
                 CVector vecPedWalkDirection(0.0f, -std::sin(angle), std::cos(angle));
-                if (angle <= ped->m_fCurrentRotation + DegreesToRadians(180.0f)) {
-                    if (angle < ped->m_fCurrentRotation - DegreesToRadians(180.0f)) {
+                if (angle <= ped->m_fCurrentHeading + DegreesToRadians(180.0f)) {
+                    if (angle < ped->m_fCurrentHeading - DegreesToRadians(180.0f)) {
                         angle += DegreesToRadians(360.0f);
                     }
                 } else {
                     angle -= DegreesToRadians(360.0f);
                 }
 
-                float fCurrenRotation = angle - ped->m_fCurrentRotation;
+                float fCurrenRotation = angle - ped->m_fCurrentHeading;
                 fCurrenRotation = std::clamp(fCurrenRotation, -1.0f, 1.0f);
 
-                ped->m_fAimingRotation = fCurrenRotation * (CTimer::GetTimeStep() * 0.08f) + ped->m_fCurrentRotation;
-                if (ped->m_fAimingRotation <= DegreesToRadians(180.0f)) {
-                    if (ped->m_fAimingRotation < -DegreesToRadians(180.0f)) {
-                        ped->m_fAimingRotation += DegreesToRadians(360.0f);
+                ped->m_fDesiredHeading = fCurrenRotation * (CTimer::GetTimeStep() * 0.08f) + ped->m_fCurrentHeading;
+                if (ped->m_fDesiredHeading <= DegreesToRadians(180.0f)) {
+                    if (ped->m_fDesiredHeading < -DegreesToRadians(180.0f)) {
+                        ped->m_fDesiredHeading += DegreesToRadians(360.0f);
                     }
                 } else {
-                    ped->m_fAimingRotation -= DegreesToRadians(360.0f);
+                    ped->m_fDesiredHeading -= DegreesToRadians(360.0f);
                 }
                 if (CGameLogic::IsPlayerAllowedToGoInThisDirection(ped, vecPedWalkDirection, 0.0f)) {
                     pedWalkX = (
@@ -825,13 +825,13 @@ void CTaskSimpleSwim::ProcessControlInput(CPlayerPed* ped) {
             } else {
                 bool bUpdateMoveBlendRatio = false;
                 if (!bPlayerUse2PlayerControls) {
-                    ped->m_fAimingRotation += CTimer::GetTimeStep() * -0.03f * pedWalkX;
-                    if (ped->m_fAimingRotation <= DegreesToRadians(180.0f)) {
-                        if (ped->m_fAimingRotation < -DegreesToRadians(180.0f)) {
-                            ped->m_fAimingRotation += DegreesToRadians(360.0f);
+                    ped->m_fDesiredHeading += CTimer::GetTimeStep() * -0.03f * pedWalkX;
+                    if (ped->m_fDesiredHeading <= DegreesToRadians(180.0f)) {
+                        if (ped->m_fDesiredHeading < -DegreesToRadians(180.0f)) {
+                            ped->m_fDesiredHeading += DegreesToRadians(360.0f);
                         }
                     } else {
-                        ped->m_fAimingRotation -= DegreesToRadians(360.0f);
+                        ped->m_fDesiredHeading -= DegreesToRadians(360.0f);
                     }
 
                     if (m_nSwimState) {
@@ -857,11 +857,11 @@ void CTaskSimpleSwim::ProcessControlInput(CPlayerPed* ped) {
             }
         } else {
             const auto& camFront = CCamera::GetActiveCamera().m_vecFront;
-            ped->m_fAimingRotation = std::atan2(-camFront.x, camFront.y); // heading
+            ped->m_fDesiredHeading = std::atan2(-camFront.x, camFront.y); // heading
             if (TheCamera.GetLookDirection() != LOOKING_FORWARD) {
-                ped->m_fAimingRotation += DegreesToRadians(180.0f);
-                if (ped->m_fAimingRotation > DegreesToRadians(180.0f)) {
-                    ped->m_fAimingRotation -= DegreesToRadians(360.0f);
+                ped->m_fDesiredHeading += DegreesToRadians(180.0f);
+                if (ped->m_fDesiredHeading > DegreesToRadians(180.0f)) {
+                    ped->m_fDesiredHeading -= DegreesToRadians(360.0f);
                 }
             }
 
@@ -874,10 +874,10 @@ void CTaskSimpleSwim::ProcessControlInput(CPlayerPed* ped) {
                 playerData->m_fMoveBlendRatio = negativePedWalkY;
             }
 
-            fRotation = -(ped->m_fAimingRotation - ped->m_fCurrentRotation);
+            fRotation = -(ped->m_fDesiredHeading - ped->m_fCurrentHeading);
             if (fRotation <= DegreesToRadians(180.0f)) {
                 if (fRotation < -DegreesToRadians(180.0f)) {
-                    fRotation = DegreesToRadians(360.0f) - ped->m_fAimingRotation - ped->m_fCurrentRotation;
+                    fRotation = DegreesToRadians(360.0f) - ped->m_fDesiredHeading - ped->m_fCurrentHeading;
                 }
             } else {
                 fRotation -= DegreesToRadians(360.0f);
@@ -926,8 +926,8 @@ void CTaskSimpleSwim::ProcessControlInput(CPlayerPed* ped) {
                 vecActiveCamFront.z = 0.0f;
             }
 
-            ped->m_fAimingRotation = std::atan2(-vecActiveCamFront.x, vecActiveCamFront.y);
-            float fRotation = -(ped->m_fAimingRotation - ped->m_fCurrentRotation);
+            ped->m_fDesiredHeading = std::atan2(-vecActiveCamFront.x, vecActiveCamFront.y);
+            float fRotation = -(ped->m_fDesiredHeading - ped->m_fCurrentHeading);
             if (fRotation <= DegreesToRadians(180.0f)) {
                 if (fRotation < -DegreesToRadians(180.0f))
                     fRotation += DegreesToRadians(360.0f);
@@ -951,14 +951,14 @@ void CTaskSimpleSwim::ProcessControlInput(CPlayerPed* ped) {
             float fNormalizedWalkMagnitude = 1.0f / fWalkMagnitude;
             vecPedWalk.x   = vecPedWalk.x * fNormalizedWalkMagnitude;
             float pedWalkY = vecPedWalk.y * fNormalizedWalkMagnitude;
-            ped->m_fAimingRotation += CTimer::GetTimeStep() * -0.03f * vecPedWalk.x;
+            ped->m_fDesiredHeading += CTimer::GetTimeStep() * -0.03f * vecPedWalk.x;
 
-            if (ped->m_fAimingRotation <= DegreesToRadians(180.0f)) {
-                if (ped->m_fAimingRotation < -DegreesToRadians(180.0f)) {
-                    ped->m_fAimingRotation += DegreesToRadians(360.0f);
+            if (ped->m_fDesiredHeading <= DegreesToRadians(180.0f)) {
+                if (ped->m_fDesiredHeading < -DegreesToRadians(180.0f)) {
+                    ped->m_fDesiredHeading += DegreesToRadians(360.0f);
                 }
             } else {
-                ped->m_fAimingRotation -= DegreesToRadians(360.0f);
+                ped->m_fDesiredHeading -= DegreesToRadians(360.0f);
             }
 
             m_fTurningRotationY += CTimer::GetTimeStep() * 0.04f * vecPedWalk.x;

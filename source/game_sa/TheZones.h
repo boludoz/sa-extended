@@ -16,6 +16,7 @@ public:
     static inline auto&       ZonesVisited = StaticRef<notsa::mdarray<bool, 10, 10>>(0xBA3730); // Explored territories. Count: 100
 
     static inline auto& m_CurrLevel = StaticRef<eLevelName>(0xBA6718);
+    static eLevelName GetLevelPlayerIsIn() { return m_CurrLevel; } //!< calineva API
     static inline auto& ZonesRevealed = StaticRef<int32>(0xBA372C); // Number of explored territories
     static inline auto& TotalNumberOfNavigationZones = StaticRef<int16>(0xBA3794); // Info zones
     static inline auto& NavigationZoneArray = StaticRef<std::array<CZone, 380>>(0xBA3798);

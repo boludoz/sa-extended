@@ -34,7 +34,7 @@ CEventVehicleOnFire* CEventVehicleOnFire::Constructor(CVehicle* vehicle)
 bool CEventVehicleOnFire::AffectsPed(CPed* ped)
 {
     if (m_vehicle) {
-        if (!ped->m_pVehicle || !ped->bInVehicle || ped->m_pVehicle == m_vehicle) {
+        if (!ped->m_pMyVehicle || !ped->bInVehicle || ped->m_pMyVehicle == m_vehicle) {
             if (!ped->IsPlayer() && ped->IsAlive()) {
                 CPedGroup* pedGroup = CPedGroups::GetPedsGroup(ped);
                 if (pedGroup && !pedGroup->GetMembership().IsLeader(ped)) {

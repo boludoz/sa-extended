@@ -37,7 +37,7 @@ bool CEventVehicleDied::AffectsPed(CPed* ped)
     if (ped->IsAlive() && !m_IsOccupantLeavingCar) {
         m_IsOccupantLeavingCar = ped->GetTaskManager().Has<TASK_COMPLEX_LEAVE_CAR>();
         if ((m_IsOccupantLeavingCar || ped->bInVehicle) && m_vehicle)
-            return ped->m_pVehicle == m_vehicle;
+            return ped->m_pMyVehicle == m_vehicle;
     }
     return false;
 }

@@ -18,9 +18,9 @@ CEventPedEnteredMyVehicle::~CEventPedEnteredMyVehicle() {
 
 bool CEventPedEnteredMyVehicle::AffectsPed(CPed* ped) {
     return ped->IsAlive()
-        && ped->m_pVehicle
+        && ped->m_pMyVehicle
         && ped->bInVehicle
-        && ped->m_pVehicle == m_Vehicle
+        && ped->m_pMyVehicle == m_Vehicle
         && m_PedThatEntered;
 }
 

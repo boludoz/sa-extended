@@ -8,11 +8,11 @@
 
 class CNodeAddress {
 public:
-    uint16 m_wAreaId{ (uint16)-1 };
-    uint16 m_wNodeId{ (uint16)-1 };
+    uint16 Region{ (uint16)-1 };
+    uint16 Index{ (uint16)-1 };
 
     constexpr CNodeAddress() = default;
-    constexpr CNodeAddress(uint16 areaId, uint16 nodeId) : m_wAreaId(areaId), m_wNodeId(nodeId) {}
+    constexpr CNodeAddress(uint16 areaId, uint16 nodeId) : Region(areaId), Index(nodeId) {}
 
     bool operator==(CNodeAddress const&) const = default;
     bool operator!=(CNodeAddress const&) const = default;
@@ -21,13 +21,21 @@ public:
     //! canonical direction, independent of which end you look at it from.
     auto operator<=>(CNodeAddress const&) const = default;
 
-    void ResetAreaId() { m_wAreaId = UINT16_MAX; }
-    void ResetNodeId() { m_wNodeId = UINT16_MAX; }
+    void ResetAreaId() { Region = UINT16_MAX; }
+    void ResetNodeId() { Index = UINT16_MAX; }
 
-    [[nodiscard]] bool IsAreaValid() const { return m_wAreaId != (uint16)-1; }
-    [[nodiscard]] bool IsValid() const { return IsAreaValid() && m_wNodeId != UINT16_MAX; }
+    [[nodiscard]] bool IsAreaValid() const { return Region != (uint16)-1; }
+    [[nodiscard]] bool IsValid() const { return IsAreaValid() && Index != UINT16_MAX; }
     [[nodiscard]] bool IsEmpty() const { return !IsValid(); }
 
     operator bool() const { return IsValid(); }
+
+    uint32 GetRegion() const { return Region; }
+    uint32 GetIndex() const { return Index; }
+    void Set(uint32 region, uint32 index) {
+        Region = (uint16)region;
+        Index  = (uint16)index;
+    }
+    void SetEmpty() { Region = UINT16_MAX; }
 };
 VALIDATE_SIZE(CNodeAddress, 0x4);

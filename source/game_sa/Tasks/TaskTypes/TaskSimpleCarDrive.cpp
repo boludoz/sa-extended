@@ -129,14 +129,14 @@ void CTaskSimpleCarDrive::ProcessArmBopping(CPed* ped, bool a3, float a4) {
 
 // 0x642E70
 void CTaskSimpleCarDrive::ProcessBopping(CPed* ped, bool a3) {
-    if (ped->m_pVehicle->m_pDriver == FindPlayerPed(0)
+    if (ped->m_pMyVehicle->m_pDriver == FindPlayerPed(0)
         || ped->m_nPedType == PED_TYPE_COP
         || ped->GetTaskManager().FindActiveTaskByType(TASK_COMPLEX_CAR_SLOW_BE_DRAGGED_OUT_AND_STAND_UP)
     ) {
         return;
     }
 
-    auto* vehicle = ped->m_pVehicle;
+    auto* vehicle = ped->m_pMyVehicle;
     if (vehicle->IsAutomobile() && !vehicle->IsSubQuad() && !ped->IsCreatedByMission()) {
         if (m_nBoppingStartTime != -1) { // IsBopping
             UpdateBopping();

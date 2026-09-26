@@ -128,6 +128,7 @@ public:
     [[nodiscard]] inline float SquaredMagnitude() const {
         return x * x + y * y + z * z;
     }
+    [[nodiscard]] float MagnitudeSqr() const { return SquaredMagnitude(); } //!< calineva API
 
     inline float SquaredMagnitude2D() const {
         return x * x + y * y;

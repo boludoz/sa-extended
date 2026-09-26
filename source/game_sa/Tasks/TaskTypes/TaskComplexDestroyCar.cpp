@@ -55,7 +55,7 @@ CTask* CTaskComplexDestroyCar::CreateFirstSubTask(CPed* ped) {
     if (!m_VehicleToDestroy)
         return CreateSubTask(TASK_FINISHED);
 
-    if (ped->m_pVehicle && ped->bInVehicle)
+    if (ped->m_pMyVehicle && ped->bInVehicle)
         return CreateSubTask(TASK_COMPLEX_LEAVE_CAR, ped);
 
     if (ped->GetActiveWeapon().IsTypeMelee())
@@ -84,7 +84,7 @@ CTask* CTaskComplexDestroyCar::CreateSubTask(eTaskType taskType, CPed* ped) {
     case TASK_COMPLEX_DESTROY_CAR_ARMED:
         return new CTaskComplexDestroyCarArmed(m_VehicleToDestroy, m_unused, m_unused2, m_unused3);
     case TASK_COMPLEX_LEAVE_CAR:
-        return new CTaskComplexLeaveCar(ped->m_pVehicle, 0, 0, true, false);
+        return new CTaskComplexLeaveCar(ped->m_pMyVehicle, 0, 0, true, false);
     case TASK_COMPLEX_DESTROY_CAR_MELEE:
         return new CTaskComplexDestroyCarMelee(m_VehicleToDestroy);
     default:

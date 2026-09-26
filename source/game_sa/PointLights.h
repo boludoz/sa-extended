@@ -39,10 +39,13 @@ static constexpr auto MAX_POINT_LIGHTS = 32;
 
 class CPointLights {
 public:
+    static void InjectHooks();
+
     static inline auto& NumLights = StaticRef<uint32>(0xC3F0D0); // num of registered lights in frame
     static inline auto& aLights = StaticRef<CPointLight[MAX_POINT_LIGHTS]>(0xC3F0E0);
 
     static inline auto& aCachedMapReadResults = StaticRef<float[MAX_POINT_LIGHTS]>(0xC3F050);
+    static constexpr int32 MAX_CACHED_MAP_READS = 32; //!< calineva API
     static inline auto& NextCachedValue = StaticRef<int32>(0xC3F0D4);
     static inline auto& aCachedMapReads = StaticRef<CVector[MAX_POINT_LIGHTS]>(0xC3F6E0);
 

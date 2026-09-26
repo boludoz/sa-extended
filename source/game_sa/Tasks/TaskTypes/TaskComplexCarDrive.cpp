@@ -91,7 +91,7 @@ CTask* CTaskComplexCarDrive::CreateNextSubTask(CPed* ped) {
     }
     case TASK_COMPLEX_ENTER_ANY_CAR_AS_DRIVER: { // 0x644F39
         if (ped->IsInVehicle()) {
-            CEntity::ChangeEntityReference(m_Veh, ped->m_pVehicle);
+            CEntity::ChangeEntityReference(m_Veh, ped->m_pMyVehicle);
             return Create(TASK_SIMPLE_CAR_DRIVE);
         }
         return m_DesiredCarModel == MODEL_INVALID
@@ -100,7 +100,7 @@ CTask* CTaskComplexCarDrive::CreateNextSubTask(CPed* ped) {
     }
     case TASK_SIMPLE_CREATE_CAR_AND_GET_IN: { // 0x644FA3
         if (ped->IsInVehicle()) {
-            CEntity::ChangeEntityReference(m_Veh, ped->m_pVehicle);
+            CEntity::ChangeEntityReference(m_Veh, ped->m_pMyVehicle);
             return Create(TASK_SIMPLE_CAR_DRIVE);
         }
         return CreateSubTaskCannotGetInCar(ped);
@@ -115,7 +115,7 @@ CTask* CTaskComplexCarDrive::CreateFirstSubTask(CPed* ped) {
     return CreateSubTask([this, ped] {
         if (!m_Veh) {
             if (ped->IsInVehicle()) {
-                CEntity::ChangeEntityReference(m_Veh, ped->m_pVehicle);
+                CEntity::ChangeEntityReference(m_Veh, ped->m_pMyVehicle);
                 return TASK_SIMPLE_CAR_DRIVE;
             }
             return m_bAsDriver
@@ -123,7 +123,7 @@ CTask* CTaskComplexCarDrive::CreateFirstSubTask(CPed* ped) {
                 : TASK_FINISHED;
         }
         if (ped->IsInVehicle()) {
-            return ped->m_pVehicle == m_Veh
+            return ped->m_pMyVehicle == m_Veh
                 ? TASK_SIMPLE_CAR_DRIVE
                 : TASK_COMPLEX_LEAVE_ANY_CAR;
         }
@@ -148,7 +148,7 @@ CTask* CTaskComplexCarDrive::ControlSubTask(CPed* ped) {
             return Drive(ped);
         case TASK_COMPLEX_GO_TO_POINT_ANY_MEANS:
             if (ped->IsInVehicle()) {
-                CEntity::ChangeEntityReference(m_Veh, ped->m_pVehicle);
+                CEntity::ChangeEntityReference(m_Veh, ped->m_pMyVehicle);
                 return CreateSubTask(TASK_SIMPLE_CAR_DRIVE, ped);
             }
         }

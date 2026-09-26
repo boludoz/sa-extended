@@ -130,7 +130,7 @@ void CAEWeatherAudioEntity::UpdateParameters(CAESound* sound, int16 curPlayPos) 
             };
             if (hitEntity && hitEntity != lastEntity && std::abs(camPos.z - pov.z) < 6.f) { // 0x505D50
                 const CVector velocity = player && player->IsInVehicle()
-                    ? player->m_pVehicle->GetMoveSpeed()
+                    ? player->m_pMyVehicle->GetMoveSpeed()
                     : CVector{};
                 const CVector hitPhysicalPos = hitEntity->GetIsTypePhysical()
                     ? hitEntity->GetPosition()

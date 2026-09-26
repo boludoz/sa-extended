@@ -89,7 +89,7 @@ CTask* CTaskComplexFleeAnyMeans::CreateSubTask(eTaskType taskType, CPed* ped) {
         return new CTaskComplexStealCar{ m_stealVeh };
     case TASK_COMPLEX_CAR_DRIVE_MISSION:
         return new CTaskComplexCarDriveMission{
-            ped->m_pVehicle,
+            ped->m_pMyVehicle,
             nullptr,
             MISSION_CRUISE,
             DRIVING_STYLE_PLOUGH_THROUGH,

@@ -234,11 +234,11 @@ void CCarGenerator::DoInternalProcessing()
             break;
         case VEHICLE_TYPE_BIKE:
             vehicle = new CBike(actualModelId, PARKED_VEHICLE);
-            vehicle->AsBike()->bikeFlags.bOnSideStand = true;
+            vehicle->AsBike()->m_nBikeFlags.bOnSideStand = true;
             break;
         case VEHICLE_TYPE_BMX:
             vehicle = new CBmx(actualModelId, PARKED_VEHICLE);
-            vehicle->AsBike()->bikeFlags.bOnSideStand = true;
+            vehicle->AsBike()->m_nBikeFlags.bOnSideStand = true;
             break;
         case VEHICLE_TYPE_TRAILER:
             vehicle = new CTrailer(actualModelId, PARKED_VEHICLE);
@@ -276,11 +276,11 @@ void CCarGenerator::DoInternalProcessing()
         {
             assert(pathLink.IsValid());
 
-            CPathNode& pathNode = ThePaths.m_pPathNodes[pathLink.m_wAreaId][pathLink.m_wNodeId];
-            if (pathNode.m_nNumLinks != 0)
+            CPathNode& pathNode = ThePaths.m_pPathNodes[pathLink.Region][pathLink.Index];
+            if (pathNode.NumberAdjNodes != 0)
             {
-                CNodeAddress baseLink = ThePaths.m_pNodeLinks[pathLink.m_wAreaId][pathNode.m_wBaseLinkId];
-                if (ThePaths.m_pPathNodes[baseLink.m_wAreaId])
+                CNodeAddress baseLink = ThePaths.pAdjacentNodes[pathLink.Region][pathNode.IndexAdjacentNodes];
+                if (ThePaths.m_pPathNodes[baseLink.Region])
                 {
                     vehicle->SetVehicleCreatedBy(RANDOM_VEHICLE);
                     vehicle->m_autoPilot.OldNode = pathLink;
@@ -446,12 +446,12 @@ CVehicle* CCarGenerator::CreateVehicle(eModelID model, eVehicleCreatedBy created
         return new CBoat{model, createdBy};
     case VEHICLE_TYPE_BIKE: {
         auto* bike = new CBike{model, createdBy};
-        bike->bikeFlags.bOnSideStand = true;
+        bike->m_nBikeFlags.bOnSideStand = true;
         return bike;
     }
     case VEHICLE_TYPE_BMX: {
         auto* const bmx = new CBmx{model, createdBy};
-        bmx->bikeFlags.bOnSideStand = true;
+        bmx->m_nBikeFlags.bOnSideStand = true;
         return bmx;
     }
     case VEHICLE_TYPE_TRAILER:

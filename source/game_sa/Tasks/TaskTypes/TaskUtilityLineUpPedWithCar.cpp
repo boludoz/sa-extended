@@ -169,13 +169,13 @@ bool CTaskUtilityLineUpPedWithCar::ProcessPed(CPed* ped, CVehicle* vehicle, CAni
     bool bIsUpsideDown = false;
     if (vehicle->GetUp().z <= -0.8f) {
         bIsUpsideDown = true;
-        ped->m_fAimingRotation = m_nDoorIdx == TARGET_DOOR_FRONT_RIGHT || m_nDoorIdx == TARGET_DOOR_REAR_RIGHT
+        ped->m_fDesiredHeading = m_nDoorIdx == TARGET_DOOR_FRONT_RIGHT || m_nDoorIdx == TARGET_DOOR_REAR_RIGHT
             ? vehicle->GetHeading() - PI
             : vehicle->GetHeading();
     } else if (m_nDoorIdx == 18) {
-        ped->m_fAimingRotation = vehicle->GetHeading() + PI;
+        ped->m_fDesiredHeading = vehicle->GetHeading() + PI;
     } else if (m_nDoorOpenPosType != 2) {
-        ped->m_fAimingRotation = vehicle->GetHeading();
+        ped->m_fDesiredHeading = vehicle->GetHeading();
     }
 
     // How far along the door (X) and up from the ground (Z) the ped should be
@@ -305,7 +305,7 @@ bool CTaskUtilityLineUpPedWithCar::ProcessPed(CPed* ped, CVehicle* vehicle, CAni
         roadPos = GetPositionToOpenCarDoor(vehicle, 1.f, assoc);
     }
 
-    if (vehicle->physicalFlags.bSubmergedInWater) {
+    if (vehicle->m_nPhysicalFlags.bIsInWater) {
         if (vehicle->IsBoat() && vehicle->IsUpsideDown()) {
             roadPos.z += 1.f;
         }
@@ -359,10 +359,10 @@ bool CTaskUtilityLineUpPedWithCar::ProcessPed(CPed* ped, CVehicle* vehicle, CAni
 
     // Blend the heading and the initial offset out over time
     if (CTimer::GetTimeInMS() >= (uint32)m_fTime) {
-        ped->m_fCurrentRotation = ped->m_fAimingRotation;
+        ped->m_fCurrentHeading = ped->m_fDesiredHeading;
     } else {
-        auto aimingRotation = CGeneral::LimitRadianAngle(ped->m_fAimingRotation);
-        const auto currentRotation = ped->m_fCurrentRotation;
+        auto aimingRotation = CGeneral::LimitRadianAngle(ped->m_fDesiredHeading);
+        const auto currentRotation = ped->m_fCurrentHeading;
         const auto timeLeft = (float)(m_fTime - (int32)CTimer::GetTimeInMS()) / 600.f;
         if (timeLeft <= 0.f) {
             m_Offset.x = 0.f;
@@ -376,7 +376,7 @@ bool CTaskUtilityLineUpPedWithCar::ProcessPed(CPed* ped, CVehicle* vehicle, CAni
         } else if (currentRotation - PI > aimingRotation) {
             aimingRotation += TWO_PI;
         }
-        ped->m_fCurrentRotation = currentRotation - (currentRotation - aimingRotation) * (1.f - timeLeft);
+        ped->m_fCurrentHeading = currentRotation - (currentRotation - aimingRotation) * (1.f - timeLeft);
     }
 
     // Slerp the ped's orientation between `from` and `to`, placing it at `targetPos`
@@ -429,7 +429,7 @@ bool CTaskUtilityLineUpPedWithCar::ProcessPed(CPed* ped, CVehicle* vehicle, CAni
         case ANIM_ID_UNKNOWN_26: {
             // Turn from the vehicle's orientation to the ped's heading
             CMatrix pedMat{ ped->GetMatrix() };
-            pedMat.SetRotateZOnly(ped->m_fCurrentRotation);
+            pedMat.SetRotateZOnly(ped->m_fCurrentHeading);
             SetPedMatrixSlerped(CMatrix{ vehicle->GetMatrix() }, pedMat);
             return false;
         }
@@ -440,7 +440,7 @@ bool CTaskUtilityLineUpPedWithCar::ProcessPed(CPed* ped, CVehicle* vehicle, CAni
 
     if (xBlend > 0.2f || bIsUpsideDown || vehicle->IsBike() || vehicle->IsSubQuad()) {
         ped->SetPosn(targetPos);
-        ped->SetOrientation(0.f, 0.f, ped->m_fCurrentRotation);
+        ped->SetOrientation(0.f, 0.f, ped->m_fCurrentHeading);
     } else {
         CMatrix vehMat{ vehicle->GetMatrix() };
         vehMat.GetPosition() += vehMat.TransformVector(GetLocalPositionToOpenCarDoor(vehicle, 0.f, assoc));

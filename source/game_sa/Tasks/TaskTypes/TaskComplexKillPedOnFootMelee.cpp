@@ -116,7 +116,7 @@ CTask* CTaskComplexKillPedOnFootMelee::CreateNextSubTask(CPed* ped) {
         return Create(TASK_SIMPLE_FIGHT_CTRL);
     case TASK_SIMPLE_STAND_STILL:
     case TASK_COMPLEX_SEQUENCE: // 0x62BC4A
-        return m_target->physicalFlags.bSubmergedInWater
+        return m_target->m_nPhysicalFlags.bIsInWater
             ? CreateFirstSubTask(ped)
             : Create(TASK_SIMPLE_STAND_STILL);
     case TASK_SIMPLE_PAUSE: { // 0x62BC98
@@ -187,13 +187,13 @@ CTask* CTaskComplexKillPedOnFootMelee::ControlSubTask(CPed* ped) {
 
     switch (m_pSubTask->GetTaskType()) {
     case TASK_COMPLEX_SEQUENCE: { // 0x626dfe
-        return m_target->physicalFlags.bSubmergedInWater
+        return m_target->m_nPhysicalFlags.bIsInWater
             ? m_pSubTask
             : TryAbortAndCreate(TASK_SIMPLE_FIGHT_CTRL);
     }
     case TASK_SIMPLE_PAUSE: // 0x626e05
     case TASK_COMPLEX_SEEK_ENTITY: {  // 0x626f0e
-        if (m_target->physicalFlags.bSubmergedInWater) {
+        if (m_target->m_nPhysicalFlags.bIsInWater) {
             return TryAbortAndCreate(TASK_COMPLEX_SEQUENCE);
         }
         if (IsTargetInRange(ped, m_arriveRange)) {
@@ -202,7 +202,7 @@ CTask* CTaskComplexKillPedOnFootMelee::ControlSubTask(CPed* ped) {
         return TryAbortAndCreate(TASK_SIMPLE_FIGHT_CTRL);
     }
     case TASK_SIMPLE_FIGHT_CTRL: { // 0x626E5C
-        if (m_target->physicalFlags.bSubmergedInWater) {
+        if (m_target->m_nPhysicalFlags.bIsInWater) {
             return TryAbortAndCreate(TASK_COMPLEX_SEQUENCE);
         }
         if (!IsTargetInRange(ped, m_attackRange)) {

@@ -96,7 +96,7 @@ void CTaskComplexCarSlowBeDraggedOut::PrepareVehicleForPedExit(CPed* ped) {
 
 // 0x??????
 void CTaskComplexCarSlowBeDraggedOut::PreparePedForVehicleExit(CPed* ped) {
-    ped->SetOrientation(0.f, 0.f, ped->m_fCurrentRotation);
+    ped->SetOrientation(0.f, 0.f, ped->m_fCurrentHeading);
     ped->SetPedState(PEDSTATE_NONE);
 }
 

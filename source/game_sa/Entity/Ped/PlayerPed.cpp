@@ -123,7 +123,7 @@ bool CPlayerPed::Save() {
 
 // 0x60D5B0
 CPlayerPed::CPlayerPed(int32 playerId, bool bGroupCreated) : CPed(PED_TYPE_PLAYER1) {
-    m_pPlayerData = &CWorld::Players[playerId].m_PlayerData;
+    m_pPlayerData = &CWorld::Players[playerId].PlayerPedData;
     GetPlayerData()->AllocateData();
 
     CPed::SetModelIndex(MODEL_PLAYER);
@@ -171,7 +171,7 @@ void CPlayerPed::RemovePlayerPed(int32 playerId) {
     CPlayerInfo* playerInfo = &FindPlayerInfo(playerId);
     if (player)
     {
-        CVehicle* playerVehicle = player->m_pVehicle;
+        CVehicle* playerVehicle = player->m_pMyVehicle;
         if (playerVehicle && playerVehicle->m_pDriver == player)
         {
             playerVehicle->SetStatus(STATUS_PHYSICS);
@@ -180,7 +180,7 @@ void CPlayerPed::RemovePlayerPed(int32 playerId) {
         }
         CWorld::Remove(static_cast<CEntity*>(player));
         delete player;
-        playerInfo->m_pPed = nullptr;
+        playerInfo->pPed = nullptr;
     }
 }
 
@@ -384,7 +384,7 @@ float CPlayerPed::GetWeaponRadiusOnScreen() {
 // 0x609D90
 bool CPlayerPed::PedCanBeTargettedVehicleWise(CPed* ped) {
     if (ped->bInVehicle) {
-        CVehicle* veh = ped->m_pVehicle;
+        CVehicle* veh = ped->m_pMyVehicle;
         return veh && (veh->IsBike() || veh->vehicleFlags.bVehicleCanBeTargetted);
     }
     return true;
@@ -501,7 +501,7 @@ void CPlayerPed::DoStuffToGoOnFire() {
 
 // 0x60A040
 void CPlayerPed::AnnoyPlayerPed(bool arg0) {
-    auto& temper = m_pStats->m_nTemper;
+    auto& temper = m_pPedStats->m_nTemper;
 
     if (temper < 52) {
         temper++;
@@ -638,7 +638,7 @@ void CPlayerPed::ResetSprintEnergy()
 bool CPlayerPed::HandleSprintEnergy(bool sprint, float adrenalineConsumedPerTimeStep) {
     float& timeCanRun = GetPlayerData()->m_fTimeCanRun;
     if (sprint) {
-        if (FindPlayerInfo().m_bDoesNotGetTired)
+        if (FindPlayerInfo().DoesNotGetTired)
             return true;
         if (GetPlayerData()->m_bAdrenaline || adrenalineConsumedPerTimeStep == 0.0f)
             return true;
@@ -964,7 +964,7 @@ bool CPlayerPed::PlayerHasJustAttackedSomeone() {
 void CPlayerPed::SetupPlayerPed(int32 playerId) {
     auto ped = new CPlayerPed(playerId, false);
     auto& playerInfo = FindPlayerInfo(playerId);
-    playerInfo.m_pPed = ped;
+    playerInfo.pPed = ped;
 
     if (playerId == 1)
         ped->m_nPedType = PED_TYPE_PLAYER2;
@@ -972,7 +972,7 @@ void CPlayerPed::SetupPlayerPed(int32 playerId) {
     ped->SetOrientation(0.0f, 0.0f, 0.0f);
     CWorld::Add(ped);
     ped->m_nWeaponAccuracy = 100;
-    playerInfo.m_nPlayerState = ePlayerState::PLAYERSTATE_PLAYING;
+    playerInfo.PlayerState = ePlayerState::PLAYERSTATE_PLAYING;
 }
 
 // 0x60D850
@@ -1078,7 +1078,7 @@ void CPlayerPed::ProcessControl() {
                     }
                 }
                 if (targetPed->bInVehicle) {
-                    auto targetVeh = targetPed->m_pVehicle;
+                    auto targetVeh = targetPed->m_pMyVehicle;
                     if (targetVeh)
                         effectPos += (targetVeh->m_vecMoveSpeed + targetVeh->m_vecTurnSpeed) * CTimer::GetTimeStep();
                 }
@@ -1122,7 +1122,7 @@ void CPlayerPed::ProcessControl() {
         } else if (CStats::GetFatAndMuscleModifier(STAT_MOD_TIME_CAN_RUN) > GetPlayerData()->m_fTimeCanRun)
             GetPlayerData()->m_fTimeCanRun += CTimer::GetTimeStep() * 0.15f;
     } else if (bInVehicle) {
-        if (m_pVehicle && !m_pVehicle->IsSubBMX())
+        if (m_pMyVehicle && !m_pMyVehicle->IsSubBMX())
             HandleSprintEnergy(false, 1.0f);
     }
     GetActiveWeapon().Update(this);
@@ -1146,7 +1146,7 @@ void CPlayerPed::ProcessControl() {
         }
         if (IsPedShootable() && this->m_nPedState != PEDSTATE_ANSWER_MOBILE) {
             int32 slot = CWorld::FindPlayerSlotWithPedPointer(this);
-            if (!CWorld::Players[slot].m_pRemoteVehicle)
+            if (!CWorld::Players[slot].pRemoteVehicle)
                 ProcessWeaponSwitch(pad);
         }
     }
@@ -1155,11 +1155,11 @@ void CPlayerPed::ProcessControl() {
         auto& activeCam = TheCamera.GetActiveCamera();
         m_nLookTime = 0;
         float lookDir = CGeneral::LimitRadianAngle(atan2(-activeCam.m_vecFront.x, activeCam.m_vecFront.y));
-        float angle = fabs(lookDir - m_fCurrentRotation);
+        float angle = fabs(lookDir - m_fCurrentHeading);
         if (m_nPedState != PEDSTATE_ATTACK && angle > DegreesToRadians(30.0f) && angle < DegreesToRadians(330.0f)) {
             if (angle > DegreesToRadians(150.0f) && angle < DegreesToRadians(210.0f)) {
-                float dir1 = CGeneral::LimitRadianAngle(m_fCurrentRotation - DegreesToRadians(150.0f));
-                float dir2 = CGeneral::LimitRadianAngle(m_fCurrentRotation + DegreesToRadians(150.0f));
+                float dir1 = CGeneral::LimitRadianAngle(m_fCurrentHeading - DegreesToRadians(150.0f));
+                float dir2 = CGeneral::LimitRadianAngle(m_fCurrentHeading + DegreesToRadians(150.0f));
                 lookDir = dir1;
                 if (m_fLookDirection != 999'999.f && !bIsDucking) {
                     if (fabs(dir2 - m_fLookDirection) <= fabs(dir1 - m_fLookDirection))
@@ -1194,7 +1194,7 @@ void CPlayerPed::ProcessControl() {
         GetPlayerData()->m_nLastTimeFiring = CTimer::GetTimeInMS();
     ProcessGroupBehaviour(pad);
     if (bInVehicle)
-        CCarCtrl::RegisterVehicleOfInterest(m_pVehicle);
+        CCarCtrl::RegisterVehicleOfInterest(m_pMyVehicle);
     if (!GetIsVisible())
         UpdateRpHAnim();
     if (bInVehicle) {
@@ -1206,7 +1206,7 @@ void CPlayerPed::ProcessControl() {
             GetPlayerData()->m_bPlayersGangActive = false;
         }
     }
-    if (physicalFlags.bSubmergedInWater) {
+    if (m_nPhysicalFlags.bIsInWater) {
         CVector pos = GetPosition();
         pos.z += 1.5f;
         if (CWaterLevel::GetWaterLevel(pos.x, pos.y, pos.z, GetPlayerData()->m_fWaterHeight, true, nullptr)) {
@@ -1222,7 +1222,7 @@ void CPlayerPed::ProcessControl() {
                 GetPlayerData()->m_nWaterCoverPerc = 100;
             }
         } else {
-            physicalFlags.bSubmergedInWater = false;
+            m_nPhysicalFlags.bIsInWater = false;
         }
     } else {
         GetPlayerData()->m_nWaterCoverPerc = 0;

@@ -23,7 +23,7 @@ public:
         return    m_pPed
                && !m_bIsTreated
                && !m_bIsRevived
-               && !m_pPed->physicalFlags.bSubmergedInWater;
+               && !m_pPed->m_nPhysicalFlags.bIsInWater;
     }
 };
 VALIDATE_SIZE(CAccident, 0x8);

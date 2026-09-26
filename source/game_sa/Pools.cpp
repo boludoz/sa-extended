@@ -199,7 +199,7 @@ bool CPools::LoadPedPool() {
         if (pedType == PED_TYPE_PLAYER1) {
             playerPed = new(poolRef) CPlayerPed(0, false);
             playerPed->SetWeaponAccuracy(100);
-            CWorld::Players[0].m_pPed = playerPed;
+            CWorld::Players[0].pPed = playerPed;
         }
         assert(playerPed != nullptr);
 
@@ -245,11 +245,11 @@ bool CPools::LoadVehiclePool() {
             break;
         case VEHICLE_TYPE_BIKE:
             vehicle = new CBike(modelId, RANDOM_VEHICLE);
-            vehicle->AsBike()->bikeFlags.bOnSideStand = true;
+            vehicle->AsBike()->m_nBikeFlags.bOnSideStand = true;
             break;
         case VEHICLE_TYPE_BMX:
             vehicle = new CBmx(modelId, RANDOM_VEHICLE);
-            vehicle->AsBike()->bikeFlags.bOnSideStand = true;
+            vehicle->AsBike()->m_nBikeFlags.bOnSideStand = true;
             break;
         case VEHICLE_TYPE_TRAILER:
             vehicle = new CTrailer(modelId, RANDOM_VEHICLE);

@@ -34,7 +34,7 @@ void CTaskAllocatorKillThreatsDriveby::AllocateTasks(CPedGroupIntelligence* inte
                 if (!mem || mem->IsPlayer()) { // 0x69CD04
                     continue;
                 }
-                if (mem->bInVehicle && mem->m_pVehicle->IsDriver(mem)) { // 0x69CD19
+                if (mem->bInVehicle && mem->m_pMyVehicle->IsDriver(mem)) { // 0x69CD19
                     continue;
                 }
                 auto* const target = closest[i];
@@ -51,7 +51,7 @@ void CTaskAllocatorKillThreatsDriveby::AllocateTasks(CPedGroupIntelligence* inte
             if (mem->IsPlayer()) {
                 continue;
             }
-            if (mem->bInVehicle && mem->m_pVehicle->IsDriver(mem)) { // 0x69CD19
+            if (mem->bInVehicle && mem->m_pMyVehicle->IsDriver(mem)) { // 0x69CD19
                 continue;
             }
             if (mem->bInVehicle) {

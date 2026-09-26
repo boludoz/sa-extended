@@ -58,7 +58,7 @@ void CVehicleRecording::ChangeCarPlaybackToUseAI(CVehicle* vehicle) {
 
         vehicle->m_autoPilot.SetCarMission(MISSION_FOLLOW_RECORDED_PATH);
         SetRecordingToPointClosestToCoors(i, vehicle->GetPosition());
-        vehicle->physicalFlags.bDisableCollisionForce = false;
+        vehicle->m_nPhysicalFlags.bInfiniteMass = false;
         vehicle->ProcessControlCollisionCheck(false);
         vehicle->SetStatus(STATUS_PHYSICS);
     }
@@ -157,7 +157,7 @@ void CVehicleRecording::RequestRecordingFile(int32 fileNumber) {
 void CVehicleRecording::StopPlaybackWithIndex(int32 playbackId) {
     if (auto vehicle = pVehicleForPlayback[playbackId]) {
         vehicle->m_autoPilot.RecordingNumber = -1;
-        pVehicleForPlayback[playbackId]->physicalFlags.bDisableCollisionForce = false;
+        pVehicleForPlayback[playbackId]->m_nPhysicalFlags.bInfiniteMass = false;
     }
     pVehicleForPlayback[playbackId] = nullptr;
     pPlaybackBuffer[playbackId] = nullptr;
@@ -193,8 +193,8 @@ void CVehicleRecording::StartPlaybackRecordedCar(CVehicle* vehicle, int32 fileNu
         vehicle->m_autoPilot.SetCarMission(MISSION_FOLLOW_RECORDED_PATH);
         SetRecordingToPointClosestToCoors(playbackId, vehicle->GetPosition());
     } else {
-        vehicle->physicalFlags.bDisableCollisionForce = true;
-        vehicle->physicalFlags.bCollidable = false;
+        vehicle->m_nPhysicalFlags.bInfiniteMass = true;
+        vehicle->m_nPhysicalFlags.bInfiniteMassFixed = false;
     }
     vehicle->m_autoPilot.RecordingNumber = playbackId;
 }
@@ -283,7 +283,7 @@ void CVehicleRecording::SaveOrRetrieveDataForThisFrame() {
     for (const auto i : GetActivePlaybackIndices()) {
         auto vehicle = pVehicleForPlayback[i];
 
-        if (!vehicle || vehicle->physicalFlags.bRenderScorched) {
+        if (!vehicle || vehicle->m_nPhysicalFlags.bRenderScorched) {
             StopPlaybackWithIndex(i);
             continue;
         }
@@ -395,7 +395,7 @@ void CVehicleRecording::SkipToEndAndStopPlaybackRecordedCar(CVehicle* vehicle) {
     if (const auto i = FindVehicleRecordingIndex(vehicle); i != -1) {
         assert(!GetFramesFromPlaybackBuffer(i).empty());
 
-        vehicle->physicalFlags.bCollidable = false;
+        vehicle->m_nPhysicalFlags.bInfiniteMassFixed = false;
         RestoreInfoForCar(vehicle, GetFramesFromPlaybackBuffer(i).back(), false);
         vehicle->ProcessControlCollisionCheck(false);
         pVehicleForPlayback[i] = nullptr;

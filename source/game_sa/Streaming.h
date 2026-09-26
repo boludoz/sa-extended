@@ -304,6 +304,8 @@ public:
     static eModelID GetDefaultCopModel();
     static eModelID GetDefaultFiremanModel();
     static eModelID GetDefaultMedicModel();
+    static eModelID GetDefaultAmbulanceModel();
+    static eModelID GetDefaultFireEngineModel();
     static int32 GetDiscInDrive();
     static int32 GetNextFileOnCd(uint32 streamLastPosn, bool bNotPriority);
     static bool HasSpecialCharLoaded(int32 slot);
@@ -400,6 +402,8 @@ public:
 
     // Inlined or NOTSA
     static bool IsModelLoaded(int32 model) { return ms_aInfoForModel[model].m_LoadState == eStreamingLoadState::LOADSTATE_LOADED; }
+    static void RequestScript(int32 index, int32 flags) { RequestModel(SCMToModelId(index), flags); } //!< calineva API (0x46A570)
+    static bool HasScriptLoaded(int32 index) { return IsModelLoaded(SCMToModelId(index)); }        //!< calineva API
     static CStreamingInfo& GetInfo(int32 modelId) { assert(modelId >= 0); return ms_aInfoForModel[modelId]; }
     static bool IsRequestListEmpty() { return ms_pEndRequestedList->GetPrev() == ms_pStartRequestedList; }
     static ptrdiff_t GetModelFromInfo(const CStreamingInfo* info) { return notsa::array_indexof(ms_aInfoForModel, info); }

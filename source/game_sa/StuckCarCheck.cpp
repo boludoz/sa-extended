@@ -140,7 +140,7 @@ void CStuckCarCheck::Process() {
         if (car.WarpIfFlipped && CTheScripts::UpsideDownCars.IsCarUpsideDown(vehicle)) {
             shouldWarp = true;
         }
-        if (car.WarpIfInWater && vehicle->physicalFlags.bSubmergedInWater) {
+        if (car.WarpIfInWater && vehicle->m_nPhysicalFlags.bIsInWater) {
             shouldWarp = true;
         }
 

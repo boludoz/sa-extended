@@ -26,7 +26,7 @@ CTaskSimpleCarSetPedSlowDraggedOut::CTaskSimpleCarSetPedSlowDraggedOut(CVehicle*
 
 // 0x64C220
 bool CTaskSimpleCarSetPedSlowDraggedOut::ProcessPed(CPed* ped) {
-    if (!ped->m_pVehicle || !m_Vehicle) {
+    if (!ped->m_pMyVehicle || !m_Vehicle) {
         return true;
     }
 
@@ -80,8 +80,8 @@ bool CTaskSimpleCarSetPedSlowDraggedOut::ProcessPed(CPed* ped) {
     ped->SetPosn(std::get<CVector>(CPedPlacement::FindZCoorForPed(ped->GetMatrix().TransformPoint(offset))));
 
     // 0x64C50B - Reset rotation
-    ped->m_fCurrentRotation
-        = ped->m_fAimingRotation
+    ped->m_fCurrentHeading
+        = ped->m_fDesiredHeading
         = ped->GetHeading();
     ped->CalculateNewOrientation();
 

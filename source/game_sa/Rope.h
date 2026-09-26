@@ -50,7 +50,7 @@ public:
     void ReleasePickedUpObject();
     bool DoControlsApply() const;
     void CreateHookObjectForRope();
-    int8 UpdateWeightInRope(float a2, float a3, float a4, int32 a5, float* a6);
+    bool UpdateWeightInRope(CVector weightCoors, float relativeWeight, CVector* newWeightCoors);
     void Remove();
     void Render();
     void PickUpObject(CEntity* obj);

@@ -400,8 +400,8 @@ void CAEVehicleAudioEntity::UpdateGasPedalAudio(CVehicle* vehicle, int32 vehicle
 
     const auto current = std::fabs(vehicle->m_GasPedal);
     float& value = vehicleType == VEHICLE_TYPE_BIKE
-        ? vehicle->AsBike()->m_GasPedalAudioRevs
-        : vehicle->AsAutomobile()->m_GasPedalAudioRevs;
+        ? vehicle->AsBike()->m_fGasPedalAudioRevs
+        : vehicle->AsAutomobile()->m_fGasPedalAudioRevs;
     value = notsa::step_to(value, current, cfg->StepUp, cfg->StepDown, notsa::bugfixes::GenericFrameRate);
 }
 
@@ -1040,10 +1040,10 @@ void CAEVehicleAudioEntity::ProcessVehicleSirenAlarmHorn(tVehicleParams& vp) {
             GetHornState(&isHornOn, vp);
         } else {
             const auto time = CTimer::GetTimeInMS();
-            if (time > vp.Vehicle->m_HornCounter) {
-                vp.Vehicle->m_HornCounter = time + 750;
+            if (time > vp.Vehicle->m_cHorn) {
+                vp.Vehicle->m_cHorn = time + 750;
             }
-            isHornOn = vp.Vehicle->m_HornCounter < time + 750 / 2;
+            isHornOn = vp.Vehicle->m_cHorn < time + 750 / 2;
         }
     }
 
@@ -1946,7 +1946,7 @@ void CAEVehicleAudioEntity::GetSirenState(bool& isSirenOn, bool& isFastSirenOn, 
     if (m_IsWreckedVehicle || !m_HasSiren || !vp.Vehicle->vehicleFlags.bSirenOrAlarm) {
         isSirenOn = false;
     } else if (isSirenOn = (vp.Vehicle->GetStatus() != STATUS_ABANDONED)) {
-        isFastSirenOn = vp.Vehicle->m_HornCounter && vp.Vehicle->GetModelIndex() != MODEL_MRWHOOP;
+        isFastSirenOn = vp.Vehicle->m_cHorn && vp.Vehicle->GetModelIndex() != MODEL_MRWHOOP;
     }
 }
 
@@ -1963,17 +1963,17 @@ bool CAEVehicleAudioEntity::GetHornState(tVehicleParams& vp) const noexcept {
     if (vp.Vehicle->m_nAlarmState && vp.Vehicle->m_nAlarmState != (uint16)-1 && vp.Vehicle->GetStatus() != STATUS_WRECKED) {
         return false;
     }
-    if (!vp.Vehicle->m_HornCounter) {
+    if (!vp.Vehicle->m_cHorn) {
         return false;
     }
     if (vp.Vehicle->GetStatus() == STATUS_PLAYER) {
         return true;
     }
-    vp.Vehicle->m_HornCounter = std::min(HORN_PATTERN_SIZE, vp.Vehicle->m_HornCounter);
-    if (vp.Vehicle->m_HornCounter == HORN_PATTERN_SIZE) {
+    vp.Vehicle->m_cHorn = std::min(HORN_PATTERN_SIZE, vp.Vehicle->m_cHorn);
+    if (vp.Vehicle->m_cHorn == HORN_PATTERN_SIZE) {
         vp.Vehicle->m_HornPattern = (int8)(CGeneral::GetRandomNumberInRange(0u, HORN_NUM_PATTERNS));
     }
-    return HornPattern[vp.Vehicle->m_HornPattern][HORN_PATTERN_SIZE - vp.Vehicle->m_HornCounter];
+    return HornPattern[vp.Vehicle->m_HornPattern][HORN_PATTERN_SIZE - vp.Vehicle->m_cHorn];
 }
 
 // 0x4F99D0
@@ -2118,20 +2118,20 @@ void CAEVehicleAudioEntity::ProcessVehicleSkidding(tVehicleParams& vp) {
     case VEHICLE_TYPE_AUTOMOBILE: {
         auto* const a = vp.Vehicle->AsAutomobile();
         CalculateWheelSkid(
-            a->m_GasPedalAudioRevs,
-            a->m_WheelStates[CAR_WHEEL_REAR_LEFT] != WHEEL_STATE_SKIDDING && a->m_WheelStates[CAR_WHEEL_REAR_RIGHT] != WHEEL_STATE_SKIDDING,
-            a->m_WheelStates,
-            a->m_WheelCounts
+            a->m_fGasPedalAudioRevs,
+            a->m_aWheelState[CAR_WHEEL_REAR_LEFT] != WHEEL_STATE_SKIDDING && a->m_aWheelState[CAR_WHEEL_REAR_RIGHT] != WHEEL_STATE_SKIDDING,
+            a->m_aWheelState,
+            a->m_aWheelCounts
         );
         break;
     }
     case VEHICLE_TYPE_BIKE: {
         auto* const b = vp.Vehicle->AsBike();
         CalculateWheelSkid(
-            b->m_GasPedalAudioRevs,
-            b->m_WheelStates[1] != WHEEL_STATE_SKIDDING,
-            b->m_WheelStates,
-            b->m_WheelCounts
+            b->m_fGasPedalAudioRevs,
+            b->m_aWheelState[1] != WHEEL_STATE_SKIDDING,
+            b->m_aWheelState,
+            b->m_aWheelCounts
         );
         break;
     }
@@ -2285,7 +2285,7 @@ void CAEVehicleAudioEntity::ProcessVehicleFlatTyre(tVehicleParams& vp) {
         }
         case AE_CAR: {
             for (int32 i = 0; i < MAX_CARWHEELS; i++) {
-                if (vp.Vehicle->AsAutomobile()->m_WheelCounts[i] <= 0.f) {
+                if (vp.Vehicle->AsAutomobile()->m_aWheelCounts[i] <= 0.f) {
                     continue;
                 }
                 if (vp.Vehicle->AsAutomobile()->GetDamageManager().GetWheelStatus((eCarWheel)(i)) != WHEEL_STATE_SPINNING) {
@@ -2298,7 +2298,7 @@ void CAEVehicleAudioEntity::ProcessVehicleFlatTyre(tVehicleParams& vp) {
         case AE_BIKE:
         case AE_BMX: {
             for (int32 i = 0; i < 2; i++) {
-                if (vp.Vehicle->AsBike()->m_WheelCounts[i] <= 0.f) {
+                if (vp.Vehicle->AsBike()->m_aWheelCounts[i] <= 0.f) {
                     continue;
                 }
                 if (vp.Vehicle->AsBike()->m_nWheelStatus[i] != WHEEL_STATE_SPINNING) {
@@ -2380,12 +2380,12 @@ void CAEVehicleAudioEntity::ProcessReverseGear(tVehicleParams& vp) {
     const auto* cfg = &s_Config.ReverseGear;
 
     if (a->vehicleFlags.bEngineOn && (a->m_GasPedal < 0.0f || a->m_nCurrentGear == 0)) { // Are we reversing?
-        if (!a->m_NumDriveWheelsOnGround && a->m_NumDriveWheelsOnGroundLastFrame) {
-            a->m_GasPedalAudioRevs *= 0.4f;
+        if (!a->m_nDriveWheelsOnGround && a->m_nDriveWheelsOnGroundLastFrame) {
+            a->m_fGasPedalAudioRevs *= 0.4f;
         }
-        const auto revs = a->m_NumDriveWheelsOnGround
+        const auto revs = a->m_nDriveWheelsOnGround
             ? vp.Speed / vp.Transmission->m_MaxReverseVelocity
-            : a->m_GasPedalAudioRevs;
+            : a->m_fGasPedalAudioRevs;
         PlayReverseSound(
             a->m_GasPedal >= 0.0f ? 20 : 19,
             cfg->FrqBase + std::abs(revs) * cfg->FrqRevsFactor,
@@ -2639,7 +2639,7 @@ float CAEVehicleAudioEntity::GetFreqForPlayerEngineSound(tVehicleParams& vp, eVe
             auto* const bike = vp.Vehicle->AsBike();
 
             bf = std::sin(bike->GetRideAnimData()->LeanAngle) * cfg->FrqBikeLeanFactor;
-            if (bike->bikeFlags.bPlayerBoost) {
+            if (bike->m_nBikeFlags.bPlayerBoost) {
                 bf += cfg->FrqPlayerBikeBoostOffset;
             }
             bf *= gf;
@@ -2722,19 +2722,19 @@ void CAEVehicleAudioEntity::ProcessPlayerVehicleEngine(tVehicleParams& vp) {
     if (vp.Vehicle->IsBike()) { // 0x4FBC86
         auto* const b = vp.Vehicle->AsBike();
 
-        vp.NumDriveWheelsOnGround          = b->m_NumDriveWheelsOnGround;
-        vp.NumDriveWheelsOnGroundLastFrame = b->m_NumDriveWheelsOnGroundLastFrame;
-        vp.GasPedalAudioRevs               = &b->m_GasPedalAudioRevs;
-        vp.WheelState                      = b->m_WheelStates.data();
-        vp.PrevSpeed                       = b->m_PrevSpeed;
+        vp.NumDriveWheelsOnGround          = b->m_nDriveWheelsOnGround;
+        vp.NumDriveWheelsOnGroundLastFrame = b->m_nDriveWheelsOnGroundLastFrame;
+        vp.GasPedalAudioRevs               = &b->m_fGasPedalAudioRevs;
+        vp.WheelState                      = b->m_aWheelState.data();
+        vp.PrevSpeed                       = b->fPrevSpeed;
     } else if (vp.Vehicle->IsAutomobile()) {
         auto* const a = vp.Vehicle->AsAutomobile();
 
-        vp.NumDriveWheelsOnGround          = a->m_NumDriveWheelsOnGround;
-        vp.NumDriveWheelsOnGroundLastFrame = a->m_NumDriveWheelsOnGroundLastFrame;
-        vp.GasPedalAudioRevs               = &a->m_GasPedalAudioRevs;
-        vp.WheelState                      = a->m_WheelStates.data();
-        vp.PrevSpeed                       = a->m_PrevSpeed;
+        vp.NumDriveWheelsOnGround          = a->m_nDriveWheelsOnGround;
+        vp.NumDriveWheelsOnGroundLastFrame = a->m_nDriveWheelsOnGroundLastFrame;
+        vp.GasPedalAudioRevs               = &a->m_fGasPedalAudioRevs;
+        vp.WheelState                      = a->m_aWheelState.data();
+        vp.PrevSpeed                       = a->fPrevSpeed;
     } else {
         NOTSA_UNREACHABLE();
     }
@@ -3277,7 +3277,7 @@ auto GetPropSpeedFactor(float propSpeed) {
 float CalculatePropSpeed(const CPlane* plane, float gas, float brake) {
     return plane->m_autoPilot.RecordingNumber != -1
         ? 0.7f + 0.3f * std::clamp(std::max(gas, brake), 0.f, 1.f)
-        : plane->m_fPropSpeed / 0.34f;
+        : plane->m_fEngineSpeed / 0.34f;
 }
 
 // notsa
@@ -3857,7 +3857,7 @@ void CAEVehicleAudioEntity::ProcessDummyRCPlane(tVehicleParams& vp) {
     }
 
     // 0x4FA8A2 - Propeller speed factor
-    const auto sf = GetDummyRCRotorSpeedFactor(plane->m_fPropSpeed / 0.34f);
+    const auto sf = GetDummyRCRotorSpeedFactor(plane->m_fEngineSpeed / 0.34f);
 
     // 0x4FA8B9 - Calculate accel/brake
     UpdateDummyRCAcAndBrake(vp);
@@ -3933,10 +3933,10 @@ void CAEVehicleAudioEntity::ProcessPlayerRCHeli(tVehicleParams& params) {
 
 // notsa
 auto GetTrainSpeed(const CTrain* train) {
-    auto trspeed = train->trainFlags.bNotOnARailRoad
+    auto trspeed = train->m_nTrainFlags.bDerailed
         ? 0.f
-        : train->m_fTrainSpeed;
-    if (train->trainFlags.bClockwiseDirection) {
+        : train->LinearSpeed;
+    if (train->m_nTrainFlags.bDirection) {
         trspeed = -trspeed;
     }
     return trspeed;
@@ -3944,7 +3944,7 @@ auto GetTrainSpeed(const CTrain* train) {
 
 // notsa
 auto GetTrainSpeedFactor(const CTrain* train, float trspeed) {
-    return train->trainFlags.bNotOnARailRoad
+    return train->m_nTrainFlags.bDerailed
         ? 0.f
         : std::clamp(std::abs(trspeed), 0.f, 1.f);
 }
@@ -3972,7 +3972,7 @@ void CAEVehicleAudioEntity::ProcessDummyTrainEngine(tVehicleParams& vp) {
         return;
     }
 
-    if (!train->trainFlags.bIsFrontCarriage) {
+    if (!train->m_nTrainFlags.bEngine) {
         StopGenericEngineSound(AE_SOUND_TRAIN_ENGINE);
         return;
     }
@@ -4024,7 +4024,7 @@ void CAEVehicleAudioEntity::ProcessPlayerTrainBrakes(tVehicleParams& vp) {
         { 0.1f, 1.f },
         { 1.f, 1.f }
     }, sf);
-    if (vol >= -100.f && !train->trainFlags.bNotOnARailRoad && train->trainFlags.bIsFrontCarriage) {
+    if (vol >= -100.f && !train->m_nTrainFlags.bDerailed && train->m_nTrainFlags.bEngine) {
         PlayTrainBrakeSound(
             0,
             lerp(cfg->FrqMin, cfg->FrqMax, sf),
@@ -4049,8 +4049,8 @@ void CAEVehicleAudioEntity::ProcessTrainTrackSound(tVehicleParams& vp) {
         return;
     }
 
-    const auto sf = std::abs(train->m_fTrainSpeed); // Speed factor
-    if (train->trainFlags.bNotOnARailRoad || sf < 0.00001f) {
+    const auto sf = std::abs(train->LinearSpeed); // Speed factor
+    if (train->m_nTrainFlags.bDerailed || sf < 0.00001f) {
         UpdateTrainSound(AE_SOUND_TRAIN_TRACK, m_DummySlot, 2, 0.f, -100.f); // Stop sound
         return;
     }
@@ -4062,7 +4062,7 @@ void CAEVehicleAudioEntity::ProcessTrainTrackSound(tVehicleParams& vp) {
 
     // Count number of carriages
     size_t n{};
-    for (auto it = train; it; it = it->m_pPrevCarriage) {
+    for (auto it = train; it; it = it->pLinkedToForward) {
         n++;
     }
 
@@ -4611,7 +4611,7 @@ void CAEVehicleAudioEntity::ProcessVehicle(CPhysical* physical) {
             ProcessPlayerCombine(vp);
         }
 
-        vehicle->AsAutomobile()->m_PrevSpeed = vp.Speed;
+        vehicle->AsAutomobile()->fPrevSpeed = vp.Speed;
         break;
     }
     case AE_BIKE: {
@@ -4641,7 +4641,7 @@ void CAEVehicleAudioEntity::ProcessVehicle(CPhysical* physical) {
 
         ProcessRainOnVehicle(vp);
 
-        vehicle->AsBike()->m_PrevSpeed = vp.Speed;
+        vehicle->AsBike()->fPrevSpeed = vp.Speed;
         break;
     }
     case AE_BMX: {
@@ -4659,7 +4659,7 @@ void CAEVehicleAudioEntity::ProcessVehicle(CPhysical* physical) {
             ProcessDummyBicycle(vp);
         }
 
-        vehicle->AsBike()->m_PrevSpeed = vp.Speed;
+        vehicle->AsBike()->fPrevSpeed = vp.Speed;
         break;
     }
     case AE_BOAT: {

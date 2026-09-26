@@ -147,9 +147,9 @@ public:
                 m_bTrackingEntity
             };
         case TASK_SIMPLE_CAR_DRIVE_TIMED:
-            return new CTaskSimpleCarDriveTimed{ ped->m_pVehicle, 2000 };
+            return new CTaskSimpleCarDriveTimed{ ped->m_pMyVehicle, 2000 };
         case TASK_COMPLEX_LEAVE_CAR:
-            return new CTaskComplexLeaveCar{ ped->m_pVehicle, TARGET_DOOR_FRONT_LEFT, 0, true, false };
+            return new CTaskComplexLeaveCar{ ped->m_pMyVehicle, TARGET_DOOR_FRONT_LEFT, 0, true, false };
         case TASK_COMPLEX_SEQUENCE: {
             const auto seq = new CTaskComplexSequence{};
             if (m_bFaceEntityWhenDone) {
@@ -252,13 +252,13 @@ public:
                 return nullptr;
             }
 
-            if (toSeekPed->physicalFlags.bSubmergedInWater) {
+            if (toSeekPed->m_nPhysicalFlags.bIsInWater) {
                 return nullptr;
             }
 
-            for (const auto entity : { toSeekPed->m_standingOnEntity, toSeekPed->m_pContactEntity }) {
+            for (const auto entity : { toSeekPed->m_pGroundPhysical, toSeekPed->m_pEntityStandingOn }) {
                 if (entity && entity->GetIsTypeVehicle()) {
-                    if (ped->m_standingOnEntity == entity || ped->m_pContactEntity == entity) {
+                    if (ped->m_pGroundPhysical == entity || ped->m_pEntityStandingOn == entity) {
                         if (entity->AsVehicle()->IsBoat()) {
                             return entity->AsBoat();
                         }
@@ -286,7 +286,7 @@ public:
                     if (m_entityToSeek->AsPed()->IsPlayer()) { // Entity to seek is a player
                         if (FindPlayerPed()->GetPlayerGroup().GetMembership().IsFollower(ped)) { // And ped is part of the player's group
                             if (ped->IsJoggingOrFaster()) {
-                                if (((uint16)CTimer::GetFrameCounter() + ped->m_nRandomSeed) % 16384 == 0) {
+                                if (((uint16)CTimer::GetFrameCounter() + ped->RandomSeed) % 16384 == 0) {
                                     ped->Say(CTX_GLOBAL_FOLLOW_CONSTANT);
                                 }
                             }

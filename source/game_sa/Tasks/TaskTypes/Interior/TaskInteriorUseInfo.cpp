@@ -36,12 +36,12 @@ CTaskInteriorUseInfo::CTaskInteriorUseInfo(const CTaskInteriorUseInfo& o) :
 
 // 0x675A90
 CTaskInteriorUseInfo::~CTaskInteriorUseInfo() {
-    m_IntInfo->IsInUse = false;
+    m_IntInfo->beingUsed = false;
 }
 
 // 0x675B30
 bool CTaskInteriorUseInfo::MakeAbortable(CPed* ped, eAbortPriority priority, CEvent const* event) {
-    if (m_IntInfo->EntityIgnoredCollision) {
+    if (m_IntInfo->pNoCollisionEntity) {
         ped->m_pEntityIgnoredCollision = nullptr;
     }
     return CTaskComplex::MakeAbortable(ped, priority, event);
@@ -62,8 +62,8 @@ CTask* CTaskInteriorUseInfo::ControlSubTask(CPed* ped) {
     if (!m_IntInfo) {
         return nullptr;
     }
-    if (m_IntInfo->EntityIgnoredCollision) {
-        ped->m_pEntityIgnoredCollision = m_IntInfo->EntityIgnoredCollision;
+    if (m_IntInfo->pNoCollisionEntity) {
+        ped->m_pEntityIgnoredCollision = m_IntInfo->pNoCollisionEntity;
     }
     return m_pSubTask;
 }

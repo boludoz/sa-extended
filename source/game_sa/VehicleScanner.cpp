@@ -7,12 +7,12 @@ void CVehicleScanner::ScanForVehiclesInRange(const CPed& ped) {
     if (!ped.IsAlive())
         return;
 
-    if (ped.m_pVehicle && ped.bInVehicle) {
+    if (ped.m_pMyVehicle && ped.bInVehicle) {
         if (ped.IsCreatedByMission())
             CEntityScanner::ScanForEntitiesInRange(REPEATSECTOR_VEHICLES, ped);
 
         CEntity::SafeCleanUpRef(m_pClosestEntityInRange);
-        m_pClosestEntityInRange = ped.m_pVehicle;
+        m_pClosestEntityInRange = ped.m_pMyVehicle;
         CEntity::SafeRegisterRef(m_pClosestEntityInRange);
     } else {
         CEntityScanner::ScanForEntitiesInRange(REPEATSECTOR_VEHICLES, ped);

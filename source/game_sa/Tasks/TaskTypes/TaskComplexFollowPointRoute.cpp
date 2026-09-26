@@ -157,7 +157,7 @@ CTask* CTaskComplexFollowPointRoute::CreateTask(eTaskType taskType, CPed* ped) {
     case TASK_SIMPLE_STAND_STILL:
         return new CTaskSimpleStandStill{ STAND_STILL_TIME };
     case TASK_COMPLEX_LEAVE_CAR:
-        return new CTaskComplexLeaveCar{ ped->m_pVehicle, TARGET_DOOR_FRONT_LEFT, 0, true, false };
+        return new CTaskComplexLeaveCar{ ped->m_pMyVehicle, TARGET_DOOR_FRONT_LEFT, 0, true, false };
     case TASK_FINISHED:
         return nullptr;
     default:

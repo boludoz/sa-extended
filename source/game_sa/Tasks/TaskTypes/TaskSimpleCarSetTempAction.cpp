@@ -44,7 +44,7 @@ bool CTaskSimpleCarSetTempAction::ProcessPed(CPed* ped) {
     const auto ap = &m_pVehicle->m_autoPilot;
 
     if (!m_pVehicle) {
-        m_pVehicle = ped->m_pVehicle;
+        m_pVehicle = ped->m_pMyVehicle;
         CEntity::SafeRegisterRef(m_pVehicle);
     }
 

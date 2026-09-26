@@ -653,7 +653,7 @@ bool CWorld::CameraToIgnoreThisObject(CEntity* entity) {
 // 0x563FA0
 int32 CWorld::FindPlayerSlotWithPedPointer(void* ped) {
     for (int32 i = 0; i < MAX_PLAYERS; i++) {
-        if (Players[i].m_pPed == ped) {
+        if (Players[i].pPed == ped) {
             return i;
         }
     }
@@ -664,7 +664,7 @@ int32 CWorld::FindPlayerSlotWithPedPointer(void* ped) {
 // 0x563FD0
 int32 CWorld::FindPlayerSlotWithRemoteVehiclePointer(void* vehicle) {
     for (int32 i = 0; i < MAX_PLAYERS; i++) {
-        if (Players[i].m_pRemoteVehicle == vehicle) {
+        if (Players[i].pRemoteVehicle == vehicle) {
             return i;
         }
     }
@@ -746,7 +746,7 @@ void CWorld::ShutDown() {
     ms_listObjectsWithControlCode.Flush();
 
     for (auto& player : Players) {
-        player.m_PlayerData.DeAllocateData();
+        player.PlayerPedData.DeAllocateData();
     }
 }
 
@@ -1149,8 +1149,8 @@ void CWorld::RemoveReferencesToDeletedObject(CEntity* entity) {
         if (CPed* ped = GetPedPool()->GetAt(i - 1)) {
             if (ped != entity) {
                 ped->RemoveRefsToEntity(entity);
-                if (ped->m_standingOnEntity == entity) {
-                    ped->m_standingOnEntity = nullptr;
+                if (ped->m_pGroundPhysical == entity) {
+                    ped->m_pGroundPhysical = nullptr;
                 }
             }
         }
@@ -1190,10 +1190,10 @@ void CWorld::SetPedsOnFire(float x, float y, float z, float radius, CEntity* fir
 
             if (ped->m_nPedState != PEDSTATE_DEAD
                 && !ped->bInVehicle
-                && !ped->physicalFlags.bFireProof
+                && !ped->m_nPhysicalFlags.bNotDamagedByFlames
                 && !ped->m_pFire
                 && bb.IsPointWithin(ped->GetPosition())) {
-                if (ped->physicalFlags.bInvulnerable
+                if (ped->m_nPhysicalFlags.bOnlyDamagedByPlayer
                     || !fireCreator
                     || fireCreator->GetIsTypePed() && fireCreator->AsPed()->IsPlayer()) {
                     gFireManager.StartFire(ped, fireCreator, 0.8f, 1, 7'000, 2);
@@ -1218,7 +1218,7 @@ void CWorld::SetPedsChoking(float x, float y, float z, float radius, CEntity* ga
         if (CPed* ped = GetPedPool()->GetAt(i - 1)) {
             if (ped->m_nPedState != PEDSTATE_DEAD
                 && !ped->bInVehicle
-                && !ped->physicalFlags.bFireProof
+                && !ped->m_nPhysicalFlags.bNotDamagedByFlames
                 && !ped->m_pFire
                 && !ped->IsCreatedByMission()
                 && bb.IsPointWithin(ped->GetPosition())) {
@@ -1253,7 +1253,7 @@ void CWorld::SetCarsOnFire(CVector pos, float radius, CEntity* fireCreator) {
                 continue; // Already on fire
             }
 
-            if (vehicle->physicalFlags.bFireProof) {
+            if (vehicle->m_nPhysicalFlags.bNotDamagedByFlames) {
                 continue;
             }
 
@@ -1353,7 +1353,7 @@ void CWorld::RemoveFallenCars() {
         NOTSA_LOG_WARN("&&&&&&Another vehicle has fallen through the map&&&&&&&&&& {:4f} {:4f} {:4f}", vecPos.x, vecPos.y, vecPos.z); // R* log
 
         const auto ShouldWeKeepIt = [vehicle]() {
-            if (vehicle->IsCreatedBy(eVehicleCreatedBy::MISSION_VEHICLE) && !vehicle->physicalFlags.bRenderScorched) {
+            if (vehicle->IsCreatedBy(eVehicleCreatedBy::MISSION_VEHICLE) && !vehicle->m_nPhysicalFlags.bRenderScorched) {
                 return true;
             }
 
@@ -1402,7 +1402,7 @@ void CWorld::UseDetonator(CPed* creator) {
         }
 
         veh.m_nBombOnBoard     = 0;
-        veh.m_DelayedExplosion = 500;
+        veh.DelayedExplosion = 500;
         veh.m_pWhoDetonatedMe = creator;
         creator->RegisterReference(reinterpret_cast<CEntity**>(&veh.m_pWhoDetonatedMe));
     }
@@ -1560,7 +1560,7 @@ void CWorld::TestForUnusedModels() {
 void CWorld::ClearCarsFromArea(float minX, float minY, float minZ, float maxX, float maxY, float maxZ) {
     CBoundingBox box{ { minX, minY, minZ }, { maxX, maxY, maxZ } }; // NOTSA, but makes code cleaner
     for (auto& veh : GetVehiclePool()->GetAllValid()) {
-        if (veh.IsBoat() && FindPlayerPed()->m_pContactEntity == &veh) {
+        if (veh.IsBoat() && FindPlayerPed()->m_pEntityStandingOn == &veh) {
             continue;
         }
 
@@ -1941,7 +1941,7 @@ void CWorld::TriggerExplosionSectorList(PtrListType& ptrList, const CVector& poi
             entity->AsObject()->TryToExplode();
         }
 
-        if (entity->physicalFlags.bExplosionProof) {
+        if (entity->m_nPhysicalFlags.bIgnoresExplosions) {
             continue;
         }
 
@@ -1955,7 +1955,7 @@ void CWorld::TriggerExplosionSectorList(PtrListType& ptrList, const CVector& poi
                     entity->SetIsStatic(false);
                     entity->AddToMovingList();
                 }
-            } else if (!entity->physicalFlags.bDisableTurnForce) {
+            } else if (!entity->m_nPhysicalFlags.bPedPhysics) {
                 const auto object = entity->AsObject();
 
                 if (visibleDistance > object->m_pObjectInfo->m_fUprootLimit || ModelIndices::IsFence1Or2(object->m_nModelIndex)) {
@@ -1966,13 +1966,13 @@ void CWorld::TriggerExplosionSectorList(PtrListType& ptrList, const CVector& poi
                         object->AddToMovingList();
 
                         if (object->m_nModelIndex != ModelIndices::MI_FIRE_HYDRANT
-                            || object->objectFlags.bIsExploded) {
+                            || object->m_nObjectFlags.bHasExploded) {
                             if (object->GetIsTypeObject() && !object->m_pObjectInfo->m_bCausesExplosion) {
-                                object->objectFlags.bIsExploded = true;
+                                object->m_nObjectFlags.bHasExploded = true;
                             }
                         } else {
                             g_fx.TriggerWaterHydrant(object->GetPosition());
-                            object->objectFlags.bIsExploded = true;
+                            object->m_nObjectFlags.bHasExploded = true;
                         }
                     }
                 }
@@ -2025,8 +2025,8 @@ void CWorld::TriggerExplosionSectorList(PtrListType& ptrList, const CVector& poi
             veh->InflictDamage(creator, WEAPON_EXPLOSION, entityRelDistToRadiusEnd_Doubled * damage * 1100.f, {});
 
             if (processVehicleBombTimer) {
-                if (veh->m_DelayedExplosion) {
-                    veh->m_DelayedExplosion = veh->m_DelayedExplosion / 10 + 1;
+                if (veh->DelayedExplosion) {
+                    veh->DelayedExplosion = veh->DelayedExplosion / 10 + 1;
                 }
             }
 
@@ -2064,7 +2064,7 @@ void CWorld::TriggerExplosionSectorList(PtrListType& ptrList, const CVector& poi
                     forceFactor = std::max(0.f, forceFactor - dot);
                 }
 
-                if (!veh->physicalFlags.bDisableTurnForce) {
+                if (!veh->m_nPhysicalFlags.bPedPhysics) {
                     veh->ApplyTurnForce(colNormal * forceFactor, colPointPos);
                 }
             }
@@ -2129,7 +2129,7 @@ void CWorld::TriggerExplosionSectorList(PtrListType& ptrList, const CVector& poi
             break;
         }
         case ENTITY_TYPE_OBJECT: {
-            if (!entity->physicalFlags.bDisableZ && !entity->physicalFlags.bDisableCollisionForce) {
+            if (!entity->m_nPhysicalFlags.bPoolBallPhysics && !entity->m_nPhysicalFlags.bInfiniteMass) {
                 if (impactVelocity.z < 0.1f) {
                     impactVelocity.z = 0.2f;
                 }
@@ -2353,7 +2353,7 @@ void CWorld::Process() {
     CMessages::Process();
 
     for (auto&& [i, p] : rngv::enumerate(Players)) {
-        if (p.m_pPed) {
+        if (p.pPed) {
             p.Process((uint32)i);
         }
     }
@@ -2794,7 +2794,7 @@ void CWorld::ClearExcitingStuffFromArea(const CVector& point, float radius, uint
             continue;
         }
 
-        if (playerPed->m_pContactEntity == &veh && veh.IsBoat()) {
+        if (playerPed->m_pEntityStandingOn == &veh && veh.IsBoat()) {
             continue;
         }
 

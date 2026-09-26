@@ -293,7 +293,6 @@ enum eStreamingFlagsCompat {
 #define COMMAND_ENABLE_DISABLED_ATTACTORS_ON_OBJECT ((eScriptCommands)0x0A5F)
 #define COMMAND_IS_XBOX_PLAYER2_PRESSING_START ((eScriptCommands)0x0A4E)
 
-#define m_pMyVehicle m_pVehicle
 #define AutoPilot m_autoPilot
 #define pHandling m_pHandlingData
 
@@ -319,8 +318,6 @@ struct CPoolsCompat {
 #define CLEANUP_CHAR    MISSION_CLEANUP_ENTITY_TYPE_PED
 #define CLEANUP_OBJECT  MISSION_CLEANUP_ENTITY_TYPE_OBJECT
 
-#define Score m_nMoney
-#define PlayerState m_nPlayerState
 #define PLAYERSTATE_HASDIED PLAYERSTATE_HAS_DIED
 
 #define ObjectCreatedBy m_nObjectType
@@ -442,10 +439,7 @@ using TTaskComplexSeekEntityRadiusAngleOffset = CTaskComplexSeekEntityRadiusAngl
 
 #define TakeControlAttachToEntity(target, attached, off, rot, fov, sw, who)     TakeControlAttachToEntity((target), (attached), &(off), &(rot), (fov), static_cast<eSwitchType>(sw), (who))
 
-#define m_fDesiredHeading m_fAimingRotation
-#define m_fCurrentHeading m_fCurrentRotation
 
-#define m_WeaponSlots m_aWeapons
 #define m_nCurrentWeapon m_nActiveWeaponSlot
 
 #define fMass m_fMass
@@ -453,7 +447,6 @@ using TTaskComplexSeekEntityRadiusAngleOffset = CTaskComplexSeekEntityRadiusAngl
 #define fBuoyancyConstant m_fBuoyancyConstant
 
 #define PED_ARRESTED PEDSTATE_ARRESTED
-#define m_fScriptThrottleControl field_9A0
 
 #define ZONE_NAVIGATION ZONE_TYPE_NAVI
 #define DoesPointLieWithinZoneWithGivenName FindZone
@@ -471,8 +464,6 @@ using TTaskComplexSeekEntityRadiusAngleOffset = CTaskComplexSeekEntityRadiusAngl
 #define StoreShadowToBeRendered(t, p, fx, fy, sx, sy, i, r, g, b) StoreShadowToBeRendered((t), *(p), (fx), (fy), (sx), (sy), (i), (r), (g), (b))
 
 #define SetShootingAccuracy SetWeaponAccuracy
-#define TotalNumCollectables m_nTotalNumCollectables
-#define CollectablesPickedUp m_nCollectablesPickedUp
 #define PED_SPHERE_HEAD PED_COL_SPHERE_HEAD
 #define ChangeGarageType(g, t, m) ChangeGarageType((g), static_cast<eGarageType>(t), (m))
 
@@ -486,15 +477,6 @@ using TTaskComplexSeekEntityRadiusAngleOffset = CTaskComplexSeekEntityRadiusAngl
 #define GetWeaponType GetType
 
 // CPhysical flags & collision records
-#define bExtraHeavy bMakeMassTwiceAsBig
-#define bIsInWater bSubmergedInWater
-#define bNotDamagedByBullets bBulletProof
-#define bNotDamagedByFlames bFireProof
-#define bNotDamagedByCollisions bCollisionProof
-#define bNotDamagedByMelee bMeleeProof
-#define bOnlyDamagedByPlayer bInvulnerable
-#define bIgnoresExplosions bExplosionProof
-#define bUsesCollisionRecords bCanBeCollidedWith
 #define m_nNoOfCollisionRecords m_nNumEntitiesCollided
 #define m_aCollisionRecordPtrs m_apCollidedEntities
 
@@ -504,8 +486,8 @@ using TTaskComplexSeekEntityRadiusAngleOffset = CTaskComplexSeekEntityRadiusAngl
 #define bTakePanelDamage bCanBeVisiblyDamaged
 #define bLostTraction bIsBoggedDownInSand
 #define bSoftSuspension bIsMonsterTruck
-#define m_aWheelColPoints m_wheelColPoint
-#define m_aWheelRatios m_fWheelsSuspensionCompression
+#define m_aWheelColPoints m_aWheelColPoints
+#define m_aWheelRatios m_aWheelRatios
 
 // Vehicle appearance
 #define APR_NOTHING VEHICLE_APPEARANCE_NONE
@@ -573,7 +555,6 @@ using TTaskComplexSeekEntityRadiusAngleOffset = CTaskComplexSeekEntityRadiusAngl
 #define CharCreatedBy m_nCreatedBy
 #define SetStayInSamePlaceFlag SetStayInSamePlace
 #define m_nArmour m_fArmour
-#define MaxArmour m_nMaxArmour
 #define m_iplIndex m_IplIndex
 #define m_MenuActive m_bMenuActive
 #define ScriptRectBeforeFade m_bDrawBeforeFade
@@ -582,7 +563,6 @@ using TTaskComplexSeekEntityRadiusAngleOffset = CTaskComplexSeekEntityRadiusAngl
 #define PEDTYPE_COP PED_TYPE_COP
 #define VEHICLE_TYPE_MONSTERTRUCK VEHICLE_TYPE_MTRUCK
 #define VEHICLE_TYPE_QUADBIKE VEHICLE_TYPE_QUAD
-#define m_nBikeFlags bikeFlags
 
 // Window / tScriptRectangle
 #define eWindowType m_nType
@@ -616,13 +596,10 @@ inline CVector Multiply3x3(const CVector& v, const CMatrix& m) { return m.Invers
 
 // PlayerInfo & Ped & Vehicle
 #define m_MoneyCarried m_nMoneyCount
-#define bFreeHealthCare m_bFreeHealthCare
-#define pRemoteVehicle m_pRemoteVehicle
 #define m_nAmmoTotal m_TotalAmmo
 #define m_pPedIntelligence m_pIntelligence
 #define pPassengers m_apPassengers
 #define pDriver m_pDriver
-#define ForcedRandomSeed m_nForcedRandomRouteSeed
 #define m_pMouseLockOnRecruitPed m_p3rdPersonMouseTarget
 #define pNext m_pNext
 #define m_pAttachToEntity m_pAttachedTo
@@ -664,8 +641,6 @@ inline CVector Multiply3x3(const CVector& v, const CMatrix& m) { return m.Invers
 #define SetShortRangeCoordBlip(t, c, col, d, s) SetShortRangeCoordBlip((t), (c), static_cast<eBlipColour>(col), static_cast<eBlipDisplay>(d), (s))
 
 // Physical flags & entities
-#define bCoorsFrozenByScript bDontApplySpeed
-#define bInfiniteMassFixed bCollidable
 #define m_pNOCollisionVehicle m_pEntityIgnoredCollision
 #define m_areaCode m_AreaCode
 
@@ -679,15 +654,6 @@ inline CVector Multiply3x3(const CVector& v, const CMatrix& m) { return m.Invers
 // Set pieces
 
 // PlayerInfo
-#define nBestCarTwoWheelsTimeMs m_nBestCarTwoWheelsTimeMs
-#define fBestCarTwoWheelsDistM m_fBestCarTwoWheelsDistM
-#define nBestBikeWheelieTimeMs m_nBestBikeWheelieTimeMs
-#define fBestBikeWheelieDistM m_fBestBikeWheelieDistM
-#define nBestBikeStoppieTimeMs m_nBestBikeStoppieTimeMs
-#define fBestBikeStoppieDistM m_fBestBikeStoppieDistM
-#define PlayerPedData m_PlayerData
-#define bCanDoDriveBy m_bCanDoDriveBy
-#define FireProof m_bFireProof
 
 // Population & Tasks
 #define AddPed(t, m, ...) AddPed(static_cast<ePedType>(t), static_cast<eModelID>(m), __VA_ARGS__)
@@ -696,7 +662,6 @@ inline CVector Multiply3x3(const CVector& v, const CMatrix& m) { return m.Invers
 // Weapon & Cutscenes & Cheats & Models & Damage
 #define pLastDamageEntity m_pLastDamageEntity
 #define m_LastTimeGunFired m_nGunFiringTime
-#define m_eStoredWeapon m_nSavedWeapon
 #define WasCutsceneSkipped() ms_wasCutsceneSkipped
 #define MODELID_BOAT_PREDATOR MODEL_PREDATOR
 #define EnableLegimateCheat(c) ApplyCheat(c)
@@ -713,8 +678,6 @@ inline CVector Multiply3x3(const CVector& v, const CMatrix& m) { return m.Invers
 // PlayerPedData & PlayerInfo
 #define m_pClothes m_pPedClothesDesc
 #define m_bFadeDrunkenness m_nFadeDrunkenness
-#define MaxHealth m_nMaxHealth
-#define MaxArmour m_nMaxArmour
 
 // Vehicle
 #define m_nNoOfStaticFrames m_nFakePhysics
@@ -1680,7 +1643,7 @@ OpcodeResult CRunningScript::ProcessCommands0To99(i32 CurrCommand)
                 CStreaming::LoadAllRequestedModels(true);
             }
             CPlayerPed::SetupPlayerPed(PlayerIndex);
-            CWorld::Players[PlayerIndex].m_pPed->SetCharCreatedBy(MISSION_CHAR);
+            CWorld::Players[PlayerIndex].pPed->SetCharCreatedBy(MISSION_CHAR);
             CPlayerPed::DeactivatePlayerPed(PlayerIndex);
 
             NewX = *(f32*)&ScriptParams[1];
@@ -1690,13 +1653,13 @@ OpcodeResult CRunningScript::ProcessCommands0To99(i32 CurrCommand)
             {
                 NewZ = CWorld::FindGroundZForCoord(NewX, NewY);
             }
-            NewZ += CWorld::Players[PlayerIndex].m_pPed->GetDistanceFromCentreOfMassToBaseOfModel();
-            CWorld::Players[PlayerIndex].m_pPed->SetPosition(NewX, NewY, NewZ);
-            CTheScripts::ClearSpaceForMissionEntity(CVector(NewX, NewY, NewZ), CWorld::Players[PlayerIndex].m_pPed);
+            NewZ += CWorld::Players[PlayerIndex].pPed->GetDistanceFromCentreOfMassToBaseOfModel();
+            CWorld::Players[PlayerIndex].pPed->SetPosition(NewX, NewY, NewZ);
+            CTheScripts::ClearSpaceForMissionEntity(CVector(NewX, NewY, NewZ), CWorld::Players[PlayerIndex].pPed);
             CPlayerPed::ReactivatePlayerPed(PlayerIndex);
             ScriptParams[0] = PlayerIndex;
             StoreParameters(1);
-            CWorld::Players[PlayerIndex].m_pPed->GetPedIntelligence()->AddTaskDefault(new CTaskSimplePlayerOnFoot());
+            CWorld::Players[PlayerIndex].pPed->GetPedIntelligence()->AddTaskDefault(new CTaskSimplePlayerOnFoot());
             return OR_CONTINUE;
         }
         case COMMAND_ADD_INT_VAR_TO_INT_VAR:
@@ -2974,14 +2937,14 @@ OpcodeResult CRunningScript::ProcessCommands200To299(i32 CurrCommand)
         {
             CollectParameters(2);
             pPlayer = &(CWorld::Players[ScriptParams[0]]);
-            pPlayer->m_pPed->SetWantedLevel(*((i32*)&ScriptParams[1]));
+            pPlayer->pPed->SetWantedLevel(*((i32*)&ScriptParams[1]));
             return OR_CONTINUE;
         }
         case COMMAND_ALTER_WANTED_LEVEL_NO_DROP:
         {
             CollectParameters(2);
             pPlayer = &(CWorld::Players[ScriptParams[0]]);
-            pPlayer->m_pPed->SetWantedLevelNoDrop(*((i32*)&ScriptParams[1]));
+            pPlayer->pPed->SetWantedLevelNoDrop(*((i32*)&ScriptParams[1]));
             return OR_CONTINUE;
         }
         case COMMAND_IS_WANTED_LEVEL_GREATER:
@@ -3003,7 +2966,7 @@ OpcodeResult CRunningScript::ProcessCommands200To299(i32 CurrCommand)
         {
             CollectParameters(1);
             pPlayer = &(CWorld::Players[ScriptParams[0]]);
-            pPlayer->m_pPed->SetWantedLevel(WANTED_CLEAN);
+            pPlayer->pPed->SetWantedLevel(WANTED_CLEAN);
             return OR_CONTINUE;
         }
         case COMMAND_SET_DEATHARREST_STATE:
@@ -3104,7 +3067,7 @@ OpcodeResult CRunningScript::ProcessCommands200To299(i32 CurrCommand)
         case COMMAND_IS_PLAYER_PRESSING_HORN:
         {
             CollectParameters(1);
-            if (CWorld::Players[ScriptParams[0]].m_pPed->GetPedState() == PED_DRIVING)
+            if (CWorld::Players[ScriptParams[0]].pPed->GetPedState() == PED_DRIVING)
             {
                 if (CPad::GetPad(ScriptParams[0])->GetHorn())
                 {
@@ -3891,7 +3854,7 @@ OpcodeResult CRunningScript::ProcessCommands400To499(i32 CurrCommand)
         case COMMAND_STORE_WANTED_LEVEL:
         {
             CollectParameters(1);
-            ScriptParams[0] = (i32)(CWorld::Players[ScriptParams[0]].m_pPed->GetWantedLevel());
+            ScriptParams[0] = (i32)(CWorld::Players[ScriptParams[0]].pPed->GetWantedLevel());
             StoreParameters(1);
             return OR_CONTINUE;
         }
@@ -4097,14 +4060,14 @@ OpcodeResult CRunningScript::ProcessCommands400To499(i32 CurrCommand)
             {
                 if (ScriptParams[1])
                 {
-                    pVehicle->physicalFlags.bExtraHeavy = true;
+                    pVehicle->m_nPhysicalFlags.bExtraHeavy = true;
                     pVehicle->m_fMass = pVehicle->pHandling->fMass * 3.0f;
                     pVehicle->m_fTurnMass = pVehicle->pHandling->fTurnMass * 5.0f;
                     pVehicle->m_fBuoyancyConstant = pVehicle->pHandling->fBuoyancyConstant + pVehicle->pHandling->fBuoyancyConstant;
                 }
                 else
                 {
-                    pVehicle->physicalFlags.bExtraHeavy = false;
+                    pVehicle->m_nPhysicalFlags.bExtraHeavy = false;
                     pVehicle->m_fMass = pVehicle->pHandling->fMass;
                     pVehicle->m_fTurnMass = pVehicle->pHandling->fTurnMass;
                     pVehicle->m_fBuoyancyConstant = pVehicle->pHandling->fBuoyancyConstant;
@@ -4194,7 +4157,7 @@ OpcodeResult CRunningScript::ProcessCommands500To599(i32 CurrCommand)
         case COMMAND_GET_PLAYER_CHAR:
         {
             CollectParameters(1);
-            ScriptParams[0] = CPools::GetPedPool().GetIndex(CWorld::Players[ScriptParams[0]].m_pPed);
+            ScriptParams[0] = CPools::GetPedPool().GetIndex(CWorld::Players[ScriptParams[0]].pPed);
             StoreParameters(1);
             return OR_CONTINUE;
         }
@@ -4208,7 +4171,7 @@ OpcodeResult CRunningScript::ProcessCommands500To599(i32 CurrCommand)
         case COMMAND_SET_POLICE_IGNORE_PLAYER:
         {
             CollectParameters(2);
-            pPed = CWorld::Players[ScriptParams[0]].m_pPed;
+            pPed = CWorld::Players[ScriptParams[0]].pPed;
             pPlayerData = pPed->GetPlayerData();
             if (ScriptParams[1])
             {
@@ -4436,7 +4399,7 @@ OpcodeResult CRunningScript::ProcessCommands500To599(i32 CurrCommand)
             }
             if (pPed->IsPlayer())
             {
-                i32 MaxHealth = CWorld::Players[CWorld::FindPlayerSlotWithPedPointer(pPed)].m_nMaxHealth;
+                i32 MaxHealth = CWorld::Players[CWorld::FindPlayerSlotWithPedPointer(pPed)].MaxHealth;
                 if (MaxHealth >= ScriptParams[1])
                 {
                     MaxHealth = ScriptParams[1];
@@ -4965,11 +4928,11 @@ OpcodeResult CRunningScript::ProcessCommands600To699(i32 CurrCommand)
             pPhysical = CPools::GetPedPool().GetAt(ScriptParams[0]);
             if (ScriptParams[1])
             {
-                pPhysical->physicalFlags.bOnlyDamagedByPlayer = true;
+                pPhysical->m_nPhysicalFlags.bOnlyDamagedByPlayer = true;
             }
             else
             {
-                pPhysical->physicalFlags.bOnlyDamagedByPlayer = false;
+                pPhysical->m_nPhysicalFlags.bOnlyDamagedByPlayer = false;
             }
             return OR_CONTINUE;
         }
@@ -4980,11 +4943,11 @@ OpcodeResult CRunningScript::ProcessCommands600To699(i32 CurrCommand)
             pPhysical = CPools::GetVehiclePool().GetAt(ScriptParams[0]);
             if (ScriptParams[1])
             {
-                pPhysical->physicalFlags.bOnlyDamagedByPlayer = true;
+                pPhysical->m_nPhysicalFlags.bOnlyDamagedByPlayer = true;
             }
             else
             {
-                pPhysical->physicalFlags.bOnlyDamagedByPlayer = false;
+                pPhysical->m_nPhysicalFlags.bOnlyDamagedByPlayer = false;
             }
             return OR_CONTINUE;
         }
@@ -4995,43 +4958,43 @@ OpcodeResult CRunningScript::ProcessCommands600To699(i32 CurrCommand)
             pPhysical = CPools::GetPedPool().GetAt(ScriptParams[0]);
             if (ScriptParams[1])
             {
-                pPhysical->physicalFlags.bNotDamagedByBullets = true;
+                pPhysical->m_nPhysicalFlags.bNotDamagedByBullets = true;
             }
             else
             {
-                pPhysical->physicalFlags.bNotDamagedByBullets = false;
+                pPhysical->m_nPhysicalFlags.bNotDamagedByBullets = false;
             }
             if (ScriptParams[2])
             {
-                pPhysical->physicalFlags.bNotDamagedByFlames = true;
+                pPhysical->m_nPhysicalFlags.bNotDamagedByFlames = true;
             }
             else
             {
-                pPhysical->physicalFlags.bNotDamagedByFlames = false;
+                pPhysical->m_nPhysicalFlags.bNotDamagedByFlames = false;
             }
             if (ScriptParams[3])
             {
-                pPhysical->physicalFlags.bIgnoresExplosions = true;
+                pPhysical->m_nPhysicalFlags.bIgnoresExplosions = true;
             }
             else
             {
-                pPhysical->physicalFlags.bIgnoresExplosions = false;
+                pPhysical->m_nPhysicalFlags.bIgnoresExplosions = false;
             }
             if (ScriptParams[4])
             {
-                pPhysical->physicalFlags.bNotDamagedByCollisions = true;
+                pPhysical->m_nPhysicalFlags.bNotDamagedByCollisions = true;
             }
             else
             {
-                pPhysical->physicalFlags.bNotDamagedByCollisions = false;
+                pPhysical->m_nPhysicalFlags.bNotDamagedByCollisions = false;
             }
             if (ScriptParams[5])
             {
-                pPhysical->physicalFlags.bNotDamagedByMelee = true;
+                pPhysical->m_nPhysicalFlags.bNotDamagedByMelee = true;
             }
             else
             {
-                pPhysical->physicalFlags.bNotDamagedByMelee = false;
+                pPhysical->m_nPhysicalFlags.bNotDamagedByMelee = false;
             }
             return OR_CONTINUE;
         }
@@ -5042,43 +5005,43 @@ OpcodeResult CRunningScript::ProcessCommands600To699(i32 CurrCommand)
             pPhysical = CPools::GetVehiclePool().GetAt(ScriptParams[0]);
             if (ScriptParams[1])
             {
-                pPhysical->physicalFlags.bNotDamagedByBullets = true;
+                pPhysical->m_nPhysicalFlags.bNotDamagedByBullets = true;
             }
             else
             {
-                pPhysical->physicalFlags.bNotDamagedByBullets = false;
+                pPhysical->m_nPhysicalFlags.bNotDamagedByBullets = false;
             }
             if (ScriptParams[2])
             {
-                pPhysical->physicalFlags.bNotDamagedByFlames = true;
+                pPhysical->m_nPhysicalFlags.bNotDamagedByFlames = true;
             }
             else
             {
-                pPhysical->physicalFlags.bNotDamagedByFlames = false;
+                pPhysical->m_nPhysicalFlags.bNotDamagedByFlames = false;
             }
             if (ScriptParams[3])
             {
-                pPhysical->physicalFlags.bIgnoresExplosions = true;
+                pPhysical->m_nPhysicalFlags.bIgnoresExplosions = true;
             }
             else
             {
-                pPhysical->physicalFlags.bIgnoresExplosions = false;
+                pPhysical->m_nPhysicalFlags.bIgnoresExplosions = false;
             }
             if (ScriptParams[4])
             {
-                pPhysical->physicalFlags.bNotDamagedByCollisions = true;
+                pPhysical->m_nPhysicalFlags.bNotDamagedByCollisions = true;
             }
             else
             {
-                pPhysical->physicalFlags.bNotDamagedByCollisions = false;
+                pPhysical->m_nPhysicalFlags.bNotDamagedByCollisions = false;
             }
             if (ScriptParams[5])
             {
-                pPhysical->physicalFlags.bNotDamagedByMelee = true;
+                pPhysical->m_nPhysicalFlags.bNotDamagedByMelee = true;
             }
             else
             {
-                pPhysical->physicalFlags.bNotDamagedByMelee = false;
+                pPhysical->m_nPhysicalFlags.bNotDamagedByMelee = false;
             }
             return OR_CONTINUE;
         }
@@ -5120,7 +5083,7 @@ OpcodeResult CRunningScript::ProcessCommands700To799(i32 CurrCommand)
             bool bInWater = false;
             if (pVehicle)
             {
-                if (pVehicle->physicalFlags.bIsInWater)
+                if (pVehicle->m_nPhysicalFlags.bIsInWater)
                 {
                     bInWater = true;
                 }
@@ -5922,11 +5885,11 @@ OpcodeResult CRunningScript::ProcessCommands800To899(i32 CurrCommand)
             return OR_CONTINUE;
         case COMMAND_SET_PLAYER_NEVER_GETS_TIRED:
             CollectParameters(2);
-            CWorld::Players[ScriptParams[0]].m_bDoesNotGetTired = ScriptParams[1] != 0;
+            CWorld::Players[ScriptParams[0]].DoesNotGetTired = ScriptParams[1] != 0;
             return OR_CONTINUE;
         case COMMAND_SET_PLAYER_FAST_RELOAD:
             CollectParameters(2);
-            CWorld::Players[ScriptParams[0]].m_bFastReload = ScriptParams[1] != 0;
+            CWorld::Players[ScriptParams[0]].FastReload = ScriptParams[1] != 0;
             return OR_CONTINUE;
         case COMMAND_SET_CHAR_BLEEDING:
             CollectParameters(2);
@@ -6393,7 +6356,7 @@ OpcodeResult CRunningScript::ProcessCommands800To899(i32 CurrCommand)
         {
             CollectParameters(2);
             pObj = CPools::GetObjectPool().GetAt(ScriptParams[0]);
-            CPlayerPed* pPlayerPed = CWorld::Players[CWorld::PlayerInFocus].m_pPed;
+            CPlayerPed* pPlayerPed = CWorld::Players[CWorld::PlayerInFocus].pPed;
             if (ScriptParams[1])
             {
                 pObj->SetObjectTargettable(true);
@@ -7191,17 +7154,17 @@ OpcodeResult CRunningScript::ProcessCommands900To999(i32 CurrCommand)
             pPlayer = &CWorld::Players[ScriptParams[0]];
             if (ScriptParams[1])
             {
-                if (pPlayer->m_pPed && pPlayer->m_pPed->m_pPlayerData)
+                if (pPlayer->pPed && pPlayer->pPed->m_pPlayerData)
                 {
-                    pPlayer->m_pPed->m_pPlayerData->m_Wanted->m_EverybodyBackOff = true;
+                    pPlayer->pPed->m_pPlayerData->m_Wanted->m_EverybodyBackOff = true;
                 }
                 CWorld::StopAllLawEnforcersInTheirTracks();
             }
             else
             {
-                if (pPlayer->m_pPed && pPlayer->m_pPed->m_pPlayerData)
+                if (pPlayer->pPed && pPlayer->pPed->m_pPlayerData)
                 {
-                    pPlayer->m_pPed->m_pPlayerData->m_Wanted->m_EverybodyBackOff = false;
+                    pPlayer->pPed->m_pPlayerData->m_Wanted->m_EverybodyBackOff = false;
                 }
             }
             return OR_CONTINUE;
@@ -7584,7 +7547,7 @@ OpcodeResult CRunningScript::ProcessCommands1000To1099(i32 CurrCommand)
         case COMMAND_CAN_PLAYER_START_MISSION:
         {
             CollectParameters(1);
-            UpdateCompareFlag(CWorld::Players[ScriptParams[0]].m_pPed->CanPlayerStartMission());
+            UpdateCompareFlag(CWorld::Players[ScriptParams[0]].pPed->CanPlayerStartMission());
             return OR_CONTINUE;
         }
         case COMMAND_MAKE_PLAYER_SAFE_FOR_CUTSCENE:
@@ -8092,21 +8055,21 @@ OpcodeResult CRunningScript::ProcessCommands1100To1199(i32 CurrCommand)
             CPlayerInfo* pPlayer = &CWorld::Players[ScriptParams[0]];
             CPed* pPed = CPools::GetPedPool().GetAt(ScriptParams[1]);
             bool bFound = false;
-            if (pPlayer->m_pPed->GetWeaponLockOnTarget())
+            if (pPlayer->pPed->GetWeaponLockOnTarget())
             {
-                if (pPlayer->m_pPed->GetWeaponLockOnTarget()->GetIsTypePed())
+                if (pPlayer->pPed->GetWeaponLockOnTarget()->GetIsTypePed())
                 {
-                    bFound = (pPlayer->m_pPed->GetWeaponLockOnTarget() == pPed);
+                    bFound = (pPlayer->pPed->GetWeaponLockOnTarget() == pPed);
                 }
             }
             if (CCamera::m_bUseMouse3rdPerson)
             {
-                CPad* pPad = pPlayer->m_pPed->GetPadFromPlayer();
+                CPad* pPad = pPlayer->pPed->GetPadFromPlayer();
                 if (pPad->GetTarget())
                 {
-                    if (pPlayer->m_pPed->m_pMouseLockOnRecruitPed)
+                    if (pPlayer->pPed->m_pMouseLockOnRecruitPed)
                     {
-                        if (pPlayer->m_pPed->m_pMouseLockOnRecruitPed == pPed)
+                        if (pPlayer->pPed->m_pMouseLockOnRecruitPed == pPed)
                         {
                             bFound = true;
                         }
@@ -8120,7 +8083,7 @@ OpcodeResult CRunningScript::ProcessCommands1100To1199(i32 CurrCommand)
         case COMMAND_IS_PLAYER_TARGETTING_OBJECT:
         {
             CollectParameters(2);
-            CEntity* pTarget = CWorld::Players[ScriptParams[0]].m_pPed->GetWeaponLockOnTarget();
+            CEntity* pTarget = CWorld::Players[ScriptParams[0]].pPed->GetWeaponLockOnTarget();
             bool bFound = false;
             if (pTarget && pTarget->GetIsTypeObject() && pTarget == CPools::GetObjectPool().GetAt(ScriptParams[1]))
             {
@@ -8675,7 +8638,7 @@ OpcodeResult CRunningScript::ProcessCommands1100To1199(i32 CurrCommand)
             CollectParameters(1);
             CPed* pPed = CPools::GetPedPool().GetAt(ScriptParams[0]);
             bool bFound = false;
-            if (pPed && pPed->physicalFlags.bIsInWater)
+            if (pPed && pPed->m_nPhysicalFlags.bIsInWater)
             {
                 bFound = true;
             }
@@ -9041,7 +9004,7 @@ OpcodeResult CRunningScript::ProcessCommands1200To1299(i32 CurrCommand)
         {
             CollectParameters(2);
             pPed = CPools::GetPedPool().GetAt(ScriptParams[0]);
-            pPed->physicalFlags.bCoorsFrozenByScript = (ScriptParams[1] != 0);
+            pPed->m_nPhysicalFlags.bCoorsFrozenByScript = (ScriptParams[1] != 0);
             return OR_CONTINUE;
         }
         case COMMAND_SET_CHAR_DROWNS_IN_WATER:
@@ -9055,7 +9018,7 @@ OpcodeResult CRunningScript::ProcessCommands1200To1299(i32 CurrCommand)
         {
             CollectParameters(2);
             pObj = CPools::GetObjectPool().GetAt(ScriptParams[0]);
-            pObj->physicalFlags.bUsesCollisionRecords = (ScriptParams[1] != 0);
+            pObj->m_nPhysicalFlags.bUsesCollisionRecords = (ScriptParams[1] != 0);
             return OR_CONTINUE;
         }
         case COMMAND_HAS_OBJECT_COLLIDED_WITH_ANYTHING:
@@ -9130,7 +9093,7 @@ OpcodeResult CRunningScript::ProcessCommands1200To1299(i32 CurrCommand)
         {
             CollectParameters(1);
             pObj = CPools::GetObjectPool().GetAt(ScriptParams[0]);
-            UpdateCompareFlag(pObj && pObj->physicalFlags.bIsInWater);
+            UpdateCompareFlag(pObj && pObj->m_nPhysicalFlags.bIsInWater);
             return OR_CONTINUE;
         }
         case COMMAND_IS_OBJECT_IN_AREA_2D:
@@ -9468,7 +9431,7 @@ OpcodeResult CRunningScript::ProcessCommands1300To1399(i32 CurrCommand)
         {
             CollectParameters(2);
             pVehicle = CPools::GetVehiclePool().GetAt(ScriptParams[0]);
-            pVehicle->physicalFlags.bCoorsFrozenByScript = (ScriptParams[1] != 0);
+            pVehicle->m_nPhysicalFlags.bCoorsFrozenByScript = (ScriptParams[1] != 0);
             return OR_CONTINUE;
         }
         case COMMAND_HAS_CHAR_BEEN_DAMAGED_BY_CHAR:
@@ -9757,13 +9720,13 @@ OpcodeResult CRunningScript::ProcessCommands1300To1399(i32 CurrCommand)
             pObj = CPools::GetObjectPool().GetAt(ScriptParams[0]);
             if (ScriptParams[1])
             {
-                pObj->physicalFlags.bInfiniteMassFixed = true;
-                pObj->physicalFlags.bCoorsFrozenByScript = true;
+                pObj->m_nPhysicalFlags.bInfiniteMassFixed = true;
+                pObj->m_nPhysicalFlags.bCoorsFrozenByScript = true;
             }
             else
             {
-                pObj->physicalFlags.bInfiniteMassFixed = false;
-                pObj->physicalFlags.bCoorsFrozenByScript = false;
+                pObj->m_nPhysicalFlags.bInfiniteMassFixed = false;
+                pObj->m_nPhysicalFlags.bCoorsFrozenByScript = false;
             }
             return OR_CONTINUE;
         }
@@ -9805,7 +9768,7 @@ OpcodeResult CRunningScript::ProcessCommands1300To1399(i32 CurrCommand)
             CollectParameters(2);
             pPlayer = &CWorld::Players[ScriptParams[0]];
             pPlayer->MaxHealth += (u8)ScriptParams[1];
-            pPlayer->m_pPed->m_nHealth = (f32)pPlayer->MaxHealth;
+            pPlayer->pPed->m_nHealth = (f32)pPlayer->MaxHealth;
             return OR_CONTINUE;
         }
         case COMMAND_INCREASE_PLAYER_MAX_ARMOUR:
@@ -9813,7 +9776,7 @@ OpcodeResult CRunningScript::ProcessCommands1300To1399(i32 CurrCommand)
             CollectParameters(2);
             pPlayer = &CWorld::Players[ScriptParams[0]];
             pPlayer->MaxArmour += (u8)ScriptParams[1];
-            pPlayer->m_pPed->m_nArmour = (f32)pPlayer->MaxArmour;
+            pPlayer->pPed->m_nArmour = (f32)pPlayer->MaxArmour;
             return OR_CONTINUE;
         }
         case COMMAND_CREATE_RANDOM_CHAR_AS_DRIVER:
@@ -9853,7 +9816,7 @@ OpcodeResult CRunningScript::ProcessCommands1300To1399(i32 CurrCommand)
         {
             CollectParameters(2);
             pPlayer = &CWorld::Players[ScriptParams[0]];
-            pPed = pPlayer->m_pPed;
+            pPed = pPlayer->pPed;
             if (!pPed->bInVehicle)
             {
                 return OR_CONTINUE;
@@ -9977,8 +9940,8 @@ OpcodeResult CRunningScript::ProcessCommands1300To1399(i32 CurrCommand)
             pVehicle = CPools::GetVehiclePool().GetAt(ScriptParams[0]);
             if (ScriptParams[1])
             {
-                pVehicle->physicalFlags.bInfiniteMassFixed = true;
-                pVehicle->physicalFlags.bCoorsFrozenByScript = true;
+                pVehicle->m_nPhysicalFlags.bInfiniteMassFixed = true;
+                pVehicle->m_nPhysicalFlags.bCoorsFrozenByScript = true;
                 if (IsThisAMissionScript)
                 {
                     CWorld::Remove(pVehicle);
@@ -9988,8 +9951,8 @@ OpcodeResult CRunningScript::ProcessCommands1300To1399(i32 CurrCommand)
             }
             else
             {
-                pVehicle->physicalFlags.bInfiniteMassFixed = false;
-                pVehicle->physicalFlags.bCoorsFrozenByScript = false;
+                pVehicle->m_nPhysicalFlags.bInfiniteMassFixed = false;
+                pVehicle->m_nPhysicalFlags.bCoorsFrozenByScript = false;
                 pVehicle->m_nNoOfStaticFrames = 0;
             }
             return OR_CONTINUE;
@@ -10000,7 +9963,7 @@ OpcodeResult CRunningScript::ProcessCommands1300To1399(i32 CurrCommand)
             pPed = CPools::GetPedPool().GetAt(ScriptParams[0]);
             if (ScriptParams[1])
             {
-                pPed->physicalFlags.bCoorsFrozenByScript = true;
+                pPed->m_nPhysicalFlags.bCoorsFrozenByScript = true;
                 if (IsThisAMissionScript)
                 {
                     CWorld::Remove(pPed);
@@ -10010,7 +9973,7 @@ OpcodeResult CRunningScript::ProcessCommands1300To1399(i32 CurrCommand)
             }
             else
             {
-                pPed->physicalFlags.bCoorsFrozenByScript = false;
+                pPed->m_nPhysicalFlags.bCoorsFrozenByScript = false;
             }
             return OR_CONTINUE;
         }
@@ -10120,7 +10083,7 @@ OpcodeResult CRunningScript::ProcessCommands1400To1499(i32 CurrCommand)
             CPhysical* pPhysical = CPools::GetVehiclePool().GetAt(ScriptParams[0]);
             if (ScriptParams[1])
             {
-                pPhysical->physicalFlags.bDontLoadCollision = false;
+                pPhysical->m_nPhysicalFlags.bDontLoadCollision = false;
                 if (IsThisAMissionScript)
                 {
                     CWorld::Remove(pPhysical);
@@ -10130,7 +10093,7 @@ OpcodeResult CRunningScript::ProcessCommands1400To1499(i32 CurrCommand)
             }
             else
             {
-                pPhysical->physicalFlags.bDontLoadCollision = true;
+                pPhysical->m_nPhysicalFlags.bDontLoadCollision = true;
                 if (pPhysical->m_bIsStaticWaitingForCollision)
                 {
                     pPhysical->m_bIsStaticWaitingForCollision = false;
@@ -10148,7 +10111,7 @@ OpcodeResult CRunningScript::ProcessCommands1400To1499(i32 CurrCommand)
             CPhysical* pPhysical = CPools::GetPedPool().GetAt(ScriptParams[0]);
             if (ScriptParams[1])
             {
-                pPhysical->physicalFlags.bDontLoadCollision = false;
+                pPhysical->m_nPhysicalFlags.bDontLoadCollision = false;
                 if (IsThisAMissionScript)
                 {
                     CWorld::Remove(pPhysical);
@@ -10158,7 +10121,7 @@ OpcodeResult CRunningScript::ProcessCommands1400To1499(i32 CurrCommand)
             }
             else
             {
-                pPhysical->physicalFlags.bDontLoadCollision = true;
+                pPhysical->m_nPhysicalFlags.bDontLoadCollision = true;
                 if (pPhysical->m_bIsStaticWaitingForCollision)
                 {
                     pPhysical->m_bIsStaticWaitingForCollision = false;
@@ -12195,7 +12158,7 @@ OpcodeResult CRunningScript::ProcessCommands1600To1699(i32 CurrCommand)
         {
             CollectParameters(2);
             pObj = CPools::GetObjectPool().GetAt(ScriptParams[0]);
-            pObj->physicalFlags.bRenderScorched = (ScriptParams[1] != 0);
+            pObj->m_nPhysicalFlags.bRenderScorched = (ScriptParams[1] != 0);
             return OR_CONTINUE;
         }
         case COMMAND_TASK_LOOK_AT_OBJECT:
@@ -12278,7 +12241,7 @@ OpcodeResult CRunningScript::ProcessCommands1600To1699(i32 CurrCommand)
             CollectParameters(1);
             i32 decisionMaker = ScriptParams[0];
             ActualIndex = CTheScripts::GetActualScriptThingIndex(ScriptParams[0], UNIQUE_SCRIPT_DECISION_MAKER);
-            if (ActualIndex < 20 && CTheScripts::ScriptResourceManager.RemoveFromResourceManager(decisionMaker, 3, this))
+            if (ActualIndex >= 0 && ActualIndex < 20 && CTheScripts::ScriptResourceManager.RemoveFromResourceManager(decisionMaker, 3, this))
             {
                 CDecisionMakerTypesFileLoader::UnloadDecisionMaker(static_cast<eDecisionTypes>(ActualIndex));
             }
@@ -12881,7 +12844,7 @@ OpcodeResult CRunningScript::ProcessCommands1600To1699(i32 CurrCommand)
         case COMMAND_IS_PLAYER_TARGETTING_ANYTHING:
         {
             CollectParameters(1);
-            pPed = CWorld::Players[ScriptParams[0]].m_pPed;
+            pPed = CWorld::Players[ScriptParams[0]].pPed;
             UpdateCompareFlag(pPed && pPed->GetWeaponLockOnTarget() != nullptr);
             return OR_CONTINUE;
         }
@@ -13141,9 +13104,9 @@ OpcodeResult CRunningScript::ProcessCommands1700To1799(i32 CurrCommand)
             CollectParameters(2);
             CPlayerInfo* pPlayer = &CWorld::Players[ScriptParams[0]];
             if (ScriptParams[1])
-                pPlayer->m_pPed->m_pPlayerData->m_bPlayerSprintDisabled = true;
+                pPlayer->pPed->m_pPlayerData->m_bPlayerSprintDisabled = true;
             else
-                pPlayer->m_pPed->m_pPlayerData->m_bPlayerSprintDisabled = false;
+                pPlayer->pPed->m_pPlayerData->m_bPlayerSprintDisabled = false;
             return OR_CONTINUE;
         }
 
@@ -14200,7 +14163,7 @@ OpcodeResult CRunningScript::ProcessCommands1800To1899(i32 CurrCommand)
         case COMMAND_BUILD_PLAYER_MODEL:
         {
             CollectParameters(1);
-            CClothes::RebuildPlayer(CWorld::Players[ScriptParams[0]].m_pPed, false);
+            CClothes::RebuildPlayer(CWorld::Players[ScriptParams[0]].pPed, false);
             CReplay::Init();
             return OR_CONTINUE;
         }
@@ -14213,7 +14176,7 @@ OpcodeResult CRunningScript::ProcessCommands1800To1899(i32 CurrCommand)
             {
                 pVehicle->AutoPilot.Mission = MISSION_PLANE_ATTACK_PLAYER;
             }
-            ((CPlane*)pVehicle)->m_minAltitude = fMinHeightAboveTerrain;
+            ((CPlane*)pVehicle)->m_MinHeightAboveTerrain = fMinHeightAboveTerrain;
             return OR_CONTINUE;
         }
         case COMMAND_PLANE_FLY_IN_DIRECTION:
@@ -14227,10 +14190,10 @@ OpcodeResult CRunningScript::ProcessCommands1800To1899(i32 CurrCommand)
             {
                 pVehicle->AutoPilot.Mission = MISSION_PLANE_FLYINDIRECTION;
             }
-            ((CPlane*)pVehicle)->m_planeHeading = fDirection;
-            ((CPlane*)pVehicle)->m_maxAltitude = fLowestFlightHeight;
-            ((CPlane*)pVehicle)->m_planeHeadingPrev = fDirection;
-            ((CPlane*)pVehicle)->m_minAltitude = fMinHeightAboveTerrain;
+            ((CPlane*)pVehicle)->m_FlightDirection = fDirection;
+            ((CPlane*)pVehicle)->m_LowestFlightHeight = fLowestFlightHeight;
+            ((CPlane*)pVehicle)->m_FlightDirectionAvoidingTerrain = fDirection;
+            ((CPlane*)pVehicle)->m_MinHeightAboveTerrain = fMinHeightAboveTerrain;
             return OR_CONTINUE;
         }
         case COMMAND_PLANE_FOLLOW_ENTITY:
@@ -14261,7 +14224,7 @@ OpcodeResult CRunningScript::ProcessCommands1800To1899(i32 CurrCommand)
                 pTargetEntity->RegisterReference((CEntity**)&pVehicle->AutoPilot.pTargetEntity);
             }
             pVehicle->SetEngineOn(true);
-            ((CPlane*)pVehicle)->m_minAltitude = fMinHeightAboveTerrain;
+            ((CPlane*)pVehicle)->m_MinHeightAboveTerrain = fMinHeightAboveTerrain;
             return OR_CONTINUE;
         }
         case COMMAND_TASK_DRIVE_BY:
@@ -14334,7 +14297,7 @@ OpcodeResult CRunningScript::ProcessCommands1800To1899(i32 CurrCommand)
             LatestCmpFlagResult = false;
             if (pObj && pObj->GetIsTypeObject())
             {
-                if (pObj->objectFlags.bIsBroken)
+                if (pObj->m_nObjectFlags.bHasBeenShattered)
                 {
                     LatestCmpFlagResult = ScriptParams[5] != 0;
                 }
@@ -14389,7 +14352,7 @@ OpcodeResult CRunningScript::ProcessCommands1800To1899(i32 CurrCommand)
             if (CGlass::IsObjectGlass(pObj))
             {
                 CGlass::WindowRespondsToCollision(pObj, 99999.9f, CVector(0.0f, 0.0f, 0.0f), pObj->GetPosition(), false);
-                pObj->objectFlags.bIsBroken = true;
+                pObj->m_nObjectFlags.bHasBeenShattered = true;
                 return OR_CONTINUE;
             }
             else
@@ -14401,9 +14364,9 @@ OpcodeResult CRunningScript::ProcessCommands1800To1899(i32 CurrCommand)
                 {
                     pObj->RemoveFromMovingList();
                 }
-                pObj->objectFlags.bIsBroken = true;
+                pObj->m_nObjectFlags.bHasBeenShattered = true;
                 pObj->m_bDrawLast = true;
-                pObj->physicalFlags.bRenderScorched = true;
+                pObj->m_nPhysicalFlags.bRenderScorched = true;
                 pObj->m_vecMoveSpeed = CVector(0.0f, 0.0f, 0.0f);
                 pObj->m_vecTurnSpeed = CVector(0.0f, 0.0f, 0.0f);
                 pObj->DeleteRwObject();
@@ -15417,7 +15380,7 @@ OpcodeResult CRunningScript::ProcessCommands1900To1999(i32 CurrCommand)
         case COMMAND_GIVE_PLAYER_CLOTHES:
         {
             CollectParameters(4);
-            CWorld::Players[ScriptParams[0]].m_pPed->m_pPlayerData->m_pClothes->SetTextureAndModel(ScriptParams[1], ScriptParams[2], ScriptParams[3]);
+            CWorld::Players[ScriptParams[0]].pPed->m_pPlayerData->m_pClothes->SetTextureAndModel(ScriptParams[1], ScriptParams[2], ScriptParams[3]);
             return OR_CONTINUE;
         }
         // sa: 0x5d3 (opcode 1926)
@@ -15804,7 +15767,7 @@ OpcodeResult CRunningScript::ProcessCommands1900To1999(i32 CurrCommand)
         case COMMAND_GET_PLAYER_GROUP:
         {
             CollectParameters(1);
-            ScriptParams[0] = CTheScripts::GetUniqueScriptThingIndex(CWorld::Players[ScriptParams[0]].m_pPed->m_pPlayerData->m_PlayerGroup, 8);
+            ScriptParams[0] = CTheScripts::GetUniqueScriptThingIndex(CWorld::Players[ScriptParams[0]].pPed->m_pPlayerData->m_PlayerGroup, 8);
             StoreParameters(1);
             return OR_CONTINUE;
         }
@@ -15890,11 +15853,11 @@ OpcodeResult CRunningScript::ProcessCommands1900To1999(i32 CurrCommand)
             pPlayer = &CWorld::Players[ScriptParams[0]];
             if (ScriptParams[1])
             {
-                pPlayer->m_pPed->m_pPlayerData->m_GroupStuffDisabled = false;
+                pPlayer->pPed->m_pPlayerData->m_GroupStuffDisabled = false;
             }
             else
             {
-                pPlayer->m_pPed->m_pPlayerData->m_GroupStuffDisabled = true;
+                pPlayer->pPed->m_pPlayerData->m_GroupStuffDisabled = true;
             }
             return OR_CONTINUE;
         }
@@ -16541,7 +16504,7 @@ OpcodeResult CRunningScript::ProcessCommands2000To2099(i32 CurrCommand)
             while (i-- && !LatestCmpFlagResult)
             {
                 pObj = ObjPool.GetSlot(i);
-                if (pObj && pObj->objectFlags.bIsBroken && pObj->GetModelIndex() == ModelIndex)
+                if (pObj && pObj->m_nObjectFlags.bHasBeenShattered && pObj->GetModelIndex() == ModelIndex)
                 {
                     if ((tempVec - pObj->GetPosition()).Magnitude() <= fRadius)
                     {
@@ -16556,9 +16519,9 @@ OpcodeResult CRunningScript::ProcessCommands2000To2099(i32 CurrCommand)
             CollectParameters(1);
             pPlayer = &CWorld::Players[ScriptParams[0]];
             LatestCmpFlagResult = false;
-            if (pPlayer->m_pPed->bInVehicle && pPlayer->m_pPed->m_pMyVehicle->GetVehicleAppearance() == APR_BIKE)
+            if (pPlayer->pPed->bInVehicle && pPlayer->pPed->m_pMyVehicle->GetVehicleAppearance() == APR_BIKE)
             {
-                LatestCmpFlagResult = pPlayer->m_nBikeRearWheelCounter != 0;
+                LatestCmpFlagResult = pPlayer->nBikeRearWheelCounter != 0;
             }
             UpdateCompareFlag(LatestCmpFlagResult);
             return OR_CONTINUE;
@@ -16566,8 +16529,8 @@ OpcodeResult CRunningScript::ProcessCommands2000To2099(i32 CurrCommand)
             CollectParameters(1);
             pPlayer = &CWorld::Players[ScriptParams[0]];
             LatestCmpFlagResult = false;
-            if (pPlayer->m_pPed->bInVehicle && pPlayer->m_pPed->m_pMyVehicle->GetVehicleAppearance() == APR_BIKE &&
-                pPlayer->m_nBikeFrontWheelCounter)
+            if (pPlayer->pPed->bInVehicle && pPlayer->pPed->m_pMyVehicle->GetVehicleAppearance() == APR_BIKE &&
+                pPlayer->nBikeFrontWheelCounter)
             {
                 LatestCmpFlagResult = true;
             }
@@ -17095,7 +17058,7 @@ OpcodeResult CRunningScript::ProcessCommands2000To2099(i32 CurrCommand)
             }
             else if (pVehicle->GetVehicleType() == VEHICLE_TYPE_PLANE)
             {
-                static_cast<CPlane*>(pVehicle)->m_fPropSpeed = 0.18f;
+                static_cast<CPlane*>(pVehicle)->m_fEngineSpeed = 0.18f;
             }
             return OR_CONTINUE;
         case COMMAND_DISPLAY_HUD:
@@ -17156,10 +17119,10 @@ OpcodeResult CRunningScript::ProcessCommands2000To2099(i32 CurrCommand)
             CollectParameters(1);
             pObj = CPools::GetObjectPool().GetAt(ScriptParams[0]);
             LatestCmpFlagResult = false;
-            if (pObj && pObj->objectFlags.bIsPhotographed)
+            if (pObj && pObj->m_nObjectFlags.bHasBeenPhotographed)
             {
                 LatestCmpFlagResult = true;
-                pObj->objectFlags.bIsPhotographed = false;
+                pObj->m_nObjectFlags.bHasBeenPhotographed = false;
             }
             UpdateCompareFlag(LatestCmpFlagResult);
             return OR_CONTINUE;
@@ -17308,7 +17271,7 @@ OpcodeResult CRunningScript::ProcessCommands2100To2199(i32 CurrCommand)
         case COMMAND_SELECT_WEAPONS_FOR_VEHICLE:
             CollectParameters(2);
             pVehicle = CPools::GetVehiclePool().GetAt(ScriptParams[0]);
-            pVehicle->m_nVehicleWeaponInUse = static_cast<eCarWeapon>(ScriptParams[1]);
+            pVehicle->m_SelectedWeapon = static_cast<eCarWeapon>(ScriptParams[1]);
             return OR_CONTINUE;
         case COMMAND_GET_CITY_PLAYER_IS_IN:
             CollectParameters(1);
@@ -17582,7 +17545,7 @@ OpcodeResult CRunningScript::ProcessCommands2100To2199(i32 CurrCommand)
             for (loop = 0; loop < static_cast<u32>(NumOfEntities); loop++)
             {
                 if (pEntityArray[loop]->GetIsTypeObject() &&
-                    static_cast<CObject*>(pEntityArray[loop])->objectFlags.bIsLiftable)
+                    static_cast<CObject*>(pEntityArray[loop])->m_nObjectFlags.bIsStealable)
                 {
                     ObjPos = pEntityArray[loop]->GetPosition();
                     DiffVector = ObjPos - CVector(NewX, NewY, NewZ);
@@ -17692,11 +17655,11 @@ OpcodeResult CRunningScript::ProcessCommands2100To2199(i32 CurrCommand)
             pObj = CPools::GetObjectPool().GetAt(ScriptParams[0]);
             if (ScriptParams[1])
             {
-                pObj->physicalFlags.bOnlyDamagedByPlayer = true;
+                pObj->m_nPhysicalFlags.bOnlyDamagedByPlayer = true;
             }
             else
             {
-                pObj->physicalFlags.bOnlyDamagedByPlayer = false;
+                pObj->m_nPhysicalFlags.bOnlyDamagedByPlayer = false;
             }
             return OR_CONTINUE;
         case COMMAND_CREATE_BIRDS:
@@ -18151,7 +18114,7 @@ OpcodeResult CRunningScript::ProcessCommands2200To2299(i32 CurrCommand)
             CollectParameters(3);
             pVehicle = CPools::GetVehiclePool().GetAt(ScriptParams[0]);
             pVehicle->AutoPilot.SetMission(MISSION_PLANE_DOG_FIGHT_PLAYER);
-            static_cast<CPlane*>(pVehicle)->m_minAltitude = *reinterpret_cast<f32*>(&ScriptParams[2]);
+            static_cast<CPlane*>(pVehicle)->m_MinHeightAboveTerrain = *reinterpret_cast<f32*>(&ScriptParams[2]);
             return OR_CONTINUE;
         case COMMAND_CAN_TRIGGER_GANG_WAR_WHEN_ON_A_MISSION:
             CollectParameters(1);
@@ -18610,11 +18573,11 @@ OpcodeResult CRunningScript::ProcessCommands2200To2299(i32 CurrCommand)
             CObject* pObject = CPools::GetObjectPool().GetAt(ScriptParams[0]);
             if (ScriptParams[1])
             {
-                pObject->objectFlags.bIsLiftable = true;
+                pObject->m_nObjectFlags.bIsStealable = true;
             }
             else
             {
-                pObject->objectFlags.bIsLiftable = false;
+                pObject->m_nObjectFlags.bIsStealable = false;
             }
             return OR_CONTINUE;
         }
@@ -18882,8 +18845,8 @@ OpcodeResult CRunningScript::ProcessCommands2300To2399(i32 CurrCommand)
             }
             else
             {
-                pObject->physicalFlags.bInfiniteMass = false;
-                pObject->physicalFlags.bInfiniteMassFixed = false;
+                pObject->m_nPhysicalFlags.bHangingPhysics = false;
+                pObject->m_nPhysicalFlags.bInfiniteMassFixed = false;
                 pObject->SetTurnSpeed(CVector(0.0f, 0.0f, 0.0f));
                 pObject->SetIsStatic(true);
             }
@@ -18986,11 +18949,11 @@ OpcodeResult CRunningScript::ProcessCommands2300To2399(i32 CurrCommand)
             pObject = CPools::GetObjectPool().GetAt(ScriptParams[0]);
             if (ScriptParams[1])
             {
-                pObject->objectFlags.bCanBeAttachedToMagnet = true;
+                pObject->m_nObjectFlags.bWinchCanPickMeUp = true;
             }
             else
             {
-                pObject->objectFlags.bCanBeAttachedToMagnet = false;
+                pObject->m_nObjectFlags.bWinchCanPickMeUp = false;
             }
             return OR_CONTINUE;
         }
@@ -19120,7 +19083,7 @@ OpcodeResult CRunningScript::ProcessCommands2300To2399(i32 CurrCommand)
         {
             CollectParameters(1);
             CPlane* pPlane = static_cast<CPlane*>(CPools::GetVehiclePool().GetAt(ScriptParams[0]));
-            *reinterpret_cast<f32*>(&ScriptParams[0]) = pPlane->m_fLandingGearStatus;
+            *reinterpret_cast<f32*>(&ScriptParams[0]) = pPlane->m_fLGearAngle;
             StoreParameters(1);
             return OR_CONTINUE;
         }
@@ -19980,7 +19943,7 @@ OpcodeResult CRunningScript::ProcessCommands2400To2499(i32 CurrCommand)
             CollectParameters(1);
             pObject = CPools::GetObjectPool().GetAt(ScriptParams[0]);
             LatestCmpFlagResult = false;
-            if (CWorld::Players[CWorld::PlayerInFocus].m_pPed && pObject)
+            if (CWorld::Players[CWorld::PlayerInFocus].pPed && pObject)
             {
                 TempCoors = FindPlayerCentreOfWorld(CWorld::PlayerInFocus);
                 LatestCmpFlagResult = CTheScripts::ScriptsForBrains.IsObjectWithinBrainActivationRange(pObject, TempCoors) != false;
@@ -20062,7 +20025,7 @@ OpcodeResult CRunningScript::ProcessCommands2400To2499(i32 CurrCommand)
         {
             CollectParameters(1);
             CTrain* pTrain = static_cast<CTrain*>(CPools::GetVehiclePool().GetAt(ScriptParams[0]));
-            UpdateCompareFlag(pTrain->trainFlags.bNotOnARailRoad);
+            UpdateCompareFlag(pTrain->m_nTrainFlags.bDerailed);
             return OR_CONTINUE;
         }
         case COMMAND_SET_CHAR_FORCE_DIE_IN_CAR:
@@ -20263,12 +20226,12 @@ OpcodeResult CRunningScript::ProcessCommands2400To2499(i32 CurrCommand)
             if (ScriptParams[1])
             {
                 pVehicle->m_bUsesCollision = true;
-                pVehicle->physicalFlags.bApplyGravity = true;
+                pVehicle->m_nPhysicalFlags.bDoGravity = true;
             }
             else
             {
                 pVehicle->m_bUsesCollision = false;
-                pVehicle->physicalFlags.bApplyGravity = false;
+                pVehicle->m_nPhysicalFlags.bDoGravity = false;
             }
             return OR_CONTINUE;
         }
@@ -20341,7 +20304,7 @@ OpcodeResult CRunningScript::ProcessCommands2400To2499(i32 CurrCommand)
                 {
                     RpClumpForAllAtomics(reinterpret_cast<RpClump*>(pObject->m_pRwObject), CClumpModelInfo::SetAtomicRendererCB, reinterpret_cast<void*>(CVisibilityPlugins::RenderFadingClumpCB));
                 }
-                pObject->objectFlags.bFadingIn = true;
+                pObject->m_nObjectFlags.bFadeOut = true;
             }
             if (IsThisAMissionScript)
             {
@@ -20711,7 +20674,7 @@ OpcodeResult CRunningScript::ProcessCommands2500To2599(i32 CurrCommand)
         case COMMAND_SET_PLAYER_MODEL:
         {
             CollectParameters(2);
-            pPed = CWorld::Players[ScriptParams[0]].m_pPed;
+            pPed = CWorld::Players[ScriptParams[0]].pPed;
             i32 modelID = ScriptParams[1];
             i32 animGrp = pPed->m_motionAnimGroup;
             pPed->DeleteRwObject();
@@ -20740,11 +20703,11 @@ OpcodeResult CRunningScript::ProcessCommands2500To2599(i32 CurrCommand)
         case COMMAND_SET_OBJECT_PROOFS:
             CollectParameters(6);
             pObject = CPools::GetObjectPool().GetAt(ScriptParams[0]);
-            pObject->physicalFlags.bNotDamagedByBullets = ScriptParams[1];
-            pObject->physicalFlags.bNotDamagedByFlames = ScriptParams[2];
-            pObject->physicalFlags.bIgnoresExplosions = ScriptParams[3];
-            pObject->physicalFlags.bNotDamagedByCollisions = ScriptParams[4];
-            pObject->physicalFlags.bNotDamagedByMelee = ScriptParams[5];
+            pObject->m_nPhysicalFlags.bNotDamagedByBullets = ScriptParams[1];
+            pObject->m_nPhysicalFlags.bNotDamagedByFlames = ScriptParams[2];
+            pObject->m_nPhysicalFlags.bIgnoresExplosions = ScriptParams[3];
+            pObject->m_nPhysicalFlags.bNotDamagedByCollisions = ScriptParams[4];
+            pObject->m_nPhysicalFlags.bNotDamagedByMelee = ScriptParams[5];
             return OR_CONTINUE;
         case COMMAND_IS_CAR_TOUCHING_CAR:
         {
@@ -20771,7 +20734,7 @@ OpcodeResult CRunningScript::ProcessCommands2500To2599(i32 CurrCommand)
         case COMMAND_SET_TRAIN_FORCED_TO_SLOW_DOWN:
             CollectParameters(2);
             pVehicle = CPools::GetVehiclePool().GetAt(ScriptParams[0]);
-            static_cast<CTrain*>(pVehicle)->trainFlags.bForceSlowDown = (ScriptParams[1] != 0);
+            static_cast<CTrain*>(pVehicle)->m_nTrainFlags.bIsForcedToSlowDown = (ScriptParams[1] != 0);
             return OR_CONTINUE;
         case COMMAND_IS_VEHICLE_ON_ALL_WHEELS:
             CollectParameters(1);
@@ -20779,7 +20742,7 @@ OpcodeResult CRunningScript::ProcessCommands2500To2599(i32 CurrCommand)
             LatestCmpFlagResult = false;
             if (pVehicle->GetBaseVehicleType() == VEHICLE_TYPE_BIKE)
             {
-                if (static_cast<CBike*>(pVehicle)->m_nNoOfContactWheels == 4)
+                if (static_cast<CBike*>(pVehicle)->nNoOfContactWheels == 4)
                 {
                     LatestCmpFlagResult = true;
                 }
@@ -20826,7 +20789,7 @@ OpcodeResult CRunningScript::ProcessCommands2500To2599(i32 CurrCommand)
             return OR_CONTINUE;
         case COMMAND_FORCE_INTERIOR_LIGHTING_FOR_PLAYER:
             CollectParameters(2);
-            CWorld::Players[ScriptParams[0]].m_pPed->GetPlayerData()->m_bForceInteriorLighting = ScriptParams[1] != 0;
+            CWorld::Players[ScriptParams[0]].pPed->GetPlayerData()->m_bForceInteriorLighting = ScriptParams[1] != 0;
             return OR_CONTINUE;
         case COMMAND_DISABLE_2ND_PAD_FOR_DEBUG:
             CollectParameters(1);
@@ -20940,7 +20903,7 @@ OpcodeResult CRunningScript::ProcessCommands2500To2599(i32 CurrCommand)
         case COMMAND_FIND_TRAIN_DIRECTION:
             CollectParameters(1);
             pVehicle = CPools::GetVehiclePool().GetAt(ScriptParams[0]);
-            UpdateCompareFlag(static_cast<CTrain*>(pVehicle)->trainFlags.bClockwiseDirection);
+            UpdateCompareFlag(static_cast<CTrain*>(pVehicle)->m_nTrainFlags.bDirection);
             return OR_CONTINUE;
         case COMMAND_SET_AIRCRAFT_CARRIER_SAM_SITE:
             CollectParameters(1);
@@ -20988,7 +20951,7 @@ OpcodeResult CRunningScript::ProcessCommands2500To2599(i32 CurrCommand)
             return OR_CONTINUE;
         case COMMAND_PLAYER_TAKE_OFF_GOGGLES:
             CollectParameters(2);
-            pPed = CWorld::Players[ScriptParams[0]].m_pPed;
+            pPed = CWorld::Players[ScriptParams[0]].pPed;
             if (ScriptParams[1])
             {
                 if (pPed->IsWearingGoggles() && !pPed->GetPedIntelligence()->GetTaskPrimary())
@@ -21046,7 +21009,7 @@ OpcodeResult CRunningScript::ProcessCommands2500To2599(i32 CurrCommand)
             iDecisionMakerIndex = CTheScripts::GetActualScriptThingIndex(ScriptParams[0], UNIQUE_SCRIPT_DECISION_MAKER);
             if (iDecisionMakerIndex >= 0 && iDecisionMakerIndex < (i32)CDecisionMakerTypes::NUM_TYPES)
             {
-                if (CDecisionMakerTypes::m_IsActive[iDecisionMakerIndex])
+                if (CDecisionMakerTypes::m_bIsActive[iDecisionMakerIndex])
                 {
                     LatestCmpFlagResult = true;
                 }
@@ -21201,7 +21164,7 @@ OpcodeResult CRunningScript::ProcessCommands2500To2599(i32 CurrCommand)
         case COMMAND_ENABLE_DISABLED_ATTACTORS_ON_OBJECT:
             CollectParameters(2);
             pObject = CPools::GetObjectPool().GetAt(ScriptParams[0]);
-            pObject->objectFlags.bEnableDisabledAttractors = ScriptParams[1];
+            pObject->m_nObjectFlags.bEnableDisabledAttractors = ScriptParams[1];
             return OR_CONTINUE;
         case COMMAND_LOAD_SCENE_IN_DIRECTION:
         {
@@ -21218,7 +21181,7 @@ OpcodeResult CRunningScript::ProcessCommands2500To2599(i32 CurrCommand)
         }
         case COMMAND_IS_PLAYER_USING_JETPACK:
             CollectParameters(1);
-            LatestCmpFlagResult = (CWorld::Players[ScriptParams[0]].m_pPed->GetPedIntelligence()->GetTaskJetPack() != nullptr);
+            LatestCmpFlagResult = (CWorld::Players[ScriptParams[0]].pPed->GetPedIntelligence()->GetTaskJetPack() != nullptr);
             UpdateCompareFlag(LatestCmpFlagResult);
             return OR_CONTINUE;
         case COMMAND_BLOCK_VEHICLE_MODEL:
@@ -21470,7 +21433,7 @@ OpcodeResult CRunningScript::ProcessCommands2600To2699(i32 CurrCommand)
         case COMMAND_IS_PLAYER_CLIMBING:
         {
             CollectParameters(1);
-            UpdateCompareFlag(CWorld::Players[ScriptParams[0]].m_pPed->GetPedIntelligence()->GetTaskClimb() != nullptr);
+            UpdateCompareFlag(CWorld::Players[ScriptParams[0]].pPed->GetPedIntelligence()->GetTaskClimb() != nullptr);
             return OR_CONTINUE;
         }
         case COMMAND_IS_THIS_HELP_MESSAGE_BEING_DISPLAYED:

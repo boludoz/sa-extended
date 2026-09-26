@@ -107,13 +107,13 @@ bool CTaskSimpleDie::ProcessPed(CPed* ped) {
         ped->bKeepTasksAfterCleanUp = true;
         if (!m_alreadyDead) {
             if (
-                ped->physicalFlags.bSubmergedInWater
+                ped->m_nPhysicalFlags.bIsInWater
                 || !ped->GetUsesCollision()
-                || ped->physicalFlags.bDontApplySpeed
+                || ped->m_nPhysicalFlags.bCoorsFrozenByScript
                 || ped->bIsStanding
-                && ( !ped->m_standingOnEntity
+                && ( !ped->m_pGroundPhysical
                    || ped->IsPlayer()
-                   || ped->m_standingOnEntity->AsPhysical()->physicalFlags.bDisableCollisionForce
+                   || ped->m_pGroundPhysical->AsPhysical()->m_nPhysicalFlags.bInfiniteMass
                )
             ) {
                 CEventDeath event(m_animId == ANIM_ID_DROWN);

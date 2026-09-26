@@ -54,7 +54,7 @@ CHeli::CHeli(int32 modelIndex, eVehicleCreatedBy createdBy) : CAutomobile(modelI
     m_nHeliFlags.bWarnTarger             = 0; // fix
     m_LightBrightness                    = 0.0;
 
-    physicalFlags.bDontCollideWithFlyers = true;
+    m_nPhysicalFlags.bFlyer = true;
 
     if (modelIndex == MODEL_HUNTER) {
         m_damageManager.SetDoorStatus(DOOR_LEFT_FRONT, DAMSTATE_OK);
@@ -222,7 +222,7 @@ void CHeli::TestSniperCollision(CVector* origin, CVector* target) {
         return;
 
     for (auto& heli : pHelis) {
-        if (!heli || heli->physicalFlags.bBulletProof)
+        if (!heli || heli->m_nPhysicalFlags.bNotDamagedByBullets)
             continue;
 
         const auto mat = (CMatrix*)heli->m_matrix;
@@ -261,7 +261,7 @@ void CHeli::UpdateHelis() {
     // Check first helicopter
     if (IsHeliValid(CHeli::pHelis[0])) {
         hasValidPolmav = CHeli::pHelis[0]->m_nModelIndex == MODEL_POLMAV && 
-                            !CHeli::pHelis[0]->physicalFlags.bRenderScorched && 
+                            !CHeli::pHelis[0]->m_nPhysicalFlags.bRenderScorched && 
                             !CHeli::pHelis[0]->vehicleFlags.bIsDrowning;
         currentHeliCount = 1;
     }
@@ -269,7 +269,7 @@ void CHeli::UpdateHelis() {
     // Check second helicopter
     if (IsHeliValid(CHeli::pHelis[1])) {
         currentHeliCount++;
-        if (CHeli::pHelis[1]->m_nModelIndex == MODEL_POLMAV && !CHeli::pHelis[1]->physicalFlags.bRenderScorched) {
+        if (CHeli::pHelis[1]->m_nModelIndex == MODEL_POLMAV && !CHeli::pHelis[1]->m_nPhysicalFlags.bRenderScorched) {
             hasValidPolmav = hasValidPolmav || !CHeli::pHelis[1]->vehicleFlags.bIsDrowning;
         }
     }
@@ -322,7 +322,7 @@ void CHeli::UpdateHelis() {
     // Process first helicopter
     if (IsHeliValid(CHeli::pHelis[0])) {
         // Check if destroyed
-        if (CHeli::pHelis[0]->physicalFlags.bRenderScorched || CHeli::pHelis[0]->vehicleFlags.bIsDrowning) {
+        if (CHeli::pHelis[0]->m_nPhysicalFlags.bRenderScorched || CHeli::pHelis[0]->vehicleFlags.bIsDrowning) {
             CHeli::pHelis[0]->m_autoPilot.Mission = MISSION_HELI_FLY_AWAY_FROM_PLAYER;
             CHeli::pHelis[0] = nullptr;
         } 
@@ -345,7 +345,7 @@ void CHeli::UpdateHelis() {
     // Process second helicopter
     if (IsHeliValid(CHeli::pHelis[1])) {
         // Check if destroyed
-        if (CHeli::pHelis[1]->physicalFlags.bRenderScorched || CHeli::pHelis[1]->vehicleFlags.bIsDrowning) {
+        if (CHeli::pHelis[1]->m_nPhysicalFlags.bRenderScorched || CHeli::pHelis[1]->vehicleFlags.bIsDrowning) {
             CHeli::pHelis[1]->m_autoPilot.Mission = MISSION_HELI_FLY_AWAY_FROM_PLAYER;
             CHeli::pHelis[1] = nullptr;
         } else if (CHeli::pHelis[1]->m_autoPilot.Mission == MISSION_HELI_FLY_AWAY_FROM_PLAYER) {
@@ -421,8 +421,8 @@ void CHeli::BlowUpCar(CEntity* damager, bool bHideExplosion) {
         // Update player stats if player caused explosion
         if (damager == FindPlayerPed() || damager == FindPlayerVehicle()) {
             auto& player = CWorld::Players[CWorld::PlayerInFocus]; // find
-            player.m_fCurrentChaseValue += 10.0f;
-            player.m_nHavocCaused += 20;
+            player.CurrentChaseValue += 10.0f;
+            player.HavocCaused += 20;
             CStats::IncrementStat(STAT_COST_OF_PROPERTY_DAMAGED, (float)CGeneral::GetRandomNumberInRange(4000, 10000));
         }
 
@@ -435,13 +435,13 @@ void CHeli::BlowUpCar(CEntity* damager, bool bHideExplosion) {
         if (GetStatus() <= STATUS_PHYSICS) { // check
             m_vecMoveSpeed = CVector(0.0f, 0.0f, 0.0f);
             m_vecTurnSpeed = CVector(0.0f, 0.0f, 0.0f);
-            physicalFlags.bDisableZ = false;
-            physicalFlags.bDisableMoveForce = false;
+            m_nPhysicalFlags.bPoolBallPhysics = false;
+            m_nPhysicalFlags.bDoorPhysics = false;
         }
 
         // Set appropriate status flags
         SetStatus(STATUS_WRECKED);
-        physicalFlags.bRenderScorched = true;
+        m_nPhysicalFlags.bRenderScorched = true;
         
         // Mark time of death and set proper visibility
         m_nTimeWhenBlowedUp = CTimer::GetTimeInMS();
@@ -477,7 +477,7 @@ void CHeli::BlowUpCar(CEntity* damager, bool bHideExplosion) {
 
         // Set remaining state
         m_fHealth = 0.0f;
-        m_DelayedExplosion = 0;
+        DelayedExplosion = 0;
         vehicleFlags.bDriverLastFrame = false;
         vehicleFlags.bSirenOrAlarm = false;
         vehicleFlags.bCreatedAsPoliceVehicle = false;
@@ -679,14 +679,14 @@ void CHeli::ProcessFlyingCarStuff() {
     // Please do not confuse with type of automobile!
     if (!GetStatus() || GetStatus() == STATUS_REMOTE_CONTROLLED || GetStatus() == STATUS_PHYSICS) {
         // Handle wheel angular velocity
-        if (vehicleType->m_fHeliRotorSpeed < 0.22f && !physicalFlags.bTouchingWater) {
+        if (vehicleType->m_fHeliRotorSpeed < 0.22f && !m_nPhysicalFlags.bForceFullWaterCheck) {
             vehicleType->m_fHeliRotorSpeed += (m_nModelIndex == MODEL_RCGOBLIN || m_nModelIndex == MODEL_RCRAIDER) ? 0.003f : 0.001f;
         }
 
         // Process flying controls if needed
         if (m_fHeliRotorSpeed > 0.15) {
             if (vehicleFlags.bIsRCVehicle ||
-                (m_NumDriveWheelsOnGround < 4 && !(IsAmphibiousHeli() && physicalFlags.bTouchingWater) 
+                (m_nDriveWheelsOnGround < 4 && !(IsAmphibiousHeli() && m_nPhysicalFlags.bForceFullWaterCheck) 
                 || (m_fThrottleControl > 0.0f) 
                 ||std::abs(m_vecMoveSpeed.x) > 0.02f 
                 ||std::abs(m_vecMoveSpeed.y) > 0.02f 
@@ -818,7 +818,7 @@ void CHeli::PreRender() {
 
         for (auto i = 0; i < 4; i++) {
             const auto r     = 1.0f - m_fSuspensionLength[i] / m_fLineLength[i];
-            const auto ratio = (m_fWheelsSuspensionCompression[i] - r) / (1.0f - r);
+            const auto ratio = (m_aWheelRatios[i] - r) / (1.0f - r);
 
             mi->GetWheelPosn(i, posn, true);
 
@@ -827,10 +827,10 @@ void CHeli::PreRender() {
                 height -= ratio * m_fSuspensionLength[i];
             }
 
-            if (height > m_wheelPosition[i] || (physicalFlags.bDisableCollisionForce && handlingFlags.bHydraulicInst)) {
-                m_wheelPosition[i] = height;
+            if (height > m_aWheelSuspensionHeights[i] || (m_nPhysicalFlags.bInfiniteMass && handlingFlags.bHydraulicInst)) {
+                m_aWheelSuspensionHeights[i] = height;
             } else {
-                m_wheelPosition[i] += (height - m_wheelPosition[i]) * 0.3f;
+                m_aWheelSuspensionHeights[i] += (height - m_aWheelSuspensionHeights[i]) * 0.3f;
             }
         }
     }
@@ -905,7 +905,7 @@ void CHeli::ProcessControl() {
     bool bFireSearchLightGun = false;
     CPhysical* pSearchLightTarget = nullptr;
 
-    if (physicalFlags.bRenderScorched || CCullZones::PlayerNoRain()) {
+    if (m_nPhysicalFlags.bRenderScorched || CCullZones::PlayerNoRain()) {
         m_LightBrightness = 0.0f;
     } else {
         if (m_autoPilot.Mission == MISSION_HELI_POLICE_BEHAVIOUR && (!FindPlayerVehicle(-1, false) || (FindPlayerVehicle(-1, false)->GetVehicleType() != VEHICLE_TYPE_HELI && FindPlayerVehicle(-1, false)->GetVehicleType() != VEHICLE_TYPE_PLANE))) {
@@ -922,7 +922,7 @@ void CHeli::ProcessControl() {
             pSearchLightTarget = nullptr;
         }
 
-        if (physicalFlags.bSubmergedInWater) {
+        if (m_nPhysicalFlags.bIsInWater) {
             bDoSearchLight = false;
             bFireSearchLightGun = false;
         }

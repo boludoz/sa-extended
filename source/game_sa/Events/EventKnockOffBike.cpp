@@ -149,7 +149,7 @@ int32 CEventKnockOffBike::CalcForcesAndAnims(CPed* ped)
     uint8 numContactWheels = 0;
     float massRatio = ped->m_fMass / m_vehicle->m_fMass;
     if (m_vehicle->IsBike())
-        numContactWheels = m_vehicle->AsBike()->m_nNoOfContactWheels;
+        numContactWheels = m_vehicle->AsBike()->nNoOfContactWheels;
     else if (m_vehicle->IsAutomobile())
         numContactWheels = m_vehicle->AsAutomobile()->m_nNumContactWheels;
 
@@ -280,18 +280,18 @@ bool CEventKnockOffBike::SetPedSafePosition(CPed* ped)
 {
     if (m_vehicle->IsBike()) {
         CBike* bike = m_vehicle->AsBike();
-        bike->m_RideAnimData.LeanAngle = 0.0f;
-        bike->m_bLeanMatrixCalculated = false;
+        bike->RideAnimData.LeanAngle = 0.0f;
+        bike->m_bLeanMatrix = false;
         ped->SetPedPositionInCar();
     }
 
     if (m_vehicle->GetUp().z >= 0.0f)
-        ped->m_fAimingRotation = m_vehicle->GetHeading();
+        ped->m_fDesiredHeading = m_vehicle->GetHeading();
     else
-        ped->m_fAimingRotation = CGeneral::LimitRadianAngle(m_vehicle->GetHeading() + PI);
+        ped->m_fDesiredHeading = CGeneral::LimitRadianAngle(m_vehicle->GetHeading() + PI);
 
-    ped->m_fCurrentRotation = ped->m_fAimingRotation;
-    ped->SetHeading(ped->m_fAimingRotation);
+    ped->m_fCurrentHeading = ped->m_fDesiredHeading;
+    ped->SetHeading(ped->m_fDesiredHeading);
 
     if (m_vehicle->IsBike() && !m_isVictimDriver) {
         float forwardDistance = (1.0f - fabs(DotProduct(m_vehicle->GetForward(), ped->GetForward()))) * 0.8f;
@@ -347,7 +347,7 @@ bool CEventKnockOffBike::SetPedSafePosition(CPed* ped)
 
     if (knockPedOffBike) {
         ped->bKnockedOffBike = true;
-        CEntity::ClearReference(ped->m_standingOnEntity);
+        CEntity::ClearReference(ped->m_pGroundPhysical);
         ped->bWasStanding = false;
         ped->bIsStanding = false;
     }

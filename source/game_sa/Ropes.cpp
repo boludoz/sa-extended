@@ -18,10 +18,10 @@ void CRopes::InjectHooks() {
     RH_ScopedInstall(Shutdown, 0x556B10);
     RH_ScopedInstall(Update, 0x558D70);
     RH_ScopedInstall(Render, 0x556AE0);
-    RH_ScopedInstall(RegisterRope, 0x556B40, { .reversed = false });
+    RH_ScopedInstall(RegisterRope, 0x556B40);
     RH_ScopedInstall(FindPickupHeight, 0x556760);
     RH_ScopedInstall(FindRope, 0x556000);
-    RH_ScopedInstall(FindCoorsAlongRope, 0x555E40, { .reversed = false });
+    RH_ScopedInstall(FindCoorsAlongRope, 0x555E40);
     RH_ScopedInstall(CreateRopeForSwatPed, 0x558D10);
     RH_ScopedInstall(IsCarriedByRope, 0x555F80);
     RH_ScopedInstall(SetSpeedOfTopNode, 0x555DF0);
@@ -70,8 +70,10 @@ void CRopes::Render() {
 
 // Must be used in loop to make attached to holder
 // 0x556B40
-bool CRopes::RegisterRope(uint32 ropeID, uint32 ropeType, CVector startPos, bool bExpires, uint8 segmentCount, uint8 flags, CPhysical* holder, uint32 timeExpire) {
-    return plugin::CallAndReturn<bool, 0x556B40, uint32, uint32, CVector, bool, uint8, uint8, CPhysical*, uint32>(ropeID, ropeType, startPos, bExpires, segmentCount, flags, holder, timeExpire);
+// ASM Match: not measured
+bool CRopes::RegisterRope(uint32 ID, uint32 ArgRopeType, CVector Coors, bool bKeepAliveForAWhile, uint8 ArgFixedAtNode, uint8 bArgSitOnGround, CPhysical* pArgConnectedTo, uint32 LifeTime)
+{
+    return int32();
 }
 
 // 0x556760
@@ -91,8 +93,10 @@ int32 CRopes::FindRope(uint32 id) {
 
 // a4 always nullptr
 // 0x555E40
-bool CRopes::FindCoorsAlongRope(uint32 ropeId, float fDistAlongRope, CVector* outPosn, CVector* outSpeed) {
-    return plugin::CallAndReturn<bool, 0x555E40, uint32, float, CVector*, CVector*>(ropeId, fDistAlongRope, outPosn, outSpeed);
+// ASM Match: not measured
+bool CRopes::FindCoorsAlongRope(uint32 ID, float DistAlongRope, CVector* pResult, CVector* pResultSpeed)
+{
+    return false;
 }
 
 // 0x558D10

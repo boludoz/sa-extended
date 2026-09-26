@@ -432,7 +432,7 @@ void CRoadBlocks::GenerateRoadBlockPedsForCar(CVehicle* vehicle, int32 pedsPosit
             ped->m_nTimeTillWeNeedThisPed = CTimer::GetTimeInMS() + 10'000;
             ped->bCrouchWhenShooting      = !isSpecialCop || pedsPositionsType != 2;
             ped->bCullExtraFarAway        = true;
-            CEntity::RegisterReference(ped->m_pVehicle = vehicle);
+            CEntity::RegisterReference(ped->m_pMyVehicle = vehicle);
             CVisibilityPlugins::SetClumpAlpha(ped->GetRpClump(), 0);
 
             if (pedType != PED_TYPE_COP) {
@@ -516,8 +516,8 @@ void CRoadBlocks::GenerateRoadBlocks() {
                 continue;
             }
 
-            if (mainNode->m_nPathWidth) {
-                const auto width = mainNode->m_nPathWidth / 16.0f;
+            if (mainNode->Width) {
+                const auto width = mainNode->Width / 16.0f;
                 CreateRoadBlockBetween2Points(
                     mainNode->GetPosition() + mrbDir * (mrbWidth / 2.f + width),
                     mainNode->GetPosition() + mrbDir * width,
@@ -532,7 +532,7 @@ void CRoadBlocks::GenerateRoadBlocks() {
             }
 
             for (auto&& [i, nodeAddr] : rngv::enumerate(RoadBlockNodes)) {
-                if (counter2 == i || InOrOut[i] || !ThePaths.IsAreaLoaded(nodeAddr.m_wAreaId)) {
+                if (counter2 == i || InOrOut[i] || !ThePaths.IsAreaLoaded(nodeAddr.Region)) {
                     continue;
                 }
                 const auto& node = ThePaths.GetPathNode(nodeAddr);
@@ -611,10 +611,10 @@ bool CRoadBlocks::GetRoadBlockNodeInfo(CNodeAddress nodeAddress, float& outWidth
     auto* const node = ThePaths.GetPathNode(nodeAddress);
     assert(node);
 
-    assert(node->m_nNumLinks >= 2);
-    const auto naviLinkAddrA = ThePaths.GetNaviLink(nodeAddress.m_wAreaId, node->m_wBaseLinkId + 0),
-               naviLinkAddrB = ThePaths.GetNaviLink(nodeAddress.m_wAreaId, node->m_wBaseLinkId + 1);
-    if (!ThePaths.IsAreaLoaded(naviLinkAddrA.m_wAreaId) || !ThePaths.IsAreaLoaded(naviLinkAddrB.m_wAreaId)) {
+    assert(node->NumberAdjNodes >= 2);
+    const auto naviLinkAddrA = ThePaths.GetNaviLink(nodeAddress.Region, node->IndexAdjacentNodes + 0),
+               naviLinkAddrB = ThePaths.GetNaviLink(nodeAddress.Region, node->IndexAdjacentNodes + 1);
+    if (!ThePaths.IsAreaLoaded(naviLinkAddrA.Region) || !ThePaths.IsAreaLoaded(naviLinkAddrB.Region)) {
         return false;
     }
 
@@ -622,8 +622,8 @@ bool CRoadBlocks::GetRoadBlockNodeInfo(CNodeAddress nodeAddress, float& outWidth
                &naviLinkB = ThePaths.GetCarPathLink(naviLinkAddrB);
 
     const auto maxNumLanes = std::max(
-        naviLinkA.m_numOppositeDirLanes + naviLinkA.m_numSameDirLanes,
-        naviLinkB.m_numOppositeDirLanes + naviLinkB.m_numSameDirLanes
+        naviLinkA.LanesTo + naviLinkA.LanesFro,
+        naviLinkB.LanesTo + naviLinkB.LanesFro
     );
 
     outWidth = ((float)maxNumLanes + 1.f) * 5.f;

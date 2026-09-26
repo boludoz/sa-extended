@@ -211,7 +211,7 @@ float CPopCycle::GetCurrentPercOther_Peds() {
     if (CTheScripts::IsPlayerOnAMission()) {
         if (const auto plyr = FindPlayerPed()) {
             if (plyr->IsInVehicle()) {
-                switch (plyr->m_pVehicle->m_nModelIndex) {
+                switch (plyr->m_pMyVehicle->m_nModelIndex) {
                 case MODEL_TAXI:
                 case MODEL_CABBIE:
                     return percOther;

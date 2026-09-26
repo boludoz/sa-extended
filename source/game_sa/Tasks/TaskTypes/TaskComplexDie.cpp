@@ -106,10 +106,10 @@ CTask* CTaskComplexDie::CreateFirstSubTask(CPed* ped) {
     SayDeathSample(ped);
 
     if (m_nWeaponType == WEAPON_DROWNING && ped->bInVehicle && !ped->bForceDieInCar) {
-        if (ped->m_pVehicle && (ped->m_pVehicle->IsSubPlane() || ped->m_pVehicle->IsSubHeli())) {
+        if (ped->m_pMyVehicle && (ped->m_pMyVehicle->IsSubPlane() || ped->m_pMyVehicle->IsSubHeli())) {
             return nullptr;
         }
-        return new CTaskComplexLeaveCar(ped->m_pVehicle, 0, 0, false, true);
+        return new CTaskComplexLeaveCar(ped->m_pMyVehicle, 0, 0, false, true);
     }
 
     ped->SetPedState(PEDSTATE_DIE);

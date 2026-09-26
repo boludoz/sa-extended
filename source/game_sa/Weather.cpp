@@ -26,7 +26,7 @@ void CWeather::InjectHooks() {
     RH_ScopedInstall(FindWeatherTypesList, 0x72A520);
     RH_ScopedInstall(ForceWeather, 0x72A4E0);
     RH_ScopedInstall(ForceWeatherNow, 0x72A4F0);
-    RH_ScopedInstall(ForecastWeather, 0x72A590, { .reversed = false });
+    RH_ScopedInstall(ForecastWeather, 0x72A590);
     RH_ScopedInstall(ReleaseWeather, 0x72A510);
     RH_ScopedInstall(RenderRainStreaks, 0x72AF70);
     RH_ScopedInstall(SetWeatherToAppropriateTypeNow, 0x72A790);
@@ -100,8 +100,28 @@ void CWeather::ForceWeatherNow(eWeatherType weatherType) {
 }
 
 // 0x72A590
-bool CWeather::ForecastWeather(eWeatherType weatherType, int32 numSteps) {
-    return plugin::CallAndReturn<bool, 0x72A590, int32, int32>(weatherType, numSteps);
+// ASM Match: not measured
+bool CWeather::ForecastWeather(eWeatherType WeatherType, int32 HoursAhead)
+{
+    if (HoursAhead < 0)
+    {
+        return false;
+    }
+
+    const eWeatherType* weatherList = FindWeatherTypesList();
+
+    for (int32 offset = 0; offset <= HoursAhead; ++offset)
+    {
+        // The weather list seems to wrap around every 64 entries
+        int32 listIndex = (CWeather::WeatherTypeInList + offset) % 64;
+
+        if (weatherList[listIndex] == WeatherType)
+        {
+            return true;  // Found the weather type within the forecast window
+        }
+    }
+
+    return false;  // Weather type not found within the forecast window
 }
 
 // 0x72A510

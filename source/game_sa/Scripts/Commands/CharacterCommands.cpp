@@ -64,7 +64,7 @@ namespace {
  * @param {bool} meleeProof
  */
 void SetCharProofs(CPed& ped, bool bullet, bool fire, bool explosion, bool collision, bool melee) {
-    auto& flags = ped.physicalFlags;
+    auto& flags = ped.m_nPhysicalFlags;
     flags.bBulletProof = bullet;
     flags.bFireProof = fire;
     flags.bExplosionProof = explosion;
@@ -174,7 +174,7 @@ auto SetCharSuffersCriticalHits(CPed& ped, bool value) {
  * @param {bool} state
  */
 auto FreezeCharPosition(CPed& ped, bool freeze) {
-    ped.physicalFlags.bDontApplySpeed = freeze;
+    ped.m_nPhysicalFlags.bDontApplySpeed = freeze;
 }
 
 /*
@@ -1685,7 +1685,7 @@ auto IsCharStopped(CPed& ped) {
  * @param {bool} state
  */
 auto SetCharOnlyDamagedByPlayer(CPed& ped, bool enabled) {
-    ped.physicalFlags.bInvulnerable = enabled;
+    ped.m_nPhysicalFlags.bInvulnerable = enabled;
 }
 
 /*
@@ -2427,7 +2427,7 @@ auto IsCharInAnyPlane(CPed& ped) {
  * @param {Char} self
  */
 auto IsCharInWater(CPed* ped) {
-    return ped && ped->physicalFlags.bSubmergedInWater;
+    return ped && ped->m_nPhysicalFlags.bSubmergedInWater;
 }
 
 /*
@@ -2722,7 +2722,7 @@ void DoSetPedIsWaitingForCollision(CRunningScript& S, CPed& ped) {
  * @param {bool} state
  */
 auto FreezeCharPositionAndDontLoadCollision(CRunningScript& S, CPed& ped, bool freeze) {
-    ped.physicalFlags.bDontApplySpeed = freeze;
+    ped.m_nPhysicalFlags.bDontApplySpeed = freeze;
     if (freeze) {
         DoSetPedIsWaitingForCollision(S, ped);
     }
@@ -2740,7 +2740,7 @@ auto FreezeCharPositionAndDontLoadCollision(CRunningScript& S, CPed& ped, bool f
  * @param {bool} state
  */
 auto SetLoadCollisionForCharFlag(CRunningScript& S, CPed& ped, bool loadCol) {
-    ped.physicalFlags.bDontLoadCollision = !loadCol;
+    ped.m_nPhysicalFlags.bDontLoadCollision = !loadCol;
     if (loadCol) {
         DoSetPedIsWaitingForCollision(S, ped);
     } else if (ped.m_bIsStaticWaitingForCollision) {

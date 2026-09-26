@@ -344,7 +344,7 @@ bool CCarEnterExit::GetNearestCarDoor(const CPed* ped, const CVehicle* vehicle, 
                 if (std::abs(angle) < PI / 6.f
                     && (
                         (ped->IsPlayer() && ped->GetPlayerData()->m_fMoveBlendRatio > 1.5f && doorId == 0)
-                        || (!ped->IsPlayer() && ped->m_nPedType != PED_TYPE_COP && ped->m_nMoveState == PEDMOVE_RUN && ped->m_pStats->m_nTemper > 65 && doorId == 0)
+                        || (!ped->IsPlayer() && ped->m_nPedType != PED_TYPE_COP && ped->m_nMoveState == PEDMOVE_RUN && ped->m_pPedStats->m_nTemper > 65 && doorId == 0)
                         || doorId == 18
                     )
                     // 18 here is probably either from eBikeNodes or eQuadNodes, not sure?
@@ -784,7 +784,7 @@ bool CCarEnterExit::IsPedHealthy(CPed* ped) {
 // 0x64F240
 bool CCarEnterExit::IsPlayerToQuitCarEnter(const CPed* ped, const CVehicle* vehicle, int32 startTime, CTask* task) {
     CPad* pad = static_cast<const CPlayerPed*>(ped)->GetPadFromPlayer();
-    float taskHeading = ped->m_fCurrentRotation;
+    float taskHeading = ped->m_fCurrentHeading;
     bool bAtTheCar = false;
 
     if (task) {
@@ -971,7 +971,7 @@ bool CCarEnterExit::IsVehicleStealable(const CVehicle* vehicle, const CPed* ped)
     }
 
     if (vehicle->GetCreatedBy() != RANDOM_VEHICLE && vehicle->GetCreatedBy() != PARKED_VEHICLE) {
-        if (ped->m_pVehicle != vehicle) {
+        if (ped->m_pMyVehicle != vehicle) {
             return false;
         }
     }
@@ -1065,7 +1065,7 @@ void CCarEnterExit::QuitEnteringCar(CPed* ped, CVehicle* vehicle, int32 doorId, 
             vehicle->ClearGettingInFlags(10);
         }
         if (vehicle->IsBike()) {
-            static_cast<CBike*>(vehicle)->bikeFlags.bGettingPickedUp = false;
+            static_cast<CBike*>(vehicle)->m_nBikeFlags.bGettingPickedUp = false;
         }
     } else {
         switch (doorId) {

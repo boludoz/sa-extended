@@ -49,7 +49,7 @@ CTask* CTaskComplexReactToGunAimedAt::CreateSubTask(eTaskType taskType, CPed* pe
     case TASK_SIMPLE_ACHIEVE_HEADING:
         return new CTaskSimpleAchieveHeading{ (m_aimedBy->GetPosition() - ped->GetPosition()).Heading() };
     case TASK_COMPLEX_LEAVE_CAR:
-        return new CTaskComplexLeaveCar{ ped->m_pVehicle, TARGET_DOOR_FRONT_LEFT, 0, true, false };
+        return new CTaskComplexLeaveCar{ ped->m_pMyVehicle, TARGET_DOOR_FRONT_LEFT, 0, true, false };
     case TASK_SIMPLE_HANDS_UP:
         return new CTaskSimpleHandsUp{ (uint32)CGeneral::GetRandomNumberInRange(3000, 5000) };
     case TASK_SIMPLE_PAUSE:
@@ -89,7 +89,7 @@ CTask* CTaskComplexReactToGunAimedAt::CreateNextSubTask(CPed* ped) {
         case TASK_COMPLEX_LEAVE_CAR:
             return TASK_SIMPLE_ACHIEVE_HEADING;
         case TASK_SIMPLE_ACHIEVE_HEADING: {
-            if (ped->m_pStats->m_flags & 0x80) {
+            if (ped->m_pPedStats->m_nStatFlags & 0x80) {
                 return TASK_SIMPLE_COWER; // => TASK_COMPLEX_SMART_FLEE_ENTITY
             } else {
                 ped->Say(CTX_GLOBAL_GUN_COOL);

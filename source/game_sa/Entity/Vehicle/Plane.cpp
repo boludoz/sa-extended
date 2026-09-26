@@ -34,7 +34,7 @@ void CPlane::InjectHooks() {
     RH_ScopedInstall(CountPlanesAndHelis, 0x6CCA50);
     RH_ScopedInstall(AreWeInNoPlaneZone, 0x6CCAA0);
     RH_ScopedInstall(AreWeInNoBigPlaneZone, 0x6CCBB0);
-    RH_ScopedInstall(SwitchAmbientPlanes, 0x6CCC50, { .reversed = false });
+    RH_ScopedInstall(SwitchAmbientPlanes, 0x6CCC50);
     RH_ScopedVMTInstall(BlowUpCar, 0x6CCCF0, { .reversed = false });
     RH_ScopedInstall(FindPlaneCreationCoors, 0x6CD090, { .reversed = false });
     RH_ScopedInstall(DoPlaneGenerationAndRemoval, 0x6CD2F0, { .reversed = false });
@@ -43,27 +43,27 @@ void CPlane::InjectHooks() {
 // 0x6C8E20
 CPlane::CPlane(int32 modelIndex, eVehicleCreatedBy createdBy) : CAutomobile(modelIndex, createdBy, true) {
     m_vehicleType                  = VEHICLE_TYPE_PLANE;
-    m_fLeftRightSkid               = 0.0f;
-    m_fSteeringUpDown              = 0.0f;
-    m_fSteeringLeftRight           = 0.0f;
-    m_fAccelerationBreakStatus     = 0.0f;
-    m_fAccelerationBreakStatusPrev = 1.0f;
-    m_fPropSpeed                   = 0.0f;
-    field_9C8                      = 0.0f;
-    m_fLandingGearStatus           = 0.0f;
-    field_9A0                      = 0;
-    m_planeCreationHeading         = 0.0f;
-    m_planeHeading                 = 0.0f;
-    m_planeHeadingPrev             = 0.0f;
-    m_maxAltitude                  = 15.0f;
-    m_altitude                     = 25.0f;
-    m_minAltitude                  = 20.0f;
-    m_forwardZ                     = 0;
-    m_nStartedFlyingTime           = 0;
-    m_fSteeringFactor              = 0.0f;
+    m_fYawControl               = 0.0f;
+    m_fPitchControl              = 0.0f;
+    m_fRollControl           = 0.0f;
+    m_fThrottleControl     = 0.0f;
+    m_fScriptThrottleControl = 1.0f;
+    m_fEngineSpeed                   = 0.0f;
+    m_fPropellerAngle                      = 0.0f;
+    m_fLGearAngle           = 0.0f;
+    m_nStallCounter                      = 0;
+    m_TakeOffDirection         = 0.0f;
+    m_FlightDirection                 = 0.0f;
+    m_FlightDirectionAvoidingTerrain             = 0.0f;
+    m_LowestFlightHeight                  = 15.0f;
+    m_DesiredHeight                     = 25.0f;
+    m_MinHeightAboveTerrain                  = 20.0f;
+    m_OldTilt                     = 0;
+    m_OnGroundTimer           = 0;
+    m_fPreviousRoll              = 0.0f;
 
     if (m_nModelIndex != MODEL_VORTEX)
-        physicalFlags.bDontCollideWithFlyers = true;
+        m_nPhysicalFlags.bFlyer = true;
 
     m_nExtendedRemovalRange = 255;
     vehicleFlags.bNeverUseSmallerRemovalRange = true;
@@ -102,14 +102,14 @@ CPlane::CPlane(int32 modelIndex, eVehicleCreatedBy createdBy) : CAutomobile(mode
     for (auto wheelId = 0; wheelId < 4; wheelId++) {
         GetVehicleModelInfo()->GetWheelPosn(wheelId, modelPos, false);
         GetVehicleModelInfo()->GetWheelPosn(wheelId, localPos, true);
-        m_wheelPosition[wheelId] = m_wheelPosition[wheelId] - modelPos.z + localPos.z;
+        m_aWheelSuspensionHeights[wheelId] = m_aWheelSuspensionHeights[wheelId] - modelPos.z + localPos.z;
     }
 
-    m_planeDamageWave = 0;
-    m_pGunParticles = nullptr;
-    m_nFiringMultiplier = 16;
-    field_9DC = 0;
-    field_9E0 = 0;
+    m_nDamageControlWaveCounter = 0;
+    m_GunflashFxPtrs = nullptr;
+    m_FiringRateMultiplier = 16;
+    m_FireMissilePressedTime = 0;
+    m_pLastMissileTarget = 0;
     m_apJettrusParticles.fill(nullptr);
 
     m_pSmokeParticle = nullptr;
@@ -122,15 +122,15 @@ CPlane::CPlane(int32 modelIndex, eVehicleCreatedBy createdBy) : CAutomobile(mode
 
 // 0x6C9160
 CPlane::~CPlane() {
-    if (m_pGunParticles) {
+    if (m_GunflashFxPtrs) {
         for (auto i = 0; i < CVehicle::GetPlaneNumGuns(); i++) {
-            if (auto& particle = m_pGunParticles[i]) {
+            if (auto& particle = m_GunflashFxPtrs[i]) {
                 particle->Kill();
                 g_fxMan.DestroyFxSystem(particle);
             }
         }
-        delete[] m_pGunParticles;
-        m_pGunParticles = nullptr;
+        delete[] m_GunflashFxPtrs;
+        m_GunflashFxPtrs = nullptr;
     }
 
     for (auto particle : m_apJettrusParticles) {
@@ -161,8 +161,8 @@ void CPlane::BlowUpCar(CEntity* damager, bool bHideExplosion) {
 
     if (GetStatus() == STATUS_PLAYER || m_autoPilot.Mission == MISSION_PLANE_CRASH_AND_BURN || m_nModelIndex == MODEL_RCBARON) {
         if (damager == FindPlayerPed() || damager == FindPlayerVehicle()) {
-            FindPlayerInfo().m_nHavocCaused += 20;
-            FindPlayerInfo().m_fCurrentChaseValue += 10.0f;
+            FindPlayerInfo().HavocCaused += 20;
+            FindPlayerInfo().CurrentChaseValue += 10.0f;
             CStats::IncrementStat(STAT_COST_OF_PROPERTY_DAMAGED, (float)CGeneral::GetRandomNumberInRange(4000, 10'000));
         }
 
@@ -181,7 +181,7 @@ void CPlane::BlowUpCar(CEntity* damager, bool bHideExplosion) {
         }
 
         // m_nType = m_nType & 7 | STATUS_WRECKED;
-        physicalFlags.bRenderScorched = true;
+        m_nPhysicalFlags.bRenderScorched = true;
         m_nTimeWhenBlowedUp = CTimer::GetTimeInMS();
         CVisibilityPlugins::SetClumpForAllAtomicsFlag(GetRpClump(), eAtomicComponentFlag::ATOMIC_PIPE_NO_EXTRA_PASSES_LOD);
         m_damageManager.FuckCarCompletely(false);
@@ -207,7 +207,7 @@ void CPlane::BlowUpCar(CEntity* damager, bool bHideExplosion) {
         }
         // this->m_nBombLightsWinchFlags &= 0xF8u;
         m_fHealth = 0.0f;
-        m_DelayedExplosion = 0;
+        DelayedExplosion = 0;
 
         TheCamera.CamShake(0.4f, GetPosition());
         KillPedsInVehicle();
@@ -284,12 +284,12 @@ void CPlane::VehicleDamage(float damageIntensity, eVehicleCollisionComponent com
 
 // 0x6CAB90
 void CPlane::IsAlreadyFlying() {
-    m_nStartedFlyingTime = CTimer::GetTimeInMS() - 20000;
+    m_OnGroundTimer = CTimer::GetTimeInMS() - 20000;
 }
 
 // 0x6CAC20
 void CPlane::SetGearUp() {
-    m_fLandingGearStatus = 1.0f;
+    m_fLGearAngle = 1.0f;
     m_fAirResistance = m_pHandlingData->m_fDragMult / 1000.0f / 2.0f * m_pFlyingHandlingData->m_fGearUpR;
     m_damageManager.SetWheelStatus(CAR_WHEEL_FRONT_LEFT,  WHEEL_STATUS_MISSING);
     m_damageManager.SetWheelStatus(CAR_WHEEL_REAR_LEFT,   WHEEL_STATUS_MISSING);
@@ -299,7 +299,7 @@ void CPlane::SetGearUp() {
 
 // 0x6CAC70
 void CPlane::SetGearDown() {
-    m_fLandingGearStatus = 0.0f;
+    m_fLGearAngle = 0.0f;
     m_fAirResistance = m_pHandlingData->m_fDragMult / 1000.0f / 2.0f;
     m_damageManager.SetWheelStatus(CAR_WHEEL_FRONT_LEFT,  WHEEL_STATUS_OK);
     m_damageManager.SetWheelStatus(CAR_WHEEL_REAR_LEFT,   WHEEL_STATUS_OK);
@@ -337,8 +337,34 @@ bool CPlane::AreWeInNoBigPlaneZone() {
 }
 
 // 0x6CCC50
-void CPlane::SwitchAmbientPlanes(bool enable) {
-    plugin::Call<0x6CCC50, bool>(enable);
+// ASM Match: not measured
+void CPlane::SwitchAmbientPlanes(bool bActive)
+{
+    if (GenPlane_Active && !bActive)
+    {
+        CVehiclePool& VehPool = (*GetVehiclePool());
+
+        int32 i = VehPool.GetSize();
+
+        while ((i--) != 0)
+        {
+            CVehicle* pVehicle = VehPool.GetSlot(i);
+
+            if (pVehicle != nullptr)
+            {
+                if ((pVehicle->GetVehicleType() == VEHICLE_TYPE_HELI ||
+                        pVehicle->GetVehicleType() == VEHICLE_TYPE_PLANE) &&
+                    pVehicle->GetCreatedBy() == RANDOM_VEHICLE)
+                {
+                    CWorld::Remove(pVehicle);
+
+                    delete pVehicle;
+                }
+            }
+        }
+    }
+
+    GenPlane_Active = bActive;
 }
 
 // 0x6CD090
@@ -398,17 +424,17 @@ void CPlane::ProcessControl() {
 
     CAutomobile::ProcessControl();
 
-    m_vehicleAudio.m_DoCountStalls = static_cast<int16>(field_9A0);
-    if (field_9A0) {
-        field_9A0 = 0;
+    m_vehicleAudio.m_DoCountStalls = static_cast<int16>(m_nStallCounter);
+    if (m_nStallCounter) {
+        m_nStallCounter = 0;
     }
 
     CVehicle::ProcessWeapons();
     if (m_nModelIndex == MODEL_VORTEX) {
-        m_WheelStates[0] = WHEEL_STATE_NORMAL;
-        m_WheelStates[1] = WHEEL_STATE_NORMAL;
-        m_WheelStates[2] = WHEEL_STATE_NORMAL;
-        m_WheelStates[3] = WHEEL_STATE_NORMAL;
+        m_aWheelState[0] = WHEEL_STATE_NORMAL;
+        m_aWheelState[1] = WHEEL_STATE_NORMAL;
+        m_aWheelState[2] = WHEEL_STATE_NORMAL;
+        m_aWheelState[3] = WHEEL_STATE_NORMAL;
     }
 
     if (m_pSmokeParticle) {

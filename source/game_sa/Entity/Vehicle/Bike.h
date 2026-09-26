@@ -30,8 +30,8 @@ class NOTSA_EXPORT_VTABLE CBike : public CVehicle {
     static constexpr auto NUM_SUSP_LINES = 4;
 public:
     std::array<RwFrame*, BIKE_NUM_NODES>           m_aBikeNodes;
-    bool     m_bLeanMatrixCalculated;
-    CMatrix  m_mLeanMatrix;
+    bool     m_bLeanMatrix;
+    CMatrix  m_LeanMatrix;
     union {
         struct {
             uint8 bShouldNotChangeColour : 1;
@@ -42,23 +42,23 @@ public:
             uint8 bPlayerBoost : 1;
             uint8 bEngineOnFire : 1;
             uint8 bWheelieForCamera : 1;
-        } bikeFlags;
+        } m_nBikeFlags;
         uint8 nBikeFlags;
     };
     CVector m_vecAveGroundNormal;
     CVector m_vecGroundRight;
     CVector m_vecOldSpeedForPlayback;
-    tBikeHandlingData* m_BikeHandling;
-    CRideAnimData m_RideAnimData;
+    tBikeHandlingData* pBikeHandling;
+    CRideAnimData RideAnimData;
     std::array<uint8, 2>          m_nWheelStatus;
     std::array<CColPoint, NUM_SUSP_LINES> m_aWheelColPoints;
     std::array<float, NUM_SUSP_LINES>     m_aWheelRatios;
     std::array<float, NUM_SUSP_LINES>     m_aRatioHistory;
-    std::array<float, NUM_SUSP_LINES>     m_WheelCounts;
-    float m_fBrakeCount;
+    std::array<float, NUM_SUSP_LINES>     m_aWheelCounts;
+    float fBrakeCount;
     std::array<eSkidmarkType, 2>  m_aWheelSkidmarkType;
-    std::array<bool, 2>           m_bWheelBloody;
-    std::array<bool, 2>           m_bMoreSkidMarks;
+    std::array<bool, 2>           bWheelBloody;
+    std::array<bool, 2>           bMoreSkidMarks;
     std::array<float, 2>          m_aWheelPitchAngles;
     std::array<float, 2>          m_aWheelAngularVelocity;
     std::array<float, 2>          m_aWheelSuspensionHeights;
@@ -71,22 +71,22 @@ public:
     float m_fForkYOffset;
     float m_fForkZOffset;
     float m_fSteerAngleTan;
-    uint16 m_nBrakesOn;
+    uint16 nBrakesOn;
     float m_fTyreTemp;
     float m_fBrakingSlide;
     uint8 m_nFixLeftHand;
     uint8 m_nFixRightHand;
     uint8 m_nTestPedCollision;
-    float m_PrevSpeed;
+    float fPrevSpeed;
     float m_BlowUpTimer;
     std::array<CPhysical*, 4>     m_aGroundPhysicalPtrs;
     std::array<CVector, 4>        m_aGroundOffsets;
-    CEntity* m_Damager; // Entity That Set Us On Fire
-    uint8 m_nNoOfContactWheels;
-    uint8 m_NumDriveWheelsOnGround;
-    uint8 m_NumDriveWheelsOnGroundLastFrame;
-    float m_GasPedalAudioRevs;
-    std::array<tWheelState, 2>    m_WheelStates;
+    CEntity* pEntityThatSetUsOnFire; // Entity That Set Us On Fire
+    uint8 nNoOfContactWheels;
+    uint8 m_nDriveWheelsOnGround;
+    uint8 m_nDriveWheelsOnGroundLastFrame;
+    float m_fGasPedalAudioRevs;
+    std::array<tWheelState, 2>    m_aWheelState;
 
     static constexpr auto Type = VEHICLE_TYPE_BIKE;
 
@@ -127,9 +127,9 @@ public:
 
     bool IsRoomForPedToLeaveCar(uint32 door, CVector* pvecCarJackOffset) override { return true; }                    // 0x6B7270
     inline bool IsComponentPresent(int32 componentId) const override { return m_aBikeNodes[componentId] != nullptr; } // 0x6B59E0
-    CRideAnimData* GetRideAnimData() override { return &m_RideAnimData; }                                             // 0x6B58C0
+    CRideAnimData* GetRideAnimData() override { return &RideAnimData; }                                             // 0x6B58C0
     float GetHeightAboveRoad() override { return m_fHeightAboveRoad; }                                                // 0x6B58B0
-    int32 GetNumContactWheels() override { return m_nNoOfContactWheels; }                                             // 0x6B58A0
+    int32 GetNumContactWheels() override { return nNoOfContactWheels; }                                             // 0x6B58A0
     float FindWheelWidth(bool bRear) override { return 0.15f; }                                                       // 0x6B8940
 
     virtual bool ProcessAI(uint32& extraHandlingFlags);
@@ -162,4 +162,4 @@ public: // NOTSA
     CBike* Destructor() {this->CBike::~CBike(); return this; }
                                                                                     };
 VALIDATE_SIZE(CBike, 0x814);
-VALIDATE_OFFSET(CBike, m_GasPedalAudioRevs, 0x808);
+VALIDATE_OFFSET(CBike, m_fGasPedalAudioRevs, 0x808);

@@ -57,7 +57,7 @@ bool CTaskSimpleGoToPointFine::ProcessPed(CPed* ped) {
     }
     SetBlendedMoveAnim(ped);
     const float fAngleInRadians = CGeneral::GetRadianAngleBetweenPoints(vecDistance.x, vecDistance.y, 0.0f, 0.0f);
-    ped->m_fAimingRotation = CGeneral::LimitRadianAngle(fAngleInRadians);
+    ped->m_fDesiredHeading = CGeneral::LimitRadianAngle(fAngleInRadians);
     SetUpIK(ped);
     return false;
 }

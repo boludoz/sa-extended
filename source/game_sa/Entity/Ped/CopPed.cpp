@@ -203,7 +203,7 @@ int32 CCopPed::AddCriminalToKill(CPed* criminal) {
     criminal->m_fRemovalDistMultiplier = 0.3f;
     criminal->m_nTimeTillWeNeedThisPed = CTimer::GetTimeInMS() + 300'000;
 
-    if (CVehicle* crimVeh = criminal->m_pVehicle) {
+    if (CVehicle* crimVeh = criminal->m_pMyVehicle) {
         crimVeh->m_nExtendedRemovalRange = 255;
         crimVeh->vehicleFlags.bNeverUseSmallerRemovalRange = true;
     }
@@ -264,7 +264,7 @@ void CCopPed::ProcessControl() {
     // Never gets here because field_79D is initialized with false
     // This code will break the police, if you comment checking field_79D.
     if (GetIsOnScreen()) {
-        if ((CTimer::GetFrameCounter() + m_nRandomSeed) % 32 != 17) // todo: magic
+        if ((CTimer::GetFrameCounter() + RandomSeed) % 32 != 17) // todo: magic
             return;
 
         CColPoint colPoint{};

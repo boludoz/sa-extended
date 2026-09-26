@@ -45,10 +45,10 @@ CTask* CTaskInteriorGoToInfo::CreateNextSubTask(CPed* ped) {
     switch (m_pSubTask->GetTaskType()) {
     case TASK_COMPLEX_FOLLOW_NODE_ROUTE:
     case TASK_SIMPLE_GO_TO_POINT: {
-        if ((m_IntInfo->Pos - ped->GetPosition()).SquaredMagnitude2D() > sq(0.2f)) {
-            return new CTaskComplexFollowNodeRoute{ PEDMOVE_WALK, m_IntInfo->Pos, 0.2f };
+        if ((m_IntInfo->pos - ped->GetPosition()).SquaredMagnitude2D() > sq(0.2f)) {
+            return new CTaskComplexFollowNodeRoute{ PEDMOVE_WALK, m_IntInfo->pos, 0.2f };
         }
-        return new CTaskSimpleAchieveHeading{ m_IntInfo->Dir.Heading(true) };
+        return new CTaskSimpleAchieveHeading{ m_IntInfo->dir.Heading(true) };
     }
     default:
         return nullptr;
@@ -62,18 +62,18 @@ CTask* CTaskInteriorGoToInfo::CreateFirstSubTask(CPed* ped) {
     }
 
     if (m_bDoInstantly) {
-        ped->SetPosn(m_IntInfo->Pos);
+        ped->SetPosn(m_IntInfo->pos);
 
-        const auto rz = m_IntInfo->Dir.Heading(true);
-        ped->m_fCurrentRotation = rz;
-        ped->m_fAimingRotation = rz;
+        const auto rz = m_IntInfo->dir.Heading(true);
+        ped->m_fCurrentHeading = rz;
+        ped->m_fDesiredHeading = rz;
         ped->SetHeading(rz);
 
         return nullptr;
     }
 
     if (g_interiorMan.GetPedsInterior(ped) == m_Int) {
-        return new CTaskSimpleGoToPoint{ PEDMOVE_WALK,  m_IntInfo->Pos, 0.2f };
+        return new CTaskSimpleGoToPoint{ PEDMOVE_WALK,  m_IntInfo->pos, 0.2f };
     }
 
     const auto tFollowNodeRoute = new CTaskComplexFollowNodeRoute{ PEDMOVE_WALK, ThePaths.GetPathNode(m_Int->GetNodeAddress())->GetPosition(), 0.2f};

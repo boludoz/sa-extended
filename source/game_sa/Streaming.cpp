@@ -89,6 +89,8 @@ void CStreaming::InjectHooks() {
     RH_ScopedInstall(GetDefaultCabDriverModel, 0x407D50);
     RH_ScopedInstall(GetDefaultFiremanModel, 0x407D40);
     RH_ScopedInstall(GetDefaultMedicModel, 0x407D20);
+    RH_ScopedInstall(GetDefaultAmbulanceModel, 0x407D30);
+    RH_ScopedInstall(GetDefaultFireEngineModel, 0x407DC0);
     RH_ScopedInstall(GetDefaultCopCarModel, 0x407C50);
     RH_ScopedInstall(GetDefaultCopModel, 0x407C00);
     RH_ScopedInstall(Init2, 0x5B8AD0);
@@ -719,7 +721,7 @@ bool CStreaming::DeleteLeastUsedEntityRwObject(bool bNotOnScreen, int32 streamin
         ) {
             CStreamingInfo& streamingInfo = GetInfo(e->m_nModelIndex);
             if (streamingInfo.InList() && !streamingInfo.AreAnyFlagsSetOutOf(streamingFlags)) {
-                if (!player || player->bInVehicle || player->m_pContactEntity != e) {
+                if (!player || player->bInVehicle || player->m_pEntityStandingOn != e) {
                     e->DeleteRwObject();
                     if (!CModelInfo::GetModelInfo(e->m_nModelIndex)->m_nRefCount) {
                         RemoveModel(e->m_nModelIndex);
@@ -923,7 +925,7 @@ bool CStreaming::DeleteRwObjectsBehindCameraInSectorList(PtrListType& list, size
         if (!entity->m_bImBeingRendered && !entity->m_bStreamingDontDelete
             && entity->GetRwObject()
             && GetInfo(entity->m_nModelIndex).InList()
-            && FindPlayerPed()->m_pContactEntity != entity
+            && FindPlayerPed()->m_pEntityStandingOn != entity
         ) {
             entity->DeleteRwObject();
             if (!CModelInfo::GetModelInfo(entity->m_nModelIndex)->m_nRefCount) {
@@ -2786,6 +2788,18 @@ eModelID CStreaming::GetDefaultMedicModel() {
     return (eModelID)ms_aDefaultMedicModel[CTheZones::m_CurrLevel];
 }
 
+// 0x407D30
+// ASM Match
+eModelID CStreaming::GetDefaultAmbulanceModel() {
+    return (eModelID)ms_aDefaultAmbulanceModel[CTheZones::m_CurrLevel];
+}
+
+// 0x407DC0
+// ASM Match
+eModelID CStreaming::GetDefaultFireEngineModel() {
+    return (eModelID)ms_aDefaultFireEngineModel[CTheZones::m_CurrLevel];
+}
+
 // 0x5B9020
 void CStreaming::Init() {
     Init2();
@@ -3729,7 +3743,7 @@ void CStreaming::Update() {
     }
     LoadRequestedModels();
 
-    if (CVehicle* remoteVehicle = FindPlayerInfo(0).m_pRemoteVehicle) {
+    if (CVehicle* remoteVehicle = FindPlayerInfo(0).pRemoteVehicle) {
         CColStore::AddCollisionNeededAtPosn(playerPos);
         CIplStore::AddIplsNeededAtPosn(playerPos);
 

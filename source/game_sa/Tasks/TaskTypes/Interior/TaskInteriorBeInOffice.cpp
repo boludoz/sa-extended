@@ -40,7 +40,7 @@ void CTaskInteriorBeInOffice::GetInfoForPedToUse(CPed* ped, int32* outDur) {
     // How this isn't an infinite loop is beyond me
     eInteriorInfoType type;
     do {
-        type = !m_CurrIntInfo || m_CurrIntInfo->Type != SITAT_DESK ? SITAT_DESK : STANDSTILL_TIMED;
+        type = !m_CurrIntInfo || m_CurrIntInfo->type != SITAT_DESK ? SITAT_DESK : STANDSTILL_TIMED;
         m_IntGrp->FindInteriorInfo(type, &m_CurrIntInfo, &m_CurrInt);
     } while (!m_CurrIntInfo);
 

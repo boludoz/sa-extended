@@ -118,7 +118,7 @@ CEntity::CEntity() : CPlaceable() {
     m_nModelIndex = MODEL_INVALID;
     m_pRwObject = nullptr;
     SetIplIndex(0);
-    m_nRandomSeed = CGeneral::GetRandomNumber();
+    RandomSeed = CGeneral::GetRandomNumber();
     m_pReferences = nullptr;
     m_pStreamingLink = nullptr;
     m_NumLodChildren = 0;
@@ -440,7 +440,7 @@ void CEntity::PreRender() {
         return;
     }
 
-    if (ami && ami->SwaysInWind() && (!GetIsTypeObject() || !AsObject()->objectFlags.bIsExploded)) {
+    if (ami && ami->SwaysInWind() && (!GetIsTypeObject() || !AsObject()->m_nObjectFlags.bHasExploded)) {
         const auto fDist = DistanceBetweenPoints2D(GetPosition(), TheCamera.GetPosition());
         CObject::fDistToNearestTree = std::min(CObject::fDistToNearestTree, fDist);
         ModifyMatrixForTreeInWind();
@@ -472,7 +472,7 @@ void CEntity::PreRender() {
         } else if (modelIndex == ModelIndices::MI_CARMINE
                    || modelIndex == ModelIndices::MI_NAUTICALMINE
                    || modelIndex == ModelIndices::MI_BRIEFCASE) {
-            if (obj->objectFlags.bIsPickup) {
+            if (obj->m_nObjectFlags.bIsPickUp) {
                 CPickups::DoMineEffects(this);
                 UpdateRwMatrix();
                 UpdateRwFrame();
@@ -539,7 +539,7 @@ void CEntity::PreRender() {
             );
         } else if (CGlass::IsObjectGlass(this)) {
             PreRenderForGlassWindow();
-        } else if (obj->objectFlags.bIsPickup) {
+        } else if (obj->m_nObjectFlags.bIsPickUp) {
             CPickups::DoPickUpEffects(this);
             UpdateRwMatrix();
             UpdateRwFrame();
@@ -768,7 +768,7 @@ bool CEntity::HasPreRenderEffects() {
     }
 
     // Checking for a pickup object
-    if (GetIsTypeObject() && AsObject()->objectFlags.bIsPickup) {
+    if (GetIsTypeObject() && AsObject()->m_nObjectFlags.bIsPickUp) {
         return true;
     }
 
@@ -1356,9 +1356,9 @@ void CEntity::ModifyMatrixForTreeInWind() {
 
     float fWindOffset;
     if (CWeather::Wind >= 0.5F) {
-        auto uiOffset1 = (((m_nRandomSeed + CTimer::GetTimeInMS() * 8) & 0xFFFF) / 4'096) % 16;
+        auto uiOffset1 = (((RandomSeed + CTimer::GetTimeInMS() * 8) & 0xFFFF) / 4'096) % 16;
         auto uiOffset2 = (uiOffset1 + 1) % 16;
-        auto fContrib = static_cast<float>(((m_nRandomSeed + CTimer::GetTimeInMS() * 8) % 4'096)) / 4096.0F;
+        auto fContrib = static_cast<float>(((RandomSeed + CTimer::GetTimeInMS() * 8) % 4'096)) / 4096.0F;
 
         fWindOffset = (1.0F - fContrib) * CWeather::saTreeWindOffsets[uiOffset1];
         fWindOffset += 1.0F + fContrib * CWeather::saTreeWindOffsets[uiOffset2];
@@ -1751,7 +1751,7 @@ void CEntity::ProcessLightsForEntity() {
     }
 
     if (GetIsTypeVehicle()) {
-        if (AsVehicle()->physicalFlags.bRenderScorched) {
+        if (AsVehicle()->m_nPhysicalFlags.bRenderScorched) {
             return;
         }
     } else if (m_matrix && m_matrix->GetUp().z < 0.96f) {
@@ -1767,7 +1767,7 @@ void CEntity::ProcessLightsForEntity() {
     for (int32 C = 0; C < numEffects; ++C) {
         const auto* effect = mi->Get2dEffect(C);
         float TimeFade = 1.0f;
-        const auto randomSeed = m_nRandomSeed ^ randomSeedRandomiser[C % 8];
+        const auto randomSeed = RandomSeed ^ randomSeedRandomiser[C % 8];
 
         if (effect->m_Type == e2dEffectType::EFFECT_SUN_GLARE && CWeather::SunGlare >= 0.0f) {
             auto effectPos = TransformFromObjectSpace(effect->m_Pos);
@@ -1790,7 +1790,7 @@ void CEntity::ProcessLightsForEntity() {
                 effectPos += scaledCameraDir;
 
                 CCoronas::RegisterCorona(
-                    m_nRandomSeed + C + 1,
+                    RandomSeed + C + 1,
                     nullptr,
                     static_cast<uint8>((CTimeCycle::m_CurrentColours.m_nSunCoreRed + 510) * glare / 3.0f),
                     static_cast<uint8>((CTimeCycle::m_CurrentColours.m_nSunCoreGreen + 510) * glare / 3.0f),
@@ -1892,7 +1892,7 @@ void CEntity::ProcessLightsForEntity() {
                 }
                 break;
             case e2dCoronaFlashType::FLASH_TRAINCROSSING:
-                if (GetIsTypeObject() && AsObject()->objectFlags.bTrainCrossEnabled) {
+                if (GetIsTypeObject() && AsObject()->m_nObjectFlags.bTrainNearby) {
                     if (CTimer::GetTimeInMS() & 0x400) {
                         ApplyLight = true;
                     }

@@ -129,12 +129,12 @@ void CPickup::GiveUsAPickUpObject(CObject*& obj, int32 slotIndex) {
     obj->SetOrientation(0.0f, 0.0f, -HALF_PI);
     obj->SetHeading(-HALF_PI);
     obj->UpdateRwFrame();
-    obj->physicalFlags.bApplyGravity = false;
-    obj->physicalFlags.bExplosionProof = true;
+    obj->m_nPhysicalFlags.bDoGravity = false;
+    obj->m_nPhysicalFlags.bIgnoresExplosions = true;
     obj->SetUsesCollision(false);
-    obj->objectFlags.bIsPickup = true;
-    obj->objectFlags.b0x02 = obj->GetCollisionProcessed();
-    obj->objectFlags.bDoNotRender = PickUpShouldBeInvisible();
+    obj->m_nObjectFlags.bIsPickUp = true;
+    obj->m_nObjectFlags.bNoPickUpEffects = obj->GetCollisionProcessed();
+    obj->m_nObjectFlags.bDoPreRenderButDontRender = PickUpShouldBeInvisible();
     obj->m_bHasPreRenderEffects = true;
     obj->m_bTunnelTransition = true;
     CEntity::RegisterReference(obj);
@@ -147,11 +147,11 @@ void CPickup::GiveUsAPickUpObject(CObject*& obj, int32 slotIndex) {
 
     switch (m_nPickupType) {
     case PICKUP_IN_SHOP_OUT_OF_STOCK:
-        obj->objectFlags.bPickupInShopOutOfStock = true;
-        obj->physicalFlags.bRenderScorched = true; // ?
+        obj->m_nObjectFlags.bPickUpOutOfStock = true;
+        obj->m_nPhysicalFlags.bRenderScorched = true; // ?
         break;
     case PICKUP_PROPERTY_FORSALE:
-        obj->objectFlags.bPickupPropertyForSale = true;
+        obj->m_nObjectFlags.bPickUpCostsMoney = true;
         obj->m_wCostValue = m_nAmmo / 5u;
         break;
     default:
@@ -335,7 +335,7 @@ bool CPickup::Update(CPlayerPed* player, CVehicle* vehicle, int32 playerId) {
         default: {
             bool isPicked = false;
             const auto CheckObjectAndProcess = [&] {
-                if (m_pObject->objectFlags.bDoNotRender) {
+                if (m_pObject->m_nObjectFlags.bDoPreRenderButDontRender) {
                     isPicked = false;
                 }
 
@@ -447,10 +447,10 @@ bool CPickup::Update(CPlayerPed* player, CVehicle* vehicle, int32 playerId) {
                             const auto& playerInfo = FindPlayerInfo(playerId);
                             const auto& playerWantedLevel = FindPlayerWanted(playerId)->GetWantedLevel();
 
-                            if (mi == MI_PICKUP_BODYARMOUR && (float)playerInfo.m_nMaxArmour - 0.2f < player->m_fArmour)
+                            if (mi == MI_PICKUP_BODYARMOUR && (float)playerInfo.MaxArmour - 0.2f < player->m_fArmour)
                                 return false;
 
-                            if (mi == MI_PICKUP_HEALTH && (float)playerInfo.m_nMaxHealth - 0.2f < player->m_fHealth)
+                            if (mi == MI_PICKUP_HEALTH && (float)playerInfo.MaxHealth - 0.2f < player->m_fHealth)
                                 return false;
 
                             if (mi == MI_PICKUP_BRIBE && playerWantedLevel == eWantedLevel::WANTED_CLEAN)
@@ -556,13 +556,13 @@ bool CPickup::Update(CPlayerPed* player, CVehicle* vehicle, int32 playerId) {
                                 break;
                             case PICKUP_MONEY:
                             case PICKUP_MONEY_DOESNTDISAPPEAR:
-                                FindPlayerInfo().m_nMoney += m_nAmmo; // originally player 0
+                                FindPlayerInfo().Score += m_nAmmo; // originally player 0
                                 AudioEngine.ReportFrontendAudioEvent(AE_FRONTEND_PICKUP_MONEY);
                                 player->Say(CTX_GLOBAL_PICKUP_CASH);
                                 SetRemoved();
                                 break;
                             case PICKUP_ASSET_REVENUE:
-                                FindPlayerInfo(playerId).m_nMoney += (int32)m_fRevenueValue;
+                                FindPlayerInfo(playerId).Score += (int32)m_fRevenueValue;
                                 m_fRevenueValue = 0.0f;
                                 AudioEngine.ReportFrontendAudioEvent(AE_FRONTEND_PICKUP_MONEY);
                                 break;
@@ -586,7 +586,7 @@ bool CPickup::Update(CPlayerPed* player, CVehicle* vehicle, int32 playerId) {
                                     const GxtChar* textToPrint = nullptr;
                                     if (CTheScripts::IsPlayerOnAMission()) {
                                         textToPrint = TheText.Get("PROP_2");
-                                    } else if (FindPlayerInfo().m_nMoney < (int32)m_nAmmo) {
+                                    } else if (FindPlayerInfo().Score < (int32)m_nAmmo) {
                                         textToPrint = TheText.Get("PROP_1");
                                     }
 

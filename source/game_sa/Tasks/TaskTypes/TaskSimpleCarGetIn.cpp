@@ -113,7 +113,7 @@ bool CTaskSimpleCarGetIn::ProcessPed(CPed* ped) {
     if (m_finished) {
         ped->RemoveWeaponWhenEnteringVehicle(false);
         if (CCheat::IsActive(VEHICLEOFDEATH_CHEAT) && ped->IsPlayer() && m_veh) { // This stuff later is de-activated in `CTaskSimpleCarGetOut`
-             m_veh->physicalFlags.bBulletProof = m_veh->physicalFlags.bExplosionProof = true;
+             m_veh->m_nPhysicalFlags.bNotDamagedByBullets = m_veh->m_nPhysicalFlags.bIgnoresExplosions = true;
              m_veh->vehicleFlags.bCanBeDamaged = false;
         }
         return true;

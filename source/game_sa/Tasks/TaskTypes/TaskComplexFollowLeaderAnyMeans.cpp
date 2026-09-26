@@ -49,7 +49,7 @@ CTask* CTaskComplexFollowLeaderAnyMeans::CreateSubTask(eTaskType taskType, CPed 
     case TASK_SIMPLE_STAND_STILL:
         return new CTaskSimpleStandStill{ 2000 };
     case TASK_SIMPLE_CAR_DRIVE_TIMED:
-        return new CTaskSimpleCarDriveTimed{ ped->m_pVehicle, 2000 };
+        return new CTaskSimpleCarDriveTimed{ ped->m_pMyVehicle, 2000 };
     case TASK_COMPLEX_SEEK_ENTITY_ANY_MEANS:
         // NOTE: There's also some weird `mov [pXYOffsetTask + 0x50], 7`
         // even though only 0x34 bytes are allocated...

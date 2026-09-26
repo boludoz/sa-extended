@@ -285,7 +285,7 @@ CTaskAllocator* CGroupEventHandler::ComputeResponseNewGangMember(const CEventNew
 CTaskAllocator* CGroupEventHandler::ComputeResponseLeaderExitedCar(const CEventEditableResponse&, CPedGroup* pg, CPed* originator) {
     const auto leader = pg->GetMembership().GetLeader();
     for (auto&& [i, m] : rngv::enumerate(pg->GetMembership().GetFollowers())) {
-        if (m->m_pVehicle && m->bInVehicle && m->m_pVehicle == leader->m_pVehicle) { // Already in the leader's vehicle
+        if (m->m_pMyVehicle && m->bInVehicle && m->m_pMyVehicle == leader->m_pMyVehicle) { // Already in the leader's vehicle
             continue; 
         }
         CVehicle* mveh{};
@@ -543,11 +543,11 @@ CTaskAllocator* CGroupEventHandler::ComputeHassleThreatResponse(CPedGroup* pg, C
         const auto SetTask = [&](const auto& t) {
             pg->GetIntelligence().SetEventResponseTask(m, t);
         };
-        if (threat->IsInVehicle() && threat->m_pVehicle->IsSubAutomobile()) {
+        if (threat->IsInVehicle() && threat->m_pMyVehicle->IsSubAutomobile()) {
             if (!bBeAggressive) {
-                if (threat->m_pVehicle->GetSpareHasslePosId() != -1) {
+                if (threat->m_pMyVehicle->GetSpareHasslePosId() != -1) {
                     SetTask(CTaskGangHassleVehicle{
-                        threat->m_pVehicle,
+                        threat->m_pMyVehicle,
                         -1,
                         0,
                         0.25f,

@@ -42,7 +42,7 @@ CTask* CTaskComplexDieInCar::ControlSubTask(CPed* ped) {
     if (CTimer::GetTimeInMS() < m_nTimeMS + m_nOffset)
         return m_pSubTask;
 
-    if (ped->GetCreatedBy() == PED_MISSION || ped->m_pVehicle->CanPedStepOutCar(false))
+    if (ped->GetCreatedBy() == PED_MISSION || ped->m_pMyVehicle->CanPedStepOutCar(false))
         return CreateSubTask(TASK_COMPLEX_LEAVE_CAR_AND_DIE, ped);
 
     return CreateSubTask(TASK_SIMPLE_DIE_IN_CAR, ped);
@@ -52,11 +52,11 @@ CTask* CTaskComplexDieInCar::ControlSubTask(CPed* ped) {
 CTask* CTaskComplexDieInCar::CreateSubTask(eTaskType taskType, CPed* ped) {
     switch (taskType) {
     case TASK_COMPLEX_LEAVE_CAR_AND_DIE:
-        return new CTaskComplexLeaveCar(ped->m_pVehicle, 0, 0);
+        return new CTaskComplexLeaveCar(ped->m_pMyVehicle, 0, 0);
     case TASK_SIMPLE_CAR_DRIVE:
-        return new CTaskSimpleCarDrive(ped->m_pVehicle, nullptr, false);
+        return new CTaskSimpleCarDrive(ped->m_pMyVehicle, nullptr, false);
     case TASK_SIMPLE_DIE_IN_CAR:
-        return new CTaskSimpleDieInCar(ANIM_GROUP_DEFAULT, ped->m_pVehicle->IsDriver(ped) ? ANIM_ID_CAR_DEAD_LHS : ANIM_ID_CAR_DEAD_RHS);
+        return new CTaskSimpleDieInCar(ANIM_GROUP_DEFAULT, ped->m_pMyVehicle->IsDriver(ped) ? ANIM_ID_CAR_DEAD_LHS : ANIM_ID_CAR_DEAD_RHS);
     default:
         return nullptr;
     }
@@ -72,7 +72,7 @@ CTask* CTaskComplexDieInCar::CreateFirstSubTask(CPed* ped) {
     auto currentEvent = ped->GetEventHandlerHistory().GetCurrentEvent();
     if (currentEvent) {
         if (currentEvent->GetEventType() == EVENT_DAMAGE) {
-            if (const auto driver = ped->m_pVehicle->m_pDriver) {
+            if (const auto driver = ped->m_pMyVehicle->m_pDriver) {
                 if (driver != ped) {
                     auto* event = static_cast<CEventDamage*>(currentEvent->Clone());
                     event->m_bAddToEventGroup = false;
@@ -81,7 +81,7 @@ CTask* CTaskComplexDieInCar::CreateFirstSubTask(CPed* ped) {
                 }
             }
 
-            for (const auto passenger : ped->m_pVehicle->GetPassengers()) {
+            for (const auto passenger : ped->m_pMyVehicle->GetPassengers()) {
                 if (!passenger)
                     continue;
 
@@ -101,16 +101,16 @@ CTask* CTaskComplexDieInCar::CreateFirstSubTask(CPed* ped) {
     if (m_nWeaponType == WEAPON_EXPLOSION)
         return CreateSubTask(TASK_SIMPLE_DIE_IN_CAR, ped);
 
-    if (ped->m_pVehicle->IsSubPlane() || ped->m_pVehicle->IsSubHeli())
+    if (ped->m_pMyVehicle->IsSubPlane() || ped->m_pMyVehicle->IsSubHeli())
         return CreateSubTask(TASK_SIMPLE_DIE_IN_CAR, ped);
 
-    if (ped->m_pVehicle->CanPedStepOutCar(false))
+    if (ped->m_pMyVehicle->CanPedStepOutCar(false))
         return CreateSubTask(TASK_COMPLEX_LEAVE_CAR_AND_DIE, ped);
 
-    if (ped->m_pVehicle->GetVehicleAppearance() != VEHICLE_APPEARANCE_AUTOMOBILE || ped->m_pVehicle->m_pDriver != ped)
+    if (ped->m_pMyVehicle->GetVehicleAppearance() != VEHICLE_APPEARANCE_AUTOMOBILE || ped->m_pMyVehicle->m_pDriver != ped)
         return CreateSubTask(TASK_SIMPLE_DIE_IN_CAR, ped);
 
-    PreparePedVehicleForPedDeath(ped->m_pVehicle);
+    PreparePedVehicleForPedDeath(ped->m_pMyVehicle);
     m_nTimeMS = CTimer::GetTimeInMS();
     m_nOffset = 2000;
     m_bPreparedForDeath = true;
@@ -137,7 +137,7 @@ CTask* CTaskComplexDieInCar::CreateNextSubTask(CPed* ped) {
     case TASK_SIMPLE_DIE_IN_CAR:
         return CreateSubTask(TASK_FINISHED, ped);
     case TASK_COMPLEX_LEAVE_CAR_AND_DIE:
-        return CreateSubTask(ped->m_pVehicle && ped->bInVehicle ? TASK_SIMPLE_DIE_IN_CAR : TASK_FINISHED, ped);
+        return CreateSubTask(ped->m_pMyVehicle && ped->bInVehicle ? TASK_SIMPLE_DIE_IN_CAR : TASK_FINISHED, ped);
     default:
         return nullptr;
     }

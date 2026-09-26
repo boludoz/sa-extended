@@ -19,8 +19,11 @@ public:
 
     void       ReportAccident(CPed* ped);
     int32      GetNumberOfFreeAccidents();
-    CAccident* GetNearestFreeAccidentExceptThisOne(CVector& posn, CAccident* thisOne, bool bIgnoreHeadless);
-    CAccident* GetNearestFreeAccident(CVector& posn, bool bIgnoreHeadless);
+    CAccident* GetNearestFreeAccidentExceptThisOne(const CVector& posn, CAccident* thisOne, bool bIgnoreHeadless);
+    CAccident* GetNearestFreeAccident(const CVector& posn, bool bIgnoreHeadless);
 };
 
 VALIDATE_SIZE(CAccidentManager, 0x80);
+
+//! calineva API
+inline CAccidentManager* GetAccidentManager() { return CAccidentManager::GetInstance(); }

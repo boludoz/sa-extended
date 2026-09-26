@@ -78,8 +78,8 @@ void CQuadBike::PreRender() {
     mi->GetWheelPosn(CAR_WHEEL_REAR_LEFT, wheelPos, false);
     SetTransmissionRotation(
         m_aCarNodes[QUAD_REAR_AXLE],
-        m_wheelPosition[CAR_WHEEL_REAR_LEFT],
-        m_wheelPosition[CAR_WHEEL_REAR_RIGHT],
+        m_aWheelSuspensionHeights[CAR_WHEEL_REAR_LEFT],
+        m_aWheelSuspensionHeights[CAR_WHEEL_REAR_RIGHT],
         wheelPos,
         false
     );
@@ -94,13 +94,13 @@ void CQuadBike::PreRender() {
 
     if (m_aCarNodes[QUAD_SUSPENSION_LF]) {
         mat.Attach(RwFrameGetMatrix(m_aCarNodes[QUAD_SUSPENSION_LF]), false);
-        mat.SetRotateYOnly(atan2(m_wheelPosition[CAR_WHEEL_FRONT_LEFT] - wheelFrontLeftPos.z, fabs(wheelFrontLeftPos.x)));
+        mat.SetRotateYOnly(atan2(m_aWheelSuspensionHeights[CAR_WHEEL_FRONT_LEFT] - wheelFrontLeftPos.z, fabs(wheelFrontLeftPos.x)));
         mat.UpdateRW();
     }
 
     if (m_aCarNodes[QUAD_SUSPENSION_RF]) {
         mat.Attach(RwFrameGetMatrix(m_aCarNodes[QUAD_SUSPENSION_RF]), false);
-        mat.SetRotateYOnly(-atan2(m_wheelPosition[eCarWheel::CAR_WHEEL_FRONT_RIGHT] - wheelFrontLeftPos.z, fabs(wheelFrontLeftPos.x)));
+        mat.SetRotateYOnly(-atan2(m_aWheelSuspensionHeights[eCarWheel::CAR_WHEEL_FRONT_RIGHT] - wheelFrontLeftPos.z, fabs(wheelFrontLeftPos.x)));
         mat.UpdateRW();
     }
 
@@ -223,7 +223,7 @@ void CQuadBike::ProcessControl() {
             v5 = vecQuadResistance.x - std::min(0.07f, fabs(m_pHandling->m_fWheelieAng - m_matrix->GetForward().z) * 0.25f);
         }
     } else {
-        if (m_WheelCounts[CAR_WHEEL_REAR_LEFT] == 1.0f && m_WheelCounts[CAR_WHEEL_REAR_RIGHT] == 1.0f) {
+        if (m_aWheelCounts[CAR_WHEEL_REAR_LEFT] == 1.0f && m_aWheelCounts[CAR_WHEEL_REAR_RIGHT] == 1.0f) {
             if (m_matrix->GetForward().z < 0.0f) {
                 v5 = vecQuadResistance.x * (0.9f + std::min(0.1f, fabs(m_pHandling->m_fStoppieAng - m_matrix->GetForward().z) * 0.3f));
             }

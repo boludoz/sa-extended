@@ -58,7 +58,7 @@ CTask* CTaskComplexGoToPointAnyMeans::CreateFirstSubTask(CPed* ped) {
         return CreateSubTask(ped->IsInVehicle() ? TASK_COMPLEX_CAR_DRIVE_TO_POINT : TASK_COMPLEX_ENTER_CAR_AS_DRIVER, ped);
     }
 
-    if (ped->IsInVehicle() && ped->m_pVehicle->IsDriver(ped))
+    if (ped->IsInVehicle() && ped->m_pMyVehicle->IsDriver(ped))
         return CreateSubTask(TASK_COMPLEX_CAR_DRIVE_TO_POINT, ped);
     else
         return CreateSubTask(TASK_COMPLEX_FOLLOW_NODE_ROUTE, ped);

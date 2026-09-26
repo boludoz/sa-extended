@@ -282,7 +282,7 @@ bool CTaskSimpleGunControl::ProcessPed(CPed* ped) {
         return false;
     }
 
-    ped->m_fAimingRotation = pedToTarget.Heading();
+    ped->m_fDesiredHeading = pedToTarget.Heading();
 
     if ([&, this] {
         if (!useGunTask) {

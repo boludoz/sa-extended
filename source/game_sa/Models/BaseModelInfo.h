@@ -220,6 +220,9 @@ public:
 
     [[nodiscard]] bool IsSwayInWind1()         const { return nSpecialType == eModelInfoSpecialType::TREE; }               // 0x0800
     [[nodiscard]] bool IsSwayInWind2()         const { return nSpecialType == eModelInfoSpecialType::PALM; }               // 0x1000
+    uint32 GetIsTree() const { return IsSwayInWind1(); }                           //!< calineva API
+    uint32 GetIsPalmTree() const { return IsSwayInWind2(); }                       //!< calineva API
+    uint32 GetIsAnyTree() const { return GetIsTree() != 0 || GetIsPalmTree() != 0; } //!< calineva API
     [[nodiscard]] bool SwaysInWind()           const { return IsSwayInWind1() || IsSwayInWind2(); }
     [[nodiscard]] bool IsGlassType1()          const { return nSpecialType == eModelInfoSpecialType::GLASS_TYPE_1; }       // 0x2000
     [[nodiscard]] bool IsGlassType2()          const { return nSpecialType == eModelInfoSpecialType::GLASS_TYPE_2; }       // 0x2800

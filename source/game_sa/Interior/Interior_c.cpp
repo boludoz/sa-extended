@@ -89,7 +89,7 @@ int32 Interior_c::Init(const CVector& pos) {
     if (m_box->m_type != 99) {
         const auto& p = groupMat.GetPosition();
         auto seed = (uint32)(m_box->m_seed + p.x * p.y * p.z);
-        if (const auto* const enex = g_interiorMan.m_EnEx) {
+        if (const auto* const enex = g_interiorMan.m_pEntryExit) {
             seed = (uint32)(m_box->m_seed + p.x * p.y * p.z
                           + enex->m_recEntrance.left * enex->m_recEntrance.top * enex->m_fEntranceZ);
         }
@@ -109,8 +109,8 @@ int32 Interior_c::Init(const CVector& pos) {
 
     CalcExitPts();
 
-    if (!g_interiorMan.HasInteriorHadStealDataSetup(this) && g_interiorMan.m_InteriorCount < 64) {
-        g_interiorMan.m_InteriorIds[g_interiorMan.m_InteriorCount++] = m_id;
+    if (!g_interiorMan.HasInteriorHadStealDataSetup(this) && g_interiorMan.m_numStealInfosIds < 64) {
+        g_interiorMan.m_stealInfoSetupIds[g_interiorMan.m_numStealInfosIds++] = m_id;
     }
 
     if ((m_box->m_type & 0xFE) == 2) { // Lounges and bedrooms get loose pickups
@@ -787,11 +787,11 @@ CObject* Interior_c::PlaceObject(uint8 isStealable, Furniture_c* furniture, floa
     m_furnitureEntityList.AddItem(fe);
 
     if (isStealable) {
-        obj->objectFlags.bIsLiftable = true;
+        obj->m_nObjectFlags.bIsStealable = true;
 
         if (g_interiorMan.HasInteriorHadStealDataSetup(this)) {
             const auto id = g_interiorMan.FindStealableObjectId(m_id, furniture->m_nModelId, localPos);
-            if (id >= 0 && g_interiorMan.m_Objects[id].wasStolen) {
+            if (id >= 0 && g_interiorMan.m_stealableInfos[id].wasStolen) {
                 // The player already took this one, so don't put it back
                 CWorld::Remove(obj);
                 delete obj;
@@ -802,10 +802,10 @@ CObject* Interior_c::PlaceObject(uint8 isStealable, Furniture_c* furniture, floa
                 return nullptr;
             }
             if (id >= 0) {
-                g_interiorMan.m_Objects[id].entity = obj;
+                g_interiorMan.m_stealableInfos[id].entity = obj;
             }
         } else {
-            auto& slot      = g_interiorMan.m_Objects[g_interiorMan.m_ObjectCount++];
+            auto& slot      = g_interiorMan.m_stealableInfos[g_interiorMan.m_numStealableObjects++];
             slot.entity     = obj;
             slot.modelId    = furniture->m_nModelId;
             slot.interiorId = m_id;
@@ -874,7 +874,7 @@ void Interior_c::Unfurnish() {
         if (player
          && player->GetEntityThatThisPedIsHolding() == obj
          && obj->GetIsTypeObject()
-         && obj->objectFlags.bIsLiftable
+         && obj->m_nObjectFlags.bIsStealable
         ) {
             // The player walked off with it, so let them keep it for a good long while
             CObject::nNoTempObjects++;
@@ -1065,18 +1065,18 @@ bool Interior_c::AddInteriorInfo(eInteriorInfoType actionType, float offsetX, fl
     }
 
     auto& info = m_interiorInfos[m_numInteriorInfos++];
-    info.Type                   = actionType;
-    info.Pos                    = pos;
-    info.Dir                    = dir;
-    info.IsInUse                = false;
-    info.EntityIgnoredCollision = entityIgnoredCollision;
+    info.type                   = actionType;
+    info.pos                    = pos;
+    info.dir                    = dir;
+    info.beingUsed                = false;
+    info.pNoCollisionEntity = entityIgnoredCollision;
     return true;
 }
 
 // 0x591F90
 void Interior_c::AddPickups() {
     // At most one pickup per interior, and only every three minutes
-    if (CTimer::GetTimeInMS() - g_interiorMan.m_TimeLastPickupsGenerated < 180'000) {
+    if (CTimer::GetTimeInMS() - g_interiorMan.m_timeLastPickupsGenerated < 180'000) {
         return;
     }
 

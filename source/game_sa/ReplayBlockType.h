@@ -107,7 +107,7 @@ struct tReplayVehicleBlock : tReplayBlockBase {
     uint8 doorStatus;
     uint8 primaryColor;
     uint8 secondaryColor;
-    uint8 physicalFlags;
+    uint8 m_nPhysicalFlags;
     uint8 vehicleSubType;
     uint8 vehicleType;
     uint8 __pad[2];

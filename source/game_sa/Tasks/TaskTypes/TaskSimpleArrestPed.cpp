@@ -85,8 +85,8 @@ bool CTaskSimpleArrestPed::ProcessPed(CPed* ped) {
             : CVector{};
         const auto& pedPos = ped->GetPosition();
         float angle = CGeneral::GetRadianAngleBetweenPoints(point.x, point.y, pedPos.x, pedPos.y);
-        ped->m_fAimingRotation  = angle;
-        ped->m_fCurrentRotation = angle;
+        ped->m_fDesiredHeading  = angle;
+        ped->m_fCurrentHeading = angle;
         ped->SetOrientation(0.0f, 0.0f, angle);
         ped->m_pedIK.PointGunAtPosition(point, m_Assoc->m_BlendAmount);
         return false;

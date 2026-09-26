@@ -26,64 +26,64 @@ enum ePlayerState : uint8 {
 
 class CPlayerInfo {
 public:
-    CPlayerPed*    m_pPed;                    // Pointer to the player ped (should always be set)
-    CPlayerPedData m_PlayerData;              // instance of player variables
-    CVehicle*      m_pRemoteVehicle;          // Pointer to vehicle player is driving remotely at the moment.(NULL if on foot)
-    CVehicle*      m_pSpecCar;                // which car is using the special collision model
-    int32          m_nMoney;                  // Points for this player
-    int32          m_nDisplayMoney;           // Points as they would be displayed
-    uint32         m_nCollectablesPickedUp;   // How many bags of sugar do we have
-    uint32         m_nTotalNumCollectables;   // How many bags of sugar are there to be had in the game
-    uint32         m_nLastBumpPlayerCarTimer; // Keeps track of when the last ped bumped into the player car
-    uint32         m_nTaxiTimer;              // Keeps track of how long the player has been in a taxi with a passenger (in msecs)
-    uint32         m_nVehicleTimeCounter;     // keeps track of how long player has been in car for driving skill
-    bool           m_bTaxiTimerScore;         // If TRUE then add 1 to score for each second that the player is driving a taxi
+    CPlayerPed*    pPed;                    // Pointer to the player ped (should always be set)
+    CPlayerPedData PlayerPedData;              // instance of player variables
+    CVehicle*      pRemoteVehicle;          // Pointer to vehicle player is driving remotely at the moment.(NULL if on foot)
+    CVehicle*      pSpecCar;                // which car is using the special collision model
+    int32          Score;                  // Points for this player
+    int32          DisplayScore;           // Points as they would be displayed
+    uint32         CollectablesPickedUp;   // How many bags of sugar do we have
+    uint32         TotalNumCollectables;   // How many bags of sugar are there to be had in the game
+    uint32         nLastBumpPlayerCarTimer; // Keeps track of when the last ped bumped into the player car
+    uint32         TaxiTimer;              // Keeps track of how long the player has been in a taxi with a passenger (in msecs)
+    uint32         vehicle_time_counter;     // keeps track of how long player has been in car for driving skill
+    bool           bTaxiTimerScore;         // If TRUE then add 1 to score for each second that the player is driving a taxi
     bool           m_bTryingToExitCar;        // if player holds exit car button, want to trigger getout once car slowed enough with a passenger
-    CVehicle*      m_pLastTargetVehicle;      // Last vehicle player tried to enter.
-    ePlayerState   m_nPlayerState;
-    bool           m_bAfterRemoteVehicleExplosion;
-    bool           m_bCreateRemoteVehicleExplosion;
-    bool           m_bFadeAfterRemoteVehicleExplosion;
-    uint32         m_nTimeOfRemoteVehicleExplosion;
-    uint32         m_nLastTimeEnergyLost;     // To make numbers flash on the HUD
-    uint32         m_nLastTimeArmourLost;
-    uint32         m_nLastTimeBigGunFired;   // Tank guns etc
-    uint32         m_nTimesUpsideDownInARow; // Make car blow up if car upside down
-    uint32         m_nTimesStuckInARow;      // Make car blow up if player cannot get out.
-    uint32         m_nCarTwoWheelCounter;    // how long has player's car been on two wheels
-    float          m_fCarTwoWheelDist;       // Make car blow up if player cannot get out.
-    uint32         m_nCarLess3WheelCounter;  // how long has player's car been on less than 3 wheels
-    uint32         m_nBikeRearWheelCounter;  // how long has player's bike been on rear wheel only
-    float          m_fBikeRearWheelDist;
-    uint32         m_nBikeFrontWheelCounter; // how long has player's bike been on front wheel only
-    float          m_fBikeFrontWheelDist;
-    uint32         m_nTempBufferCounter;     // so wheels can leave the ground for a few frames without stopping above counters
-    uint32         m_nBestCarTwoWheelsTimeMs;
-    float          m_fBestCarTwoWheelsDistM;
-    uint32         m_nBestBikeWheelieTimeMs;
-    float          m_fBestBikeWheelieDistM;
-    uint32         m_nBestBikeStoppieTimeMs;
-    float          m_fBestBikeStoppieDistM;
-    uint16         m_nCarDensityForCurrentZone;
-    float          m_fRoadDensityAroundPlayer; // 1.0f for an average city.
-    uint32         m_nTimeOfLastCarExplosionCaused;
-    uint32         m_nExplosionMultiplier;
-    uint32         m_nHavocCaused;        // A counter going up when the player does bad stuff.
-    uint16         m_nNumHoursDidntEat;
-    float          m_fCurrentChaseValue;  // How 'ill' is the chase at the moment
-    bool           m_bDoesNotGetTired;
-    bool           m_bFastReload;
-    bool           m_bFireProof;
-    uint8          m_nMaxHealth;
-    uint8          m_nMaxArmour;
-    bool           m_bGetOutOfJailFree; // Player doesn't lose money/weapons next time arrested
-    bool           m_bFreeHealthCare;   // Player doesn't lose money nexed time patched up at hospital
-    bool           m_bCanDoDriveBy;
+    CVehicle*      pLastTargetVehicle;      // Last vehicle player tried to enter.
+    ePlayerState   PlayerState;
+    bool           bAfterRemoteVehicleExplosion;
+    bool           bCreateRemoteVehicleExplosion;
+    bool           bFadeAfterRemoteVehicleExplosion;
+    uint32         TimeOfRemoteVehicleExplosion;
+    uint32         LastTimeEnergyLost;     // To make numbers flash on the HUD
+    uint32         LastTimeArmourLost;
+    uint32         LastTimeBigGunFired;   // Tank guns etc
+    uint32         TimesUpsideDownInARow; // Make car blow up if car upside down
+    uint32         TimesStuckInARow;      // Make car blow up if player cannot get out.
+    uint32         nCarTwoWheelCounter;    // how long has player's car been on two wheels
+    float          fCarTwoWheelDist;       // Make car blow up if player cannot get out.
+    uint32         nCarLess3WheelCounter;  // how long has player's car been on less than 3 wheels
+    uint32         nBikeRearWheelCounter;  // how long has player's bike been on rear wheel only
+    float          fBikeRearWheelDist;
+    uint32         nBikeFrontWheelCounter; // how long has player's bike been on front wheel only
+    float          fBikeFrontWheelDist;
+    uint32         nTempBufferCounter;     // so wheels can leave the ground for a few frames without stopping above counters
+    uint32         nBestCarTwoWheelsTimeMs;
+    float          fBestCarTwoWheelsDistM;
+    uint32         nBestBikeWheelieTimeMs;
+    float          fBestBikeWheelieDistM;
+    uint32         nBestBikeStoppieTimeMs;
+    float          fBestBikeStoppieDistM;
+    uint16         CarDensityForCurrentZone;
+    float          RoadDensityAroundPlayer; // 1.0f for an average city.
+    uint32         TimeOfLastCarExplosionCaused;
+    uint32         ExplosionMultiplier;
+    uint32         HavocCaused;        // A counter going up when the player does bad stuff.
+    uint16         TimeLastEaten;
+    float          CurrentChaseValue;  // How 'ill' is the chase at the moment
+    bool           DoesNotGetTired;
+    bool           FastReload;
+    bool           FireProof;
+    uint8          MaxHealth;
+    uint8          MaxArmour;
+    bool           bGetOutOfJailFree; // Player doesn't lose money/weapons next time arrested
+    bool           bFreeHealthCare;   // Player doesn't lose money nexed time patched up at hospital
+    bool           bCanDoDriveBy;
     uint8          m_nBustedAudioStatus;
     uint16         m_nLastBustMessageNumber;
     uint32         m_nCrosshairActivated;
     CVector2D      m_vecCrosshairTarget; // -1 ... 1 on screen
-    char           m_szSkinName[32];
+    char           m_skinName[32];
     RwTexture*     m_pSkinTexture;
     bool           m_bParachuteReferenced;
     uint32         m_nRequireParachuteTimer;
@@ -116,6 +116,7 @@ public:
     void DeletePlayerSkin();
     void SetPlayerSkin(const char* name);
     void SetLastTargetVehicle(CVehicle* vehicle);
+    CVehicle* GetLastTargetVehicle() const { return pLastTargetVehicle; } //!< calineva API
     [[nodiscard]] bool IsRestartingAfterMissionFailed() const;
     [[nodiscard]] bool IsRestartingAfterArrest() const;
     [[nodiscard]] bool IsRestartingAfterDeath() const;
@@ -161,44 +162,44 @@ class CPlayerInfoSaveStructure {
 
 public:
     void Construct(CPlayerInfo* info) {
-        m_nMoney =                          info->m_nMoney;
-        m_nCarDensityForCurrentZone =       info->m_nCarDensityForCurrentZone;
-        m_nPlayerState =                    info->m_nPlayerState;
-        m_fRoadDensityAroundPlayer =        info->m_fRoadDensityAroundPlayer;
-        m_nDisplayMoney =                   info->m_nDisplayMoney;
-        m_nNumHoursDidntEat =               static_cast<uint8>(info->m_nNumHoursDidntEat);
-        m_nCollectablesPickedUp =           info->m_nCollectablesPickedUp;
-        m_nTotalNumCollectables =           info->m_nTotalNumCollectables;
-        m_bDoesNotGetTired =                info->m_bDoesNotGetTired;
-        m_bFastReload =                     info->m_bFastReload;
-        m_bFireProof =                      info->m_bFireProof;
-        m_nMaxHealth =                      info->m_nMaxHealth;
-        m_nMaxArmour =                      info->m_nMaxArmour;
-        m_bGetOutOfJailFree =               info->m_bGetOutOfJailFree;
-        m_bFreeHealthCare =                 info->m_bFreeHealthCare;
-        m_bCanDoDriveBy =                   info->m_bCanDoDriveBy;
+        m_nMoney =                          info->Score;
+        m_nCarDensityForCurrentZone =       info->CarDensityForCurrentZone;
+        m_nPlayerState =                    info->PlayerState;
+        m_fRoadDensityAroundPlayer =        info->RoadDensityAroundPlayer;
+        m_nDisplayMoney =                   info->DisplayScore;
+        m_nNumHoursDidntEat =               static_cast<uint8>(info->TimeLastEaten);
+        m_nCollectablesPickedUp =           info->CollectablesPickedUp;
+        m_nTotalNumCollectables =           info->TotalNumCollectables;
+        m_bDoesNotGetTired =                info->DoesNotGetTired;
+        m_bFastReload =                     info->FastReload;
+        m_bFireProof =                      info->FireProof;
+        m_nMaxHealth =                      info->MaxHealth;
+        m_nMaxArmour =                      info->MaxArmour;
+        m_bGetOutOfJailFree =               info->bGetOutOfJailFree;
+        m_bFreeHealthCare =                 info->bFreeHealthCare;
+        m_bCanDoDriveBy =                   info->bCanDoDriveBy;
         m_nBustedAudioStatus =              info->m_nBustedAudioStatus;
         m_nLastBustMessageNumber =          info->m_nLastBustMessageNumber;
     }
 
     void Extract(CPlayerInfo* info) {
-        info->m_nMoney =                    m_nMoney;
-        info->m_nCarDensityForCurrentZone = m_nCarDensityForCurrentZone;
-        info->m_nPlayerState =              m_nPlayerState;
+        info->Score =                    m_nMoney;
+        info->CarDensityForCurrentZone = m_nCarDensityForCurrentZone;
+        info->PlayerState =              m_nPlayerState;
         // info->m_nCarDensityForCurrentZone = m_nCarDensityForCurrentZone; redundant
-        info->m_fRoadDensityAroundPlayer =  m_fRoadDensityAroundPlayer;
-        info->m_nDisplayMoney =             m_nDisplayMoney;
-        info->m_nNumHoursDidntEat =         m_nNumHoursDidntEat;
-        info->m_nCollectablesPickedUp =     m_nCollectablesPickedUp;
-        info->m_nTotalNumCollectables =     m_nTotalNumCollectables;
-        info->m_bDoesNotGetTired =          m_bDoesNotGetTired;
-        info->m_bFastReload =               m_bFastReload;
-        info->m_bFireProof =                m_bFireProof;
-        info->m_nMaxHealth =                m_nMaxHealth;
-        info->m_nMaxArmour =                m_nMaxArmour;
-        info->m_bGetOutOfJailFree =         m_bGetOutOfJailFree;
-        info->m_bFreeHealthCare =           m_bFreeHealthCare;
-        info->m_bCanDoDriveBy =             m_bCanDoDriveBy;
+        info->RoadDensityAroundPlayer =  m_fRoadDensityAroundPlayer;
+        info->DisplayScore =             m_nDisplayMoney;
+        info->TimeLastEaten =         m_nNumHoursDidntEat;
+        info->CollectablesPickedUp =     m_nCollectablesPickedUp;
+        info->TotalNumCollectables =     m_nTotalNumCollectables;
+        info->DoesNotGetTired =          m_bDoesNotGetTired;
+        info->FastReload =               m_bFastReload;
+        info->FireProof =                m_bFireProof;
+        info->MaxHealth =                m_nMaxHealth;
+        info->MaxArmour =                m_nMaxArmour;
+        info->bGetOutOfJailFree =         m_bGetOutOfJailFree;
+        info->bFreeHealthCare =           m_bFreeHealthCare;
+        info->bCanDoDriveBy =             m_bCanDoDriveBy;
         info->m_nBustedAudioStatus =        m_nBustedAudioStatus;
         info->m_nLastBustMessageNumber =    m_nLastBustMessageNumber;
     }

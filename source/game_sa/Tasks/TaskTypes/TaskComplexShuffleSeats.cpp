@@ -57,8 +57,8 @@ CTask* CTaskComplexShuffleSeats::CreateSubTask(eTaskType taskType, CPed* ped) {
         return new CTaskSimpleCarSetPedInAsDriver{ m_Veh, m_TaskUtilityLineUpPedWithCar };
 
     case TASK_SIMPLE_CAR_SET_PED_OUT: {
-        const auto targetDoor = (eTargetDoor)CCarEnterExit::ComputeTargetDoorToExit(ped->m_pVehicle, ped);
-        return new CTaskSimpleCarSetPedOut{ ped->m_pVehicle, targetDoor, true };
+        const auto targetDoor = (eTargetDoor)CCarEnterExit::ComputeTargetDoorToExit(ped->m_pMyVehicle, ped);
+        return new CTaskSimpleCarSetPedOut{ ped->m_pMyVehicle, targetDoor, true };
     }
 
     case TASK_FINISHED:

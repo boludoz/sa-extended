@@ -48,7 +48,7 @@ inline float FixAngleDegrees(float deg) {
 //! Get the ped or it's vehicle (if in one)
 inline auto GetPedOrItsVehicle(CPed& ped) -> CPhysical& {
     if (ped.IsInVehicle()) {
-        return *ped.m_pVehicle;
+        return *ped.m_pMyVehicle;
     }
     return ped;
 }

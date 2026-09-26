@@ -106,8 +106,8 @@ void CHud::ReInitialise() {
     TimerMainCounterHideState = 0;
 
     const CPlayerInfo& playerInfo   = FindPlayerInfo();
-    m_LastTimeEnergyLost            = playerInfo.m_nLastTimeEnergyLost;
-    m_LastDisplayScore              = playerInfo.m_nDisplayMoney;
+    m_LastTimeEnergyLost            = playerInfo.LastTimeEnergyLost;
+    m_LastDisplayScore              = playerInfo.DisplayScore;
     m_fHelpMessageStatUpdateValue   = 0.0f;
     m_Wants_To_Draw_Hud             = true;
     m_bDraw3dMarkers                = true;
@@ -161,7 +161,7 @@ void CHud::Shutdown() {
 
 // 0x588B60
 float CHud::GetYPosBasedOnHealth(uint8 playerId, float pos, int8 offset) {
-    return (float)FindPlayerInfo(playerId).m_nMaxHealth < 101.0f
+    return (float)FindPlayerInfo(playerId).MaxHealth < 101.0f
                ? pos - SCREEN_SCALE_Y((float)offset)
                : pos;
 }
@@ -1483,16 +1483,16 @@ inline void CHud::DrawMoney(const CPlayerInfo& playerInfo, uint8 alpha) {
     char ascii[16];
     GxtChar gxtText[16];
 
-    if (playerInfo.m_nDisplayMoney < 0) {
+    if (playerInfo.DisplayScore < 0) {
         CFont::SetColor(HudColour.GetRGBA(HUD_COLOUR_RED, alpha));
-        auto m_nDisplayMoney = playerInfo.m_nDisplayMoney;
+        auto m_nDisplayMoney = playerInfo.DisplayScore;
         if (m_nDisplayMoney < 0) {
             m_nDisplayMoney = -m_nDisplayMoney;
         }
         sprintf_s(ascii, "-$%07d", m_nDisplayMoney);
     } else {
         CFont::SetColor(HudColour.GetRGBA(HUD_COLOUR_GREEN, alpha));
-        sprintf_s(ascii, "$%08d", std::abs(playerInfo.m_nDisplayMoney));
+        sprintf_s(ascii, "$%08d", std::abs(playerInfo.DisplayScore));
     }
     AsciiToGxtChar(ascii, gxtText);
     CFont::SetProportional(false);
@@ -1610,7 +1610,7 @@ void CHud::RenderArmorBar(int32 playerId, int32 x, int32 y) {
         (float)y,
         (uint16)SCREEN_STRETCH_X(62.0f),
         (uint8)SCREEN_STRETCH_Y(9.0f),
-        player->m_fArmour / (float)info->m_nMaxArmour * 100.0f,
+        player->m_fArmour / (float)info->MaxArmour * 100.0f,
         false,
         false,
         true,
@@ -1650,14 +1650,14 @@ void CHud::RenderHealthBar(int32 playerId, int32 x, int32 y) {
 
     const float x109 = SCREEN_STRETCH_X(109.0f);
     const auto info = player->GetPlayerInfoForThisPlayerPed();
-    const auto totalWidth = uint16(x109 * (float)info->m_nMaxHealth / CStats::GetFatAndMuscleModifier(STAT_MOD_10));
+    const auto totalWidth = uint16(x109 * (float)info->MaxHealth / CStats::GetFatAndMuscleModifier(STAT_MOD_10));
 
     CSprite2d::DrawBarChart(
         x109 - (float)totalWidth + (float)x,
         (float)y,
         totalWidth,
         (uint8)SCREEN_STRETCH_Y(9.0f),
-        player->m_fHealth * 100.0f / (float)info->m_nMaxHealth,
+        player->m_fHealth * 100.0f / (float)info->MaxHealth,
         false,
         false,
         true,

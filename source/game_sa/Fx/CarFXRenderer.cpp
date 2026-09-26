@@ -9,7 +9,7 @@ void CCarFXRenderer::InjectHooks() {
 
     RH_ScopedInstall(RegisterPlugins, 0x5D5B00);
     RH_ScopedInstall(Initialise, 0x5D5AC0);
-    RH_ScopedInstall(InitialiseDirtTexture, 0x5D5BC0, { .reversed = false });
+    RH_ScopedInstall(InitialiseDirtTexture, 0x5D5BC0);
     RH_ScopedInstall(Shutdown, 0x5D5AD0);
     RH_ScopedInstall(PreRenderUpdate, 0x5D5B10);
     RH_ScopedInstall(IsCCPCPipelineAttached, 0x5D5B80);
@@ -30,14 +30,39 @@ bool CCarFXRenderer::Initialise() {
 }
 
 // 0x5D5BC0
-void CCarFXRenderer::InitialiseDirtTexture() {
-    plugin::Call<0x5D5BC0>();
+// ASM Match: not measured
+bool CCarFXRenderer::InitialiseDirtTexture()
+{
+    int32 vehicleTxdId;
+
+    RwTexture* pDirtTex;
+
+    RwRaster* pOldDirtRaster;
+
+    const int32 drDepth = 0;
+    const int32 drWidth = 0;
+    const int32 drHeight = 0;
+
+    {
+        {
+            {
+
+                {
+                }
+            }
+        }
+    }
+
+    return 0;
 }
 
 // 0x5D5AD0
 void CCarFXRenderer::Shutdown() {
     for (auto& texture : ms_aDirtTextures) {
-        RwTextureDestroy(texture);
+        if (texture) {
+            RwTextureDestroy(texture);
+            texture = nullptr;
+        }
     }
     CCustomCarEnvMapPipeline::DestroyPipe();
 }

@@ -34,7 +34,7 @@ void VehicleInfoDebugModule::RenderWindow() {
                 ImGui::Text("%d", i);
 
                 ImGui::TableNextColumn();
-                ImGui::Text("%.2f", automobile->m_fWheelsSuspensionCompression[i]);
+                ImGui::Text("%.2f", automobile->m_aWheelRatios[i]);
 
                 ImGui::TableNextColumn();
                 ImGui::Text("%.2f", automobile->m_fSuspensionLength[i]);
@@ -59,7 +59,7 @@ void VehicleInfoDebugModule::RenderWindow() {
                 ImGui::TableNextColumn();
                 ImGui::Text("%d", i);
 
-                auto& colPoint = automobile->m_wheelColPoint[i];
+                auto& colPoint = automobile->m_aWheelColPoints[i];
                 ImGui::TableNextColumn();
                 ImGui::Text("%.2f", colPoint.m_vecPoint.x);
 

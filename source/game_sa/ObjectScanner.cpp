@@ -4,7 +4,7 @@
 
 // 0x5FFF30
 void CObjectScanner::ScanForObjectsInRange(const CPed& ped) {
-    if (ped.m_pVehicle && ped.bInVehicle)
+    if (ped.m_pMyVehicle && ped.bInVehicle)
         return;
 
     if (ped.IsAlive())

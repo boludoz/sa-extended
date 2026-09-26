@@ -16,7 +16,7 @@ CTask* CTaskComplexBeStill::CreateNextSubTask(CPed* ped) {
 // 0x62F910
 CTask* CTaskComplexBeStill::CreateFirstSubTask(CPed* ped) {
     if (ped->bInVehicle) {
-        return new CTaskSimpleCarDrive(ped->m_pVehicle, nullptr, false);
+        return new CTaskSimpleCarDrive(ped->m_pMyVehicle, nullptr, false);
     }
     return new CTaskSimpleStandStill(0, true, false, 8.0f);
 }

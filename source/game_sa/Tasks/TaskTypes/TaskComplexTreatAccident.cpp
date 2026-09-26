@@ -49,8 +49,8 @@ CTask* CTaskComplexTreatAccident::CreateNextSubTask(CPed* ped)
         {
             targetPed->m_nDeathTimeMS = CTimer::GetTimeInMS();
             auto newSubTask = CreateSubTask(TASK_SIMPLE_GIVE_CPR, ped);
-            ped->m_fCurrentRotation = ComputeHeading(ped);
-            ped->m_fAimingRotation = ped->m_fCurrentRotation;
+            ped->m_fCurrentHeading = ComputeHeading(ped);
+            ped->m_fDesiredHeading = ped->m_fCurrentHeading;
             return newSubTask;
         }
         else

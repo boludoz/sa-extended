@@ -10,24 +10,23 @@
 #include "AnimBlendAssociation.h"
 
 enum eBmxNodes {
-    BMX_NODE_NONE   = 0,
-    BMX_CHASSIS     = 1,
-    BMX_FORKS_FRONT = 2,
-    BMX_FORKS_REAR  = 3,
-    BMX_WHEEL_FRONT = 4,
-    BMX_WHEEL_REAR  = 5,
-    BMX_HANDLEBARS  = 6,
-    BMX_CHAINSET    = 7,
-    BMX_PEDAL_R     = 8,
-    BMX_PEDAL_L     = 9,
-
-    BMX_NUM_NODES
+    BMX_NULL,
+    BMX_CHASSIS,
+    BMX_FORKS,
+    BMX_SWINGARM,
+    BMX_WHEEL_F,
+    BMX_WHEEL_R,
+    BMX_HANDLEBARS,
+    BMX_CHAINSET,
+    BMX_PEDAL_L,
+    BMX_PEDAL_R,
+    MAX_BMX_NODES,
 };
 
 class NOTSA_EXPORT_VTABLE CBmx : public CBike {
 public:
     float m_fControlJump;
-    float m_fControlPedaling;     // always 0.0f
+    float m_fControlPedaling;
     float m_fSprintLeanAngle;
     float m_fCrankAngle;
     float m_fPedalAngleL;

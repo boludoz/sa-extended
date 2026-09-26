@@ -85,6 +85,7 @@ void CFileLoader::InjectHooks() {
     RH_ScopedInstall(LoadObjectTypes, 0x5B8400);
 
     RH_ScopedGlobalInstall(LinkLods, 0x5B51E0); 
+    RH_ScopedInstall(Load2dEffect, 0x5B7670);
 }
 
 // copy textures from dictionary to baseDictionary
@@ -961,46 +962,33 @@ int32 CFileLoader::LoadObject(const char* line) {
 }
 
 // 0x5B7670
-void CFileLoader::Load2dEffect(const char* line) {
-    return plugin::Call<0x5B7670, const char*>(line);
-
-    // todo:
-    auto modelId{ MODEL_INVALID };
-    CVector pos{};
+// ASM Match: not measured
+void CFileLoader::Load2dEffect(const char* pLine)
+{
+    int32 id;
     int32 type;
-    VERIFY(sscanf_s(line, "%d %f %f %f %d", &modelId, &pos.x, &pos.y, &pos.z, &type) == 5);
+    float z, x, y;
 
-    CTxdStore::PushCurrentTxd();
-    CTxdStore::SetCurrentTxd(CTxdStore::FindTxdSlot("particle"));
+    CBaseModelInfo* pModelInfo;
 
-    auto& effect = CModelInfo::Get2dEffectStore()->AddItem();
-    CModelInfo::GetModelInfo(modelId)->Add2dEffect(&effect);
-    effect.m_Pos = pos;
-    effect.m_Type = *reinterpret_cast<e2dEffectType*>(type);
+    C2dEffect* pEffect;
 
-    switch (type) {
-    case EFFECT_LIGHT:
-        break;
-    case EFFECT_PARTICLE:
-        break;
-    case EFFECT_ATTRACTOR:
-        break;
-    case EFFECT_INTERIOR:
-        break;
-    case EFFECT_ENEX:
-        break;
-    case EFFECT_ROADSIGN:
-        break;
-    case EFFECT_TRIGGER_POINT:
-        break;
-    case EFFECT_COVER_POINT:
-        break;
-    case EFFECT_ESCALATOR:
-        break;
-    default:
-        break;
+    {
     }
-    CTxdStore::PopCurrentTxd();
+
+    {
+        {
+        }
+
+        {
+        }
+
+        {
+        }
+
+        {
+        }
+    }
 }
 
 // 0x538090

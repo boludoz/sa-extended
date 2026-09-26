@@ -134,7 +134,7 @@ CTask* CTaskComplexGoToPointAndStandStill::CreateSubTask(eTaskType taskType, CPe
         return tGoToPoint;
     }
     case TASK_COMPLEX_LEAVE_CAR:
-        return new CTaskComplexLeaveCar(ped->m_pVehicle, 0, 0, true, false);
+        return new CTaskComplexLeaveCar(ped->m_pMyVehicle, 0, 0, true, false);
     case TASK_SIMPLE_PAUSE:
         return new CTaskSimplePause(1);
     case TASK_SIMPLE_STAND_STILL: {

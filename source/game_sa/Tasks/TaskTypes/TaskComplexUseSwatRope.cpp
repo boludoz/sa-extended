@@ -129,7 +129,7 @@ CTask* CTaskComplexUseSwatRope::ControlSubTask(CPed* ped) {
         CVector posn;
         if (CRopes::FindCoorsAlongRope(m_nRopeId, m_fCoorAlongRope, &posn, nullptr)) {
             ped->SetPosn(posn);
-            ped->m_fAimingRotation = ped->m_fCurrentRotation - CTimer::GetTimeStep() * 0.05F;
+            ped->m_fDesiredHeading = ped->m_fCurrentHeading - CTimer::GetTimeStep() * 0.05F;
             ped->m_vecMoveSpeed.z = -0.03f;
             ped->Say(CTX_GLOBAL_ROPE);
         }

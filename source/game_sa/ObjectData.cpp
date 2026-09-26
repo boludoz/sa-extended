@@ -158,10 +158,10 @@ void CObjectData::SetObjectData(int32 dwModelIndex, CObject& obj)
         obj.m_fMass = 99999.0F;
         obj.m_fTurnMass = 99999.0F;
 
-        obj.physicalFlags.bApplyGravity = false;
-        obj.physicalFlags.bExplosionProof = true;
-        obj.physicalFlags.bCollidable = true;
-        obj.physicalFlags.bDisableCollisionForce = true;
+        obj.m_nPhysicalFlags.bDoGravity = false;
+        obj.m_nPhysicalFlags.bIgnoresExplosions = true;
+        obj.m_nPhysicalFlags.bInfiniteMassFixed = true;
+        obj.m_nPhysicalFlags.bInfiniteMass = true;
 
         obj.m_pObjectInfo = &CObjectData::GetDefault();
         return;
@@ -178,35 +178,35 @@ void CObjectData::SetObjectData(int32 dwModelIndex, CObject& obj)
 
     if (objInfo.m_fMass >= 99998.0F)
     {
-        obj.physicalFlags.bApplyGravity = false;
-        obj.physicalFlags.bCollidable = true;
-        obj.physicalFlags.bDisableCollisionForce = true;
+        obj.m_nPhysicalFlags.bDoGravity = false;
+        obj.m_nPhysicalFlags.bInfiniteMassFixed = true;
+        obj.m_nPhysicalFlags.bInfiniteMass = true;
 
         if (objInfo.m_nColDamageEffect == COL_DAMAGE_EFFECT_NONE)
-            obj.physicalFlags.bExplosionProof = true;
+            obj.m_nPhysicalFlags.bIgnoresExplosions = true;
     }
 
     switch(objInfo.m_nSpecialColResponseCase)
     {
     case COL_SPECIAL_RESPONSE_SWINGDOOR:
-        obj.physicalFlags.bDisableMoveForce = true;
-        obj.objectFlags.bIsDoorOpen = false;
-        obj.objectFlags.bIsDoorMoving = false;
+        obj.m_nPhysicalFlags.bDoorPhysics = true;
+        obj.m_nObjectFlags.bDoorOpenedEnough = false;
+        obj.m_nObjectFlags.bWasDoorLocked = false;
         break;
     case COL_SPECIAL_RESPONSE_LOCKDOOR:
-        obj.physicalFlags.bDisableMoveForce = true;
-        obj.physicalFlags.bCollidable = true;
-        obj.physicalFlags.bDisableCollisionForce = true;
-        obj.objectFlags.bIsDoorOpen = false;
-        obj.objectFlags.bIsDoorMoving = true;
+        obj.m_nPhysicalFlags.bDoorPhysics = true;
+        obj.m_nPhysicalFlags.bInfiniteMassFixed = true;
+        obj.m_nPhysicalFlags.bInfiniteMass = true;
+        obj.m_nObjectFlags.bDoorOpenedEnough = false;
+        obj.m_nObjectFlags.bWasDoorLocked = true;
         break;
     case COL_SPECIAL_RESPONSE_HANGING:
-        obj.physicalFlags.bInfiniteMass = true;
+        obj.m_nPhysicalFlags.bHangingPhysics = true;
         obj.m_vecCentreOfMass.Set(0.0F, 0.0F, mi->GetColModel()->GetBoundingBox().m_vecMin.z * 0.8F);
         break;
     case COL_SPECIAL_RESPONSE_OB_COL_POOLBALL:
-        obj.physicalFlags.bApplyGravity = false;
-        obj.physicalFlags.bDisableZ = true;
+        obj.m_nPhysicalFlags.bDoGravity = false;
+        obj.m_nPhysicalFlags.bPoolBallPhysics = true;
         break;
     }
 }

@@ -466,7 +466,7 @@ CTask* CTaskComplexEnterCar::CreateNextSubTask_AfterSimpleCarAlign(CPed* ped) {
             if (const auto& r = m_Car->GetRight(); r.z >= 0.5f || r.z <= -0.5f || m_Car->GetUp().z <= 0.f) { // 0x6400F3 - Check if the bike is on it's side
                 return C(TASK_SIMPLE_BIKE_PICK_UP);
             }
-            m_Car->AsBike()->bikeFlags.bGettingPickedUp = true;
+            m_Car->AsBike()->m_nBikeFlags.bGettingPickedUp = true;
         }
 
         return C(TASK_SIMPLE_CAR_GET_IN);
@@ -519,7 +519,7 @@ CTask* CTaskComplexEnterCar::CreateFirstSubTask(CPed* ped) {
     if (   !m_Car || m_Car->m_pFire
         || !CCarEnterExit::IsVehicleHealthy(m_Car) || !CCarEnterExit::IsPedHealthy(ped)
         || !m_bAsDriver && !m_Car->m_nMaxPassengers                                         // Wants to enter as passenger, but there are no passenger seats
-        || m_Car->IsTrain() && m_Car->AsTrain()->trainFlags.bNotOnARailRoad
+        || m_Car->IsTrain() && m_Car->AsTrain()->m_nTrainFlags.bDerailed
     ) {
         return C(TASK_FINISHED);
     }
@@ -533,7 +533,7 @@ CTask* CTaskComplexEnterCar::CreateFirstSubTask(CPed* ped) {
     }
 
     if (ped->bInVehicle) {
-        return C(ped->m_pVehicle == m_Car
+        return C(ped->m_pMyVehicle == m_Car
             ? TASK_SIMPLE_CAR_DRIVE_TIMED
             : TASK_COMPLEX_LEAVE_CAR
         );
@@ -544,7 +544,7 @@ CTask* CTaskComplexEnterCar::CreateFirstSubTask(CPed* ped) {
     }
 
     if (const auto tGoToCarDoor = static_cast<CTaskComplexGoToCarDoorAndStandStill*>(C(TASK_COMPLEX_GO_TO_CAR_DOOR_AND_STAND_STILL))) {
-        if (ped->physicalFlags.bSubmergedInWater && !ped->bIsStanding) {
+        if (ped->m_nPhysicalFlags.bIsInWater && !ped->bIsStanding) {
             if (notsa::contains({ MODEL_SKIMMER, MODEL_VORTEX, MODEL_SEASPAR, MODEL_LEVIATHN }, m_Car->GetModelId())) {
                 if (CCarEnterExit::GetNearestCarDoor(ped, m_Car, m_TargetDoorPos, m_TargetDoor)) {
                     tGoToCarDoor->SetTargetPt(m_TargetDoorPos);

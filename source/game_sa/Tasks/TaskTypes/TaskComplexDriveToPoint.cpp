@@ -111,16 +111,16 @@ bool CTaskComplexDriveToPoint::IsTargetBlocked(CPed* ped) const {
 
 // 0x6432A0
 bool CTaskComplexDriveToPoint::IsTargetBlocked(CPed* ped, CEntity** entities, int32 numEntities) const {
-    if (!ped->m_pVehicle)
+    if (!ped->m_pMyVehicle)
         return false;
 
-    const auto vehicleRadius = ped->m_pVehicle->GetColModel()->GetBoundRadius();
-    const auto& vehPos = ped->m_pVehicle->GetPosition();
+    const auto vehicleRadius = ped->m_pMyVehicle->GetColModel()->GetBoundRadius();
+    const auto& vehPos = ped->m_pMyVehicle->GetPosition();
     const float vehToTargetDistSq = (vehPos - m_vTarget).SquaredMagnitude();
 
     for (auto i = 0; i < numEntities; ++i) {
         CEntity* entity = entities[i];
-        if (!entity || entity == ped->m_pVehicle) {
+        if (!entity || entity == ped->m_pMyVehicle) {
             continue;
         }
 

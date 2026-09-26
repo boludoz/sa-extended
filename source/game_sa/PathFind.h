@@ -50,27 +50,36 @@ class CCarPathLinkAddress {
 public:
     CCarPathLinkAddress(size_t area, size_t nodeId) :
         m_wCarPathLinkId{ (uint16)nodeId },
-        m_wAreaId{ (uint16)area }
+        Region{ (uint16)area }
     {
     }
 
     CCarPathLinkAddress() {
         m_wCarPathLinkId = -1;
-        m_wAreaId = -1;
+        Region = -1;
     }
 
-    operator CNodeAddress() const { return CNodeAddress{ m_wAreaId, m_wCarPathLinkId }; }
+    operator CNodeAddress() const { return CNodeAddress{ Region, m_wCarPathLinkId }; }
 
     bool operator==(const CCarPathLinkAddress&) const = default;
     bool operator!=(const CCarPathLinkAddress&) const = default;
 
 public:
     uint16 m_wCarPathLinkId : 10;
-    uint16 m_wAreaId : 6;
+    uint16 Region : 6;
 
-    inline bool IsValid() {
-        return *reinterpret_cast<uint16*>(this) != 0xFFFF;
+    inline bool IsValid() const {
+        return *reinterpret_cast<const uint16*>(this) != 0xFFFF;
     }
+
+    uint32 GetRegion() const { return Region; }
+    uint32 GetIndex() const { return m_wCarPathLinkId; }
+    void Set(uint32 region, uint32 index) {
+        Region           = (uint16)region;
+        m_wCarPathLinkId = (uint16)index;
+    }
+    void SetEmpty() { *reinterpret_cast<uint16*>(this) = 0xFFFF; }
+    bool IsEmpty() const { return !IsValid(); }
 };
 VALIDATE_SIZE(CCarPathLinkAddress, 0x2);
 
@@ -88,34 +97,42 @@ VALIDATE_SIZE(CPathIntersectionInfo, 0x1);
 class CCarPathLink { // "Navi Nodes"
 public:
     FixedVector2D<int16, 8.f>  m_posn;                       ///< Position of this node in world coordinates (compressed)
-    CNodeAddress               m_attachedTo;                 ///< Identifies the target node a navi node is attached to.
+    CNodeAddress               Node1;                 ///< Identifies the target node a navi node is attached to.
     FixedVector2D<int8, 100.f> m_dir;                        ///< This is a normalized vector pointing towards the [above mentioned] target node, thus defining the general direction of the path segment.
-    FixedFloat<int8, 16.f>     m_nPathNodeWidth;             ///< Usually a copy of the linked node's path width (byte)
-    uint8                      m_numOppositeDirLanes : 3;    ///< Number of (left) lanes that are opposite to this lane's direction, eg.: `other->dir.Dot(this->dir)` is `< 0`
-    uint8                      m_numSameDirLanes : 3;        ///< Number of (right) lanes that are the going the same direction as this node's direction, eg.: `other->dir.Dot(this->dir)` is `> 0`
-    uint8                      m_bTrafficLightDirection : 1; ///< `1` if the navi node has the same direction as the traffic light and `0` if the navi node points somewhere else
+    FixedFloat<int8, 16.f>     Width;             ///< Usually a copy of the linked node's path width (byte)
+    uint8                      LanesTo : 3;    ///< Number of (left) lanes that are opposite to this lane's direction, eg.: `other->dir.Dot(this->dir)` is `< 0`
+    uint8                      LanesFro : 3;        ///< Number of (right) lanes that are the going the same direction as this node's direction, eg.: `other->dir.Dot(this->dir)` is `> 0`
+    uint8                      TrafficLightsNode1HasMoreNeighbours : 1; ///< `1` if the navi node has the same direction as the traffic light and `0` if the navi node points somewhere else
     uint8                      : 1;                          ///< Unused
-    uint16                     m_nTrafficLightState : 2;     ///< `eTrafficLightsDirection`
-    uint16                     m_bridgeLights : 1;           ///< See `SetLinksBridgeLights`
+    uint16                     TrafficLightsCycle : 2;     ///< `eTrafficLightsDirection`
+    uint16                     BridgeLights : 1;           ///< See `SetLinksBridgeLights`
 
     float GetNodePathWidth() const {
-        return (float)m_nPathNodeWidth;
+        return (float)Width;
     }
 
     float OneWayLaneOffset() const {
-        if (m_numOppositeDirLanes && m_numSameDirLanes) {
+        if (LanesTo && LanesFro) {
             return 0.5f;
         }
-        if (m_numOppositeDirLanes) {
-            return 0.5f - (float)m_numOppositeDirLanes / 2.f;
+        if (LanesTo) {
+            return 0.5f - (float)LanesTo / 2.f;
         }        
-        if (m_numSameDirLanes) {
-            return 0.5f - (float)m_numSameDirLanes / 2.f;
+        if (LanesFro) {
+            return 0.5f - (float)LanesFro / 2.f;
         }
         return 0.5f;
     }
 
     /// Get uncompressed world position
+    //! calineva API
+    float GetCoorsX() const { return m_posn.x; }
+    float GetCoorsY() const { return m_posn.y; }
+    CVector GetCoors() const { return CVector(GetCoorsX(), GetCoorsY(), 0.0f); }
+
+    float GetDirX() const { return m_dir.x; } //!< calineva API
+    float GetDirY() const { return m_dir.y; } //!< calineva API
+
     CVector2D GetNodeCoors() const {
         return m_posn;
     }
@@ -126,33 +143,32 @@ class CPathNode {
 public:
     CPathNode            *m_next, *m_prev;
     CompressedLargeVector m_vPos;
-    int16                 m_totalDistFromOrigin; /// Sum of linkLength's up to this node. Using this the current hash bucket (in `m_pathFindHashTable`) can be obtained by `% std::size(m_pathFindHashTable)`. Used in `DoPathSearch`. `SHRT_MAX - 1` by default.
-    int16                 m_wBaseLinkId;
-    uint16                m_wAreaId; // TODO: Replace these 2 with `CNodeAddress`
-    uint16                m_wNodeId;
-    uint8                 m_nPathWidth; // Fixed-point float, divide by 16
-    uint8                 m_nFloodFill;
+    int16                 DistanceToTarget; /// Sum of linkLength's up to this node. Using this the current hash bucket (in `m_pathFindHashTable`) can be obtained by `% std::size(m_pathFindHashTable)`. Used in `DoPathSearch`. `SHRT_MAX - 1` by default.
+    int16                 IndexAdjacentNodes;
+    uint16                Region; // TODO: Replace these 2 with `CNodeAddress`
+    uint16                Index;
+    uint8                 Width; // Fixed-point float, divide by 16
+    uint8                 Group;
 
     // byte 0
-    uint32 m_nNumLinks : 4; // Mask: 0xF
-    uint32 m_onDeadEnd : 1;
-    uint32 m_isSwitchedOff : 1;
-    uint32 m_bRoadBlocks : 1;
-    uint32 m_bWaterNode : 1;
+    uint32 NumberAdjNodes : 4; // Mask: 0xF
+    uint32 OnDeadEnd : 1;
+    uint32 SwitchedOff : 1;
+    uint32 RoadBlock : 1;
+    uint32 WaterNode : 1;
 
     // byte 1
-    uint32 m_isSwitchedOffOriginal : 1;
+    uint32 SwitchedOffOriginal : 1;
     uint32 unk1 : 1; // not used in paths data files
-    uint32 m_bDontWander : 1;
+    uint32 DontWanderHere : 1;
     uint32 unk2 : 1; // not used in paths data files
-    uint32 m_bNotHighway : 1;
-    uint32 m_bHighway : 1;
+    uint32 Speed : 2; // 0 - normal, 1 - not highway, 2/3 - highway
     uint32 unk3 : 1; // not used in paths data files
     uint32 unk4 : 1; // not used in paths data files
 
     // byte 2
-    uint32 m_nSpawnProbability : 4;
-    uint32 m_nBehaviourType : 4; // 1 - roadblock
+    uint32 Density : 4;
+    uint32 SpecialFunction : 4; // 1 - roadblock
                                  // 2 - parking node
     // byte 3
 public:
@@ -161,9 +177,10 @@ public:
     /// Get uncompressed world position
     CVector GetPosition() const { return m_vPos; }
     CVector GetCoors() const { return m_vPos; }
+    void GetCoors(CVector& v) const { v = m_vPos; } //!< calineva API
 
     CNodeAddress GetAddress() const {
-        return { m_wAreaId, m_wNodeId };
+        return { Region, Index };
     }
 
     friend bool operator==(const CPathNode& lhs, const CPathNode& rhs) { return lhs.GetAddress() == rhs.GetAddress(); }
@@ -174,7 +191,7 @@ public:
     * @brief Code based on 0x44D3E0
     */
     bool HasToBeSwitchedOff() const {
-        if (m_nBehaviourType != 1 && m_nBehaviourType != 2) {
+        if (SpecialFunction != 1 && SpecialFunction != 2) {
             return true;
         }
         return false;
@@ -198,10 +215,10 @@ public:
 
     // Use CPathFind::GetCarPathLink to access
     CCarPathLink*          m_pNaviNodes[NUM_TOTAL_PATH_NODE_AREAS]; // 0x924
-    CNodeAddress*          m_pNodeLinks[NUM_TOTAL_PATH_NODE_AREAS]; // 0xA44
+    CNodeAddress*          pAdjacentNodes[NUM_TOTAL_PATH_NODE_AREAS]; // 0xA44
     uint8*                 m_pLinkLengths[NUM_TOTAL_PATH_NODE_AREAS]; // 0xB64
     CPathIntersectionInfo* m_pPathIntersections[NUM_TOTAL_PATH_NODE_AREAS]; // 0xC84
-    CCarPathLinkAddress*   m_pNaviLinks[NUM_PATH_MAP_AREAS]; // 0xDA4
+    CCarPathLinkAddress*   pAdjacentLinks[NUM_PATH_MAP_AREAS]; // 0xDA4
     void*                  m_aTempNodes[NUM_PATH_MAP_AREAS];                   // 0xEA4
     uint32                 m_anNumNodes[NUM_TOTAL_PATH_NODE_AREAS]; // 0xFA4
     uint32                 m_anNumVehicleNodes[NUM_TOTAL_PATH_NODE_AREAS]; // 0x10C4
@@ -460,11 +477,17 @@ public:
 
     CPathNode* GetPathNode(CNodeAddress address);
 
+    //! calineva API
+    bool IsRegionLoaded(CNodeAddress address) const { return m_pPathNodes[address.GetRegion()] != nullptr; }
+    bool IsRegionLoaded(CCarPathLinkAddress address) const { return m_pPathNodes[address.GetRegion()] != nullptr; }
+    CPathNode* FindNodePointer(CNodeAddress address) { return &m_pPathNodes[address.GetRegion()][address.GetIndex()]; }
+    CCarPathLink* FindLinkPointer(CCarPathLinkAddress address) { return &m_pNaviNodes[address.GetRegion()][address.GetIndex()]; }
+
     CCarPathLinkAddress GetNaviLink(uint16 area, uint16 linkId) const;
 
     inline CCarPathLink& GetCarPathLink(const CCarPathLinkAddress& address) {
-        assert(address.m_wAreaId < NUM_TOTAL_PATH_NODE_AREAS);
-        return m_pNaviNodes[address.m_wAreaId][address.m_wCarPathLinkId];
+        assert(address.Region < NUM_TOTAL_PATH_NODE_AREAS);
+        return m_pNaviNodes[address.Region][address.m_wCarPathLinkId];
     }
 
 
@@ -560,7 +583,7 @@ public:
     * @brief Check if the node's area is loaded
     * @param node Must have a valid area
     */
-    bool IsAreaNodesAvailable(CNodeAddress node) const { return IsAreaLoaded(node.m_wAreaId); }
+    bool IsAreaNodesAvailable(CNodeAddress node) const { return IsAreaLoaded(node.Region); }
 
     bool FindNodeCoorsForScript(CVector& outPos, CNodeAddress addr);
 
@@ -611,7 +634,7 @@ public:
     * @brief Get all links of the given node as a span of `CPathNode&`. If a link's area isn't loaded it won't be present in the span either.
     */
     auto GetNodeLinkedNodes(const CPathNode& node, bool checkLinksAreaIsLoaded = true) {
-        return std::span{ &m_pNodeLinks[node.m_wAreaId][node.m_wBaseLinkId], node.m_nNumLinks }
+        return std::span{ &pAdjacentNodes[node.Region][node.IndexAdjacentNodes], node.NumberAdjNodes }
              | rng::views::filter([=, this](auto addr) { return !checkLinksAreaIsLoaded || IsAreaNodesAvailable(addr); }) // Drop nodes whose area isn't loaded
              | rng::views::transform([this](auto addr) -> CPathNode& { return *GetPathNode(addr); });                     // Transform linked address to a node ref
     }

@@ -147,7 +147,7 @@ void CRenderer::RenderOneNonRoad(CEntity* entity) {
 
 // 0x553390
 void CRenderer::RemoveVehiclePedLights(CPhysical* entity) {
-    if (!entity->physicalFlags.bRenderScorched)
+    if (!entity->m_nPhysicalFlags.bRenderScorched)
         CPointLights::RemoveLightsAffectingObject();
 }
 
@@ -371,7 +371,7 @@ void CRenderer::RenderEverythingBarRoads() {
                         bInsertIntoSortedList = true;
                     }
                 }
-                else if (!vehicle->physicalFlags.bTouchingWater) {
+                else if (!vehicle->m_nPhysicalFlags.bForceFullWaterCheck) {
                     bInsertIntoSortedList = true;
                 }
                 const float fMagnitude = DistanceBetweenPoints(entity->GetPosition(), ms_vecCameraPosition);
@@ -424,7 +424,7 @@ void CRenderer::RenderFirstPersonVehicle() {
 // 0x553E40
 bool CRenderer::SetupLightingForEntity(CPhysical* entity) {
     CCarFXRenderer::SetFxEnvMapLightMult(1.0f);
-    if (entity->physicalFlags.bRenderScorched) {
+    if (entity->m_nPhysicalFlags.bRenderScorched) {
         WorldReplaceNormalLightsWithScorched(Scene.m_pRpWorld, 0.18f);
         return false;
     }
@@ -544,7 +544,7 @@ int32 CRenderer::SetupEntityVisibility(CEntity* entity, float& outDistance) {
             if (FindPlayerVehicle() == entity && gbFirstPersonRunThisFrame && CReplay::Mode != MODE_PLAYBACK) {
                 uint32 dwDirectionWasLooking = CCamera::GetActiveCamera().m_nDirectionWasLooking;
                 CVehicle* vehicle = FindPlayerVehicle();
-                if (!vehicle->IsBike() || !(vehicle->AsBike()->bikeFlags.bWheelieForCamera))
+                if (!vehicle->IsBike() || !(vehicle->AsBike()->m_nBikeFlags.bWheelieForCamera))
                 {
                     if (dwDirectionWasLooking == 3)
                         return RENDERER_CULLED;

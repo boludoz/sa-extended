@@ -32,7 +32,7 @@ bool CEventCarUpsideDown::AffectsPed(CPed* ped) {
     if (ped->IsPlayer()) return false;
     if (ped->bGetOutUpsideDownCar == 0u) return false;
     if (ped->bInVehicle == 0u) return false;
-    if (ped->IsCreatedByMission() && (!ped->m_pVehicle || ped->m_pVehicle->IsBoat())) return false;
-    if (ped->m_pVehicle->IsBike() || ped->m_pVehicle->IsQuad()) return false;
+    if (ped->IsCreatedByMission() && (!ped->m_pMyVehicle || ped->m_pMyVehicle->IsBoat())) return false;
+    if (ped->m_pMyVehicle->IsBike() || ped->m_pMyVehicle->IsQuad()) return false;
     return ped->IsAlive();
 }

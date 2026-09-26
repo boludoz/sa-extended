@@ -42,10 +42,10 @@ bool CTaskSimpleAchieveHeading::ProcessPed(CPed* ped) {
     ped->m_fHeadingChangeRate *= m_HeadingChangeRate;
     ped->SetMoveState(PEDMOVE_STILL);
     ped->SetMoveAnim();
-    ped->m_fAimingRotation = m_DesiredHeadingRad;
+    ped->m_fDesiredHeading = m_DesiredHeadingRad;
 
-    if (std::fabs(CGeneral::LimitRadianAngle(std::fabs(m_DesiredHeadingRad - ped->m_fCurrentRotation))) < m_HeadingToleranceRad) {
-        ped->m_fAimingRotation = ped->m_fCurrentRotation;
+    if (std::fabs(CGeneral::LimitRadianAngle(std::fabs(m_DesiredHeadingRad - ped->m_fCurrentHeading))) < m_HeadingToleranceRad) {
+        ped->m_fDesiredHeading = ped->m_fCurrentHeading;
         ped->RestoreHeadingRate();
         QuitIK(ped);
         return true;
@@ -61,12 +61,12 @@ bool CTaskSimpleAchieveHeading::MakeAbortable(CPed* ped, eAbortPriority priority
 
     switch (priority) {
     case ABORT_PRIORITY_IMMEDIATE:
-        ped->m_fAimingRotation = ped->m_fCurrentRotation;
+        ped->m_fDesiredHeading = ped->m_fCurrentHeading;
         ped->RestoreHeadingRate();
         return true;
     default:
         m_HeadingToleranceRad  = TWO_PI;
-        ped->m_fAimingRotation = ped->m_fCurrentRotation;
+        ped->m_fDesiredHeading = ped->m_fCurrentHeading;
         return false;
     }
 }

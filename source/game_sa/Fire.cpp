@@ -278,7 +278,7 @@ void CFire::ProcessFire() {
                     vehicle->m_fHealth = 75.0f;
                 }
             } else if (!targetPed->IsPlayer() && !targetPed->IsAlive()) {
-                targetPed->physicalFlags.bRenderScorched = true;
+                targetPed->m_nPhysicalFlags.bRenderScorched = true;
             }
 
             break;
@@ -313,7 +313,7 @@ void CFire::ProcessFire() {
         // Check if we can set player's ped on fire
         if (!FindPlayerVehicle()
          && !player->m_pFire /* not already on fire */
-         && !player->physicalFlags.bFireProof
+         && !player->m_nPhysicalFlags.bNotDamagedByFlames
          && !player->m_pAttachedTo
          ) {
             if ((player->GetPosition() - m_Position).SquaredMagnitude() < 1.2f) { /* Note: Squared distance */

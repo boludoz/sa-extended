@@ -40,6 +40,7 @@
 #include "Hud.h"
 #include "extensions/File.hpp"
 #include "TaskSimpleFinishBrain.h"
+#include "ShotInfo.h"
 
 
 inline constexpr uint32 DbgLineColour = 0x0000FFFF; // r = 0, g = 0, b = 255, a = 255
@@ -106,73 +107,1402 @@ void CRunningScript::DoDeathArrestCheck() {
 
 // 0x486D80
 void CRunningScript::LocateCharCommand(int32 commandId) {
-    plugin::CallMethod<0x486D80, CRunningScript*, int32>(this, commandId);
+    bool LatestCmpFlagResult = false;
+    bool Do3dCheck;
+    bool IsWithinRange = true;
+    bool SkipRestOfCheck = false;
+    int32 HighlightArea;
+
+    if (commandId >= COMMAND_LOCATE_CHAR_ANY_MEANS_3D && commandId <= COMMAND_LOCATE_STOPPED_CHAR_IN_CAR_3D) {
+        Do3dCheck = true;
+        CollectParameters(8);
+    } else {
+        Do3dCheck = false;
+        CollectParameters(6);
+    }
+
+    CPed* pPed = CPools::GetPed(ScriptParams[0].iParam);
+
+    CVector CharPos;
+    if (pPed->bInVehicle && pPed->m_pMyVehicle)
+        CharPos = pPed->m_pMyVehicle->GetPosition();
+    else
+        CharPos = pPed->GetPosition();
+
+    switch (commandId) {
+    case COMMAND_LOCATE_STOPPED_CHAR_ANY_MEANS_2D:
+    case COMMAND_LOCATE_STOPPED_CHAR_ON_FOOT_2D:
+    case COMMAND_LOCATE_STOPPED_CHAR_IN_CAR_2D:
+    case COMMAND_LOCATE_STOPPED_CHAR_ANY_MEANS_3D:
+    case COMMAND_LOCATE_STOPPED_CHAR_ON_FOOT_3D:
+    case COMMAND_LOCATE_STOPPED_CHAR_IN_CAR_3D:
+        if (!CTheScripts::IsPedStopped(pPed)) {
+            LatestCmpFlagResult = false;
+            SkipRestOfCheck = true;
+        }
+        break;
+    default:
+        break;
+    }
+
+    float TargetX = ScriptParams[1].fParam;
+    float TargetY = ScriptParams[2].fParam;
+    float TargetZ = 0.0f;
+    float TargetWidth;
+    float TargetDepth;
+    float TargetHeight = 0.0f;
+
+    if (Do3dCheck) {
+        TargetZ = ScriptParams[3].fParam;
+        TargetWidth = ScriptParams[4].fParam;
+        TargetDepth = ScriptParams[5].fParam;
+        TargetHeight = ScriptParams[6].fParam;
+        HighlightArea = ScriptParams[7].iParam;
+    } else {
+        TargetWidth = ScriptParams[3].fParam;
+        TargetDepth = ScriptParams[4].fParam;
+        HighlightArea = ScriptParams[5].iParam;
+    }
+
+    if (!SkipRestOfCheck) {
+        LatestCmpFlagResult = false;
+        if (Do3dCheck) {
+            if (CharPos.x >= TargetX - TargetWidth &&
+                CharPos.x <= TargetX + TargetWidth &&
+                CharPos.y >= TargetY - TargetDepth &&
+                CharPos.y <= TargetY + TargetDepth &&
+                CharPos.z >= TargetZ - TargetHeight &&
+                CharPos.z <= TargetZ + TargetHeight) {
+                IsWithinRange = true;
+            } else {
+                IsWithinRange = false;
+            }
+        } else {
+            if (CharPos.x >= TargetX - TargetWidth &&
+                CharPos.x <= TargetX + TargetWidth &&
+                CharPos.y >= TargetY - TargetDepth &&
+                CharPos.y <= TargetY + TargetDepth) {
+                IsWithinRange = true;
+            } else {
+                IsWithinRange = false;
+            }
+        }
+
+        if (IsWithinRange) {
+            switch (commandId) {
+            case COMMAND_LOCATE_CHAR_ANY_MEANS_2D:
+            case COMMAND_LOCATE_STOPPED_CHAR_ANY_MEANS_2D:
+            case COMMAND_LOCATE_CHAR_ANY_MEANS_3D:
+            case COMMAND_LOCATE_STOPPED_CHAR_ANY_MEANS_3D:
+                LatestCmpFlagResult = true;
+                break;
+            case COMMAND_LOCATE_CHAR_ON_FOOT_2D:
+            case COMMAND_LOCATE_STOPPED_CHAR_ON_FOOT_2D:
+            case COMMAND_LOCATE_CHAR_ON_FOOT_3D:
+            case COMMAND_LOCATE_STOPPED_CHAR_ON_FOOT_3D:
+                if (!pPed->bInVehicle)
+                    LatestCmpFlagResult = true;
+                break;
+            case COMMAND_LOCATE_CHAR_IN_CAR_2D:
+            case COMMAND_LOCATE_STOPPED_CHAR_IN_CAR_2D:
+            case COMMAND_LOCATE_CHAR_IN_CAR_3D:
+            case COMMAND_LOCATE_STOPPED_CHAR_IN_CAR_3D:
+                if (pPed->bInVehicle)
+                    LatestCmpFlagResult = true;
+                break;
+            default:
+                break;
+            }
+        }
+    }
+
+    UpdateCompareFlag(LatestCmpFlagResult);
+
+    if (HighlightArea) {
+        if (Do3dCheck) {
+            CTheScripts::HighlightImportantArea(reinterpret_cast<uint32>(this) + reinterpret_cast<uint32>(m_IP),
+                TargetX - TargetWidth,
+                TargetY - TargetDepth,
+                TargetX + TargetWidth,
+                TargetY + TargetDepth,
+                TargetZ);
+        } else {
+            CTheScripts::HighlightImportantArea(reinterpret_cast<uint32>(this) + reinterpret_cast<uint32>(m_IP),
+                TargetX - TargetWidth,
+                TargetY - TargetDepth,
+                TargetX + TargetWidth,
+                TargetY + TargetDepth,
+                -100.0f);
+        }
+    }
+
+    if (CTheScripts::DbgFlag) {
+        if (!Do3dCheck) {
+            CTheScripts::DrawDebugSquare(
+                TargetX - TargetWidth,
+                TargetY - TargetDepth,
+                TargetX + TargetWidth,
+                TargetY + TargetDepth);
+        }
+    }
 }
 
 
 // 0x4870F0
 void CRunningScript::LocateCharCharCommand(int32 commandId) {
-    plugin::CallMethod<0x4870F0, CRunningScript*, int32>(this, commandId);
+    bool LatestCmpFlagResult;
+    bool Do3dCheck;
+    bool IsWithinRange;
+    int32 HighlightArea;
+
+    if (commandId < COMMAND_LOCATE_CHAR_ANY_MEANS_CHAR_3D || commandId > COMMAND_LOCATE_CHAR_IN_CAR_CHAR_3D) {
+        Do3dCheck = false;
+        CollectParameters(5);
+    } else {
+        Do3dCheck = true;
+        CollectParameters(6);
+    }
+
+    CPed* pFirstPed = CPools::GetPed(ScriptParams[0].iParam);
+    CPed* pTargetPed = CPools::GetPed(ScriptParams[1].iParam);
+
+    CVector FirstCharPos;
+    if (pFirstPed->bInVehicle && pFirstPed->m_pMyVehicle)
+        FirstCharPos = pFirstPed->m_pMyVehicle->GetPosition();
+    else
+        FirstCharPos = pFirstPed->GetPosition();
+
+    CVector TargetCharPos;
+    if (pTargetPed->bInVehicle && pTargetPed->m_pMyVehicle)
+        TargetCharPos = pTargetPed->m_pMyVehicle->GetPosition();
+    else
+        TargetCharPos = pTargetPed->GetPosition();
+
+    float WidthFromTarget = ScriptParams[2].fParam;
+    float DepthFromTarget = ScriptParams[3].fParam;
+    float HeightFromTarget = 0.0f;
+    if (Do3dCheck) {
+        HeightFromTarget = ScriptParams[4].fParam;
+        HighlightArea = ScriptParams[5].iParam;
+    } else {
+        HighlightArea = ScriptParams[4].iParam;
+    }
+
+    LatestCmpFlagResult = false;
+
+    if (Do3dCheck) {
+        if (FirstCharPos.x >= TargetCharPos.x - WidthFromTarget &&
+            FirstCharPos.x <= TargetCharPos.x + WidthFromTarget &&
+            FirstCharPos.y >= TargetCharPos.y - DepthFromTarget &&
+            FirstCharPos.y <= TargetCharPos.y + DepthFromTarget &&
+            FirstCharPos.z >= TargetCharPos.z - HeightFromTarget &&
+            FirstCharPos.z <= TargetCharPos.z + HeightFromTarget) {
+            IsWithinRange = true;
+        } else {
+            IsWithinRange = false;
+        }
+    } else {
+        if (FirstCharPos.x >= TargetCharPos.x - WidthFromTarget &&
+            FirstCharPos.x <= TargetCharPos.x + WidthFromTarget &&
+            FirstCharPos.y >= TargetCharPos.y - DepthFromTarget &&
+            FirstCharPos.y <= TargetCharPos.y + DepthFromTarget) {
+            IsWithinRange = true;
+        } else {
+            IsWithinRange = false;
+        }
+    }
+
+    if (IsWithinRange) {
+        switch (commandId) {
+        case COMMAND_LOCATE_CHAR_ANY_MEANS_CHAR_2D:
+        case COMMAND_LOCATE_CHAR_ANY_MEANS_CHAR_3D:
+            LatestCmpFlagResult = true;
+            break;
+        case COMMAND_LOCATE_CHAR_ON_FOOT_CHAR_2D:
+        case COMMAND_LOCATE_CHAR_ON_FOOT_CHAR_3D:
+            if (!pFirstPed->bInVehicle)
+                LatestCmpFlagResult = true;
+            break;
+        case COMMAND_LOCATE_CHAR_IN_CAR_CHAR_2D:
+        case COMMAND_LOCATE_CHAR_IN_CAR_CHAR_3D:
+            if (pFirstPed->bInVehicle)
+                LatestCmpFlagResult = true;
+            break;
+        default:
+            break;
+        }
+    }
+
+    UpdateCompareFlag(LatestCmpFlagResult);
+
+    if (HighlightArea) {
+        if (Do3dCheck) {
+            CTheScripts::HighlightImportantArea(reinterpret_cast<uint32>(this) + reinterpret_cast<uint32>(m_IP),
+                TargetCharPos.x - WidthFromTarget,
+                TargetCharPos.y - DepthFromTarget,
+                TargetCharPos.x + WidthFromTarget,
+                TargetCharPos.y + DepthFromTarget,
+                TargetCharPos.z);
+        } else {
+            CTheScripts::HighlightImportantArea(reinterpret_cast<uint32>(this) + reinterpret_cast<uint32>(m_IP),
+                TargetCharPos.x - WidthFromTarget,
+                TargetCharPos.y - DepthFromTarget,
+                TargetCharPos.x + WidthFromTarget,
+                TargetCharPos.y + DepthFromTarget,
+                -100.0f);
+        }
+    }
+
+    if (CTheScripts::DbgFlag) {
+        if (!Do3dCheck) {
+            CTheScripts::DrawDebugSquare(
+                TargetCharPos.x - WidthFromTarget,
+                TargetCharPos.y - DepthFromTarget,
+                TargetCharPos.x + WidthFromTarget,
+                TargetCharPos.y + DepthFromTarget);
+        }
+    }
 }
 
 
 // 0x487420
 void CRunningScript::LocateCharCarCommand(int32 commandId) {
-    plugin::CallMethod<0x487420, CRunningScript*, int32>(this, commandId);
+    bool LatestCmpFlagResult;
+    bool Do3dCheck;
+    bool IsWithinRange;
+    int32 HighlightArea;
+
+    if (commandId < COMMAND_LOCATE_CHAR_ANY_MEANS_CAR_3D || commandId > COMMAND_LOCATE_CHAR_IN_CAR_CAR_3D) {
+        Do3dCheck = false;
+        CollectParameters(5);
+    } else {
+        Do3dCheck = true;
+        CollectParameters(6);
+    }
+
+    CPed* pFirstPed = CPools::GetPed(ScriptParams[0].iParam);
+    CVehicle* pTargetVehicle = CPools::GetVehicle(ScriptParams[1].iParam);
+
+    CVector FirstCharPos;
+    if (pFirstPed->bInVehicle && pFirstPed->m_pMyVehicle)
+        FirstCharPos = pFirstPed->m_pMyVehicle->GetPosition();
+    else
+        FirstCharPos = pFirstPed->GetPosition();
+
+    CVector TargetVehiclePos = pTargetVehicle->GetPosition();
+
+    float WidthFromTarget = ScriptParams[2].fParam;
+    float DepthFromTarget = ScriptParams[3].fParam;
+    float HeightFromTarget = 0.0f;
+    if (Do3dCheck) {
+        HeightFromTarget = ScriptParams[4].fParam;
+        HighlightArea = ScriptParams[5].iParam;
+    } else {
+        HighlightArea = ScriptParams[4].iParam;
+    }
+
+    LatestCmpFlagResult = false;
+
+    if (Do3dCheck) {
+        if (FirstCharPos.x >= TargetVehiclePos.x - WidthFromTarget &&
+            FirstCharPos.x <= TargetVehiclePos.x + WidthFromTarget &&
+            FirstCharPos.y >= TargetVehiclePos.y - DepthFromTarget &&
+            FirstCharPos.y <= TargetVehiclePos.y + DepthFromTarget &&
+            FirstCharPos.z >= TargetVehiclePos.z - HeightFromTarget &&
+            FirstCharPos.z <= TargetVehiclePos.z + HeightFromTarget) {
+            IsWithinRange = true;
+        } else {
+            IsWithinRange = false;
+        }
+    } else {
+        if (FirstCharPos.x >= TargetVehiclePos.x - WidthFromTarget &&
+            FirstCharPos.x <= TargetVehiclePos.x + WidthFromTarget &&
+            FirstCharPos.y >= TargetVehiclePos.y - DepthFromTarget &&
+            FirstCharPos.y <= TargetVehiclePos.y + DepthFromTarget) {
+            IsWithinRange = true;
+        } else {
+            IsWithinRange = false;
+        }
+    }
+
+    if (IsWithinRange) {
+        switch (commandId) {
+        case COMMAND_LOCATE_CHAR_ANY_MEANS_CAR_2D:
+        case COMMAND_LOCATE_CHAR_ANY_MEANS_CAR_3D:
+            LatestCmpFlagResult = true;
+            break;
+        case COMMAND_LOCATE_CHAR_ON_FOOT_CAR_2D:
+        case COMMAND_LOCATE_CHAR_ON_FOOT_CAR_3D:
+            if (!pFirstPed->bInVehicle)
+                LatestCmpFlagResult = true;
+            break;
+        case COMMAND_LOCATE_CHAR_IN_CAR_CAR_2D:
+        case COMMAND_LOCATE_CHAR_IN_CAR_CAR_3D:
+            if (pFirstPed->bInVehicle)
+                LatestCmpFlagResult = true;
+            break;
+        default:
+            break;
+        }
+    }
+
+    UpdateCompareFlag(LatestCmpFlagResult);
+
+    if (HighlightArea) {
+        if (Do3dCheck) {
+            CTheScripts::HighlightImportantArea(reinterpret_cast<uint32>(this) + reinterpret_cast<uint32>(m_IP),
+                TargetVehiclePos.x - WidthFromTarget,
+                TargetVehiclePos.y - DepthFromTarget,
+                TargetVehiclePos.x + WidthFromTarget,
+                TargetVehiclePos.y + DepthFromTarget,
+                TargetVehiclePos.z);
+        } else {
+            CTheScripts::HighlightImportantArea(reinterpret_cast<uint32>(this) + reinterpret_cast<uint32>(m_IP),
+                TargetVehiclePos.x - WidthFromTarget,
+                TargetVehiclePos.y - DepthFromTarget,
+                TargetVehiclePos.x + WidthFromTarget,
+                TargetVehiclePos.y + DepthFromTarget,
+                -100.0f);
+        }
+    }
+
+    if (CTheScripts::DbgFlag) {
+        if (!Do3dCheck) {
+            CTheScripts::DrawDebugSquare(
+                TargetVehiclePos.x - WidthFromTarget,
+                TargetVehiclePos.y - DepthFromTarget,
+                TargetVehiclePos.x + WidthFromTarget,
+                TargetVehiclePos.y + DepthFromTarget);
+        }
+    }
 }
 
 
 // 0x487720
 void CRunningScript::LocateCharObjectCommand(int32 commandId) {
-    plugin::CallMethod<0x487720, CRunningScript*, int32>(this, commandId);
+    bool LatestCmpFlagResult;
+    bool Do3dCheck;
+    bool IsWithinRange;
+    int32 HighlightArea;
+
+    if (commandId < COMMAND_LOCATE_CHAR_ANY_MEANS_OBJECT_3D || commandId > COMMAND_LOCATE_CHAR_IN_CAR_OBJECT_3D) {
+        Do3dCheck = false;
+        CollectParameters(5);
+    } else {
+        Do3dCheck = true;
+        CollectParameters(6);
+    }
+
+    CPed* pFirstPed = CPools::GetPed(ScriptParams[0].iParam);
+    CObject* pTargetObject = CPools::GetObject(ScriptParams[1].iParam);
+
+    CVector FirstCharPos;
+    if (pFirstPed->bInVehicle && pFirstPed->m_pMyVehicle)
+        FirstCharPos = pFirstPed->m_pMyVehicle->GetPosition();
+    else
+        FirstCharPos = pFirstPed->GetPosition();
+
+    CVector TargetObjectPos = pTargetObject->GetPosition();
+
+    float WidthFromTarget = ScriptParams[2].fParam;
+    float DepthFromTarget = ScriptParams[3].fParam;
+    float HeightFromTarget = 0.0f;
+    if (Do3dCheck) {
+        HeightFromTarget = ScriptParams[4].fParam;
+        HighlightArea = ScriptParams[5].iParam;
+    } else {
+        HighlightArea = ScriptParams[4].iParam;
+    }
+
+    LatestCmpFlagResult = false;
+
+    if (Do3dCheck) {
+        if (FirstCharPos.x >= TargetObjectPos.x - WidthFromTarget &&
+            FirstCharPos.x <= TargetObjectPos.x + WidthFromTarget &&
+            FirstCharPos.y >= TargetObjectPos.y - DepthFromTarget &&
+            FirstCharPos.y <= TargetObjectPos.y + DepthFromTarget &&
+            FirstCharPos.z >= TargetObjectPos.z - HeightFromTarget &&
+            FirstCharPos.z <= TargetObjectPos.z + HeightFromTarget) {
+            IsWithinRange = true;
+        } else {
+            IsWithinRange = false;
+        }
+    } else {
+        if (FirstCharPos.x >= TargetObjectPos.x - WidthFromTarget &&
+            FirstCharPos.x <= TargetObjectPos.x + WidthFromTarget &&
+            FirstCharPos.y >= TargetObjectPos.y - DepthFromTarget &&
+            FirstCharPos.y <= TargetObjectPos.y + DepthFromTarget) {
+            IsWithinRange = true;
+        } else {
+            IsWithinRange = false;
+        }
+    }
+
+    if (IsWithinRange) {
+        switch (commandId) {
+        case COMMAND_LOCATE_CHAR_ANY_MEANS_OBJECT_2D:
+        case COMMAND_LOCATE_CHAR_ANY_MEANS_OBJECT_3D:
+            LatestCmpFlagResult = true;
+            break;
+        case COMMAND_LOCATE_CHAR_ON_FOOT_OBJECT_2D:
+        case COMMAND_LOCATE_CHAR_ON_FOOT_OBJECT_3D:
+            if (!pFirstPed->bInVehicle)
+                LatestCmpFlagResult = true;
+            break;
+        case COMMAND_LOCATE_CHAR_IN_CAR_OBJECT_2D:
+        case COMMAND_LOCATE_CHAR_IN_CAR_OBJECT_3D:
+            if (pFirstPed->bInVehicle)
+                LatestCmpFlagResult = true;
+            break;
+        default:
+            break;
+        }
+    }
+
+    UpdateCompareFlag(LatestCmpFlagResult);
+
+    if (HighlightArea) {
+        if (Do3dCheck) {
+            CTheScripts::HighlightImportantArea(reinterpret_cast<uint32>(this) + reinterpret_cast<uint32>(m_IP),
+                TargetObjectPos.x - WidthFromTarget,
+                TargetObjectPos.y - DepthFromTarget,
+                TargetObjectPos.x + WidthFromTarget,
+                TargetObjectPos.y + DepthFromTarget,
+                TargetObjectPos.z);
+        } else {
+            CTheScripts::HighlightImportantArea(reinterpret_cast<uint32>(this) + reinterpret_cast<uint32>(m_IP),
+                TargetObjectPos.x - WidthFromTarget,
+                TargetObjectPos.y - DepthFromTarget,
+                TargetObjectPos.x + WidthFromTarget,
+                TargetObjectPos.y + DepthFromTarget,
+                -100.0f);
+        }
+    }
+
+    if (CTheScripts::DbgFlag) {
+        if (!Do3dCheck) {
+            CTheScripts::DrawDebugSquare(
+                TargetObjectPos.x - WidthFromTarget,
+                TargetObjectPos.y - DepthFromTarget,
+                TargetObjectPos.x + WidthFromTarget,
+                TargetObjectPos.y + DepthFromTarget);
+        }
+    }
 }
 
 
 // 0x487A20
 void CRunningScript::LocateCarCommand(int32 commandId) {
-    plugin::CallMethod<0x487A20, CRunningScript*, int32>(this, commandId);
+    bool LatestCmpFlagResult;
+    bool Do3dCheck;
+    bool SkipRestOfCheck = false;
+    int32 HighlightArea;
+
+    if (commandId < COMMAND_LOCATE_CAR_3D || commandId > COMMAND_LOCATE_STOPPED_CAR_3D) {
+        Do3dCheck = false;
+        CollectParameters(6);
+    } else {
+        Do3dCheck = true;
+        CollectParameters(8);
+    }
+
+    CVehicle* pVehicle = CPools::GetVehicle(ScriptParams[0].iParam);
+
+    if (commandId == COMMAND_LOCATE_STOPPED_CAR_2D || commandId == COMMAND_LOCATE_STOPPED_CAR_3D) {
+        if (!CTheScripts::IsVehicleStopped(pVehicle)) {
+            LatestCmpFlagResult = false;
+            SkipRestOfCheck = true;
+        }
+    }
+
+    float TargetX = ScriptParams[1].fParam;
+    float TargetY = ScriptParams[2].fParam;
+    float TargetZ = 0.0f;
+    float TargetWidth;
+    float TargetDepth;
+    float TargetHeight = 0.0f;
+
+    if (Do3dCheck) {
+        TargetZ = ScriptParams[3].fParam;
+        TargetWidth = ScriptParams[4].fParam;
+        TargetDepth = ScriptParams[5].fParam;
+        TargetHeight = ScriptParams[6].fParam;
+        HighlightArea = ScriptParams[7].iParam;
+    } else {
+        TargetWidth = ScriptParams[3].fParam;
+        TargetDepth = ScriptParams[4].fParam;
+        HighlightArea = ScriptParams[5].iParam;
+    }
+
+    if (!SkipRestOfCheck) {
+        CVector VehiclePos = pVehicle->GetPosition();
+        LatestCmpFlagResult = false;
+
+        if (Do3dCheck) {
+            if (VehiclePos.x >= TargetX - TargetWidth &&
+                VehiclePos.x <= TargetX + TargetWidth &&
+                VehiclePos.y >= TargetY - TargetDepth &&
+                VehiclePos.y <= TargetY + TargetDepth &&
+                VehiclePos.z >= TargetZ - TargetHeight &&
+                VehiclePos.z <= TargetZ + TargetHeight) {
+                LatestCmpFlagResult = true;
+            }
+        } else {
+            if (VehiclePos.x >= TargetX - TargetWidth &&
+                VehiclePos.x <= TargetX + TargetWidth &&
+                VehiclePos.y >= TargetY - TargetDepth &&
+                VehiclePos.y <= TargetY + TargetDepth) {
+                LatestCmpFlagResult = true;
+            }
+        }
+    }
+
+    UpdateCompareFlag(LatestCmpFlagResult);
+
+    if (HighlightArea) {
+        if (Do3dCheck) {
+            CTheScripts::HighlightImportantArea(reinterpret_cast<uint32>(this) + reinterpret_cast<uint32>(m_IP),
+                TargetX - TargetWidth,
+                TargetY - TargetDepth,
+                TargetX + TargetWidth,
+                TargetY + TargetDepth,
+                TargetZ);
+        } else {
+            CTheScripts::HighlightImportantArea(reinterpret_cast<uint32>(this) + reinterpret_cast<uint32>(m_IP),
+                TargetX - TargetWidth,
+                TargetY - TargetDepth,
+                TargetX + TargetWidth,
+                TargetY + TargetDepth,
+                -100.0f);
+        }
+    }
+
+    if (CTheScripts::DbgFlag) {
+        if (!Do3dCheck) {
+            CTheScripts::DrawDebugSquare(
+                TargetX - TargetWidth,
+                TargetY - TargetDepth,
+                TargetX + TargetWidth,
+                TargetY + TargetDepth);
+        }
+    }
 }
 
 
 // 0x487D10
 void CRunningScript::LocateObjectCommand(int32 commandId) {
-    plugin::CallMethod<0x487D10, CRunningScript*, int32>(this, commandId);
+    bool LatestCmpFlagResult;
+    bool Do3dCheck;
+    int32 HighlightArea;
+
+    if (commandId == COMMAND_LOCATE_OBJECT_3D) {
+        Do3dCheck = true;
+        CollectParameters(8);
+    } else {
+        Do3dCheck = false;
+        CollectParameters(6);
+    }
+
+    CObject* pObject = CPools::GetObject(ScriptParams[0].iParam);
+
+    float TargetX = ScriptParams[1].fParam;
+    float TargetY = ScriptParams[2].fParam;
+    float TargetZ = 0.0f;
+    float TargetWidth;
+    float TargetDepth;
+    float TargetHeight = 0.0f;
+
+    if (Do3dCheck) {
+        TargetZ = ScriptParams[3].fParam;
+        TargetWidth = ScriptParams[4].fParam;
+        TargetDepth = ScriptParams[5].fParam;
+        TargetHeight = ScriptParams[6].fParam;
+        HighlightArea = ScriptParams[7].iParam;
+    } else {
+        TargetWidth = ScriptParams[3].fParam;
+        TargetDepth = ScriptParams[4].fParam;
+        HighlightArea = ScriptParams[5].iParam;
+    }
+
+    CVector ObjectPos = pObject->GetPosition();
+    LatestCmpFlagResult = false;
+
+    if (Do3dCheck) {
+        if (ObjectPos.x >= TargetX - TargetWidth &&
+            ObjectPos.x <= TargetX + TargetWidth &&
+            ObjectPos.y >= TargetY - TargetDepth &&
+            ObjectPos.y <= TargetY + TargetDepth &&
+            ObjectPos.z >= TargetZ - TargetHeight &&
+            ObjectPos.z <= TargetZ + TargetHeight) {
+            LatestCmpFlagResult = true;
+        }
+    } else {
+        if (ObjectPos.x >= TargetX - TargetWidth &&
+            ObjectPos.x <= TargetX + TargetWidth &&
+            ObjectPos.y >= TargetY - TargetDepth &&
+            ObjectPos.y <= TargetY + TargetDepth) {
+            LatestCmpFlagResult = true;
+        }
+    }
+
+    UpdateCompareFlag(LatestCmpFlagResult);
+
+    if (HighlightArea) {
+        if (Do3dCheck) {
+            CTheScripts::HighlightImportantArea(reinterpret_cast<uint32>(this) + reinterpret_cast<uint32>(m_IP),
+                TargetX - TargetWidth,
+                TargetY - TargetDepth,
+                TargetX + TargetWidth,
+                TargetY + TargetDepth,
+                TargetZ);
+        } else {
+            CTheScripts::HighlightImportantArea(reinterpret_cast<uint32>(this) + reinterpret_cast<uint32>(m_IP),
+                TargetX - TargetWidth,
+                TargetY - TargetDepth,
+                TargetX + TargetWidth,
+                TargetY + TargetDepth,
+                -100.0f);
+        }
+    }
+
+    if (CTheScripts::DbgFlag) {
+        if (!Do3dCheck) {
+            CTheScripts::DrawDebugSquare(
+                TargetX - TargetWidth,
+                TargetY - TargetDepth,
+                TargetX + TargetWidth,
+                TargetY + TargetDepth);
+        }
+    }
 }
 
 
 // 0x487F60
 void CRunningScript::CharInAngledAreaCheckCommand(int32 commandId) {
-    plugin::CallMethod<0x487F60, CRunningScript*, int32>(this, commandId);
+    bool SkipRestOfCheck = false;
+    bool Do3dCheck;
+    bool LatestCmpFlagResult = false;
+    int32 HighlightArea;
+
+    if (commandId >= COMMAND_IS_CHAR_IN_ANGLED_AREA_3D && commandId <= COMMAND_IS_CHAR_STOPPED_IN_ANGLED_AREA_IN_CAR_3D) {
+        Do3dCheck = true;
+        CollectParameters(9);
+    } else {
+        Do3dCheck = false;
+        CollectParameters(7);
+    }
+
+    CPed* pPed = CPools::GetPed(ScriptParams[0].iParam);
+
+    switch (commandId) {
+    case COMMAND_IS_CHAR_STOPPED_IN_ANGLED_AREA_2D:
+    case COMMAND_IS_CHAR_STOPPED_IN_ANGLED_AREA_ON_FOOT_2D:
+    case COMMAND_IS_CHAR_STOPPED_IN_ANGLED_AREA_IN_CAR_2D:
+    case COMMAND_IS_CHAR_STOPPED_IN_ANGLED_AREA_3D:
+    case COMMAND_IS_CHAR_STOPPED_IN_ANGLED_AREA_ON_FOOT_3D:
+    case COMMAND_IS_CHAR_STOPPED_IN_ANGLED_AREA_IN_CAR_3D:
+        if (!CTheScripts::IsPedStopped(pPed)) {
+            LatestCmpFlagResult = false;
+            SkipRestOfCheck = true;
+        }
+        break;
+    default:
+        break;
+    }
+
+    float TargetX1 = ScriptParams[1].fParam;
+    float TargetY1 = ScriptParams[2].fParam;
+    float TargetZ1 = 0.0f;
+    float TargetX2;
+    float TargetY2;
+    float TargetZ2 = 0.0f;
+    float DistanceFrom1To4;
+
+    if (Do3dCheck) {
+        TargetZ1 = ScriptParams[3].fParam;
+        TargetX2 = ScriptParams[4].fParam;
+        TargetY2 = ScriptParams[5].fParam;
+        TargetZ2 = ScriptParams[6].fParam;
+        if (TargetZ1 > TargetZ2) {
+            std::swap(TargetZ1, TargetZ2);
+        }
+        DistanceFrom1To4 = ScriptParams[7].fParam;
+        HighlightArea = ScriptParams[8].iParam;
+    } else {
+        TargetX2 = ScriptParams[3].fParam;
+        TargetY2 = ScriptParams[4].fParam;
+        DistanceFrom1To4 = ScriptParams[5].fParam;
+        HighlightArea = ScriptParams[6].iParam;
+    }
+
+    float RadiansBetweenPoints1and4 = CGeneral::GetRadianAngleBetweenPoints(TargetX1, TargetY1, TargetX2, TargetY2) + HALF_PI;
+    while (RadiansBetweenPoints1and4 < 0.0f) {
+        RadiansBetweenPoints1and4 += TWO_PI;
+    }
+    while (RadiansBetweenPoints1and4 > TWO_PI) {
+        RadiansBetweenPoints1and4 -= TWO_PI;
+    }
+
+    float TargetX3 = TargetX2 + std::sin(RadiansBetweenPoints1and4) * DistanceFrom1To4;
+    float TargetY3 = TargetY2 - std::cos(RadiansBetweenPoints1and4) * DistanceFrom1To4;
+    float TargetX4 = TargetX1 + std::sin(RadiansBetweenPoints1and4) * DistanceFrom1To4;
+    float TargetY4 = TargetY1 - std::cos(RadiansBetweenPoints1and4) * DistanceFrom1To4;
+
+    CVector2D vec1To2(TargetX2 - TargetX1, TargetY2 - TargetY1);
+    CVector2D vec1To4(TargetX4 - TargetX1, TargetY4 - TargetY1);
+
+    float DistanceFrom1To2 = vec1To2.Magnitude();
+    float DistanceFrom1To4Test = vec1To4.Magnitude();
+
+    if (!SkipRestOfCheck) {
+        CVector CharPos;
+        if (pPed->bInVehicle && pPed->m_pMyVehicle) {
+            CharPos = pPed->m_pMyVehicle->GetPosition();
+        } else {
+            CharPos = pPed->GetPosition();
+        }
+
+        LatestCmpFlagResult = false;
+        CVector2D vec1ToPed(CharPos.x - TargetX1, CharPos.y - TargetY1);
+
+        vec1To2.Normalise();
+        float dot1 = DotProduct2D(vec1ToPed, vec1To2);
+        if (dot1 >= 0.0f && dot1 <= DistanceFrom1To2) {
+            vec1To4.Normalise();
+            float dot2 = DotProduct2D(vec1ToPed, vec1To4);
+            if (dot2 >= 0.0f && dot2 <= DistanceFrom1To4Test) {
+                if (!Do3dCheck || (CharPos.z >= TargetZ1 && CharPos.z <= TargetZ2)) {
+                    switch (commandId) {
+                    case COMMAND_IS_CHAR_IN_ANGLED_AREA_2D:
+                    case COMMAND_IS_CHAR_STOPPED_IN_ANGLED_AREA_2D:
+                    case COMMAND_IS_CHAR_IN_ANGLED_AREA_3D:
+                    case COMMAND_IS_CHAR_STOPPED_IN_ANGLED_AREA_3D:
+                        LatestCmpFlagResult = true;
+                        break;
+                    case COMMAND_IS_CHAR_IN_ANGLED_AREA_ON_FOOT_2D:
+                    case COMMAND_IS_CHAR_STOPPED_IN_ANGLED_AREA_ON_FOOT_2D:
+                    case COMMAND_IS_CHAR_IN_ANGLED_AREA_ON_FOOT_3D:
+                    case COMMAND_IS_CHAR_STOPPED_IN_ANGLED_AREA_ON_FOOT_3D:
+                        if (!pPed->bInVehicle) {
+                            LatestCmpFlagResult = true;
+                        }
+                        break;
+                    case COMMAND_IS_CHAR_IN_ANGLED_AREA_IN_CAR_2D:
+                    case COMMAND_IS_CHAR_STOPPED_IN_ANGLED_AREA_IN_CAR_2D:
+                    case COMMAND_IS_CHAR_IN_ANGLED_AREA_IN_CAR_3D:
+                    case COMMAND_IS_CHAR_STOPPED_IN_ANGLED_AREA_IN_CAR_3D:
+                        if (pPed->bInVehicle) {
+                            LatestCmpFlagResult = true;
+                        }
+                        break;
+                    default:
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    UpdateCompareFlag(LatestCmpFlagResult);
+
+    if (HighlightArea) {
+        float CentreZ = Do3dCheck ? (TargetZ1 + TargetZ2) * 0.5f : -100.0f;
+        CTheScripts::HighlightImportantAngledArea(reinterpret_cast<uint32>(this) + reinterpret_cast<uint32>(m_IP),
+            TargetX1,
+            TargetY1,
+            TargetX2,
+            TargetY2,
+            TargetX3,
+            TargetY3,
+            TargetX4,
+            TargetY4,
+            CentreZ);
+    }
+
+    if (CTheScripts::DbgFlag) {
+        if (!Do3dCheck) {
+            CTheScripts::DrawDebugAngledSquare(
+                CVector2D(TargetX1, TargetY1),
+                CVector2D(TargetX2, TargetY2),
+                CVector2D(TargetX3, TargetY3),
+                CVector2D(TargetX4, TargetY4));
+        }
+    }
 }
 
 
 // 0x4883F0
 void CRunningScript::ObjectInAngledAreaCheckCommand(int32 commandId) {
-    plugin::CallMethod<0x4883F0, CRunningScript*, int32>(this, commandId);
+    bool Do3dCheck;
+    bool LatestCmpFlagResult;
+    int32 HighlightArea;
+
+    if (commandId == COMMAND_IS_OBJECT_IN_ANGLED_AREA_3D) {
+        Do3dCheck = true;
+        CollectParameters(9);
+    } else {
+        Do3dCheck = false;
+        CollectParameters(7);
+    }
+
+    CObject* pObject = CPools::GetObject(ScriptParams[0].iParam);
+
+    float TargetX1 = ScriptParams[1].fParam;
+    float TargetY1 = ScriptParams[2].fParam;
+    float TargetZ1 = 0.0f;
+    float TargetX2;
+    float TargetY2;
+    float TargetZ2 = 0.0f;
+    float DistanceFrom1To4;
+
+    if (Do3dCheck) {
+        TargetZ1 = ScriptParams[3].fParam;
+        TargetX2 = ScriptParams[4].fParam;
+        TargetY2 = ScriptParams[5].fParam;
+        TargetZ2 = ScriptParams[6].fParam;
+        if (TargetZ1 > TargetZ2) {
+            std::swap(TargetZ1, TargetZ2);
+        }
+        DistanceFrom1To4 = ScriptParams[7].fParam;
+        HighlightArea = ScriptParams[8].iParam;
+    } else {
+        TargetX2 = ScriptParams[3].fParam;
+        TargetY2 = ScriptParams[4].fParam;
+        DistanceFrom1To4 = ScriptParams[5].fParam;
+        HighlightArea = ScriptParams[6].iParam;
+    }
+
+    float RadiansBetweenPoints1and4 = CGeneral::GetRadianAngleBetweenPoints(TargetX1, TargetY1, TargetX2, TargetY2) + HALF_PI;
+    while (RadiansBetweenPoints1and4 < 0.0f) {
+        RadiansBetweenPoints1and4 += TWO_PI;
+    }
+    while (RadiansBetweenPoints1and4 > TWO_PI) {
+        RadiansBetweenPoints1and4 -= TWO_PI;
+    }
+
+    float TargetX3 = TargetX2 + std::sin(RadiansBetweenPoints1and4) * DistanceFrom1To4;
+    float TargetY3 = TargetY2 - std::cos(RadiansBetweenPoints1and4) * DistanceFrom1To4;
+    float TargetX4 = TargetX1 + std::sin(RadiansBetweenPoints1and4) * DistanceFrom1To4;
+    float TargetY4 = TargetY1 - std::cos(RadiansBetweenPoints1and4) * DistanceFrom1To4;
+
+    CVector2D vec1To2(TargetX2 - TargetX1, TargetY2 - TargetY1);
+    CVector2D vec1To4(TargetX4 - TargetX1, TargetY4 - TargetY1);
+
+    float DistanceFrom1To2 = vec1To2.Magnitude();
+    float DistanceFrom1To4Test = vec1To4.Magnitude();
+
+    CVector ObjectPos = pObject->GetPosition();
+
+    LatestCmpFlagResult = false;
+    CVector2D vec1ToObject(ObjectPos.x - TargetX1, ObjectPos.y - TargetY1);
+
+    vec1To2.Normalise();
+    float dot1 = DotProduct2D(vec1ToObject, vec1To2);
+    if (dot1 >= 0.0f && dot1 <= DistanceFrom1To2) {
+        vec1To4.Normalise();
+        float dot2 = DotProduct2D(vec1ToObject, vec1To4);
+        if (dot2 >= 0.0f && dot2 <= DistanceFrom1To4Test) {
+            if (!Do3dCheck || (ObjectPos.z >= TargetZ1 && ObjectPos.z <= TargetZ2)) {
+                LatestCmpFlagResult = true;
+            }
+        }
+    }
+
+    UpdateCompareFlag(LatestCmpFlagResult);
+
+    if (HighlightArea) {
+        float CentreZ = Do3dCheck ? (TargetZ1 + TargetZ2) * 0.5f : -100.0f;
+        CTheScripts::HighlightImportantAngledArea(reinterpret_cast<uint32>(this) + reinterpret_cast<uint32>(m_IP),
+            TargetX1,
+            TargetY1,
+            TargetX2,
+            TargetY2,
+            TargetX3,
+            TargetY3,
+            TargetX4,
+            TargetY4,
+            CentreZ);
+    }
+
+    if (CTheScripts::DbgFlag) {
+        if (!Do3dCheck) {
+            CTheScripts::DrawDebugAngledSquare(
+                CVector2D(TargetX1, TargetY1),
+                CVector2D(TargetX2, TargetY2),
+                CVector2D(TargetX3, TargetY3),
+                CVector2D(TargetX4, TargetY4));
+        }
+    }
 }
 
 
 // 0x488780
 void CRunningScript::FlameInAngledAreaCheckCommand(int32 commandId) {
-    plugin::CallMethod<0x488780, CRunningScript*, int32>(this, commandId);
+    bool Do3dCheck;
+    bool LatestCmpFlagResult = false;
+    int32 HighlightArea;
+
+    if (commandId == COMMAND_IS_FLAME_IN_ANGLED_AREA_3D) {
+        Do3dCheck = true;
+        CollectParameters(8);
+    } else {
+        Do3dCheck = false;
+        CollectParameters(6);
+    }
+
+    float TargetX1 = ScriptParams[0].fParam;
+    float TargetY1 = ScriptParams[1].fParam;
+    float TargetZ1 = 0.0f;
+    float TargetX2;
+    float TargetY2;
+    float TargetZ2 = 0.0f;
+    float DistanceFrom1To4;
+
+    if (Do3dCheck) {
+        TargetZ1 = ScriptParams[2].fParam;
+        TargetX2 = ScriptParams[3].fParam;
+        TargetY2 = ScriptParams[4].fParam;
+        TargetZ2 = ScriptParams[5].fParam;
+        if (TargetZ1 > TargetZ2) {
+            std::swap(TargetZ1, TargetZ2);
+        }
+        DistanceFrom1To4 = ScriptParams[6].fParam;
+        HighlightArea = ScriptParams[7].iParam;
+    } else {
+        TargetX2 = ScriptParams[2].fParam;
+        TargetY2 = ScriptParams[3].fParam;
+        DistanceFrom1To4 = ScriptParams[4].fParam;
+        HighlightArea = ScriptParams[5].iParam;
+    }
+
+    float RadiansBetweenPoints1and4 = CGeneral::GetRadianAngleBetweenPoints(TargetX1, TargetY1, TargetX2, TargetY2) + HALF_PI;
+    while (RadiansBetweenPoints1and4 < 0.0f) {
+        RadiansBetweenPoints1and4 += TWO_PI;
+    }
+    while (RadiansBetweenPoints1and4 > TWO_PI) {
+        RadiansBetweenPoints1and4 -= TWO_PI;
+    }
+
+    float TargetX3 = TargetX2 + std::sin(RadiansBetweenPoints1and4) * DistanceFrom1To4;
+    float TargetY3 = TargetY2 - std::cos(RadiansBetweenPoints1and4) * DistanceFrom1To4;
+    float TargetX4 = TargetX1 + std::sin(RadiansBetweenPoints1and4) * DistanceFrom1To4;
+    float TargetY4 = TargetY1 - std::cos(RadiansBetweenPoints1and4) * DistanceFrom1To4;
+
+    CVector2D vec1To2(TargetX2 - TargetX1, TargetY2 - TargetY1);
+    CVector2D vec1To4(TargetX4 - TargetX1, TargetY4 - TargetY1);
+
+    float DistanceFrom1To2 = vec1To2.Magnitude();
+    float DistanceFrom1To4Test = vec1To4.Magnitude();
+
+    uint16 FlameLoop = 0;
+    do {
+        if (LatestCmpFlagResult) {
+            break;
+        }
+
+        CVector FlamePos;
+        if (CShotInfo::GetFlameThrowerShotPosn(static_cast<uint8>(FlameLoop), FlamePos)) {
+            CVector2D vec1ToFlame(FlamePos.x - TargetX1, FlamePos.y - TargetY1);
+
+            vec1To2.Normalise();
+            float dot1 = DotProduct2D(vec1ToFlame, vec1To2);
+            if (dot1 >= 0.0f && dot1 <= DistanceFrom1To2) {
+                vec1To4.Normalise();
+                float dot2 = DotProduct2D(vec1ToFlame, vec1To4);
+                if (dot2 >= 0.0f && dot2 <= DistanceFrom1To4Test) {
+                    if (!Do3dCheck || (FlamePos.z >= TargetZ1 && FlamePos.z <= TargetZ2)) {
+                        LatestCmpFlagResult = true;
+                    }
+                }
+            }
+        }
+
+        ++FlameLoop;
+    } while (FlameLoop < 100);
+
+    UpdateCompareFlag(LatestCmpFlagResult);
+
+    if (HighlightArea) {
+        float CentreZ = Do3dCheck ? (TargetZ1 + TargetZ2) * 0.5f : -100.0f;
+        CTheScripts::HighlightImportantAngledArea(reinterpret_cast<uint32>(this) + reinterpret_cast<uint32>(m_IP),
+            TargetX1,
+            TargetY1,
+            TargetX2,
+            TargetY2,
+            TargetX3,
+            TargetY3,
+            TargetX4,
+            TargetY4,
+            CentreZ);
+    }
+
+    if (CTheScripts::DbgFlag) {
+        if (!Do3dCheck) {
+            CTheScripts::DrawDebugAngledSquare(
+                CVector2D(TargetX1, TargetY1),
+                CVector2D(TargetX2, TargetY2),
+                CVector2D(TargetX3, TargetY3),
+                CVector2D(TargetX4, TargetY4));
+        }
+    }
 }
 
 
 // 0x488B50
 void CRunningScript::CharInAreaCheckCommand(int32 commandId) {
-    plugin::CallMethod<0x488B50, CRunningScript*, int32>(this, commandId);
+    bool SkipRestOfCheck = false;
+    bool Do3dCheck;
+    bool LatestCmpFlagResult;
+    int32 HighlightArea;
+
+    if (commandId == COMMAND_IS_CHAR_IN_AREA_3D ||
+        (commandId > COMMAND_IS_CHAR_STOPPED_IN_AREA_2D && commandId <= COMMAND_IS_CHAR_STOPPED_IN_AREA_IN_CAR_3D)) {
+        Do3dCheck = true;
+        CollectParameters(8);
+    } else {
+        Do3dCheck = false;
+        CollectParameters(6);
+    }
+
+    CPed* pPed = CPools::GetPed(ScriptParams[0].iParam);
+
+    CVector CharPos;
+    if (pPed->bInVehicle && pPed->m_pMyVehicle) {
+        CharPos = pPed->m_pMyVehicle->GetPosition();
+    } else {
+        CharPos = pPed->GetPosition();
+    }
+
+    switch (commandId) {
+    case COMMAND_IS_CHAR_STOPPED_IN_AREA_2D:
+    case COMMAND_IS_CHAR_STOPPED_IN_AREA_ON_FOOT_2D:
+    case COMMAND_IS_CHAR_STOPPED_IN_AREA_IN_CAR_2D:
+    case COMMAND_IS_CHAR_STOPPED_IN_AREA_3D:
+    case COMMAND_IS_CHAR_STOPPED_IN_AREA_ON_FOOT_3D:
+    case COMMAND_IS_CHAR_STOPPED_IN_AREA_IN_CAR_3D:
+        if (!CTheScripts::IsPedStopped(pPed)) {
+            LatestCmpFlagResult = false;
+            SkipRestOfCheck = true;
+        }
+        break;
+    default:
+        break;
+    }
+
+    float TargetX1 = ScriptParams[1].fParam;
+    float TargetY1 = ScriptParams[2].fParam;
+    float TargetZ1 = 0.0f;
+    float TargetX2;
+    float TargetY2;
+    float TargetZ2 = 0.0f;
+
+    if (Do3dCheck) {
+        TargetZ1 = ScriptParams[3].fParam;
+        TargetX2 = ScriptParams[4].fParam;
+        TargetY2 = ScriptParams[5].fParam;
+        TargetZ2 = ScriptParams[6].fParam;
+        if (TargetZ1 > TargetZ2) {
+            std::swap(TargetZ1, TargetZ2);
+        }
+        HighlightArea = ScriptParams[7].iParam;
+    } else {
+        TargetX2 = ScriptParams[3].fParam;
+        TargetY2 = ScriptParams[4].fParam;
+        HighlightArea = ScriptParams[5].iParam;
+    }
+
+    if (TargetX1 > TargetX2) {
+        std::swap(TargetX1, TargetX2);
+    }
+
+    if (TargetY1 > TargetY2) {
+        std::swap(TargetY1, TargetY2);
+    }
+
+    if (!SkipRestOfCheck) {
+        LatestCmpFlagResult = false;
+        bool bWithinArea = false;
+        if (Do3dCheck) {
+            if (CharPos.x >= TargetX1 &&
+                CharPos.x <= TargetX2 &&
+                CharPos.y >= TargetY1 &&
+                CharPos.y <= TargetY2 &&
+                CharPos.z >= TargetZ1 &&
+                CharPos.z <= TargetZ2) {
+                bWithinArea = true;
+            }
+        } else {
+            if (CharPos.x >= TargetX1 &&
+                CharPos.x <= TargetX2 &&
+                CharPos.y >= TargetY1 &&
+                CharPos.y <= TargetY2) {
+                bWithinArea = true;
+            }
+        }
+
+        if (bWithinArea) {
+            switch (commandId) {
+            case COMMAND_IS_CHAR_IN_AREA_2D:
+            case COMMAND_IS_CHAR_IN_AREA_3D:
+            case COMMAND_IS_CHAR_STOPPED_IN_AREA_2D:
+            case COMMAND_IS_CHAR_STOPPED_IN_AREA_3D:
+                LatestCmpFlagResult = true;
+                break;
+            case COMMAND_IS_CHAR_IN_AREA_ON_FOOT_2D:
+            case COMMAND_IS_CHAR_STOPPED_IN_AREA_ON_FOOT_2D:
+            case COMMAND_IS_CHAR_IN_AREA_ON_FOOT_3D:
+            case COMMAND_IS_CHAR_STOPPED_IN_AREA_ON_FOOT_3D:
+                if (!pPed->bInVehicle) {
+                    LatestCmpFlagResult = true;
+                }
+                break;
+            case COMMAND_IS_CHAR_IN_AREA_IN_CAR_2D:
+            case COMMAND_IS_CHAR_STOPPED_IN_AREA_IN_CAR_2D:
+            case COMMAND_IS_CHAR_IN_AREA_IN_CAR_3D:
+            case COMMAND_IS_CHAR_STOPPED_IN_AREA_IN_CAR_3D:
+                if (pPed->bInVehicle) {
+                    LatestCmpFlagResult = true;
+                }
+                break;
+            default:
+                break;
+            }
+        }
+    }
+
+    UpdateCompareFlag(LatestCmpFlagResult);
+
+    if (HighlightArea) {
+        if (Do3dCheck) {
+            CTheScripts::HighlightImportantArea(reinterpret_cast<uint32>(this) + reinterpret_cast<uint32>(m_IP),
+                TargetX1,
+                TargetY1,
+                TargetX2,
+                TargetY2,
+                (TargetZ1 + TargetZ2) * 0.5f);
+        } else {
+            CTheScripts::HighlightImportantArea(reinterpret_cast<uint32>(this) + reinterpret_cast<uint32>(m_IP),
+                TargetX1,
+                TargetY1,
+                TargetX2,
+                TargetY2,
+                -100.0f);
+        }
+    }
+
+    if (CTheScripts::DbgFlag) {
+        if (!Do3dCheck) {
+            CTheScripts::DrawDebugSquare(
+                TargetX1,
+                TargetY1,
+                TargetX2,
+                TargetY2);
+        }
+    }
 }
 
 
 // 0x488EC0
 void CRunningScript::CarInAreaCheckCommand(int32 commandId) {
-    plugin::CallMethod<0x488EC0, CRunningScript*, int32>(this, commandId);
+    bool SkipRestOfCheck = false;
+    bool Do3dCheck;
+    bool LatestCmpFlagResult;
+    int32 HighlightArea;
+
+    if (commandId == COMMAND_IS_CAR_IN_AREA_3D || commandId == COMMAND_IS_CAR_STOPPED_IN_AREA_3D) {
+        Do3dCheck = true;
+        CollectParameters(8);
+    } else {
+        Do3dCheck = false;
+        CollectParameters(6);
+    }
+
+    CVehicle* pVehicle = CPools::GetVehicle(ScriptParams[0].iParam);
+
+    if (commandId >= COMMAND_IS_CAR_STOPPED_IN_AREA_2D && commandId <= COMMAND_IS_CAR_STOPPED_IN_AREA_3D &&
+        !CTheScripts::IsVehicleStopped(pVehicle)) {
+        LatestCmpFlagResult = false;
+        SkipRestOfCheck = true;
+    }
+
+    float TargetX1 = ScriptParams[1].fParam;
+    float TargetY1 = ScriptParams[2].fParam;
+    float TargetZ1 = 0.0f;
+    float TargetX2;
+    float TargetY2;
+    float TargetZ2 = 0.0f;
+
+    if (Do3dCheck) {
+        TargetZ1 = ScriptParams[3].fParam;
+        TargetX2 = ScriptParams[4].fParam;
+        TargetY2 = ScriptParams[5].fParam;
+        TargetZ2 = ScriptParams[6].fParam;
+        if (TargetZ1 > TargetZ2) {
+            std::swap(TargetZ1, TargetZ2);
+        }
+        HighlightArea = ScriptParams[7].iParam;
+    } else {
+        TargetX2 = ScriptParams[3].fParam;
+        TargetY2 = ScriptParams[4].fParam;
+        HighlightArea = ScriptParams[5].iParam;
+    }
+
+    if (TargetX1 > TargetX2) {
+        std::swap(TargetX1, TargetX2);
+    }
+
+    if (TargetY1 > TargetY2) {
+        std::swap(TargetY1, TargetY2);
+    }
+
+    if (!SkipRestOfCheck) {
+        CVector VehiclePos = pVehicle->GetPosition();
+        LatestCmpFlagResult = false;
+        if (Do3dCheck) {
+            if (VehiclePos.x >= TargetX1 &&
+                VehiclePos.x <= TargetX2 &&
+                VehiclePos.y >= TargetY1 &&
+                VehiclePos.y <= TargetY2 &&
+                VehiclePos.z >= TargetZ1 &&
+                VehiclePos.z <= TargetZ2) {
+                LatestCmpFlagResult = true;
+            }
+        } else {
+            if (VehiclePos.x >= TargetX1 &&
+                VehiclePos.x <= TargetX2 &&
+                VehiclePos.y >= TargetY1 &&
+                VehiclePos.y <= TargetY2) {
+                LatestCmpFlagResult = true;
+            }
+        }
+    }
+
+    UpdateCompareFlag(LatestCmpFlagResult);
+
+    if (HighlightArea) {
+        if (Do3dCheck) {
+            CTheScripts::HighlightImportantArea(reinterpret_cast<uint32>(this) + reinterpret_cast<uint32>(m_IP),
+                TargetX1,
+                TargetY1,
+                TargetX2,
+                TargetY2,
+                (TargetZ1 + TargetZ2) * 0.5f);
+        } else {
+            CTheScripts::HighlightImportantArea(reinterpret_cast<uint32>(this) + reinterpret_cast<uint32>(m_IP),
+                TargetX1,
+                TargetY1,
+                TargetX2,
+                TargetY2,
+                -100.0f);
+        }
+    }
+
+    if (CTheScripts::DbgFlag) {
+        if (!Do3dCheck) {
+            CTheScripts::DrawDebugSquare(
+                TargetX1,
+                TargetY1,
+                TargetX2,
+                TargetY2);
+        }
+    }
 }
 
 
 // 0x489150
 void CRunningScript::ObjectInAreaCheckCommand(int32 commandId) {
-    plugin::CallMethod<0x489150, CRunningScript*, int32>(this, commandId);
+    bool is3D;
+    int32 HighlightArea;
+
+    if (commandId == COMMAND_IS_OBJECT_IN_AREA_3D) {
+        is3D = true;
+        CollectParameters(8);
+    } else {
+        is3D = false;
+        CollectParameters(6);
+    }
+
+    CObject* pObj = CPools::GetObject(ScriptParams[0].iParam);
+
+    float TargetX1 = ScriptParams[1].fParam;
+    float TargetY1 = ScriptParams[2].fParam;
+    float TargetZ1 = 0.0f;
+    float TargetX2;
+    float TargetY2;
+    float TargetZ2 = 0.0f;
+
+    if (is3D) {
+        TargetZ1 = ScriptParams[3].fParam;
+        TargetX2 = ScriptParams[4].fParam;
+        TargetY2 = ScriptParams[5].fParam;
+        TargetZ2 = ScriptParams[6].fParam;
+        if (TargetZ1 > TargetZ2) {
+            std::swap(TargetZ1, TargetZ2);
+        }
+        HighlightArea = ScriptParams[7].iParam;
+    } else {
+        TargetX2 = ScriptParams[3].fParam;
+        TargetY2 = ScriptParams[4].fParam;
+        HighlightArea = ScriptParams[5].iParam;
+    }
+
+    if (TargetX1 > TargetX2) {
+        std::swap(TargetX1, TargetX2);
+    }
+
+    if (TargetY1 > TargetY2) {
+        std::swap(TargetY1, TargetY2);
+    }
+
+    CVector ObjectPos = pObj->GetPosition();
+    bool bResult = false;
+    if (is3D) {
+        if (ObjectPos.x >= TargetX1 &&
+            ObjectPos.x <= TargetX2 &&
+            ObjectPos.y >= TargetY1 &&
+            ObjectPos.y <= TargetY2 &&
+            ObjectPos.z >= TargetZ1 &&
+            ObjectPos.z <= TargetZ2) {
+            bResult = true;
+        }
+    } else {
+        if (ObjectPos.x >= TargetX1 &&
+            ObjectPos.x <= TargetX2 &&
+            ObjectPos.y >= TargetY1 &&
+            ObjectPos.y <= TargetY2) {
+            bResult = true;
+        }
+    }
+
+    UpdateCompareFlag(bResult);
+
+    if (HighlightArea) {
+        if (is3D) {
+            CTheScripts::HighlightImportantArea(reinterpret_cast<uint32>(this) + reinterpret_cast<uint32>(m_IP),
+                TargetX1,
+                TargetY1,
+                TargetX2,
+                TargetY2,
+                (TargetZ1 + TargetZ2) * 0.5f);
+        } else {
+            CTheScripts::HighlightImportantArea(reinterpret_cast<uint32>(this) + reinterpret_cast<uint32>(m_IP),
+                TargetX1,
+                TargetY1,
+                TargetX2,
+                TargetY2,
+                -100.0f);
+        }
+    }
+
+    if (CTheScripts::DbgFlag) {
+        if (!is3D) {
+            CTheScripts::DrawDebugSquare(
+                TargetX1,
+                TargetY1,
+                TargetX2,
+                TargetY2);
+        }
+    }
 }
 
 
@@ -510,7 +1840,7 @@ void CTheScripts::HighlightImportantAngledArea(uint32 id, float x1, float y1, fl
 // 0x486110
 bool CTheScripts::IsPedStopped(CPed* ped) {
     if (ped->IsInVehicle()) {
-        return CTimer::GetTimeStep() / 100.f >= ped->m_pVehicle->m_fMovingSpeed;
+        return CTimer::GetTimeStep() / 100.f >= ped->m_pMyVehicle->m_fMovingSpeed;
     }
     if (!ped->IsPedStandingInPlace()) {
         return false;
@@ -569,115 +1899,110 @@ void CTheScripts::RemoveThisPed(CPed* ped) {
 }
 
 
+
 // 0x486300
-// TODO: test
-void CTheScripts::CleanUpThisPed(CPed* ped) {
-    if (!ped || ped->IsCreatedByMission()) {
+// ASM Match
+void CTheScripts::CleanUpThisPed(CPed* pPed) {
+    if (!pPed) {
         return;
     }
 
-    ped->SetCharCreatedBy(ePedCreatedBy::PED_GAME);
-    if (ped->bKeepTasksAfterCleanUp) {
-        return;
-    }
+    if (pPed->GetCharCreatedBy() == ePedCreatedBy::PED_MISSION) {
+        pPed->SetCharCreatedBy(ePedCreatedBy::PED_GAME);
+        if (pPed->bKeepTasksAfterCleanUp) {
+            --CPopulation::ms_nTotalMissionPeds;
+            return;
+        }
 
-    notsa::ScopeGuard _([]() {
+        bool bTellPedToWander = true;
+        if (pPed->bInVehicle && pPed->m_pMyVehicle && pPed == pPed->m_pMyVehicle->m_pDriver) {
+            bTellPedToWander = false;
+            if (pPed->m_pMyVehicle->GetVehicleType() == VEHICLE_TYPE_HELI) {
+                auto* pHeli = static_cast<CHeli*>(pPed->m_pMyVehicle);
+                pHeli->m_autoPilot.SetCarMissionUnlessCrashing(MISSION_HELI_FLYTOCOORS);
+                pHeli->m_autoPilot.TargetCoors = CVector(10000.0f, -10000.0f, 1000.0f);
+                pHeli->m_MinHeightAboveTerrain = 1000.0f;
+                pHeli->m_LowestFlightHeight = 1000.0f;
+            } else if (pPed->m_pMyVehicle->GetVehicleType() == VEHICLE_TYPE_PLANE) {
+                auto* pPlane = static_cast<CPlane*>(pPed->m_pMyVehicle);
+                pPlane->m_autoPilot.SetCarMissionUnlessCrashing(MISSION_PLANE_FLYTOCOORS);
+                pPlane->m_autoPilot.TargetCoors = CVector(10000.0f, 10000.0f, 1000.0f);
+                pPlane->m_MinHeightAboveTerrain = 1000.0f;
+                pPlane->m_LowestFlightHeight = 1000.0f;
+            } else if (pPed->m_pMyVehicle->GetBaseVehicleType() == VEHICLE_TYPE_AUTOMOBILE || pPed->m_pMyVehicle->GetBaseVehicleType() == VEHICLE_TYPE_BIKE) {
+                CCarCtrl::JoinCarWithRoadSystem(pPed->m_pMyVehicle);
+                pPed->m_pMyVehicle->m_autoPilot.SetCarMissionUnlessCrashing(MISSION_CRUISE);
+            }
+        }
+
+        pPed->bStayInSamePlace = false;
+        if (auto* pPedGroup = CPedGroups::GetPedsGroup(pPed)) {
+            if (pPedGroup->GetMembership().IsFollower(pPed)) {
+                pPedGroup->GetMembership().RemoveMember(pPed);
+            }
+        }
+
+        if (!bTellPedToWander) {
+            --CPopulation::ms_nTotalMissionPeds;
+            return;
+        }
+
+        if (pPed->bInVehicle && pPed->m_pMyVehicle) {
+            if (auto* pEvent = pPed->GetEventGroup().GetEventOfType(EVENT_SCRIPT_COMMAND)) {
+                auto* pTask = static_cast<CEventScriptCommand*>(pEvent)->m_task;
+                if (pTask && pTask->GetTaskType() == TASK_COMPLEX_SEQUENCE) {
+                    --CPopulation::ms_nTotalMissionPeds;
+                    return;
+                }
+            }
+
+            if (auto* pTaskPrimary = pPed->GetTaskManager().GetTaskPrimary(TASK_PRIMARY_PRIMARY)) {
+                if (pTaskPrimary->GetTaskType() == TASK_COMPLEX_SEQUENCE) {
+                    --CPopulation::ms_nTotalMissionPeds;
+                    return;
+                }
+            }
+
+            auto* pTaskSequence = new CTaskComplexSequence();
+            auto* pTaskLeaveAnyCar = new CTaskComplexLeaveAnyCar(0, true, false);
+            auto* pTaskWander = CTaskComplexWander::GetWanderTaskByPedType(pPed);
+            pTaskSequence->AddTask(pTaskLeaveAnyCar);
+            pTaskSequence->AddTask(pTaskWander);
+            CEventScriptCommand event(TASK_PRIMARY_PRIMARY, pTaskSequence, false);
+            pPed->GetEventGroup().Add(&event, false);
+        } else {
+            if (auto* pEvent = pPed->GetEventGroup().GetEventOfType(EVENT_SCRIPT_COMMAND)) {
+                auto* pTask = static_cast<CEventScriptCommand*>(pEvent)->m_task;
+                if (pTask && pTask->GetTaskType() == TASK_COMPLEX_WANDER) {
+                    --CPopulation::ms_nTotalMissionPeds;
+                    return;
+                }
+            }
+
+            if (auto* pTaskPrimary = pPed->GetTaskManager().GetTaskPrimary(TASK_PRIMARY_PRIMARY)) {
+                if (pTaskPrimary->GetTaskType() == TASK_COMPLEX_WANDER) {
+                    --CPopulation::ms_nTotalMissionPeds;
+                    return;
+                }
+            }
+
+            auto* pTaskWander = CTaskComplexWander::GetWanderTaskByPedType(pPed);
+            CEventScriptCommand event(TASK_PRIMARY_PRIMARY, pTaskWander, false);
+            pPed->GetEventGroup().Add(&event, false);
+        }
+
         --CPopulation::ms_nTotalMissionPeds;
-    });
-
-    if (auto* veh = ped->GetVehicleIfInOne(); veh && veh->IsDriver(ped)) {
-        const auto FixMission = [veh](eCarMission fix) {
-            auto& mis = veh->m_autoPilot.Mission;
-            if (mis != MISSION_PLANE_CRASH_AND_BURN && mis != MISSION_HELI_CRASH_AND_BURN) {
-                mis = fix;
-            }
-        };
-
-        switch (veh->GetType()) {
-        case eVehicleType::VEHICLE_TYPE_HELI: {
-            FixMission(MISSION_HELI_FLYTOCOORS);
-
-            veh->m_autoPilot.TargetCoors = CVector{ 10'000.0f, -10'000.0f, 1'000.0f };
-            veh->AsHeli()->m_MinHeightAboveTerrain = 1000.0f;
-            veh->AsHeli()->m_LowestFlightHeight    = 1000.0f;
-            break;
-        }
-        case eVehicleType::VEHICLE_TYPE_PLANE: {
-            FixMission(MISSION_PLANE_FLYTOCOORS);
-
-            veh->m_autoPilot.TargetCoors = CVector{ 10'000.0f, 10'000.0f, 1'000.0f };
-            veh->AsPlane()->m_minAltitude          = 1000.0f;
-            veh->AsPlane()->m_maxAltitude          = 1000.0f;
-            break;
-        }
-        default:
-            if (veh->IsSubAutomobile() || veh->IsSubBike()) {
-                CCarCtrl::JoinCarWithRoadSystem(veh);
-                FixMission(MISSION_CRUISE);
-            }
-        }
-
-        // Quick return: The captain goes down with the ship.
-        ped->bStayInSamePlace = false; // ???
-
-        if (auto* group = CPedGroups::GetPedsGroup(ped)) {
-            if (auto& member = group->GetMembership(); member.IsFollower(ped)) {
-                member.RemoveMember(ped);
-            }
-        }
-        return;
-    }
-    ped->bStayInSamePlace = false; // ???
-
-    if (auto* group = CPedGroups::GetPedsGroup(ped)) {
-        if (auto& member = group->GetMembership(); member.IsFollower(ped)) {
-            member.RemoveMember(ped);
-        }
-    }
-
-    const auto CheckTaskExists = [ped](eTaskType type) {
-        if (auto* event = ped->GetEventGroup().GetEventOfType(EVENT_SCRIPT_COMMAND)) {
-            if (auto* esc = notsa::dyn_cast<CEventScriptCommand>(event); esc && esc->m_task->GetTaskType() == type) {
-                return true;
-            }
-        }
-
-        if (auto* task = ped->GetTaskManager().GetTaskPrimary(TASK_PRIMARY_PRIMARY); task && task->GetTaskType() == type) {
-            return true;
-        }
-
-        return false;
-    };
-
-    if (ped->IsInVehicle()) {
-        if (CheckTaskExists(TASK_COMPLEX_SEQUENCE)) {
-            return;
-        }
-
-        // Get them out of the car then make them wander.
-        ped->GetEventGroup().Add(CEventScriptCommand(TASK_PRIMARY_PRIMARY, new CTaskComplexSequence(
-            new CTaskComplexLeaveAnyCar(0, true, false),
-            CTaskComplexWander::GetWanderTaskByPedType(ped)
-        )));
-    } else {
-        if (CheckTaskExists(TASK_COMPLEX_WANDER)) {
-            return;
-        }
-
-        // Make them wander.
-        ped->GetEventGroup().Add(CEventScriptCommand(TASK_PRIMARY_PRIMARY, CTaskComplexWander::GetWanderTaskByPedType(ped)));
     }
 }
 
-
 // 0x486670
 void CTheScripts::CleanUpThisVehicle(CVehicle* vehicle) {
-    if (!vehicle || vehicle->IsCreatedBy(eVehicleCreatedBy::MISSION_VEHICLE)) {
+    if (!vehicle || !vehicle->IsCreatedBy(eVehicleCreatedBy::MISSION_VEHICLE)) {
         return;
     }
 
-    vehicle->physicalFlags.bDontApplySpeed        = false;
-    vehicle->physicalFlags.bDisableCollisionForce = false;
+    vehicle->m_nPhysicalFlags.bCoorsFrozenByScript        = false;
+    vehicle->m_nPhysicalFlags.bInfiniteMass = false;
     vehicle->vehicleFlags.bIsLocked               = false;
 
     CCarCtrl::RemoveFromInterestingVehicleList(vehicle);
@@ -696,7 +2021,7 @@ void CTheScripts::CleanUpThisObject(CObject* obj) {
         obj->m_nObjectType                = OBJECT_TEMPORARY;
         obj->m_nRemovalTime               = CTimer::GetTimeInMS() + 20'000'000;
         obj->m_nRefModelIndex             = -1;
-        obj->objectFlags.bChangesVehColor = false;
+        obj->m_nObjectFlags.bParentIsACar = false;
         CObject::nNoTempObjects++;
     }
 }
@@ -756,18 +2081,18 @@ void InjectHooks_Script5() {
 
         RH_ScopedInstall(UpdateCompareFlag, 0x4859D0, { .stackArguments = 1 });
         RH_ScopedInstall(DoDeathArrestCheck, 0x485A50);
-        RH_ScopedInstall(LocateCarCommand, 0x487A20, { .reversed = false });
-        RH_ScopedInstall(LocateCharCommand, 0x486D80, { .reversed = false });
-        RH_ScopedInstall(LocateObjectCommand, 0x487D10, { .reversed = false });
-        RH_ScopedInstall(LocateCharCarCommand, 0x487420, { .reversed = false });
-        RH_ScopedInstall(LocateCharCharCommand, 0x4870F0, { .reversed = false });
-        RH_ScopedInstall(LocateCharObjectCommand, 0x487720, { .reversed = false });
-        RH_ScopedInstall(CarInAreaCheckCommand, 0x488EC0, { .reversed = false });
-        RH_ScopedInstall(CharInAreaCheckCommand, 0x488B50, { .reversed = false });
-        RH_ScopedInstall(ObjectInAreaCheckCommand, 0x489150, { .reversed = false });
-        RH_ScopedInstall(CharInAngledAreaCheckCommand, 0x487F60, { .reversed = false });
-        RH_ScopedInstall(FlameInAngledAreaCheckCommand, 0x488780, { .reversed = false });
-        RH_ScopedInstall(ObjectInAngledAreaCheckCommand, 0x4883F0, { .reversed = false });
+        RH_ScopedInstall(LocateCarCommand, 0x487A20);
+        RH_ScopedInstall(LocateCharCommand, 0x486D80);
+        RH_ScopedInstall(LocateObjectCommand, 0x487D10);
+        RH_ScopedInstall(LocateCharCarCommand, 0x487420);
+        RH_ScopedInstall(LocateCharCharCommand, 0x4870F0);
+        RH_ScopedInstall(LocateCharObjectCommand, 0x487720);
+        RH_ScopedInstall(CarInAreaCheckCommand, 0x488EC0);
+        RH_ScopedInstall(CharInAreaCheckCommand, 0x488B50);
+        RH_ScopedInstall(ObjectInAreaCheckCommand, 0x489150);
+        RH_ScopedInstall(CharInAngledAreaCheckCommand, 0x487F60);
+        RH_ScopedInstall(FlameInAngledAreaCheckCommand, 0x488780);
+        RH_ScopedInstall(ObjectInAngledAreaCheckCommand, 0x4883F0);
     }
     {
         RH_ScopedClass(CTheScripts);

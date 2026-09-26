@@ -660,7 +660,7 @@ void CCheat::HandleSpecialCheats(eCheats cheat) {
 // 0x438D60
 void CCheat::HealthCheat() {
     CPlayerPed* player = FindPlayerPed();
-    player->m_fHealth = player->GetPlayerInfoForThisPlayerPed()->m_nMaxHealth;
+    player->m_fHealth = player->GetPlayerInfoForThisPlayerPed()->MaxHealth;
 
     CVehicle* vehicle = FindPlayerVehicle();
     if (!vehicle) {
@@ -762,8 +762,8 @@ void CCheat::MoneyArmourHealthCheat() {
     CPlayerPed* player = FindPlayerPed();
     CPlayerInfo* playerInfo = player->GetPlayerInfoForThisPlayerPed();
 
-    playerInfo->m_nMoney += 250000;
-    player->m_fArmour = playerInfo->m_nMaxArmour;
+    playerInfo->Score += 250000;
+    player->m_fArmour = playerInfo->MaxArmour;
     HealthCheat();
 }
 
@@ -923,7 +923,7 @@ CVehicle* CCheat::VehicleCheat(eModelID modelId) {
     }
 
     const float radius = vehicle->GetModelInfo()->GetColModel()->GetBoundRadius();
-    const auto  rotZ   = player->m_fCurrentRotation + HALF_PI;
+    const auto  rotZ   = player->m_fCurrentHeading + HALF_PI;
     const auto  pos    = player->GetPosition() + (radius + 2.0f) * player->GetForward();
 
     vehicle->SetPosn(pos);

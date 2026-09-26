@@ -48,6 +48,10 @@ public:
         return true;
     }
 
+    //! calineva API
+    TItemType GetPtr() const { return Item; }
+    LinkType* GetNextPtr() const { return Next; }
+
     TItemType Item{};
     LinkType* Next{};
 };

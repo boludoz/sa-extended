@@ -718,7 +718,7 @@ void CPopulation::ManagePed(CPed* ped, const CVector& playerPosn) {
         };
         if (IsPedTypeGang(ped->m_nPedType)) {
             return GetDist() - 30.f;
-        } else if (ped->bDeadPedInFrontOfCar && ped->m_VehDeadInFrontOf) { // Never true, because `field_590` is always 0
+        } else if (ped->bDeadPedInFrontOfCar && ped->m_pMyAccidentVehicle) { // Never true, because `field_590` is always 0
             return 0.f;
         } else {
             return GetDist();
@@ -947,7 +947,7 @@ CPed* CPopulation::AddDeadPedInFrontOfCar(const CVector& createPedAt, CVehicle* 
 
     ped->m_nMoneyCount = 0;
     ped->bDeadPedInFrontOfCar = true;
-    CEntity::ChangeEntityReference(ped->m_VehDeadInFrontOf, vehicle);
+    CEntity::ChangeEntityReference(ped->m_pMyAccidentVehicle, vehicle);
 
     // Check if it's colliding with anything...
     if (   !CPedPlacement::IsPositionClearForPed(createPedAt, 2.f, {vehicle, ped})
@@ -1202,8 +1202,8 @@ void CPopulation::CreateWaitingCoppers(CVector createAt, float createaWithHeadin
             const auto ped = new CCopPed{ 0 };
 
             ped->SetPosn(copPedPos);
-            ped->m_fAimingRotation = ped->m_fCurrentRotation = CVector2D{ createAt - copPedPos }.Heading();
-            ped->SetHeading(ped->m_fCurrentRotation);
+            ped->m_fDesiredHeading = ped->m_fCurrentHeading = CVector2D{ createAt - copPedPos }.Heading();
+            ped->SetHeading(ped->m_fCurrentHeading);
 
             CWorld::Add(ped);
 
@@ -1535,10 +1535,10 @@ void CPopulation::ConvertToRealObject(CDummyObject* dummyObject) {
     CWorld::Add(obj);
 
     if (!CGlass::IsObjectGlass(obj) || obj->GetModelInfo()->IsGlassType2()) {
-        if (obj->m_nModelIndex == ModelIndices::MI_BUOY || obj->physicalFlags.bAttachedToEntity) {
+        if (obj->m_nModelIndex == ModelIndices::MI_BUOY || obj->m_nPhysicalFlags.bNeverGoStatic) {
             obj->SetIsStatic(false);
             obj->m_vecMoveSpeed.Set(0.0F, 0.0F, -0.001F);
-            obj->physicalFlags.bTouchingWater = true;
+            obj->m_nPhysicalFlags.bForceFullWaterCheck = true;
             obj->AddToMovingList();
         }
     } else {
@@ -1636,7 +1636,7 @@ int32 CPopulation::GeneratePedsAtAttractors(
                 if (!ent->GetIsTypeObject()) {
                     continue;
                 }
-                if (!ent->AsObject()->objectFlags.bEnableDisabledAttractors) {
+                if (!ent->AsObject()->m_nObjectFlags.bEnableDisabledAttractors) {
                     continue;
                 }
             }

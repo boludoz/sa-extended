@@ -94,8 +94,8 @@ CBoat::CBoat(int32 modelIndex, eVehicleCreatedBy createdBy) : CVehicle(createdBy
 
     m_fAirResistance = GetDefaultAirResistance();
 
-    physicalFlags.bTouchingWater = true;
-    physicalFlags.bSubmergedInWater = true;
+    m_nPhysicalFlags.bForceFullWaterCheck = true;
+    m_nPhysicalFlags.bIsInWater = true;
     m_nBoatFlags.bLockedToXY = true;
     m_nBoatFlags.bBoatEngineInWater = true;
     m_nBoatFlags.bBoatInWater = true;
@@ -513,7 +513,7 @@ void CBoat::ProcessControl() {
     CVehicle::ProcessDelayedExplosion();
 
     auto fMassCheck = (m_fMass * 0.008F * 100.0F) / 125.0F;
-    if (physicalFlags.bRenderScorched && fMassCheck < m_fBuoyancyConstant) {
+    if (m_nPhysicalFlags.bRenderScorched && fMassCheck < m_fBuoyancyConstant) {
         m_fBuoyancyConstant -= ((m_fMass * 0.001F) * 0.008F);
     }
 
@@ -554,7 +554,7 @@ void CBoat::ProcessControl() {
         m_LockedHeading = -10000.0f;
         CCarAI::UpdateCarAI(this);
         CPhysical::ProcessControl();
-        physicalFlags.bSubmergedInWater = true;
+        m_nPhysicalFlags.bIsInWater = true;
         m_nBoatFlags.bBoatInWater = true;
         m_nBoatFlags.bBoatEngineInWater = true;
         return;
@@ -567,7 +567,7 @@ void CBoat::ProcessControl() {
     case eEntityStatus::STATUS_ABANDONED:
     case eEntityStatus::STATUS_WRECKED:
         vehicleFlags.bIsHandbrakeOn = false; //?
-        physicalFlags.bSubmergedInWater = true;
+        m_nPhysicalFlags.bIsInWater = true;
         m_nBoatFlags.bBoatInWater = true;
         m_nBoatFlags.bBoatEngineInWater = true;
 
@@ -785,7 +785,7 @@ void CBoat::PreRender() {
         }
 
         if (splashFx && splashMat) {
-            if (physicalFlags.bSubmergedInWater) {
+            if (m_nPhysicalFlags.bIsInWater) {
                 if (splashFx->GetPlayStatus() == eFxSystemPlayStatus::FX_STOPPED) {
                     splashFx->Play();
                 }
@@ -1015,12 +1015,12 @@ void CBoat::BlowUpCar(CEntity* culprit, bool inACutscene) {
         return;
     }
 
-    physicalFlags.bRenderScorched = true;
+    m_nPhysicalFlags.bRenderScorched = true;
     SetStatus(STATUS_WRECKED);
     CVisibilityPlugins::SetClumpForAllAtomicsFlag(GetRpClump(), eAtomicComponentFlag::ATOMIC_PIPE_NO_EXTRA_PASSES_LOD);
     m_vecMoveSpeed.z += 0.13F;
     m_fHealth = 0.0F;
-    m_DelayedExplosion = 0;
+    DelayedExplosion = 0;
 
     const auto& vecPos = GetPosition();
     TheCamera.CamShake(0.4F, vecPos);
@@ -1064,7 +1064,7 @@ void CBoat::BlowUpCar(CEntity* culprit, bool inACutscene) {
     obj->m_fBuoyancyConstant = 8.0F / 75.0F;
     obj->m_nObjectType = eObjectType::OBJECT_TEMPORARY;
     obj->SetIsStatic(false);
-    obj->objectFlags.bIsPickup = false;
+    obj->m_nObjectFlags.bIsPickUp = false;
     obj->m_nRemovalTime = CTimer::GetTimeInMS() + 20'000;
 
     obj->m_vecMoveSpeed = m_vecMoveSpeed;

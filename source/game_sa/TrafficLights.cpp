@@ -36,15 +36,15 @@ bool CTrafficLights::ShouldCarStopForLight(CVehicle* vehicle, bool bUnkn) {
     };
 
     auto& currentNodeInfo = vehicle->m_autoPilot.OldLink;
-    if (currentNodeInfo.IsValid() && ThePaths.m_pPathNodes[currentNodeInfo.m_wAreaId]) {
+    if (currentNodeInfo.IsValid() && ThePaths.m_pPathNodes[currentNodeInfo.Region]) {
         const auto& naviNode = ThePaths.GetCarPathLink(currentNodeInfo);
-        if (naviNode.m_nTrafficLightState) {
-            if ((!naviNode.m_bTrafficLightDirection || naviNode.m_attachedTo == vehicle->m_autoPilot.OldNode) &&
-                (naviNode.m_bTrafficLightDirection || naviNode.m_attachedTo != vehicle->m_autoPilot.OldNode)
+        if (naviNode.TrafficLightsCycle) {
+            if ((!naviNode.TrafficLightsNode1HasMoreNeighbours || naviNode.Node1 == vehicle->m_autoPilot.OldNode) &&
+                (naviNode.TrafficLightsNode1HasMoreNeighbours || naviNode.Node1 != vehicle->m_autoPilot.OldNode)
             ) {
                 if (!bUnkn
-                    && (naviNode.m_nTrafficLightState != DIR_NORTH_SOUTH || !LightForCars1())
-                    && (naviNode.m_nTrafficLightState != DIR_WEST_EAST   || !LightForCars2())
+                    && (naviNode.TrafficLightsCycle != DIR_NORTH_SOUTH || !LightForCars1())
+                    && (naviNode.TrafficLightsCycle != DIR_WEST_EAST   || !LightForCars2())
                 ) {
                     return false;
                 }
@@ -58,15 +58,15 @@ bool CTrafficLights::ShouldCarStopForLight(CVehicle* vehicle, bool bUnkn) {
     }
 
     auto& nextNodeInfo = vehicle->m_autoPilot.NewLink;
-    if (nextNodeInfo.IsValid() && ThePaths.m_pPathNodes[nextNodeInfo.m_wAreaId]) {
+    if (nextNodeInfo.IsValid() && ThePaths.m_pPathNodes[nextNodeInfo.Region]) {
         const auto& naviNode = ThePaths.GetCarPathLink(nextNodeInfo);
-        if (naviNode.m_nTrafficLightState) {
-            if ((!naviNode.m_bTrafficLightDirection || naviNode.m_attachedTo == vehicle->m_autoPilot.NewNode) &&
-                (naviNode.m_bTrafficLightDirection || naviNode.m_attachedTo != vehicle->m_autoPilot.NewNode)
+        if (naviNode.TrafficLightsCycle) {
+            if ((!naviNode.TrafficLightsNode1HasMoreNeighbours || naviNode.Node1 == vehicle->m_autoPilot.NewNode) &&
+                (naviNode.TrafficLightsNode1HasMoreNeighbours || naviNode.Node1 != vehicle->m_autoPilot.NewNode)
             ) {
                 if (!bUnkn
-                    && (naviNode.m_nTrafficLightState != DIR_NORTH_SOUTH || !LightForCars1())
-                    && (naviNode.m_nTrafficLightState != DIR_WEST_EAST   || !LightForCars2())
+                    && (naviNode.TrafficLightsCycle != DIR_NORTH_SOUTH || !LightForCars1())
+                    && (naviNode.TrafficLightsCycle != DIR_WEST_EAST   || !LightForCars2())
                 ) {
                     return false;
                 }
@@ -80,15 +80,15 @@ bool CTrafficLights::ShouldCarStopForLight(CVehicle* vehicle, bool bUnkn) {
     }
 
     auto& prevNodeInfo = vehicle->m_autoPilot.VeryOldLink;
-    if (prevNodeInfo.IsValid() && ThePaths.m_pPathNodes[prevNodeInfo.m_wAreaId]) {
+    if (prevNodeInfo.IsValid() && ThePaths.m_pPathNodes[prevNodeInfo.Region]) {
         const auto& naviNode = ThePaths.GetCarPathLink(prevNodeInfo);
-        if (vehicle->GetStatus() == STATUS_PHYSICS && naviNode.m_nTrafficLightState) {
-            if ((!naviNode.m_bTrafficLightDirection || naviNode.m_attachedTo == vehicle->m_autoPilot.VeryOldNode) &&
-                ( naviNode.m_bTrafficLightDirection || naviNode.m_attachedTo != vehicle->m_autoPilot.VeryOldNode)
+        if (vehicle->GetStatus() == STATUS_PHYSICS && naviNode.TrafficLightsCycle) {
+            if ((!naviNode.TrafficLightsNode1HasMoreNeighbours || naviNode.Node1 == vehicle->m_autoPilot.VeryOldNode) &&
+                ( naviNode.TrafficLightsNode1HasMoreNeighbours || naviNode.Node1 != vehicle->m_autoPilot.VeryOldNode)
             ) {
                 if (!bUnkn
-                    && (naviNode.m_nTrafficLightState != DIR_NORTH_SOUTH || !LightForCars1())
-                    && (naviNode.m_nTrafficLightState != DIR_WEST_EAST   || !LightForCars2())
+                    && (naviNode.TrafficLightsCycle != DIR_NORTH_SOUTH || !LightForCars1())
+                    && (naviNode.TrafficLightsCycle != DIR_WEST_EAST   || !LightForCars2())
                 ) {
                     return false;
                 }
@@ -111,15 +111,15 @@ bool CTrafficLights::ShouldCarStopForBridge(CVehicle* vehicle) {
         return false;
 
     auto& nextNodeInfo = vehicle->m_autoPilot.NewLink;
-    if (!nextNodeInfo.IsValid() || !ThePaths.m_pPathNodes[nextNodeInfo.m_wAreaId])
+    if (!nextNodeInfo.IsValid() || !ThePaths.m_pPathNodes[nextNodeInfo.Region])
         return false;
 
     auto& curNodeInfo = vehicle->m_autoPilot.OldLink;
-    if (!curNodeInfo.IsValid() || ThePaths.m_pPathNodes[curNodeInfo.m_wAreaId])
+    if (!curNodeInfo.IsValid() || ThePaths.m_pPathNodes[curNodeInfo.Region])
         return false;
 
-    if (ThePaths.GetCarPathLink(nextNodeInfo).m_bridgeLights &&
-        ThePaths.GetCarPathLink(curNodeInfo).m_bridgeLights
+    if (ThePaths.GetCarPathLink(nextNodeInfo).BridgeLights &&
+        ThePaths.GetCarPathLink(curNodeInfo).BridgeLights
     ) {
         return true;
     }

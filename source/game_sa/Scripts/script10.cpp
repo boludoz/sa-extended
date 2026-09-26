@@ -40,12 +40,59 @@
 #include "Hud.h"
 #include "extensions/File.hpp"
 #include "TaskSimpleFinishBrain.h"
+#include "TaskSimpleHoldEntity.h"
+#include "TaskSimpleAffectSecondaryBehaviour.h"
+#include "TaskSequences.h"
 
 
 
 // 0x46AF50
 void CRunningScript::ScriptTaskPickUpObject(int32 commandId) {
-    plugin::CallMethod<0x46AF50, CRunningScript*, int32>(this, commandId);
+    CollectParameters(7);
+    const int32 iPedID = ScriptParams[0].iParam;
+    CObject* pObj = CPools::GetObject(ScriptParams[1].iParam);
+
+    CVector TempVec(ScriptParams[2].fParam, ScriptParams[3].fParam, ScriptParams[4].fParam);
+
+    const uint8 nBone = ScriptParams[5].u8Param;
+    const uint8 nOrientateFlags = ScriptParams[6].u8Param;
+
+    char AnimName[24];
+    char AnimGroupName[16];
+    ReadTextLabelFromScript(AnimName, 24);
+    ReadTextLabelFromScript(AnimGroupName, 16);
+
+    bool bUseBlankId = false;
+    if (!strcmp(AnimName, "NULL") || !strcmp(AnimGroupName, "NULL")) {
+        bUseBlankId = true;
+    }
+
+    CollectParameters(1);
+    eAnimationFlags flags = ANIMATION_IS_PARTIAL;
+    if (!ScriptParams[0].iParam) {
+        flags = static_cast<eAnimationFlags>(ANIMATION_IS_PARTIAL | ANIMATION_IS_FINISH_AUTO_REMOVE);
+    }
+
+    CTask* pTask;
+    if (bUseBlankId) {
+        pTask = new CTaskSimpleHoldEntity(pObj, &TempVec, nBone, nOrientateFlags, ANIM_ID_NO_ANIMATION_SET, ANIM_GROUP_DEFAULT, false);
+    } else {
+        pTask = new CTaskSimpleHoldEntity(pObj, &TempVec, nBone, nOrientateFlags, AnimName, AnimGroupName, flags);
+    }
+
+    if (iPedID != -1) {
+        CPed* pPed = CPools::GetPed(iPedID);
+        if (commandId == COMMAND_TASK_PICK_UP_OBJECT) {
+            pPed->GetPedIntelligence()->AddTaskSecondaryPartialAnim(pTask);
+        } else {
+            pPed->GetPedIntelligence()->AddTaskSecondaryAttack(pTask);
+        }
+        const int32 iVacantSlot = CPedScriptedTaskRecord::GetVacantSlot();
+        CPedScriptedTaskRecord::ms_scriptedTasks[iVacantSlot].Set(pPed, commandId, pTask);
+    } else if (commandId == COMMAND_TASK_PICK_UP_OBJECT) {
+        CTaskSimpleAffectSecondaryBehaviour* pTaskSecond = new CTaskSimpleAffectSecondaryBehaviour(true, TASK_SECONDARY_PARTIAL_ANIM, pTask);
+        CTaskSequences::ms_taskSequence[CTaskSequences::ms_iActiveSequence].AddTask(pTaskSecond);
+    }
 }
 
 
@@ -161,16 +208,16 @@ void CTheScripts::ProcessWaitingForScriptBrainArray() {
             continue;
         }
 
-        switch (const auto t = ScriptsForBrains.m_aScriptForBrains[e.m_ScriptBrainIndex].m_TypeOfBrain) {
+        switch (const auto t = ScriptsForBrains.ScriptBrainArray[e.m_ScriptBrainIndex].TypeOfBrain) {
         case 0: // TODO: enum
         case 3: // for peds?
         {
             auto*      ped = e.m_pEntity->AsPed();
-            const auto idx = ScriptsForBrains.m_aScriptForBrains[ped->m_StreamedScriptBrainToLoad].m_StreamedScriptIndex;
+            const auto idx = ScriptsForBrains.ScriptBrainArray[ped->StreamedScriptBrainToLoad].StreamedScriptIndex;
 
             if (CStreaming::IsModelLoaded(SCMToModelId(idx))) {
                 ScriptsForBrains.StartNewStreamedScriptBrain(
-                    static_cast<uint8>(ped->m_StreamedScriptBrainToLoad), // cast?
+                    static_cast<uint8>(ped->StreamedScriptBrainToLoad), // cast?
                     ped,
                     false
                 );
@@ -184,7 +231,7 @@ void CTheScripts::ProcessWaitingForScriptBrainArray() {
         {
             auto* obj = e.m_pEntity->AsObject();
 
-            switch (obj->objectFlags.b0x100000_0x200000) {
+            switch (obj->m_nObjectFlags.ScriptBrainStatus) {
             case 1:
                 if (!ScriptsForBrains.IsObjectWithinBrainActivationRange(obj, FindPlayerCentreOfWorld()))
                     break;
@@ -192,7 +239,7 @@ void CTheScripts::ProcessWaitingForScriptBrainArray() {
                 [[fallthrough]];
             case 2:
                 ScriptsForBrains.StartOrRequestNewStreamedScriptBrain(
-                    static_cast<uint8>(obj->m_nStreamedScriptBrainToLoad), // cast?
+                    static_cast<uint8>(obj->StreamedScriptBrainToLoad), // cast?
                     obj,
                     t,
                     false
@@ -214,7 +261,7 @@ void InjectHooks_Script10() {
         RH_ScopedClass(CRunningScript);
         RH_ScopedCategory("Scripts");
 
-        RH_ScopedInstall(ScriptTaskPickUpObject, 0x46AF50, { .reversed = false });
+        RH_ScopedInstall(ScriptTaskPickUpObject, 0x46AF50);
     }
     {
         RH_ScopedClass(CTheScripts);

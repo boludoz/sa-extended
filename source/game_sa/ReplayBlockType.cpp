@@ -19,15 +19,15 @@ tReplayVehicleBlock tReplayVehicleBlock::MakeVehicleUpdateData(CVehicle& veh, in
     };
     ret.primaryColor   = veh.m_nPrimaryColor;
     ret.secondaryColor = veh.m_nSecondaryColor;
-    ret.physicalFlags  = (uint8)veh.m_nPhysicalFlags;
+    ret.m_nPhysicalFlags  = (uint8)veh.m_nPhysicalFlagsRaw;
 
     // todo refactor
-    auto v9 = (ret.physicalFlags ^ (2 * ((uint32)veh.m_nFlags >> 7))) & 2 ^ ret.physicalFlags;
+    auto v9 = (ret.m_nPhysicalFlags ^ (2 * ((uint32)veh.m_nFlags >> 7))) & 2 ^ ret.m_nPhysicalFlags;
     auto v10 = v9 ^ (v9 ^ (uint8)(4 * ((uint32)veh.m_nFlags >> 30))) & 4;
-    ret.physicalFlags = v10 ^ (v10 ^ (8 * (veh.m_nFlags < 0))) & 8;
+    ret.m_nPhysicalFlags = v10 ^ (v10 ^ (8 * (veh.m_nFlags < 0))) & 8;
 
     if (&veh == FindPlayerVehicle() && gbFirstPersonRunThisFrame) {
-        ret.physicalFlags &= ~2u;
+        ret.m_nPhysicalFlags &= ~2u;
     }
 
     ret.steerAngle_or_doomVerticalRot = (uint8)[&] {
@@ -42,7 +42,7 @@ tReplayVehicleBlock tReplayVehicleBlock::MakeVehicleUpdateData(CVehicle& veh, in
         auto automobile = veh.AsAutomobile();
 
         for (auto i = 0; i < 4; i++) { // for each wheel
-            ret.wheelsSuspensionCompression[i] = (uint8)(automobile->m_fWheelsSuspensionCompression[i] * 50.0f);
+            ret.wheelsSuspensionCompression[i] = (uint8)(automobile->m_aWheelRatios[i] * 50.0f);
             ret.wheelRotation[i] = (uint8)(automobile->m_wheelRotation[i] * HEADING_COMPRESS_VALUE);
         }
         ret.angleDoorLF = (uint8)(automobile->m_doors[DOOR_LEFT_FRONT].m_angle * 20.222929f);
@@ -55,7 +55,7 @@ tReplayVehicleBlock tReplayVehicleBlock::MakeVehicleUpdateData(CVehicle& veh, in
             }
         }
     }
-    ret.physicalFlags ^= (ret.physicalFlags ^ (veh.m_nPhysicalFlags >> 29)) & 1;
+    ret.m_nPhysicalFlags ^= (ret.m_nPhysicalFlags ^ (veh.m_nPhysicalFlagsRaw >> 29)) & 1;
     ret.vehicleSubType = veh.GetVehicleType();
     return ret;
 }
@@ -66,17 +66,17 @@ tReplayTrainBlock tReplayTrainBlock::MakeTrainUpdateData(CTrain& train, int32 po
     *ret.As<tReplayVehicleBlock>() = tReplayVehicleBlock::MakeVehicleUpdateData(*train.AsVehicle(), poolIdx);
 
     ret.type = REPLAY_PACKET_TRAIN;
-    ret.trainSpeed = train.m_fTrainSpeed;
-    ret.currentRailDistance = train.m_fCurrentRailDistance;
-    ret.length = train.m_fLength;
-    ret.trackId = train.m_nTrackId;
+    ret.trainSpeed = train.LinearSpeed;
+    ret.currentRailDistance = train.PositionOnTrack;
+    ret.length = train.OffsetFromLeader;
+    ret.trackId = train.TrainType;
     ret.prevCarriageRef = ret.nextCarriageRef = 0;
 
-    if (auto carriage = train.m_pPrevCarriage) {
+    if (auto carriage = train.pLinkedToForward) {
         ret.prevCarriageRef = GetVehiclePool()->GetIndex(carriage->AsVehicle()) + 1;
     }
 
-    if (auto carriage = train.m_pNextCarriage) {
+    if (auto carriage = train.pLinkedToBackward) {
         ret.nextCarriageRef = GetVehiclePool()->GetIndex(carriage->AsVehicle()) + 1;
     }
     return ret;
@@ -130,9 +130,9 @@ void tReplayVehicleBlock::ExtractVehicleUpdateData(CVehicle& veh, float interpol
     veh.GetMoveSpeed().y = (float)vecMoveSpeed.y / 8000.0f;
     veh.GetMoveSpeed().z = (float)vecMoveSpeed.z / 8000.0f;
 
-    auto v5 = ((uint8)veh.m_nFlags ^ (uint8)(physicalFlags << 6)) & 0x80 ^ veh.m_nFlags;
-    auto v6 = v5 ^ (v5 ^ (physicalFlags << 28)) & 0x40000000;
-    veh.m_nFlags = (physicalFlags << 28) ^ (v6 ^ (physicalFlags << 28)) & 0x7FFFFFFF;
+    auto v5 = ((uint8)veh.m_nFlags ^ (uint8)(m_nPhysicalFlags << 6)) & 0x80 ^ veh.m_nFlags;
+    auto v6 = v5 ^ (v5 ^ (m_nPhysicalFlags << 28)) & 0x40000000;
+    veh.m_nFlags = (m_nPhysicalFlags << 28) ^ (v6 ^ (m_nPhysicalFlags << 28)) & 0x7FFFFFFF;
 
     veh.m_fSteerAngle = [&] {
         if (veh.m_nModelIndex == MODEL_RHINO) {
@@ -147,7 +147,7 @@ void tReplayVehicleBlock::ExtractVehicleUpdateData(CVehicle& veh, float interpol
         auto automobile = veh.AsAutomobile();
 
         for (auto i = 0; i < 4; i++) { // for each wheel
-            automobile->m_fWheelsSuspensionCompression[i] = (float)wheelsSuspensionCompression[i] / 50.0f;
+            automobile->m_aWheelRatios[i] = (float)wheelsSuspensionCompression[i] / 50.0f;
             automobile->m_wheelRotation[i] = (float)wheelRotation[i] / HEADING_COMPRESS_VALUE;
 
         }
@@ -175,7 +175,7 @@ void tReplayVehicleBlock::ExtractVehicleUpdateData(CVehicle& veh, float interpol
             }
         }
 
-        automobile->m_NumDriveWheelsOnGround = 4;
+        automobile->m_nDriveWheelsOnGround = 4;
     }
 
     veh.vehicleFlags.bEngineOn = veh.vehicleFlags.bEngineBroken != true;
@@ -183,7 +183,7 @@ void tReplayVehicleBlock::ExtractVehicleUpdateData(CVehicle& veh, float interpol
 
     CWorld::Remove(&veh);
     CWorld::Add(&veh);
-    veh.m_nPhysicalFlags ^= (veh.m_nPhysicalFlags ^ (physicalFlags << 29)) & 0x20000000;
+    veh.m_nPhysicalFlagsRaw ^= (veh.m_nPhysicalFlagsRaw ^ (m_nPhysicalFlags << 29)) & 0x20000000;
 }
 
 // 0x45C0D0
@@ -192,7 +192,7 @@ void tReplayBikeBlock::ExtractBikeUpdateData(CBike& bike, float interpolation) {
 
     bike.GetRideAnimData()->BarSteerAngle = (float)steerAngle / 50.0f;
     bike.GetRideAnimData()->LeanAngle   = (float)animLean / 50.0f;
-    bike.m_bLeanMatrixCalculated = false;
+    bike.m_bLeanMatrix = false;
     bike.CalculateLeanMatrix();
 }
 
@@ -202,7 +202,7 @@ void tReplayBmxBlock::ExtractBmxUpdateData(CBmx& bmx, float interpolation) {
 
     bmx.GetRideAnimData()->BarSteerAngle = (float)steerAngle / 50.0f;
     bmx.GetRideAnimData()->LeanAngle = (float)animLean / 50.0f;
-    bmx.m_bLeanMatrixCalculated = false;
+    bmx.m_bLeanMatrix = false;
     bmx.CalculateLeanMatrix();
 }
 
@@ -210,22 +210,22 @@ void tReplayBmxBlock::ExtractBmxUpdateData(CBmx& bmx, float interpolation) {
 void tReplayTrainBlock::ExtractTrainUpdateData(CTrain& train, float interpolation) {
     As<tReplayVehicleBlock>()->ExtractVehicleUpdateData(*train.AsVehicle(), interpolation);
 
-    train.m_fTrainSpeed = trainSpeed;
-    train.m_fCurrentRailDistance = currentRailDistance;
-    train.m_fLength = length;
-    train.m_nTrackId = trackId;
+    train.LinearSpeed = trainSpeed;
+    train.PositionOnTrack = currentRailDistance;
+    train.OffsetFromLeader = length;
+    train.TrainType = trackId;
 
     if (auto prevCarriage = prevCarriageRef) {
-        CEntity::SafeCleanUpRef(train.m_pPrevCarriage);
+        CEntity::SafeCleanUpRef(train.pLinkedToForward);
 
-        train.m_pPrevCarriage = GetVehiclePool()->GetAt(CReplay::FindPoolIndexForVehicle(prevCarriage - 1))->AsTrain();
-        CEntity::SafeRegisterRef(train.m_pPrevCarriage);
+        train.pLinkedToForward = GetVehiclePool()->GetAt(CReplay::FindPoolIndexForVehicle(prevCarriage - 1))->AsTrain();
+        CEntity::SafeRegisterRef(train.pLinkedToForward);
     }
 
     if (auto nextCarriage = nextCarriageRef) {
-        CEntity::SafeCleanUpRef(train.m_pNextCarriage);
+        CEntity::SafeCleanUpRef(train.pLinkedToBackward);
 
-        train.m_pNextCarriage = GetVehiclePool()->GetAt(CReplay::FindPoolIndexForVehicle(nextCarriage - 1))->AsTrain();
-        CEntity::SafeRegisterRef(train.m_pNextCarriage);
+        train.pLinkedToBackward = GetVehiclePool()->GetAt(CReplay::FindPoolIndexForVehicle(nextCarriage - 1))->AsTrain();
+        CEntity::SafeRegisterRef(train.pLinkedToBackward);
     }
 }

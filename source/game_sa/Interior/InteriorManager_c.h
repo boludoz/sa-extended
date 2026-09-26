@@ -61,28 +61,29 @@ public:
     bool GetBoundingBox(FurnitureEntity_c* entity, CVector* pos);
     void ActivatePeds(bool enable);
 
-    auto GetInteriorIds() const { return m_InteriorIds | rng::views::take(m_InteriorCount); }
-    auto GetObjects() const { return m_Objects | rng::views::take(m_ObjectCount); }
+    auto GetInteriorIds() const { return m_stealInfoSetupIds | rng::views::take(m_numStealInfosIds); }
+    auto GetObjects() const { return m_stealableInfos | rng::views::take(m_numStealableObjects); }
 
 private:
     friend class Interior_c; // Interiors read the manager's state directly, as in the original
+    friend class InteriorGroup_c;
 
-    Interior_c               m_Interiors[8]{};               // 0x0
-    TList_c<Interior_c>      m_InteriorPool{};               // 0x3CA0
-    InteriorGroup_c          m_InteriorGroups[8]{};          // 0x3CAC
-    TList_c<InteriorGroup_c> m_InteriorGroupList{};          // 0x428C
-    TList_c<InteriorGroup_c> m_InteriorGroupPool{};          // 0x4298
-    size_t                   m_InteriorCount{};              // 0x42A4
-    int32                    m_InteriorIds[64]{};            // 0x42A8
-    int32                    m_ObjectCount{};                // 0x43A8
-    InteriorObject           m_Objects[32]{};                // 0x43AC
-    bool                     m_InteriorPedsAliveState[16]{}; // 0x472C
-    CEntryExit*              m_EnEx{};                       // 0x473C
-    CRect                    m_EnExRect{};                   // 0x4740
-    bool                     m_IsFrozen{};                   // 0x4750
-    bool                     m_IsActive{};                   // 0x4751
-    bool                     m_ArePedsEnabled{};             // 0x4752
-    int32                    m_TimeLastPickupsGenerated{};   // 0x4754
+    Interior_c               m_interiors[8]{};               // 0x0
+    TList_c<Interior_c>      m_interiorPool{};               // 0x3CA0
+    InteriorGroup_c          m_interiorGroups[8]{};          // 0x3CAC
+    TList_c<InteriorGroup_c> m_interiorGroupList{};          // 0x428C
+    TList_c<InteriorGroup_c> m_interiorGroupPool{};          // 0x4298
+    size_t                   m_numStealInfosIds{};              // 0x42A4
+    int32                    m_stealInfoSetupIds[64]{};            // 0x42A8
+    int32                    m_numStealableObjects{};                // 0x43A8
+    InteriorObject           m_stealableInfos[32]{};                // 0x43AC
+    bool                     m_pedsAlive[16]{}; // 0x472C
+    CEntryExit*              m_pEntryExit{};                       // 0x473C
+    CRect                    m_entryExitRect{};                   // 0x4740
+    bool                     m_freeze{};                   // 0x4750
+    bool                     m_active{};                   // 0x4751
+    bool                     m_activePeds{};             // 0x4752
+    int32                    m_timeLastPickupsGenerated{};   // 0x4754
 };
 VALIDATE_SIZE(InteriorManager_c, 0x4758);
 

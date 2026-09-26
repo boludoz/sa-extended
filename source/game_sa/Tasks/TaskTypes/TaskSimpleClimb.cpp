@@ -74,7 +74,7 @@ bool CTaskSimpleClimb::ProcessPed(CPed* ped) {
         return true;
     }
 
-    if (!m_ClimbEntity || m_ClimbEntity->GetIsTypeObject() && !m_ClimbEntity->GetIsStatic() && !m_ClimbEntity->AsPhysical()->physicalFlags.bDisableCollisionForce || m_ClimbEntity->GetIsTypeVehicle() && m_ClimbEntity->AsVehicle()->IsSubTrain() && m_ClimbEntity->AsVehicle()->m_vecMoveSpeed.Magnitude() > 0.1F) {
+    if (!m_ClimbEntity || m_ClimbEntity->GetIsTypeObject() && !m_ClimbEntity->GetIsStatic() && !m_ClimbEntity->AsPhysical()->m_nPhysicalFlags.bInfiniteMass || m_ClimbEntity->GetIsTypeVehicle() && m_ClimbEntity->AsVehicle()->IsSubTrain() && m_ClimbEntity->AsVehicle()->m_vecMoveSpeed.Magnitude() > 0.1F) {
         MakeAbortable(ped);
         return true;
     }
@@ -241,7 +241,7 @@ bool CTaskSimpleClimb::ProcessPed(CPed* ped) {
         MakeAbortable(ped);
     }
 
-    ped->m_fAimingRotation = ped->m_fCurrentRotation = handAngle;
+    ped->m_fDesiredHeading = ped->m_fCurrentHeading = handAngle;
     ped->SetOrientation(0.0f, 0.0f, handAngle);
 
     return false;
@@ -305,8 +305,8 @@ CEntity* CTaskSimpleClimb::ScanToGrabSectorList(PtrListType* sectorList, CPed* p
 
         if (entity->GetIsTypeBuilding()
             || (entity->GetIsTypeObject()
-                && (entity->GetIsStatic() || entity->AsObject()->physicalFlags.bDisableCollisionForce)
-                && !entity->AsObject()->physicalFlags.bInfiniteMass
+                && (entity->GetIsStatic() || entity->AsObject()->m_nPhysicalFlags.bInfiniteMass)
+                && !entity->AsObject()->m_nPhysicalFlags.bHangingPhysics
             )
             || (entity->GetIsTypeVehicle()
                 && (hasToTestStandup || hasToTestDropOtherSide || (ped->GetIntelligence()->GetTaskSwim() && entity->AsVehicle()->IsSubBoat()) || (entity->AsVehicle()->IsSubTrain() && entity->AsVehicle()->m_vecMoveSpeed.Magnitude2D() < 0.1F))
@@ -368,7 +368,7 @@ CEntity* CTaskSimpleClimb::ScanToGrabSectorList(PtrListType* sectorList, CPed* p
 
                 if (fabsf(CWorld::m_aTempColPts[0].m_vecNormal.x) <= 0.05f && fabsf(CWorld::m_aTempColPts[0].m_vecNormal.y) <= 0.05F) {
                     outTargetPos      = CWorld::m_aTempColPts[0].m_vecPoint;
-                    outAngle         = ped->m_fCurrentRotation;
+                    outAngle         = ped->m_fCurrentHeading;
                     outSurfaceType   = CWorld::m_aTempColPts[0].m_nSurfaceTypeB;
                     collidedEntity = entity;
                 } else {

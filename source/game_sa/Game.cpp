@@ -220,10 +220,10 @@ bool CGame::Shutdown() {
     CPedType::Shutdown();
 
     rng::for_each(CWorld::Players, [](auto& player) {
-        if (player.m_pPed) {
-            CWorld::Remove(player.m_pPed);
-            delete player.m_pPed;
-            player.m_pPed = nullptr;
+        if (player.pPed) {
+            CWorld::Remove(player.pPed);
+            delete player.pPed;
+            player.pPed = nullptr;
         }
         player.Clear();
     });

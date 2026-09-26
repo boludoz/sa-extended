@@ -8,6 +8,7 @@ void CPedGroups::InjectHooks() {
 
     RH_ScopedInstall(Process, 0x5FC800);
     RH_ScopedInstall(RemoveGroup, 0x5FB870);
+    RH_ScopedInstall(Init, 0x5FB8C0);
 }
 
 #ifdef ANDROID
@@ -41,8 +42,14 @@ void CPedGroups::RemoveAllFollowersFromGroup(int32 groupId) {
 }
 
 // 0x5FB8C0
-void CPedGroups::Init() {
-    plugin::Call<0x5FB8C0>();
+// ASM Match: 99.3%
+void CPedGroups::Init()
+{
+    for (int32 i = 0; i < MAX_NUM_GROUPS; ++i)
+    {
+        RemoveGroup(i);
+        ScriptReferenceIndex[i] = 1;
+    }
 }
 
 // 0x5F7E30

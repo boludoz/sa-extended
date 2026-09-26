@@ -40,7 +40,7 @@ bool CEventLeaderEnteredCarAsDriver::AffectsPedGroup(CPedGroup* pedGroup)
                 continue;
 
             if (!member->bInVehicle
-                || member->m_pVehicle != m_vehicle
+                || member->m_pMyVehicle != m_vehicle
                 || member->GetTaskManager().Find<TASK_COMPLEX_LEAVE_CAR>())
             {
                 return true;

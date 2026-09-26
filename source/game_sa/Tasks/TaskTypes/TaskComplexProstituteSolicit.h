@@ -11,28 +11,28 @@
 
 class NOTSA_EXPORT_VTABLE CTaskComplexProstituteSolicit : public CTaskComplex {
 public:
-    CPed*   m_pClient; // player only
-    CVector m_vecVehiclePosn;
-    int32   m_nLastSavedTime;
-    int32   m_nNextTimeToCheckForSecludedPlace; // when we will scan nearby peds again
-    int32   m_nLastPaymentTime;                 // when CJ will pay $2 again
-    int16   m_nVehicleMovementTimer;            // wait some time and push vehicle again
-    int16   m_nCurrentTimer;
+    CPed*   m_pPunterPed; // player only
+    CVector m_InitialVehiclePos;
+    int32   m_iLastTimeCarMoving;
+    int32   m_iNextTimeToScanForPeds; // when we will scan nearby peds again
+    int32   m_iSecondsCounter;                 // when CJ will pay $2 again
+    int16   m_iShaggingFreq;            // wait some time and push vehicle again
+    int16   m_iShagTimeLeft;
 
-    uint16 bSearchingForSecludedPlace : 1;
-    uint16 bSexProcessStarted : 1;
-    uint16 bTaskCanBeFinished : 1;
-    uint16 bPedsCanPotentiallySeeThis : 1;
-    uint16 bPedsCanSeeThis : 1;
-    uint16 bCopsCanSeeThis : 1;
-    uint16 b07 : 1;
-    uint16 b08 : 1;
+    uint16 m_bWaitingToStopInSecludedSpot : 1;
+    uint16 m_bHavingSex : 1;
+    uint16 m_bHadEnough : 1;
+    uint16 m_bPedsNearby : 1;
+    uint16 m_bPedsReallyNear : 1;
+    uint16 m_bCopNearby : 1;
+    uint16 m_bFirstTime : 1;
+    uint16 m_bWaitAfterEnteringCar : 1;
 
-    uint16 bMoveCameraDown : 1;
-    uint16 b10 : 1;
-    uint16 bPlayerHasAcceptedSexProposition : 1;
-    uint16 bVehicleShifted : 1;
-    uint16 bSecludedPlaceMessageShown : 1;
+    uint16 m_bSexCamModeEnabled : 1;
+    uint16 m_bDoSexAudio : 1;
+    uint16 m_bAgreedToSex : 1;
+    uint16 m_bNoMoreHealth : 1;
+    uint16 m_bHavePrintedSecludedMessage : 1;
 
 public:
     static constexpr auto Type = TASK_COMPLEX_PROSTITUTE_SOLICIT;
@@ -41,7 +41,7 @@ public:
     ~CTaskComplexProstituteSolicit() override;
 
     eTaskType GetTaskType() const override { return Type; } // 0x661AE0
-    CTask* Clone() const override { return new CTaskComplexProstituteSolicit(m_pClient); } // 0x6622F0
+    CTask* Clone() const override { return new CTaskComplexProstituteSolicit(m_pPunterPed); } // 0x6622F0
     bool MakeAbortable(CPed* ped, eAbortPriority priority = ABORT_PRIORITY_URGENT, const CEvent* event = nullptr) override;
     CTask* CreateFirstSubTask(CPed* ped) override;
     CTask* CreateNextSubTask(CPed* ped) override;

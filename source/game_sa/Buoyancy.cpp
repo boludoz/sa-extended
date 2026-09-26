@@ -23,7 +23,7 @@ void cBuoyancy::InjectHooks()
 // 0x6C3EF0
 bool cBuoyancy::ProcessBuoyancy(CPhysical* entity, float fBuoyancy, CVector* vecBuoyancyTurnPoint, CVector* vecBuoyancyForce) {
     CVector& entityPosition = entity->GetPosition();
-    if (!CWaterLevel::GetWaterLevel(entityPosition, m_fWaterLevel, entity->physicalFlags.bTouchingWater)) {
+    if (!CWaterLevel::GetWaterLevel(entityPosition, m_fWaterLevel, entity->m_nPhysicalFlags.bForceFullWaterCheck)) {
         return false;
     }
 
@@ -62,7 +62,7 @@ bool cBuoyancy::ProcessBuoyancy(CPhysical* entity, float fBuoyancy, CVector* vec
 // 0x6C3030
 bool cBuoyancy::ProcessBuoyancyBoat(CVehicle* vehicle, float fBuoyancy, CVector* vecBuoyancyTurnPoint, CVector* vecBuoyancyForce, bool bUnderwater) {
     const CVector& entityPosition = vehicle->GetPosition();
-    if (!CWaterLevel::GetWaterLevel(entityPosition, m_fWaterLevel, vehicle->physicalFlags.bTouchingWater)) {
+    if (!CWaterLevel::GetWaterLevel(entityPosition, m_fWaterLevel, vehicle->m_nPhysicalFlags.bForceFullWaterCheck)) {
         return false;
     }
 

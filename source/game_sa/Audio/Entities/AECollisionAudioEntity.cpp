@@ -756,7 +756,7 @@ void CAECollisionAudioEntity::ReportCollision(
             if (eAModelId == ModelIndices::MI_IMY_GRAY_CRATE) {
                 return SURFACE_WOOD_SOLID;
             }
-            if (eA->GetIsTypePhysical() && eA->AsPhysical()->physicalFlags.bMakeMassTwiceAsBig) {
+            if (eA->GetIsTypePhysical() && eA->AsPhysical()->m_nPhysicalFlags.bExtraHeavy) {
                 return AE_SURFACE_TYPE_POOL_BALL;
             }
             return sA;        

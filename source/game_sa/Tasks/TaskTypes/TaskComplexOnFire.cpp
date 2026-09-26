@@ -22,7 +22,7 @@ void CTaskComplexOnFire::InjectHooks() {
 
 // 0x6333D0
 void CTaskComplexOnFire::ComputeFireDamage(CPed* ped, CPedDamageResponse& outResp) {
-    if (ped->physicalFlags.bFireProof) {
+    if (ped->m_nPhysicalFlags.bNotDamagedByFlames) {
         return;
     }
 
@@ -79,7 +79,7 @@ CTask* CTaskComplexOnFire::CreateFirstSubTask(CPed* ped) {
 
 // 0x639200
 CTask* CTaskComplexOnFire::ControlSubTask(CPed* ped) {
-    if (ped->physicalFlags.bSubmergedInWater) {
+    if (ped->m_nPhysicalFlags.bIsInWater) {
         if (ped->m_pFire) {
             ped->m_pFire->Extinguish();
         }

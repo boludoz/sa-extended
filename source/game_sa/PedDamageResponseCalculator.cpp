@@ -57,7 +57,7 @@ void CPedDamageResponseCalculator::AccountForPedArmour(CPed* ped, CPedDamageResp
         return;
 
     if (FindPlayerPed() == ped)
-        CWorld::Players[CWorld::PlayerInFocus].m_nLastTimeArmourLost = CTimer::GetTimeInMS();
+        CWorld::Players[CWorld::PlayerInFocus].LastTimeArmourLost = CTimer::GetTimeInMS();
 
     if (m_fDamageFactor > ped->m_fArmour) {
         m_fDamageFactor = m_fDamageFactor - ped->m_fArmour;

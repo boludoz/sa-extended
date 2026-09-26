@@ -329,7 +329,7 @@ public:
         } vehicleFlags;
     };
 
-    uint32            m_nCreationTime;
+    uint32            m_TimeOfCreation;
     uint8             m_nPrimaryColor;
     uint8             m_nSecondaryColor;
     uint8             m_nTertiaryColor;
@@ -338,7 +338,7 @@ public:
     std::array<int16, NUM_VEHICLE_UPGRADES> m_anUpgrades;
     float             m_fWheelScale;
     uint16            m_nAlarmState;
-    int16             m_nForcedRandomRouteSeed; // if this is non-zero the random wander gets deterministic
+    int16             ForcedRandomSeed; // if this is non-zero the random wander gets deterministic
     CPed*             m_pDriver;
     std::array<CPed*, 8>  m_apPassengers{};
     uint8             m_nNumPassengers;
@@ -384,14 +384,14 @@ public:
     uint32           m_nTimeTillWeNeedThisCar;     // game won't try to delete this car while this time won't reach
     uint32           m_nGunFiringTime;             // last time when gun on vehicle was fired (used on boats)
     uint32           m_nTimeWhenBlowedUp;          // game will delete vehicle when 60 seconds after this time will expire
-    int16            m_nCopsInCarTimer;            // timer for police car (which is following player) occupants to stay in car. If this timer reachs
+    int16            GetOutOfCarTimer;            // timer for police car (which is following player) occupants to stay in car. If this timer reachs
                                             // some value, they will leave a car. The timer increases each frame if player is stopped in car,
                                             // otherway it resets
-    int16           m_DelayedExplosion;           // goes down with each frame
+    int16           DelayedExplosion;           // goes down with each frame
     CPed*           m_pWhoDetonatedMe;      // if vehicle was detonated, game copies m_pWhoInstalledBombOnMe here
-    float           m_fVehicleFrontGroundZ; // we get these values from CCollision::IsStoredPolyStillValidVerticalLine
-    float           m_fVehicleRearGroundZ;  // or CWorld::ProcessVerticalLine
-    char            field_4EC;              // initialised, but not used?
+    float           LastFrontHeight; // we get these values from CCollision::IsStoredPolyStillValidVerticalLine
+    float           LastRearHeight;  // or CWorld::ProcessVerticalLine
+    char            NumOilSpillsToDo;              // initialised, but not used?
     char            field_4ED[11];          // possibly non-used data?
     eCarLock        m_nDoorLock;
     uint32          m_nProjectileWeaponFiringTime;           // manual-aimed projectiles for hunter, lock-on projectile for hydra
@@ -402,8 +402,8 @@ public:
     char            field_510;             // not used?
     char            field_511;             // initialised, but not used?
     char            field_512;             // initialised, but not used?
-    eCarWeapon      m_nVehicleWeaponInUse;
-    uint32          m_HornCounter;
+    eCarWeapon      m_SelectedWeapon;
+    uint32          m_cHorn;
     int8            m_HornPattern;
     char            m_nCarHornTimer; // car horn related
     eComedyControlState m_comedyControlState;
@@ -566,6 +566,7 @@ public:
     bool IsVehicleNormal();
     void ChangeLawEnforcerState(bool bIsEnforcer);
     bool IsLawEnforcementVehicle() const;
+    bool GetIsLawEnforcer() const { return vehicleFlags.bIsLawEnforcer; } //!< calineva API
     static bool ShufflePassengersToMakeSpace();
     void ExtinguishCarFire();
     void ActivateBomb();

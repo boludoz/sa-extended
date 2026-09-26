@@ -100,7 +100,7 @@ void CShopping::Buy(uint32 key, int32 extraInfo) {
     const auto price = GetPrice(key);
     const auto fPrice = static_cast<float>(price);
     const auto& priceInfo = ms_prices[FindItem(key)];
-    playerInfo.m_nMoney -= price;
+    playerInfo.Score -= price;
 
     for (const auto modifier : ms_statModifiers[index].modifiers) {
         IncrementStat(modifier.statIndex, modifier.change);
@@ -211,7 +211,7 @@ void CShopping::Buy(uint32 key, int32 extraInfo) {
         CStats::ModifyStat(STAT_WEAPON_BUDGET, fPrice);
 
         if (key == WEAPON_ARMOUR) {
-            ped->m_fArmour = playerInfo.m_nMaxArmour;
+            ped->m_fArmour = playerInfo.MaxArmour;
         } else {
             ped->GiveWeapon((eWeaponType)key, priceInfo.weapon.ammo, false);
             ped->SetCurrentWeapon((eWeaponType)key);

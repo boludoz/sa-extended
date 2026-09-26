@@ -20,17 +20,17 @@ void CPedStats::InjectHooks() {
 void CPedStats::Initialise() {
     ms_apPedStats = new CPedStat[PED_STATS_COUNT]();
     for (uint16 statIndex = 0; statIndex < PED_STATS_COUNT; statIndex++) {
-        ms_apPedStats[statIndex].m_nId = 0;
+        ms_apPedStats[statIndex].m_ePedStatType = 0;
         ms_apPedStats[statIndex].m_fFleeDistance = 20.0f;
-        ms_apPedStats[statIndex].m_fHeadingChangeRate = 15.0f;
+        ms_apPedStats[statIndex].m_fMaxHeadingChange = 15.0f;
         ms_apPedStats[statIndex].m_nFear = 50;
         ms_apPedStats[statIndex].m_nTemper = 50;
         ms_apPedStats[statIndex].m_nLawfulness = 50;
         ms_apPedStats[statIndex].m_nSexiness = 50;
-        ms_apPedStats[statIndex].m_fAttackStrength = 1.0f;
-        ms_apPedStats[statIndex].m_fDefendWeakness = 1.0f;
-        ms_apPedStats[statIndex].m_flags = 0;
-        ms_apPedStats[statIndex].m_nDefaultDecisionMaker = 0;
+        ms_apPedStats[statIndex].m_fAttackMult = 1.0f;
+        ms_apPedStats[statIndex].m_fDefendMult = 1.0f;
+        ms_apPedStats[statIndex].m_nStatFlags = 0;
+        ms_apPedStats[statIndex].m_iDefaultDecisionMaker = 0;
     }
     LoadPedStats();
     CDecisionMakerTypesFileLoader::LoadDefaultDecisionMaker();
@@ -78,18 +78,18 @@ void CPedStats::LoadPedStats() {
             &defaultDecisionMaker
         ) == 11);
 
-        ms_apPedStats[statIndex].m_nId = statIndex;
-        rng::copy(name, ms_apPedStats[statIndex].m_acName);
+        ms_apPedStats[statIndex].m_ePedStatType = statIndex;
+        rng::copy(name, ms_apPedStats[statIndex].m_sPedStatName);
         ms_apPedStats[statIndex].m_fFleeDistance = fleeDistance;
-        ms_apPedStats[statIndex].m_fHeadingChangeRate = headingChangeRate;
+        ms_apPedStats[statIndex].m_fMaxHeadingChange = headingChangeRate;
         ms_apPedStats[statIndex].m_nFear = fear;
         ms_apPedStats[statIndex].m_nTemper = temper;
         ms_apPedStats[statIndex].m_nLawfulness = lawfulness;
         ms_apPedStats[statIndex].m_nSexiness = sexiness;
-        ms_apPedStats[statIndex].m_fAttackStrength = attackStrength;
-        ms_apPedStats[statIndex].m_fDefendWeakness = defendWeakness;
-        ms_apPedStats[statIndex].m_flags = shootingRate;
-        ms_apPedStats[statIndex].m_nDefaultDecisionMaker = defaultDecisionMaker;
+        ms_apPedStats[statIndex].m_fAttackMult = attackStrength;
+        ms_apPedStats[statIndex].m_fDefendMult = defendWeakness;
+        ms_apPedStats[statIndex].m_nStatFlags = shootingRate;
+        ms_apPedStats[statIndex].m_iDefaultDecisionMaker = defaultDecisionMaker;
 
         statIndex++;
     }
@@ -99,7 +99,7 @@ void CPedStats::LoadPedStats() {
 // 0x6088D0
 ePedStats CPedStats::GetPedStatType(const char* statName) {
   uint16 statIndex = 0;
-  while (strcmp(ms_apPedStats[statIndex].m_acName, statName) != 0) {
+  while (strcmp(ms_apPedStats[statIndex].m_sPedStatName, statName) != 0) {
     if (++statIndex >= PED_STATS_COUNT)
       return ePedStats::SENSIBLE_GUY;
   }
@@ -110,7 +110,7 @@ ePedStats CPedStats::GetPedStatType(const char* statName) {
 // 0x608860
 CPedStat* CPedStats::GetPedStatInfo(const char* statName) {
     for (uint16 statIndex = 0; statIndex < PED_STATS_COUNT; statIndex++) {
-        if (strcmp(ms_apPedStats[statIndex].m_acName, statName) != 0) {
+        if (strcmp(ms_apPedStats[statIndex].m_sPedStatName, statName) != 0) {
             return &ms_apPedStats[statIndex];
         }
     }

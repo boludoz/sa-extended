@@ -601,7 +601,7 @@ public:
     static inline auto& s_pPlayerDriver                 = StaticRef<CPed*>(0xB6B990);
     static inline auto& s_HelicoptorsDisabled           = StaticRef<bool>(0xB6B994);
     static inline auto& s_NextDummyEngineSlot           = StaticRef<int16>(0xB6B998);
-    static inline auto& s_pVehicleAudioSettingsForRadio = StaticRef<tVehicleAudioSettings*>(0xB6B98C);
+    static inline auto& s_pVehicleAudioSettingsForRadio = StaticRef<tVehicleAudioSettings*>(0xB6B99C);
     static inline auto& s_DummyEngineSlots              = StaticRef<std::array<tDummyEngineSlot, SND_BANK_SLOT_DUMMY_END - SND_BANK_SLOT_DUMMY_FIRST>>(0xB6B9A0);
 
 public:

@@ -8,9 +8,86 @@
 #include "ColHelpers.h"
 #include "ProcObjectMan.h"
 
-// 0x5DD100 (todo: move)
-static void AtomicCreatePrelitIfNeeded(RpAtomic* atomic) {
-    plugin::Call<0x5DD100, RpAtomic*>(atomic);
+// 0x5DD100
+// ASM Match: not measured
+static RpAtomic* AtomicCreatePrelitIfNeeded(RpAtomic* pAtomic)
+{
+    RpGeometry* pOldGeometry = RpAtomicGetGeometry(pAtomic);
+    assert(pOldGeometry);
+
+    if (RpGeometryGetFlags(pOldGeometry) & rpGEOMETRYPRELIT)
+    {
+        return (pAtomic);  // not necessary to change anything
+    }
+
+    RpMorphTarget* pOldMorphTarget = RpGeometryGetMorphTarget(pOldGeometry, 0);
+    assert(pOldMorphTarget);
+
+    const int32 numVerts = RpGeometryGetNumVertices(pOldGeometry);
+    const int32 numTris = RpGeometryGetNumTriangles(pOldGeometry);
+
+    // clone oldGeometry and set new materials for every triangle:
+    RpGeometry* pNewGeometry = RpGeometryCreate(
+        numVerts, numTris, rpGEOMETRYTRISTRIP | rpGEOMETRYTEXTURED | rpGEOMETRYPRELIT /*|rpGEOMETRYNORMALS*/);
+    assert(pNewGeometry);
+
+    RpMorphTarget* pNewMorphTarget = RpGeometryGetMorphTarget(pNewGeometry, 0);
+    assert(pNewMorphTarget);
+
+    // copy vertex positions, normals, uv coords:
+    {
+        RwV3d* pOldVertices = RpMorphTargetGetVertices(pOldMorphTarget);
+        assert(pOldVertices);
+        // RwV3d *pOldNormals	= RpMorphTargetGetVertexNormals(pOldMorphTarget);
+        // assert(pOldNormals);
+        RwTexCoords* pOldUVs = RpGeometryGetVertexTexCoords(pOldGeometry, rwTEXTURECOORDINATEINDEX0);
+        assert(pOldUVs);
+
+        RwV3d* pNewVertices = RpMorphTargetGetVertices(pNewMorphTarget);
+        assert(pNewVertices);
+        // RwV3d *pNewNormals	= RpMorphTargetGetVertexNormals(pNewMorphTarget);
+        // assert(pNewNormals);
+        RwTexCoords* pNewUVs = RpGeometryGetVertexTexCoords(pNewGeometry, rwTEXTURECOORDINATEINDEX0);
+        assert(pNewUVs);
+
+        ::memcpy(pNewVertices, pOldVertices, numVerts * sizeof(RwV3d));
+        //::memcpy(pNewNormals,	pOldNormals,	numVerts*sizeof(RwV3d));
+        ::memcpy(pNewUVs, pOldUVs, numVerts * sizeof(RwTexCoords));
+    }
+
+    // copy triangles:
+    {
+        RpTriangle* pOldTriangles = RpGeometryGetTriangles(pOldGeometry);
+        assert(pOldTriangles);
+
+        RpTriangle* pNewTriangles = RpGeometryGetTriangles(pNewGeometry);
+        assert(pNewTriangles);
+
+        ::memcpy(pNewTriangles, pOldTriangles, numTris * sizeof(RpTriangle));
+
+        // clone materials:
+        RpTriangle* pOldTri = pOldTriangles;
+        RpTriangle* pNewTri = pNewTriangles;
+        for (int32 i = 0; i < numTris; ++i)
+        {
+            RpMaterial* pMat = RpGeometryTriangleGetMaterial(pOldGeometry, pOldTri);
+            RpGeometryTriangleSetMaterial(pNewGeometry, pNewTri, pMat);
+            pOldTri++;
+            pNewTri++;
+        }
+    }
+
+    // unlock new geometry:
+    RpGeometryUnlock(pNewGeometry);
+
+    uint32 flags = RpGeometryGetFlags(pNewGeometry);
+    flags |= rpGEOMETRYPOSITIONS;
+    RpGeometrySetFlags(pNewGeometry, flags);
+
+    // destroy old geometry and attach new one:
+    RpAtomicSetGeometry(pAtomic, pNewGeometry, rpATOMICSAMEBOUNDINGSPHERE);
+
+    return pAtomic;
 }
 
 // 0x5DD1E0 (do not hook! it has retarded calling conv)

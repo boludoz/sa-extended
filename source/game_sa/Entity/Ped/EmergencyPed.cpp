@@ -34,8 +34,8 @@ void CEmergencyPed::ProcessControl() {
 
 // 0x5DE470
 bool CEmergencyPed::InRange(CPed* ped) {
-    if (!m_pVehicle)
+    if (!m_pMyVehicle)
         return true;
 
-    return (m_pVehicle->GetPosition() - ped->GetPosition()).Magnitude() <= 30.0f;
+    return (m_pMyVehicle->GetPosition() - ped->GetPosition()).Magnitude() <= 30.0f;
 }

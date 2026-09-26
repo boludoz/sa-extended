@@ -6,7 +6,7 @@ void CDecision::InjectHooks() {
     RH_ScopedClass(CDecision);
     RH_ScopedCategory("DecisionMakers");
 
-    RH_ScopedInstall(SetDefault, 0x600530, { .reversed = false });
+    RH_ScopedInstall(SetDefault, 0x600530);
     RH_ScopedInstall(Set, 0x600570);
     //RH_ScopedInstall(Add, 0x600600, { .reversed = false });
     RH_ScopedInstall(From, 0x6006B0);
@@ -20,8 +20,23 @@ CDecision::CDecision() {
 }
 
 // 0x600530
-void CDecision::SetDefault() {
-    plugin::CallMethod<0x600530, CDecision*>(this);
+// ASM Match
+void CDecision::SetDefault()
+{
+    for (int32 i = 0; i < MAX_NUM_CHOICES; ++i)
+    {
+        m_tasks[i] = static_cast<eTaskType>(-1);
+
+        for (int32 j = 0; j < (int32)std::size(m_probs[0]); ++j)
+        {
+            m_probs[i][j] = 0.0f;
+        }
+
+        for (int32 j = 0; j < (int32)std::size(m_bools[0]); ++j)
+        {
+            m_bools[i][j] = false;
+        }
+    }
 }
 
 // 0x6006B0
@@ -30,13 +45,23 @@ void CDecision::From(const CDecision& rhs) {
 }
 
 // 0x600570
-void CDecision::Set(
-    notsa::mdarray<int32, MAX_NUM_CHOICES>&    tasks,
-    notsa::mdarray<float, MAX_NUM_CHOICES, 4>& probs,
-    notsa::mdarray<int32, MAX_NUM_CHOICES, 2>& bools,
-    notsa::mdarray<float, MAX_NUM_CHOICES, 6>& facialProbs
-) {
-    plugin::CallMethod<0x600570>(this, &tasks, &probs, &bools, &facialProbs);
+// ASM Match
+void CDecision::Set(notsa::mdarray<int32, MAX_NUM_CHOICES>& pTasks, notsa::mdarray<float, MAX_NUM_CHOICES, 4>& probs, notsa::mdarray<int32, MAX_NUM_CHOICES, 2>& bools, notsa::mdarray<float, MAX_NUM_CHOICES, 6>& facialProbs)
+{
+    for (int32 i = 0; i < MAX_NUM_CHOICES; ++i)
+    {
+        m_tasks[i] = static_cast<eTaskType>(pTasks[i]);
+
+        for (int32 j = 0; j < (int32)std::size(m_probs[0]); ++j)
+        {
+            m_probs[i][j] = static_cast<uint8>(probs[i][j]);
+        }
+
+        for (int32 j = 0; j < (int32)std::size(m_bools[0]); ++j)
+        {
+            m_bools[i][j] = (bools[i][j] != 0);
+        }
+    }
 }
 
 /*

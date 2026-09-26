@@ -87,7 +87,7 @@ void CGameLogic::DoWeaponStuffAtStartOf2PlayerGame(bool shareWeapons) {
     RestorePedsWeapons(player1);
 
     if (shareWeapons) {
-        for (auto& weapon : player1->m_aWeapons) {
+        for (auto& weapon : player1->m_WeaponSlots) {
             if (weapon.m_Type == WEAPON_UNARMED)
                 continue;
 
@@ -126,7 +126,7 @@ eLevelName CGameLogic::FindCityClosestToPoint(CVector2D point) {
 
 // 0x441240
 void CGameLogic::ForceDeathRestart() {
-    CWorld::Players[CWorld::PlayerInFocus].m_nPlayerState = PLAYERSTATE_HAS_DIED;
+    CWorld::Players[CWorld::PlayerInFocus].PlayerState = PLAYERSTATE_HAS_DIED;
     GameState = GAMELOGIC_STATE_WASTED;
     TimeOfLastEvent = CTimer::GetTimeInMS() - 3001;
     TheCamera.SetFadeColour(0, 0, 0);
@@ -302,7 +302,7 @@ void CGameLogic::Remove2ndPlayerIfPresent() {
     if (auto ped = FindPlayerPed(PED_TYPE_PLAYER2)) {
         CWorld::Remove(ped);
         delete ped;
-        CWorld::Players[PED_TYPE_PLAYER2].m_pPed = nullptr;
+        CWorld::Players[PED_TYPE_PLAYER2].pPed = nullptr;
 
         auto player1 = FindPlayerPed(PED_TYPE_PLAYER1);
         CClothes::RebuildPlayer(player1, false);
@@ -314,13 +314,13 @@ void CGameLogic::Remove2ndPlayerIfPresent() {
 // 0x442980
 void CGameLogic::ResetStuffUponResurrection() {
     auto& player = CWorld::Players[CWorld::PlayerInFocus];
-    auto playerPed = player.m_pPed;
+    auto playerPed = player.pPed;
 
     CMessages::ClearMessages(false);
     CCarCtrl::ClearInterestingVehicleList();
     CWorld::ClearExcitingStuffFromArea(player.GetPos(), 4000.0f, true);
     PassTime(12 * 60);
-    RestorePlayerStuffDuringResurrection(playerPed, playerPed->GetPosition(), playerPed->m_fCurrentRotation * RadiansToDegrees(1.0f));
+    RestorePlayerStuffDuringResurrection(playerPed, playerPed->GetPosition(), playerPed->m_fCurrentHeading * RadiansToDegrees(1.0f));
     SortOutStreamingAndMemory(playerPed->GetPosition(), playerPed->GetHeading());
     TheCamera.m_fCamShakeForce = 0.0f;
     TheCamera.SetMotionBlur(0, 0, 0, 0, eMotionBlurType::NONE);
@@ -338,7 +338,7 @@ void CGameLogic::ResetStuffUponResurrection() {
 // used in CGameLogic::DoWeaponStuffAtStartOf2PlayerGame
 // 0x441D00
 void CGameLogic::StorePedsWeapons(CPed* ped) {
-    rng::copy(ped->m_aWeapons, SavedWeapons.begin());
+    rng::copy(ped->m_WeaponSlots, SavedWeapons.begin());
 }
 
 // 0x441D30
@@ -363,9 +363,9 @@ void CGameLogic::RestorePlayerStuffDuringResurrection(CPlayerPed* player, CVecto
     auto playerData = player->GetPlayerData();
     auto playerInfo = player->GetPlayerInfoForThisPlayerPed();
 
-    player->physicalFlags.bRenderScorched = false;
+    player->m_nPhysicalFlags.bRenderScorched = false;
     player->m_fArmour = 0.0f;
-    player->m_fHealth = static_cast<float>(playerInfo->m_nMaxHealth);
+    player->m_fHealth = static_cast<float>(playerInfo->MaxHealth);
     player->SetIsVisible(true);
     player->m_nDeathTimeMS = 0;
     player->bDoBloodyFootprints = false;
@@ -381,10 +381,10 @@ void CGameLogic::RestorePlayerStuffDuringResurrection(CPlayerPed* player, CVecto
     }
     player->GetAE().TurnOffJetPack();
     player->bInVehicle = false;
-    if (auto vehicle = player->m_pVehicle) {
+    if (auto vehicle = player->m_pMyVehicle) {
         CEntity::CleanUpOldReference(vehicle);
     }
-    player->m_pVehicle = nullptr;
+    player->m_pMyVehicle = nullptr;
     player->GetWanted()->Reset();
     player->RestartNonPartialAnims();
     playerInfo->MakePlayerSafe(false, 10'000.0f);
@@ -395,8 +395,8 @@ void CGameLogic::RestorePlayerStuffDuringResurrection(CPlayerPed* player, CVecto
     CCarCtrl::ClearInterestingVehicleList();
 
     player->Teleport(posn + CVector{0.0f, 0.0f, 1.0f}, false);
-    player->m_fCurrentRotation = player->m_fAimingRotation = DegreesToRadians(playerStartHeading);
-    player->SetHeading(player->m_fCurrentRotation);
+    player->m_fCurrentHeading = player->m_fDesiredHeading = DegreesToRadians(playerStartHeading);
+    player->SetHeading(player->m_fCurrentHeading);
 
     CTheScripts::ClearSpaceForMissionEntity(posn, player);
     CWorld::ClearExcitingStuffFromArea(posn, 4000.0, 1);
@@ -577,16 +577,16 @@ void CGameLogic::Update() {
         return;
 
     auto& player1 = FindPlayerInfo(PED_TYPE_PLAYER1);
-    auto player1Ped = player1.m_pPed;
+    auto player1Ped = player1.pPed;
 
     const auto Process = [&] {
         const auto PunishPlayer = [&player1, player1Ped](int32 fee) {
-            player1.m_nMoney = std::max(player1.m_nMoney - fee, 0);
+            player1.Score = std::max(player1.Score - fee, 0);
             player1Ped->ClearWeapons();
         };
 
         const auto ResetForResurrectionAndFadeOut = [&player1, &player1Ped](CVector& restartPoint, float restartAngle, bool fadeOutNow) {
-            player1.m_nPlayerState = PLAYERSTATE_PLAYING;
+            player1.PlayerState = PLAYERSTATE_PLAYING;
             GameState = GAMELOGIC_STATE_PLAYING;
 
             if (auto vehicle = player1Ped->GetVehicleIfInOne()) {
@@ -615,7 +615,7 @@ void CGameLogic::Update() {
             }
             Remove2ndPlayerIfPresent();
             PassTime(12 * 60);
-            FindPlayerInfo().m_nNumHoursDidntEat = 0;
+            FindPlayerInfo().TimeLastEaten = 0;
             RestorePlayerStuffDuringResurrection(player1Ped, restartPoint, restartAngle);
             SortOutStreamingAndMemory(player1Ped->GetPosition(), player1Ped->GetHeading());
 
@@ -643,8 +643,8 @@ void CGameLogic::Update() {
         };
 
         for (auto& player : CWorld::Players) {
-            auto ped = player.m_pPed;
-            if (!ped || player.m_nPlayerState != PLAYERSTATE_PLAYING)
+            auto ped = player.pPed;
+            if (!ped || player.PlayerState != PLAYERSTATE_PLAYING)
                 continue;
 
             ped->GetTaskManager().GetSimplestActiveTask();
@@ -678,10 +678,10 @@ void CGameLogic::Update() {
                 break;
 
             if (!IsCoopGameGoingOn() && bPenaltyForDeathApplies) {
-                if (!player1.m_bFreeHealthCare) {
+                if (!player1.bFreeHealthCare) {
                     PunishPlayer(100);
                 } else {
-                    player1.m_bFreeHealthCare = false;
+                    player1.bFreeHealthCare = false;
                 }
             }
 
@@ -717,7 +717,7 @@ void CGameLogic::Update() {
                 break;
 
             if (!IsCoopGameGoingOn() && bPenaltyForArrestApplies) {
-                if (!player1.m_bGetOutOfJailFree) {
+                if (!player1.bGetOutOfJailFree) {
                     const auto fee = [&] {
                         switch (player1Ped->GetWantedLevel()) {
                         case eWantedLevel::WANTED_LEVEL_1: return 100;
@@ -731,7 +731,7 @@ void CGameLogic::Update() {
                     }();
                     PunishPlayer(fee);
                 } else {
-                    player1.m_bGetOutOfJailFree = false;
+                    player1.bGetOutOfJailFree = false;
                 }
             }
 

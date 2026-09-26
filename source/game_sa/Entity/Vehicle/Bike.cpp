@@ -83,9 +83,9 @@ CBike::CBike(int32 modelIndex, eVehicleCreatedBy createdBy) :
     auto mi = static_cast<CVehicleModelInfo*>(CModelInfo::GetModelInfo(modelIndex)->AsVehicleModelInfoPtr());
     if (mi->GetVehicleClass() == VEHICLE_TYPE_BIKE) {
         const auto& animationStyle = CAnimManager::GetAnimBlocks()[mi->GetAnimFileIndex()].GroupId;
-        m_RideAnimData.AnimGroup   = animationStyle;
+        RideAnimData.AnimGroup   = animationStyle;
         if (animationStyle < ANIM_GROUP_BIKES || animationStyle > ANIM_GROUP_WAYFARER) {
-            m_RideAnimData.AnimGroup = ANIM_GROUP_BIKES;
+            RideAnimData.AnimGroup = ANIM_GROUP_BIKES;
         }
     }
 
@@ -93,15 +93,15 @@ CBike::CBike(int32 modelIndex, eVehicleCreatedBy createdBy) :
     m_baseVehicleType = VEHICLE_TYPE_BIKE;
 
     m_BlowUpTimer     = 0.0f;
-    m_nBrakesOn       = false;
+    nBrakesOn       = false;
     nBikeFlags        = 0;
     SetModelIndex(modelIndex);
 
     m_pHandlingData          = gHandlingDataMgr.GetVehiclePointer(mi->m_nHandlingId);
-    m_BikeHandling           = gHandlingDataMgr.GetBikeHandlingPointer(mi->m_nHandlingId);
+    pBikeHandling           = gHandlingDataMgr.GetBikeHandlingPointer(mi->m_nHandlingId);
     m_nHandlingFlagsIntValue = m_pHandlingData->m_nHandlingFlags;
     m_pFlyingHandlingData    = gHandlingDataMgr.GetFlyingPointer(static_cast<uint8>(mi->m_nHandlingId));
-    m_fBrakeCount            = 20.0f;
+    fBrakeCount            = 20.0f;
     mi->ChooseVehicleColour(m_nPrimaryColor, m_nSecondaryColor, m_nTertiaryColor, m_nQuaternaryColor, 1);
     m_fSwingArmLength       = 0.0f;
     m_fForkYOffset          = 0.0f;
@@ -119,39 +119,39 @@ CBike::CBike(int32 modelIndex, eVehicleCreatedBy createdBy) :
     m_fSteerAngle           = 0.0f;
     m_GasPedal              = 0.0f;
     m_BrakePedal            = 0.0f;
-    m_Damager               = nullptr;
+    pEntityThatSetUsOnFire               = nullptr;
     m_pWhoInstalledBombOnMe = nullptr;
-    m_GasPedalAudioRevs     = 0.0f;
+    m_fGasPedalAudioRevs     = 0.0f;
     m_fTyreTemp             = 1.0f;
     m_fBrakingSlide         = 0.0f;
-    m_PrevSpeed             = 0.0f;
+    fPrevSpeed             = 0.0f;
 
     for (auto i = 0; i < 2; ++i) {
         m_nWheelStatus[i]            = 0;
         m_aWheelSkidmarkType[i]      = eSkidmarkType::DEFAULT;
-        m_bWheelBloody[i]            = false;
-        m_bMoreSkidMarks[i]          = false;
+        bWheelBloody[i]            = false;
+        bMoreSkidMarks[i]          = false;
         m_aWheelPitchAngles[i]       = 0.0f;
         m_aWheelAngularVelocity[i]   = 0.0f;
         m_aWheelSuspensionHeights[i] = 0.0f;
         m_aWheelOrigHeights[i]       = 0.0f;
-        m_WheelStates[i]             = WHEEL_STATE_NORMAL;
+        m_aWheelState[i]             = WHEEL_STATE_NORMAL;
     }
 
     for (auto i = 0; i < 4; ++i) {
         m_aWheelColPoints[i]     = {};
         m_aWheelRatios[i]        = 1.0f;
         m_aRatioHistory[i]       = 0.0f;
-        m_WheelCounts[i]         = 0.0f;
+        m_aWheelCounts[i]         = 0.0f;
         m_fSuspensionLength[i]   = 0.0f;
         m_fLineLength[i]         = 0.0f;
         m_aGroundPhysicalPtrs[i] = nullptr;
         m_aGroundOffsets[i]      = CVector{};
     }
 
-    m_nNoOfContactWheels              = 0;
-    m_NumDriveWheelsOnGround          = 0;
-    m_NumDriveWheelsOnGroundLastFrame = 0;
+    nNoOfContactWheels              = 0;
+    m_nDriveWheelsOnGround          = 0;
+    m_nDriveWheelsOnGroundLastFrame = 0;
     m_fHeightAboveRoad                = 0.0f;
     m_fExtraTractionMult              = 1.0f;
 
@@ -173,8 +173,8 @@ CBike::CBike(int32 modelIndex, eVehicleCreatedBy createdBy) :
     vehicleFlags.bIsBig      = false;
     vehicleFlags.bIsVan      = false;
 
-    m_bLeanMatrixCalculated  = false;
-    m_mLeanMatrix            = *m_matrix;
+    m_bLeanMatrix  = false;
+    m_LeanMatrix            = *m_matrix;
     m_vecOldSpeedForPlayback = CVector{};
     m_vehicleAudio.Initialise(this);
 }
@@ -300,8 +300,8 @@ void CBike::SetRemoveAnimFlags(CPed* ped) {
 
 // 0x6B5F90
 void CBike::ReduceHornCounter() {
-    if (m_HornCounter) {
-        m_HornCounter -= 1;
+    if (m_cHorn) {
+        m_cHorn -= 1;
     }
 }
 
@@ -311,12 +311,12 @@ void CBike::ProcessBuoyancy() {
     CVector vecBuoyancyForce;
     if (!mod_Buoyancy.ProcessBuoyancy(this, m_fBuoyancyConstant, &vecBuoyancyTurnPoint, &vecBuoyancyForce)) {
         vehicleFlags.bIsDrowning        = false;
-        physicalFlags.bSubmergedInWater = false;
-        physicalFlags.bTouchingWater    = false;
+        m_nPhysicalFlags.bIsInWater = false;
+        m_nPhysicalFlags.bForceFullWaterCheck    = false;
         return;
     }
 
-    physicalFlags.bTouchingWater = true;
+    m_nPhysicalFlags.bForceFullWaterCheck = true;
     ApplyMoveForce(vecBuoyancyForce);
     ApplyTurnForce(vecBuoyancyForce, vecBuoyancyTurnPoint);
 
@@ -328,7 +328,7 @@ void CBike::ProcessBuoyancy() {
         fBuoyancyForceZ *= 1.05F * fUsedMass / m_fBuoyancyConstant;
     }
 
-    if (physicalFlags.bMakeMassTwiceAsBig) {
+    if (m_nPhysicalFlags.bExtraHeavy) {
         fBuoyancyForceZ *= 1.5F;
     }
 
@@ -340,7 +340,7 @@ void CBike::ProcessBuoyancy() {
     // 0x6B6443
     if (fBuoyancyForceZ > 0.8F || (fBuoyancyForceZ > 0.4F && IsAnyWheelNotMakingContactWithGround())) {
         vehicleFlags.bIsDrowning        = true;
-        physicalFlags.bSubmergedInWater = true;
+        m_nPhysicalFlags.bIsInWater = true;
 
         m_vecMoveSpeed.z                = std::max(-0.1F, m_vecMoveSpeed.z);
 
@@ -355,7 +355,7 @@ void CBike::ProcessBuoyancy() {
         }
     } else {
         vehicleFlags.bIsDrowning        = false;
-        physicalFlags.bSubmergedInWater = false;
+        m_nPhysicalFlags.bIsInWater = false;
     }
 }
 
@@ -364,8 +364,8 @@ inline void CBike::ProcessPedInVehicleBuoyancy(CPed* ped, bool bIsDriver) {
         return;
     }
 
-    ped->physicalFlags.bTouchingWater = true;
-    if (!ped->IsPlayer() && bikeFlags.bWaterTight) {
+    ped->m_nPhysicalFlags.bForceFullWaterCheck = true;
+    if (!ped->IsPlayer() && m_nBikeFlags.bWaterTight) {
         return;
     }
 
@@ -399,12 +399,12 @@ void CBike::ResetSuspension() {
     int32 i;
     for (i = 0; i < 2; i++) {
         m_aWheelAngularVelocity[i] = 0.0f;
-        m_WheelStates[i]           = WHEEL_STATE_NORMAL;
+        m_aWheelState[i]           = WHEEL_STATE_NORMAL;
     }
 
     for (i = 0; i < 4; i++) {
         m_aWheelRatios[i] = 1.0f;
-        m_WheelCounts[i]  = 0.0f;
+        m_aWheelCounts[i]  = 0.0f;
     }
 }
 
@@ -429,17 +429,17 @@ bool CBike::ProcessAI(uint32& nProcContFlags) // ASM Checked 100 % + fixbugs
 
         case STATUS_PLAYER:
             nProcContFlags += 2;
-            bikeFlags.bGettingPickedUp = false;
+            m_nBikeFlags.bGettingPickedUp = false;
 
             if (FindPlayerPed(-1)->GetPedState() != PEDSTATE_EXIT_CAR && FindPlayerPed(-1)->GetPedState() != PEDSTATE_DRAGGED_FROM_CAR)
             {
                 if (m_pDriver)
                 {
-                    if (CWorld::Players[0].m_pPed == m_pDriver)
+                    if (CWorld::Players[0].pPed == m_pDriver)
                     {
                         ProcessControlInputs(0);
                     }
-                    else if (CWorld::Players[1].m_pPed == m_pDriver)
+                    else if (CWorld::Players[1].pPed == m_pDriver)
                     {
                         ProcessControlInputs(1);
                     }
@@ -447,14 +447,14 @@ bool CBike::ProcessAI(uint32& nProcContFlags) // ASM Checked 100 % + fixbugs
 
                 float fLeanForce;
 
-                if (m_RideAnimData.LeanFwd < 0.0f)
+                if (RideAnimData.LeanFwd < 0.0f)
                 {
-                    m_vecCentreOfMass.y = m_pHandlingData->m_vecCentreOfMass.y + m_RideAnimData.LeanFwd * m_BikeHandling->m_fLeanBakCOM;
+                    m_vecCentreOfMass.y = m_pHandlingData->m_vecCentreOfMass.y + RideAnimData.LeanFwd * pBikeHandling->m_fLeanBakCOM;
 
-                    if ((GetBrakePedal() == 0.0f && !GetIsHandbrakeOn()) || !m_nNoOfContactWheels)
+                    if ((GetBrakePedal() == 0.0f && !GetIsHandbrakeOn()) || !nNoOfContactWheels)
                     {
                         float fMoveSpeedMult = std::min(BIKE_BALANCE_MOVESPEED_CAP, m_vecMoveSpeed.Magnitude());
-                        fLeanForce = (std::max(fMoveSpeedMult / BIKE_BALANCE_MOVESPEED_CAP, GetGasPedal()) + GetGasPedal()) * (m_BikeHandling->m_fLeanBakForce * m_fTurnMass * m_RideAnimData.LeanFwd * fMoveSpeedMult) * 0.5f;
+                        fLeanForce = (std::max(fMoveSpeedMult / BIKE_BALANCE_MOVESPEED_CAP, GetGasPedal()) + GetGasPedal()) * (pBikeHandling->m_fLeanBakForce * m_fTurnMass * RideAnimData.LeanFwd * fMoveSpeedMult) * 0.5f;
                         fLeanForce *= CStats::GetFatAndMuscleModifier(STAT_MOD_11);
 
                         ApplyTurnForce(-(CTimer::GetTimeStep() * fLeanForce) * GetUp(), m_vecCentreOfMass + GetForward());
@@ -462,12 +462,12 @@ bool CBike::ProcessAI(uint32& nProcContFlags) // ASM Checked 100 % + fixbugs
                 }
                 else
                 {
-                    m_vecCentreOfMass.y = m_pHandlingData->m_vecCentreOfMass.y + m_RideAnimData.LeanFwd * m_BikeHandling->m_fLeanFwdCOM;
+                    m_vecCentreOfMass.y = m_pHandlingData->m_vecCentreOfMass.y + RideAnimData.LeanFwd * pBikeHandling->m_fLeanFwdCOM;
 
-                    if (GetBrakePedal() < 0.0f || !m_nNoOfContactWheels)
+                    if (GetBrakePedal() < 0.0f || !nNoOfContactWheels)
                     {
                         float fMoveSpeedMult = std::min(BIKE_BALANCE_MOVESPEED_CAP, m_vecMoveSpeed.Magnitude());
-                        fLeanForce = (std::max(fMoveSpeedMult / BIKE_BALANCE_MOVESPEED_CAP, GetBrakePedal()) + GetBrakePedal()) * (m_BikeHandling->m_fLeanFwdForce * m_fTurnMass * m_RideAnimData.LeanFwd * fMoveSpeedMult) * 0.5f;
+                        fLeanForce = (std::max(fMoveSpeedMult / BIKE_BALANCE_MOVESPEED_CAP, GetBrakePedal()) + GetBrakePedal()) * (pBikeHandling->m_fLeanFwdForce * m_fTurnMass * RideAnimData.LeanFwd * fMoveSpeedMult) * 0.5f;
                         fLeanForce *= CStats::GetFatAndMuscleModifier(STAT_MOD_11);
 
                         ApplyTurnForce(-(CTimer::GetTimeStep() * fLeanForce) * GetUp(), m_vecCentreOfMass + GetForward());
@@ -494,9 +494,9 @@ bool CBike::ProcessAI(uint32& nProcContFlags) // ASM Checked 100 % + fixbugs
             CCarAI::UpdateCarAI(this);
             CPhysical::ProcessControl();
             CCarCtrl::UpdateCarOnRails(this);
-            m_NumDriveWheelsOnGroundLastFrame = m_NumDriveWheelsOnGround;
-            m_nNoOfContactWheels = 2;
-            m_NumDriveWheelsOnGround = 2;
+            m_nDriveWheelsOnGroundLastFrame = m_nDriveWheelsOnGround;
+            nNoOfContactWheels = 2;
+            m_nDriveWheelsOnGround = 2;
 
             m_pHandlingData->m_transmissionData.CalculateGearForSimpleCar(m_autoPilot.ActualSpeed * (1.0f / 50.0f), m_nCurrentGear);
 
@@ -508,7 +508,7 @@ bool CBike::ProcessAI(uint32& nProcContFlags) // ASM Checked 100 % + fixbugs
 
             vehicleFlags.bVehicleColProcessed = false;
             vehicleFlags.bAudioChangingGear = false;
-            bikeFlags.bWheelieForCamera = false;
+            m_nBikeFlags.bWheelieForCamera = false;
             break;
         case STATUS_PHYSICS:
         case STATUS_GHOST:
@@ -518,7 +518,7 @@ bool CBike::ProcessAI(uint32& nProcContFlags) // ASM Checked 100 % + fixbugs
             PlayHornIfNecessary();
 
             nProcContFlags += 2;
-            bikeFlags.bWheelieForCamera = false;
+            m_nBikeFlags.bWheelieForCamera = false;
 
             if (vehicleFlags.bIsBeingCarJacked)
             {
@@ -528,13 +528,13 @@ bool CBike::ProcessAI(uint32& nProcContFlags) // ASM Checked 100 % + fixbugs
             }
             else
             {
-                bikeFlags.bGettingPickedUp = false;
+                m_nBikeFlags.bGettingPickedUp = false;
             }
             break;
         case STATUS_ABANDONED:
             SetBrakePedal(0.0f);
 
-            if (m_vecMoveSpeed.SquaredMagnitude() < 0.01f || bikeFlags.bOnSideStand)
+            if (m_vecMoveSpeed.SquaredMagnitude() < 0.01f || m_nBikeFlags.bOnSideStand)
             {
                 SetIsHandbrakeOn(true);
             }
@@ -548,17 +548,17 @@ bool CBike::ProcessAI(uint32& nProcContFlags) // ASM Checked 100 % + fixbugs
             if (!IsAlarmActivated())
 #endif
             {
-                m_HornCounter = 0;
+                m_cHorn = 0;
             }
 
-            if ((m_pDriver || m_apPassengers[0] || vehicleFlags.bIsBeingCarJacked) && !bikeFlags.bOnSideStand)
+            if ((m_pDriver || m_apPassengers[0] || vehicleFlags.bIsBeingCarJacked) && !m_nBikeFlags.bOnSideStand)
             {
                 nProcContFlags += 2;
             }
 
-            m_RideAnimData.AnimLeanLeft = 0.0f;
-            m_RideAnimData.AnimLeanFwd = 0.0f;
-            bikeFlags.bWheelieForCamera = false;
+            RideAnimData.AnimLeanLeft = 0.0f;
+            RideAnimData.AnimLeanFwd = 0.0f;
+            m_nBikeFlags.bWheelieForCamera = false;
 
             if (vehicleFlags.bIsBeingCarJacked)
             {
@@ -585,10 +585,10 @@ bool CBike::ProcessAI(uint32& nProcContFlags) // ASM Checked 100 % + fixbugs
             if (!IsAlarmActivated())
 #endif
             {
-                m_HornCounter = 0;
+                m_cHorn = 0;
             }
             nProcContFlags += 2;
-            bikeFlags.bWheelieForCamera = false;
+            m_nBikeFlags.bWheelieForCamera = false;
             return true;
         case STATUS_WRECKED:
             SetBrakePedal(0.05f);
@@ -599,11 +599,11 @@ bool CBike::ProcessAI(uint32& nProcContFlags) // ASM Checked 100 % + fixbugs
             if (!IsAlarmActivated())
 #endif
             {
-                m_HornCounter = 0;
+                m_cHorn = 0;
             }
-            bikeFlags.bWheelieForCamera = false;
-            m_RideAnimData.AnimLeanLeft = 0.0f;
-            m_RideAnimData.AnimLeanFwd = 0.0f;
+            m_nBikeFlags.bWheelieForCamera = false;
+            RideAnimData.AnimLeanLeft = 0.0f;
+            RideAnimData.AnimLeanFwd = 0.0f;
             break;
         default:
             break;
@@ -617,7 +617,7 @@ void CBike::ProcessDrivingAnims(CPed* driver, bool blend) {
         return;
     }
 
-    ProcessRiderAnims(driver, this, &m_RideAnimData, m_BikeHandling, 0);
+    ProcessRiderAnims(driver, this, &RideAnimData, pBikeHandling, 0);
 }
 
 constexpr float PED_BIKE_FOOTDOWN_SPEED   = 0.02f;
@@ -640,10 +640,10 @@ void CBike::ProcessRiderAnims(CPed* rider, CVehicle* vehicle, CRideAnimData* rid
     CAutomobile* car                = nullptr;
     int16        nNumWheelsOnGround = 0;
 
-    if (vehicle->IsBike()) {
+    if (vehicle->GetBaseVehicleType() == 9) {
         bike               = vehicle->AsBike();
-        nNumWheelsOnGround = bike->m_nNoOfContactWheels;
-    } else if (vehicle->IsAutomobile()) {
+        nNumWheelsOnGround = bike->nNoOfContactWheels;
+    } else if (vehicle->GetBaseVehicleType() == 0) {
         car                = vehicle->AsAutomobile();
         nNumWheelsOnGround = car->m_nNumContactWheels;
     }
@@ -672,8 +672,8 @@ void CBike::ProcessRiderAnims(CPed* rider, CVehicle* vehicle, CRideAnimData* rid
     }
 
     fForwardSpeed = DotProduct(vehicle->m_vecMoveSpeed, vehicle->GetForward());
-    if (vehicle->IsBike() && (pAnimWalkBack || pAnimDriveBy)) {
-        bike->bikeFlags.bWheelieForCamera = false;
+    if (vehicle->GetVehicleType() == VEHICLE_TYPE_BMX && (pAnimWalkBack || pAnimDriveBy)) {
+        reinterpret_cast<CBike*>(vehicle)->m_nFixRightHand = 0;
     }
 
     float fMaxSpinSpeed = (rider->GetBikeRidingSkill() + 1.0f) * (float)PED_BIKE_SPINFALL_SPEED;
@@ -703,12 +703,12 @@ void CBike::ProcessRiderAnims(CPed* rider, CVehicle* vehicle, CRideAnimData* rid
                     CEventKnockOffBike passEvent(vehicle, vehicle->m_vecMoveSpeed, CVector(0.0f, 0.0f, 1.0f), 0.0f, 0.0f, KNOCK_OFF_TYPE_FALL, 2, 0, nullptr, false, false);
                     vehicle->m_apPassengers[0]->GetEventGroup().Add(&passEvent, false);
                 }
-            } else if (vehicle->GetGasPedal() < 0.0f && fForwardSpeed > vehicle->m_pHandlingData->m_transmissionData.m_MaxReverseVelocity * 1.5f) {
+            } else if (vehicle->GetGasPedal() < 0.0f && fForwardSpeed > vehicle->m_pHandlingData->m_transmissionData.m_MaxReverseVelocity * 1.5) {
                 if (!pAnimWalkBack || (pAnimWalkBack->GetBlendAmount() < 1.0f && pAnimWalkBack->GetBlendDelta() <= 0.0f)) {
                     pAnimWalkBack = CAnimManager::BlendAnimation(rider->GetRpClump(), rideData->AnimGroup, ANIM_ID_BIKE_PUSHES, 4.0f);
                 }
             } else {
-                if (bIsPlayer && fForwardSpeed < vehicle->m_pHandlingData->m_transmissionData.m_MaxReverseVelocity * 1.5f) {
+                if (bIsPlayer && fForwardSpeed < vehicle->m_pHandlingData->m_transmissionData.m_MaxReverseVelocity * 1.5) {
                     fReqLeanFwd = -1.0f;
                 }
                 if (pAnimStop && pAnimStop->GetBlendDelta() >= 0.0f) {
@@ -754,22 +754,22 @@ void CBike::ProcessRiderAnims(CPed* rider, CVehicle* vehicle, CRideAnimData* rid
         if (fReqLeanFwd > -1.0f) {
             fReqLeanFwd = rideData->LeanFwd;
             if (bike) {
-                bike->bikeFlags.bWheelieForCamera = false;
+                bike->m_nBikeFlags.bWheelieForCamera = false;
                 if (bike->m_aWheelRatios[0] > 0.0f || bike->m_aWheelRatios[1] > 0.0f || bike->GetUp().z <= 0.0f || (bike->m_aWheelColPoints[0].m_nSurfaceTypeB <= 0 && bike->m_aWheelColPoints[1].m_nSurfaceTypeB <= 0)) {
                     if (bike->m_aWheelColPoints[0].m_nSurfaceTypeB <= 0 && bike->m_aWheelColPoints[1].m_nSurfaceTypeB <= 0) {
                         float fStoppieAngle = bike->GetUp().z;
                         if (fStoppieAngle < 0.0f && (bike->m_aWheelRatios[0] > 0.0f || bike->m_aWheelRatios[1] > 0.0f) && (handling->m_fStoppieAng - fStoppieAngle) > (handling->m_fStoppieAng * 0.6f)) {
-                            bike->bikeFlags.bWheelieForCamera = true;
+                            bike->m_nBikeFlags.bWheelieForCamera = true;
                         }
                     }
                 } else {
                     float fWheelieAngle = handling->m_fWheelieAng - bike->GetUp().z;
                     if (fWheelieAngle < (handling->m_fWheelieAng * 0.5f)) {
-                        bike->bikeFlags.bWheelieForCamera = true;
+                        bike->m_nBikeFlags.bWheelieForCamera = true;
                     }
                 }
             } else if (car) {
-                if (car->m_fWheelsSuspensionCompression[0] <= 0.0f && car->m_fWheelsSuspensionCompression[1] <= 0.0f && car->GetUp().z > 0.0f && (car->m_wheelColPoint[0].m_nSurfaceTypeB > 0 || car->m_wheelColPoint[1].m_nSurfaceTypeB > 0)) {
+                if (car->m_aWheelRatios[0] <= 0.0f && car->m_aWheelRatios[1] <= 0.0f && car->GetUp().z > 0.0f && (car->m_aWheelColPoints[0].m_nSurfaceTypeB > 0 || car->m_aWheelColPoints[1].m_nSurfaceTypeB > 0)) {
                     float fWheelieAngle = handling->m_fWheelieAng - car->GetUp().z;
                     if (fWheelieAngle < 0.15f) {
                         fReqLeanFwd = std::max<float>(fReqLeanFwd, (float)PED_BIKE_WHEELIELEANFWD);
@@ -793,7 +793,7 @@ void CBike::ProcessRiderAnims(CPed* rider, CVehicle* vehicle, CRideAnimData* rid
         }
     } else {
         if (bike) {
-            bike->bikeFlags.bWheelieForCamera = false;
+            bike->m_nBikeFlags.bWheelieForCamera = false;
         }
         fReqLeanFwd = 0.0f;
     }
@@ -867,11 +867,11 @@ void CBike::ProcessRiderAnims(CPed* rider, CVehicle* vehicle, CRideAnimData* rid
         pAnimRight->SetBlendAmount(0.0f);
     }
 
-    if (fForwardSpeed > (float)PED_BIKE_SPINFALL_SPEED) {
+    if (fForwardSpeed > 0.3f) {
         if (rider->m_apBones[PED_NODE_HEAD] && rider->m_apBones[PED_NODE_HEAD]->KeyFrame) {
             RtQuat* q = &rider->m_apBones[PED_NODE_HEAD]->KeyFrame->q;
-            RtQuatRotate(q, &CPedIK::XaxisIK, CGeneral::GetRandomNumberInRange(fForwardSpeed * -(float)PED_BIKE_HEAD_WOBBLE, fForwardSpeed * (float)PED_BIKE_HEAD_WOBBLE), rwCOMBINEPRECONCAT);
-            RtQuatRotate(q, &CPedIK::YaxisIK, CGeneral::GetRandomNumberInRange(fForwardSpeed * -(float)PED_BIKE_HEAD_WOBBLE, fForwardSpeed * (float)PED_BIKE_HEAD_WOBBLE), rwCOMBINEPRECONCAT);
+            RtQuatRotate(q, &CPedIK::XaxisIK, CGeneral::GetRandomNumberInRange(fForwardSpeed * -(float)PED_BIKE_HEAD_WOBBLE, fForwardSpeed * (float)PED_BIKE_HEAD_WOBBLE), rwCOMBINEPOSTCONCAT);
+            RtQuatRotate(q, &CPedIK::YaxisIK, CGeneral::GetRandomNumberInRange(fForwardSpeed * -(float)PED_BIKE_HEAD_WOBBLE, fForwardSpeed * (float)PED_BIKE_HEAD_WOBBLE), rwCOMBINEPOSTCONCAT);
             rider->bUpdateMatricesRequired = true;
         }
     }
@@ -883,7 +883,7 @@ constexpr float fBikeBurstFallSpeedPlayer = 0.55f;
 
 // 0x6BEB20
 bool CBike::BurstTyre(uint8 tyreComponentId, bool bPhysicalEffect) {
-    if (vehicleFlags.bTyresDontBurst || physicalFlags.bRenderScorched) {
+    if (vehicleFlags.bTyresDontBurst || m_nPhysicalFlags.bRenderScorched) {
         return false;
     }
 
@@ -972,28 +972,28 @@ void CBike::ProcessControlInputs(uint8 playerNum) {
             if (pad->GetSteeringLeftRight() != 0 || pad->GetSteeringUpDown() != 0 || m_nLastControlInput != eControllerType::MOUSE) {
                 m_nLastControlInput = eControllerType::JOY_STICK;
                 m_fRawSteerAngle += (((float)-pad->GetSteeringLeftRight() * (1.0f / 128.0f)) - m_fRawSteerAngle) * CTimer::GetTimeStep() * BIKE_STEER_SMOOTH_RATE;
-                m_RideAnimData.LeanFwd += (((float)-pad->GetSteeringUpDown() * (1.0f / 128.0f)) - m_RideAnimData.LeanFwd) * CTimer::GetTimeStep() * 0.2f;
+                RideAnimData.LeanFwd += (((float)-pad->GetSteeringUpDown() * (1.0f / 128.0f)) - RideAnimData.LeanFwd) * CTimer::GetTimeStep() * 0.2f;
             }
         } else {
             m_nLastControlInput = eControllerType::MOUSE;
             if (!pad->NewState.m_bVehicleMouseLook) {
                 m_fRawSteerAngle += CPad::NewMouseControllerState.m_AmountMoved.x * BIKE_MOUSE_STEER_SENS;
-                m_RideAnimData.LeanFwd += CPad::NewMouseControllerState.m_AmountMoved.y * BIKE_MOUSE_STEER_SENS;
+                RideAnimData.LeanFwd += CPad::NewMouseControllerState.m_AmountMoved.y * BIKE_MOUSE_STEER_SENS;
             }
             if (std::abs(m_fRawSteerAngle) < BIKE_MOUSE_CENTRE_RANGE || pad->NewState.m_bVehicleMouseLook) {
                 m_fRawSteerAngle *= std::pow(BIKE_MOUSE_CENTRE_MULT, CTimer::GetTimeStep());
             }
-            if (std::abs(m_RideAnimData.LeanFwd) < BIKE_MOUSE_CENTRE_RANGE || pad->NewState.m_bVehicleMouseLook) {
-                m_RideAnimData.LeanFwd *= std::pow(BIKE_MOUSE_CENTRE_MULT, CTimer::GetTimeStep());
+            if (std::abs(RideAnimData.LeanFwd) < BIKE_MOUSE_CENTRE_RANGE || pad->NewState.m_bVehicleMouseLook) {
+                RideAnimData.LeanFwd *= std::pow(BIKE_MOUSE_CENTRE_MULT, CTimer::GetTimeStep());
             }
         }
     } else {
         m_fRawSteerAngle += (((float)-pad->GetSteeringLeftRight() * (1.0f / 128.0f)) - m_fRawSteerAngle) * CTimer::GetTimeStep() * BIKE_STEER_SMOOTH_RATE;
-        m_RideAnimData.LeanFwd += (((float)-pad->GetSteeringUpDown() * (1.0f / 128.0f)) - m_RideAnimData.LeanFwd) * CTimer::GetTimeStep() * 0.2f;
+        RideAnimData.LeanFwd += (((float)-pad->GetSteeringUpDown() * (1.0f / 128.0f)) - RideAnimData.LeanFwd) * CTimer::GetTimeStep() * 0.2f;
     }
 
     m_fRawSteerAngle       = std::clamp(m_fRawSteerAngle, -1.0f, 1.0f);
-    m_RideAnimData.LeanFwd = std::clamp(m_RideAnimData.LeanFwd, -1.0f, 1.0f);
+    RideAnimData.LeanFwd = std::clamp(RideAnimData.LeanFwd, -1.0f, 1.0f);
 
     const float fPedal     = (float(pad->GetAccelerate()) - float(pad->GetBrake())) * (1.0f / 255.0f);
 
@@ -1001,7 +1001,7 @@ void CBike::ProcessControlInputs(uint8 playerNum) {
         if (pad->GetAccelerate() > 150 && pad->GetBrake() > 150 && GetVehicleType() != VEHICLE_TYPE_BMX) {
             m_GasPedal   = float(pad->GetAccelerate()) * (1.0f / 255.0f);
             m_BrakePedal = float(pad->GetBrake()) * (1.0f / 255.0f);
-            m_nBrakesOn  = 1;
+            nBrakesOn  = 1;
         } else {
             m_GasPedal   = fPedal;
             m_BrakePedal = 0.0f;
@@ -1079,7 +1079,7 @@ int32 CBike::ProcessEntityCollision(CEntity* entity, CColPoint* outColPoints) {
     }
 #endif
 
-    if (physicalFlags.bSkipLineCol || physicalFlags.bProcessingShift || entity->GetIsTypePed()) {
+    if (m_nPhysicalFlags.bSkipLineCol || m_nPhysicalFlags.bHalfSpeedCollision || entity->GetIsTypePed()) {
         tcd->m_nNumLines = 0; // Later reset back to original value
     }
 
@@ -1165,7 +1165,7 @@ int32 CBike::ProcessEntityCollision(CEntity* entity, CColPoint* outColPoints) {
         }
         if (numColPts > 0) {
             if (entity->GetIsTypeBuilding()
-                || (entity->GetIsTypeObject() && entity->AsPhysical()->physicalFlags.bDisableCollisionForce)) {
+                || (entity->GetIsTypeObject() && entity->AsPhysical()->m_nPhysicalFlags.bInfiniteMass)) {
                 SetHasHitWall(true);
             }
         }
@@ -1176,7 +1176,7 @@ int32 CBike::ProcessEntityCollision(CEntity* entity, CColPoint* outColPoints) {
 
 // 0x6B6790
 bool CBike::GetAllWheelsOffGround() const {
-    return m_nNoOfContactWheels == 0;
+    return nNoOfContactWheels == 0;
 }
 
 // 0x6B67A0
@@ -1226,18 +1226,18 @@ void CBike::PlayHornIfNecessary() {
 
 // 0x6B7150
 void CBike::CalculateLeanMatrix() {
-    if (m_bLeanMatrixCalculated) {
+    if (m_bLeanMatrix) {
         return;
     }
 
     CMatrix mat;
-    mat.SetRotateX(fabs(m_RideAnimData.LeanAngle) * -0.05f);
-    mat.RotateY(m_RideAnimData.LeanAngle);
-    m_mLeanMatrix = GetMatrix();
-    m_mLeanMatrix = m_mLeanMatrix * mat;
+    mat.SetRotateX(fabs(RideAnimData.LeanAngle) * -0.05f);
+    mat.RotateY(RideAnimData.LeanAngle);
+    m_LeanMatrix = GetMatrix();
+    m_LeanMatrix = m_LeanMatrix * mat;
     // place wheel back on ground
-    m_mLeanMatrix.GetPosition() += GetUp() * (1.0f - cos(m_RideAnimData.LeanAngle)) * GetColModel()->GetBoundingBox().m_vecMin.z;
-    m_bLeanMatrixCalculated = true;
+    m_LeanMatrix.GetPosition() += GetUp() * (1.0f - cos(RideAnimData.LeanAngle)) * GetColModel()->GetBoundingBox().m_vecMin.z;
+    m_bLeanMatrix = true;
 }
 
 CVector vecBmxHandleBarPos(0.25f, 0.29f, 0.525f);
@@ -1281,7 +1281,7 @@ void CBike::FixHandsToBars(CPed* rider) {
         auto* pMatrix = &RpHAnimHierarchyGetMatrixArray(pHierarchy)[nBone];
         CMatrix matHand(pMatrix, false);
         CVector in = matHand.TransformVector(vecTweakHandleBarPos2);
-        point += vehMatrix.TransformVector(in);
+        point += vehMatrix.InverseTransformVector(in);
     }
 
     // Mano Derecha
@@ -1439,10 +1439,10 @@ void CBike::BlowUpCar(CEntity* damager, bool bHideExplosion) {
     if (vehicleFlags.bCanBeDamaged) {
         m_vecMoveSpeed.z += 0.13f;
         SetStatus(STATUS_WRECKED);
-        physicalFlags.bRenderScorched = true;
+        m_nPhysicalFlags.bRenderScorched = true;
         CVisibilityPlugins::SetClumpForAllAtomicsFlag(GetRpClump(), (int32)eAtomicComponentFlag::ATOMIC_PIPE_NO_EXTRA_PASSES);
         m_fHealth          = 0.0f;
-        m_DelayedExplosion = 0;
+        DelayedExplosion = 0;
         TheCamera.CamShake(0.4f, GetPosition());
         KillPedsInVehicle();
         m_nOverrideLights      = eVehicleOverrideLightsState::NO_CAR_LIGHT_OVERRIDE;
@@ -1457,7 +1457,7 @@ void CBike::BlowUpCar(CEntity* damager, bool bHideExplosion) {
 // 0x6B7050
 void CBike::Fix() {
     vehicleFlags.bIsDamaged = false;
-    bikeFlags.bEngineOnFire = false;
+    m_nBikeFlags.bEngineOnFire = false;
     m_nWheelStatus[0]       = 0;
     m_nWheelStatus[1]       = 0;
 }
@@ -1499,7 +1499,7 @@ void CBike::PreRender() {
 
     if (GetStatus() == STATUS_PHYSICS || GetStatus() == STATUS_PLAYER || GetStatus() == STATUS_PLAYER_PLAYBACK_FROM_BUFFER || GetStatus() == STATUS_SIMPLE) {
         bool bDoFrontSkidSmoke = false;
-        if (m_WheelStates[1] == WHEEL_STATE_SKIDDING) {
+        if (m_aWheelState[1] == WHEEL_STATE_SKIDDING) {
             bDoFrontSkidSmoke = true;
         }
 
@@ -1524,21 +1524,21 @@ void CBike::PreRender() {
                 nWheelParticleFlags = 4;
             }
 
-            float   fTyreTouchSide       = GetColModel()->m_boundBox.m_vecMin.z * (std::sin(m_RideAnimData.LeanAngle) * 0.8f);
+            float   fTyreTouchSide       = GetColModel()->m_boundBox.m_vecMin.z * (std::sin(RideAnimData.LeanAngle) * 0.8f);
             CVector vecRearWheelColPoint = m_aWheelColPoints[nUseWheelLine].m_vecPoint;
             vecRearWheelColPoint += GetRight() * fTyreTouchSide;
 
-            if (m_bWheelBloody[i]) {
+            if (bWheelBloody[i]) {
                 nWheelParticleFlags |= 1;
             }
-            if (m_bMoreSkidMarks[i]) {
+            if (bMoreSkidMarks[i]) {
                 nWheelParticleFlags |= 2;
             }
 
-            float fOutsideVector = (m_RideAnimData.LeanAngle <= 0.0f) ? 1.0f : -1.0f;
+            float fOutsideVector = (RideAnimData.LeanAngle <= 0.0f) ? 1.0f : -1.0f;
 
             AddSingleWheelParticles(
-                m_WheelStates[i],
+                m_aWheelState[i],
                 m_nWheelStatus[i],
                 m_aRatioHistory[nUseWheelLine],
                 fTempSpeed,
@@ -1547,13 +1547,13 @@ void CBike::PreRender() {
                 fOutsideVector,
                 i,
                 static_cast<uint32>(m_aWheelSkidmarkType[i]),
-                &m_bWheelBloody[i],
+                &bWheelBloody[i],
                 nWheelParticleFlags
             );
         }
     }
 
-    m_bLeanMatrixCalculated = false;
+    m_bLeanMatrix = false;
     CalculateLeanMatrix();
 
     const float SPEED_LIMIT_NO_EXHAUSTS = 130.0f;
@@ -1640,7 +1640,7 @@ void CBike::PreRender() {
         );
     }
 
-    DoVehicleLights(m_mLeanMatrix, (eVehicleLightsFlags)4);
+    DoVehicleLights(m_LeanMatrix, (eVehicleLightsFlags)4);
     CShadows::StoreShadowForVehicle(this, VEH_SHD_BIKE);
 
     auto* pModelInfo        = CModelInfo::GetModelInfo(m_nModelIndex)->AsVehicleModelInfoPtr();
@@ -1650,7 +1650,7 @@ void CBike::PreRender() {
     CVector vecFrontForward = GetMatrix().TransformVector(CVector(-fSin, fCos, 0.0f));
     CVector vecRearForward  = GetForward();
 
-    if (m_WheelCounts[0] > 0.0f || m_WheelCounts[1] > 0.0f) {
+    if (m_aWheelCounts[0] > 0.0f || m_aWheelCounts[1] > 0.0f) {
         CVector vecWheelOffset(
             0.0f,
             (pColData->m_pLines[0].m_vecStart.y + pColData->m_pLines[1].m_vecStart.y) * 0.5f,
@@ -1662,14 +1662,14 @@ void CBike::PreRender() {
         m_aWheelPitchAngles[0] += fWheelSpeed * CTimer::GetTimeStep();
     }
 
-    if (m_WheelCounts[2] > 0.0f || m_WheelCounts[3] > 0.0f) {
+    if (m_aWheelCounts[2] > 0.0f || m_aWheelCounts[3] > 0.0f) {
         CVector vecWheelOffset(
             0.0f,
             (pColData->m_pLines[2].m_vecStart.y + pColData->m_pLines[3].m_vecStart.y) * 0.5f,
             pColData->m_pLines[2].m_vecStart.z - (m_fSuspensionLength[2] * std::min(m_aRatioHistory[2], m_aRatioHistory[3])) - (pModelInfo->m_fWheelSizeFront * 0.5f)
         );
         CVector vecWheelSpeed      = GetSpeed(vecWheelOffset);
-        float   fWheelSpeed        = ProcessWheelRotation(m_WheelStates[1], vecRearForward, vecWheelSpeed, pModelInfo->m_fWheelSizeRear * 0.5f);
+        float   fWheelSpeed        = ProcessWheelRotation(m_aWheelState[1], vecRearForward, vecWheelSpeed, pModelInfo->m_fWheelSizeRear * 0.5f);
         m_aWheelAngularVelocity[1] = fWheelSpeed;
         m_aWheelPitchAngles[1] += fWheelSpeed * CTimer::GetTimeStep();
     }
@@ -1692,7 +1692,7 @@ void CBike::PreRender() {
 
         RwV3d       rotAxis = { vecRotAxis.x, vecRotAxis.y, vecRotAxis.z };
         CQuaternion tempQuat;
-        tempQuat.Set(&rotAxis, -m_RideAnimData.BarSteerAngle);
+        tempQuat.Set(&rotAxis, -RideAnimData.BarSteerAngle);
         tempQuat.Get(&tempRwMat);
         tempMat.UpdateMatrix(&tempRwMat);
 
@@ -1765,9 +1765,9 @@ void CBike::PreRender() {
 
     if (m_aBikeNodes[BIKE_CHASSIS]) {
         matrix.Attach(RwFrameGetMatrix(m_aBikeNodes[BIKE_CHASSIS]), false);
-        posn = CVector(0.0f, 0.0f, (1.0f - std::cos(m_RideAnimData.LeanAngle)) * colModel->m_boundBox.m_vecMin.z * 0.9f);
-        matrix.SetRotateX(std::abs(m_RideAnimData.LeanAngle) * -0.05f);
-        matrix.RotateY(m_RideAnimData.LeanAngle);
+        posn = CVector(0.0f, 0.0f, (1.0f - std::cos(RideAnimData.LeanAngle)) * colModel->m_boundBox.m_vecMin.z * 0.9f);
+        matrix.SetRotateX(std::abs(RideAnimData.LeanAngle) * -0.05f);
+        matrix.RotateY(RideAnimData.LeanAngle);
         matrix.SetTranslateOnly(posn);
         matrix.UpdateRW();
     }
@@ -1784,7 +1784,7 @@ void CBike::Render() {
 
     if (m_renderLights.m_bRightFront) {
         CalculateLeanMatrix();
-        CVehicle::DoHeadLightBeam(DUMMY_LIGHT_FRONT_MAIN, m_mLeanMatrix, true);
+        CVehicle::DoHeadLightBeam(DUMMY_LIGHT_FRONT_MAIN, m_LeanMatrix, true);
     }
 
     RwRenderStateSet(rwRENDERSTATEALPHATESTFUNCTIONREF, RWRSTATE(savedRef));
@@ -1817,8 +1817,8 @@ void CBike::VehicleDamage(float damageIntensity, eVehicleCollisionComponent comp
         damageIntensity *= 0.5f;
     }
 
-    if (bikeFlags.bOnSideStand && damageIntensity > 20.0f) {
-        bikeFlags.bOnSideStand = false;
+    if (m_nBikeFlags.bOnSideStand && damageIntensity > 20.0f) {
+        m_nBikeFlags.bOnSideStand = false;
     }
 
     DamageKnockOffRider(this, m_fDamageIntensity, (uint16)component, damager, m_vecLastCollisionPosn, m_vecLastCollisionImpactVelocity);
@@ -1829,7 +1829,7 @@ void CBike::VehicleDamage(float damageIntensity, eVehicleCollisionComponent comp
         CEntity::RegisterReference(m_pLastDamageEntity);
     }
 
-    if (!physicalFlags.bCollisionProof) {
+    if (!m_nPhysicalFlags.bNotDamagedByCollisions) {
         if (!m_pDamageEntity || !m_pDamageEntity->GetIsTypeBuilding() || DotProduct(m_vecLastCollisionImpactVelocity, GetUp()) <= 0.6f) {
             if (damageIntensity > 25.0f && GetStatus() != STATUS_WRECKED) {
                 if (vehicleFlags.bIsLawEnforcer) {
@@ -1881,12 +1881,12 @@ void CBike::VehicleDamage(float damageIntensity, eVehicleCollisionComponent comp
             }
 
             if (m_fHealth < 250.0f) {
-                if (!bikeFlags.bEngineOnFire) {
-                    bikeFlags.bEngineOnFire = true;
+                if (!m_nBikeFlags.bEngineOnFire) {
+                    m_nBikeFlags.bEngineOnFire = true;
                     m_BlowUpTimer           = 0.0f;
-                    m_Damager               = m_pDamageEntity;
+                    pEntityThatSetUsOnFire               = m_pDamageEntity;
                     if (m_pDamageEntity) {
-                        CEntity::RegisterReference(m_Damager);
+                        CEntity::RegisterReference(pEntityThatSetUsOnFire);
                     }
                 }
             }
@@ -2050,7 +2050,7 @@ void CBike::SetupModelNodes() {
 
 // 0x6B7080
 void CBike::PlayCarHorn() {
-    if ((m_nAlarmState && m_nAlarmState != (uint16)-1 && GetStatus() != STATUS_WRECKED) || m_HornCounter) {
+    if ((m_nAlarmState && m_nAlarmState != (uint16)-1 && GetStatus() != STATUS_WRECKED) || m_cHorn) {
         return;
     }
 
@@ -2062,12 +2062,12 @@ void CBike::PlayCarHorn() {
     m_nCarHornTimer = static_cast<uint8>(150 + (CGeneral::GetRandomNumber() & 0x7F));
     const auto r = m_nCarHornTimer & 0x7;
     if (r < 2) {
-        m_HornCounter = 45;
+        m_cHorn = 45;
     } else if (r < 4) {
         if (m_pDriver && m_autoPilot.SlowingDownForCar) {
             m_pDriver->Say(CTX_GLOBAL_BLOCKED);
         }
-        m_HornCounter = 45;
+        m_cHorn = 45;
     } else {
         if (m_pDriver) {
             m_pDriver->Say(CTX_GLOBAL_BLOCKED);
@@ -2115,11 +2115,11 @@ void CBike::ProcessControl() // ASM Checked 75%
 
     m_vehicleAudio.Service();
 
-    bikeFlags.bPlayerBoost = false;
+    m_nBikeFlags.bPlayerBoost = false;
     vehicleFlags.bRestingOnPhysical = false;
     vehicleFlags.bWarnedPeds = false;
-    m_bLeanMatrixCalculated = false;
-    m_nBrakesOn = 0;
+    m_bLeanMatrix = false;
+    nBrakesOn = 0;
 
     if (CReplay::Mode == 1) {
         return;
@@ -2145,13 +2145,13 @@ void CBike::ProcessControl() // ASM Checked 75%
         return;
     }
 
-    if (bikeFlags.bOnSideStand) {
+    if (m_nBikeFlags.bOnSideStand) {
         if (std::abs(GetRight().z) > 0.35f || std::abs(GetForward().z) > 0.5f) {
-            bikeFlags.bOnSideStand = false;
+            m_nBikeFlags.bOnSideStand = false;
         }
     }
 
-    if ((nBikePCFlags & 2) != 0 || bikeFlags.bGettingPickedUp || bikeFlags.bOnSideStand) {
+    if ((nBikePCFlags & 2) != 0 || m_nBikeFlags.bGettingPickedUp || m_nBikeFlags.bOnSideStand) {
         float fBalanceSpeedMult = fDAxisX;
         CVector TurnResistance = vecTestResistance;
         CVector m_vecTurnSpeedTemp = GetMatrix().InverseTransformVector(m_vecTurnSpeed);
@@ -2162,22 +2162,22 @@ void CBike::ProcessControl() // ASM Checked 75%
                 float fWheelieDampingMult = CStats::GetFatAndMuscleModifier(STAT_MOD_13) * 0.2f;
 
                 if ((m_aWheelRatios[2] < 1.0f || m_aWheelRatios[3] < 1.0f) && GetForward().z > 0.0f) {
-                    if (std::abs(m_BikeHandling->m_fWheelieAng - GetForward().z) * fWheelieDampingMult <= 0.05f) {
-                        TurnResistance.x = vecTestResistance.x - std::abs(m_BikeHandling->m_fWheelieAng - GetForward().z) * fWheelieDampingMult;
+                    if (std::abs(pBikeHandling->m_fWheelieAng - GetForward().z) * fWheelieDampingMult <= 0.05f) {
+                        TurnResistance.x = vecTestResistance.x - std::abs(pBikeHandling->m_fWheelieAng - GetForward().z) * fWheelieDampingMult;
                     } else {
                         TurnResistance.x = vecTestResistance.x - 0.05f;
                     }
                 } else {
                     TurnResistance.x = fInAirXRes;
                 }
-            } else if (m_WheelCounts[2] <= 0.0f && m_WheelCounts[3] <= 0.0f) {
+            } else if (m_aWheelCounts[2] <= 0.0f && m_aWheelCounts[3] <= 0.0f) {
                 fBalanceSpeedMult = fDAxisXExtra;
                 float fMinWheelieDampingMod = CStats::GetFatAndMuscleModifier(STAT_MOD_13) * 0.075f;
                 float fWheelieDampingMult = CStats::GetFatAndMuscleModifier(STAT_MOD_13) * 0.25f;
 
                 if (GetForward().z < 0.0f) {
-                    if (std::abs(m_BikeHandling->m_fStoppieAng - GetForward().z) * fWheelieDampingMult <= fMinWheelieDampingMod) {
-                        TurnResistance.x = (std::abs(m_BikeHandling->m_fStoppieAng - GetForward().z) * fWheelieDampingMult + 0.9f) * vecTestResistance.x;
+                    if (std::abs(pBikeHandling->m_fStoppieAng - GetForward().z) * fWheelieDampingMult <= fMinWheelieDampingMod) {
+                        TurnResistance.x = (std::abs(pBikeHandling->m_fStoppieAng - GetForward().z) * fWheelieDampingMult + 0.9f) * vecTestResistance.x;
                     } else {
                         TurnResistance.x = (fMinWheelieDampingMod + 0.9f) * vecTestResistance.x;
                     }
@@ -2203,11 +2203,11 @@ void CBike::ProcessControl() // ASM Checked 75%
     } else {
         m_vecCentreOfMass.x = m_pHandlingData->m_vecCentreOfMass.x;
         m_vecCentreOfMass.y = m_pHandlingData->m_vecCentreOfMass.y;
-        m_vecCentreOfMass.z = m_BikeHandling->m_fNoPlayerCOMz;
+        m_vecCentreOfMass.z = pBikeHandling->m_fNoPlayerCOMz;
     }
 
     bool bSkipPhysics = false;
-    if (!GetIsStuck() && (GetStatus() == STATUS_ABANDONED || GetStatus() == STATUS_WRECKED) && !bikeFlags.bGettingPickedUp) {
+    if (!GetIsStuck() && (GetStatus() == STATUS_ABANDONED || GetStatus() == STATUS_WRECKED) && !m_nBikeFlags.bGettingPickedUp) {
         bool bForceStatic = false;
         if (!vehicleFlags.bVehicleColProcessed && m_vecMoveSpeed.x == 0.0f && m_vecMoveSpeed.y == 0.0f && m_vecMoveSpeed.z == 0.0f && !(m_aRatioHistory[3] == 1.0f && m_aRatioHistory[3] == 1.0f && m_aRatioHistory[3] == 1.0f && m_aRatioHistory[3] == 1.0f)) {
             bForceStatic = true;
@@ -2273,31 +2273,31 @@ void CBike::ProcessControl() // ASM Checked 75%
             bDamageVertical = true;
         }
     } else {
-        bDamageVertical = bikeFlags.bGettingPickedUp;
+        bDamageVertical = m_nBikeFlags.bGettingPickedUp;
     }
 
     if (bSkipPhysics) {
         CPhysical::SkipPhysics();
         vehicleFlags.bVehicleColProcessed = false;
 
-        if (bikeFlags.bOnSideStand) {
-            if (m_RideAnimData.BarSteerAngle < 0.34907f) {
-                m_RideAnimData.BarSteerAngle += CTimer::GetTimeStep() * 0.017453f;
+        if (m_nBikeFlags.bOnSideStand) {
+            if (RideAnimData.BarSteerAngle < 0.34907f) {
+                RideAnimData.BarSteerAngle += CTimer::GetTimeStep() * 0.017453f;
             }
 
             float fDamp = std::pow(0.97f, CTimer::GetTimeStep());
             float fZ = std::clamp(GetRight().z, -1.0f, 1.0f);
             float fAsin = std::asin(fZ);
-            float fDesired = -(((fAsin + 0.2618f) - fDamp * (fAsin + 0.2618f)) - fDamp * m_RideAnimData.DesiredLeanAngle);
-            m_RideAnimData.DesiredLeanAngle = fDesired;
-            m_RideAnimData.LeanAngle = fDesired;
+            float fDesired = -(((fAsin + 0.2618f) - fDamp * (fAsin + 0.2618f)) - fDamp * RideAnimData.DesiredLeanAngle);
+            RideAnimData.DesiredLeanAngle = fDesired;
+            RideAnimData.LeanAngle = fDesired;
         }
     } else {
         if (!vehicleFlags.bVehicleColProcessed) {
             ProcessControlCollisionCheck(true);
         }
 
-        if ((nBikePCFlags & 2) == 0 && !bikeFlags.bGettingPickedUp && !bikeFlags.bOnSideStand) {
+        if ((nBikePCFlags & 2) == 0 && !m_nBikeFlags.bGettingPickedUp && !m_nBikeFlags.bOnSideStand) {
             if (GetRight().z >= 0.0f) {
                 if (m_fSteerAngle < 0.43633232f) {
                     m_fSteerAngle += CTimer::GetTimeStep() * 0.0087266462f;
@@ -2319,18 +2319,18 @@ void CBike::ProcessControl() // ASM Checked 75%
                     if (m_GasPedal > 0.5f && DotProduct(m_vecMoveSpeed, GetForward()) > 0.25f) {
                         float fBoostForce = CTimer::GetTimeStep() * (m_fMass * 0.2f * 0.008f);
                         ApplyMoveForce(GetForward() * fBoostForce);
-                        bikeFlags.bPlayerBoost = true;
+                        m_nBikeFlags.bPlayerBoost = true;
                     }
                 }
             }
         }
 
-        bool bPreviouslyInWater = physicalFlags.bTouchingWater;
+        bool bPreviouslyInWater = m_nPhysicalFlags.bForceFullWaterCheck;
         CPhysical::ProcessControl();
         m_fAirResistance = fOrigAirResistance;
         ProcessBuoyancy();
 
-        if (!bPreviouslyInWater && physicalFlags.bTouchingWater) {
+        if (!bPreviouslyInWater && m_nPhysicalFlags.bForceFullWaterCheck) {
             if (m_pDriver && m_pDriver->IsPlayer()) {
                 m_pDriver->AsPlayer()->ResetPlayerBreath();
             } else if (m_nMaxPassengers) {
@@ -2359,8 +2359,8 @@ void CBike::ProcessControl() // ASM Checked 75%
 
         m_aWheelSkidmarkType[0] = eSkidmarkType::DEFAULT;
         m_aWheelSkidmarkType[1] = eSkidmarkType::DEFAULT;
-        m_bMoreSkidMarks[0] = false;
-        m_bMoreSkidMarks[1] = false;
+        bMoreSkidMarks[0] = false;
+        bMoreSkidMarks[1] = false;
 
         float aWheelSpringForces[4];
         for (int32 i = 0; i < 4; ++i) {
@@ -2379,7 +2379,7 @@ void CBike::ProcessControl() // ASM Checked 75%
                 eSkidmarkType skidType = static_cast<eSkidmarkType>(g_surfaceInfos.GetSkidmarkType(m_aWheelColPoints[i].m_nSurfaceTypeB));
                 m_aWheelSkidmarkType[i >= 2 ? 1 : 0] = skidType;
                 if (skidType == eSkidmarkType::SANDY) {
-                    m_bMoreSkidMarks[i >= 2 ? 1 : 0] = true;
+                    bMoreSkidMarks[i >= 2 ? 1 : 0] = true;
                 }
             } else {
                 aWheelColOffsets[i] = GetMatrix().TransformVector(pColData->m_pLines[i].m_vecStart);
@@ -2462,7 +2462,7 @@ void CBike::ProcessControl() // ASM Checked 75%
             fForwardSpeed,
             nullptr,
             nullptr,
-            m_NumDriveWheelsOnGround,
+            m_nDriveWheelsOnGround,
             CCheat::IsActive(STRONGGRIP_CHEAT));
 
         fThrust /= m_fVelocityFrequency;
@@ -2475,28 +2475,28 @@ void CBike::ProcessControl() // ASM Checked 75%
         const float FRONT_TRAC_BIAS = (bNeutralHandling ? 1.0f : 2.0f * m_pHandlingData->m_fTractionBias);
         const float REAR_TRAC_BIAS = (bNeutralHandling ? 1.0f : 2.0f - FRONT_TRAC_BIAS);
 
-        m_NumDriveWheelsOnGroundLastFrame = m_NumDriveWheelsOnGround;
-        m_nNoOfContactWheels = 0;
-        m_NumDriveWheelsOnGround = 0;
+        m_nDriveWheelsOnGroundLastFrame = m_nDriveWheelsOnGround;
+        nNoOfContactWheels = 0;
+        m_nDriveWheelsOnGround = 0;
 
         for (int32 i = 0; i < 4; ++i) {
             if (m_aWheelRatios[i] < 1.0f) {
-                m_WheelCounts[i] = 4.0f;
+                m_aWheelCounts[i] = 4.0f;
             } else {
-                float fTimer = m_WheelCounts[i] - CTimer::GetTimeStep();
+                float fTimer = m_aWheelCounts[i] - CTimer::GetTimeStep();
                 if (fTimer <= 0.0f) {
                     fTimer = 0.0f;
                 }
-                m_WheelCounts[i] = fTimer;
+                m_aWheelCounts[i] = fTimer;
             }
 
-            if (m_WheelCounts[i] > 0.0f) {
-                m_nNoOfContactWheels++;
+            if (m_aWheelCounts[i] > 0.0f) {
+                nNoOfContactWheels++;
                 if (i == 2 || i == 3) {
-                    m_NumDriveWheelsOnGround = 1;
+                    m_nDriveWheelsOnGround = 1;
                 }
 
-                if (m_nNoOfContactWheels == 1) {
+                if (nNoOfContactWheels == 1) {
                     m_vecAveGroundNormal = m_aWheelColPoints[i].m_vecNormal;
                 } else {
                     m_vecAveGroundNormal += m_aWheelColPoints[i].m_vecNormal;
@@ -2504,8 +2504,8 @@ void CBike::ProcessControl() // ASM Checked 75%
             }
         }
 
-        if (m_nNoOfContactWheels) {
-            m_vecAveGroundNormal /= static_cast<float>(m_nNoOfContactWheels);
+        if (nNoOfContactWheels) {
+            m_vecAveGroundNormal /= static_cast<float>(nNoOfContactWheels);
             if (DotProduct(GetUp(), m_vecAveGroundNormal) < -0.5f) {
                 m_vecAveGroundNormal = -m_vecAveGroundNormal;
             }
@@ -2527,25 +2527,25 @@ void CBike::ProcessControl() // ASM Checked 75%
 
         float fTraction = m_pHandlingData->m_fTractionMultiplier * m_fExtraTractionMult * 0.004f * 0.25f;
 
-        if (GetStatus() != STATUS_PLAYER && bikeFlags.bOnSideStand && !bikeFlags.bGettingPickedUp) {
-            if (m_RideAnimData.BarSteerAngle < 0.34906587f) {
-                m_RideAnimData.BarSteerAngle += CTimer::GetTimeStep() * 0.02617994f;
+        if (GetStatus() != STATUS_PLAYER && m_nBikeFlags.bOnSideStand && !m_nBikeFlags.bGettingPickedUp) {
+            if (RideAnimData.BarSteerAngle < 0.34906587f) {
+                RideAnimData.BarSteerAngle += CTimer::GetTimeStep() * 0.02617994f;
             }
         } else {
             if (std::abs(m_vecMoveSpeed.x) < 0.01f && std::abs(m_vecMoveSpeed.y) < 0.01f && m_fSteerAngle == 0.0f) {
-                m_RideAnimData.BarSteerAngle *= std::pow(0.96f, CTimer::GetTimeStep());
+                RideAnimData.BarSteerAngle *= std::pow(0.96f, CTimer::GetTimeStep());
             } else {
                 float fSpeedSteerRatio = 1.0f;
-                if (fForwardSpeed > 0.01f && (m_WheelCounts[0] > 0.0f || m_WheelCounts[1] > 0.0f) && GetStatus() == STATUS_PLAYER) {
+                if (fForwardSpeed > 0.01f && (m_aWheelCounts[0] > 0.0f || m_aWheelCounts[1] > 0.0f) && GetStatus() == STATUS_PLAYER) {
                     CColPoint tempColPoint;
                     tempColPoint.m_nSurfaceTypeA = SURFACE_WHEELBASE;
                     tempColPoint.m_nSurfaceTypeB = SURFACE_TARMAC;
                     float fAdhesionLimit = g_surfaceInfos.GetAdhesiveLimit(&tempColPoint);
-                    float fAdhesion = fAdhesionLimit * m_BikeHandling->m_fSpeedSteer * fTraction * 4.0f;
+                    float fAdhesion = fAdhesionLimit * pBikeHandling->m_fSpeedSteer * fTraction * 4.0f;
 
                     uint32 rearSurfGroup = g_surfaceInfos.GetAdhesionGroup(m_aWheelColPoints[rearWheelIdx].m_nSurfaceTypeB);
                     if (rearSurfGroup == 3 || rearSurfGroup == 4) {
-                        fAdhesion *= m_BikeHandling->m_fSlipSteer;
+                        fAdhesion *= pBikeHandling->m_fSlipSteer;
                     }
 
                     float fSpeedSq = fForwardSpeed * fForwardSpeed;
@@ -2555,7 +2555,7 @@ void CBike::ProcessControl() // ASM Checked 75%
                     }
                     fSpeedSteerRatio = std::asin(fRatio) / (m_pHandlingData->m_fSteeringLock * 0.017453292f);
 
-                    if ((m_fSteerAngle < 0.0f && m_RideAnimData.LeanAngle < 0.0f) || (m_fSteerAngle > 0.0f && m_RideAnimData.LeanAngle > 0.0f)) {
+                    if ((m_fSteerAngle < 0.0f && RideAnimData.LeanAngle < 0.0f) || (m_fSteerAngle > 0.0f && RideAnimData.LeanAngle > 0.0f)) {
                         fSpeedSteerRatio *= 2.0f;
                     }
 
@@ -2564,7 +2564,7 @@ void CBike::ProcessControl() // ASM Checked 75%
                     }
                 }
 
-                m_RideAnimData.BarSteerAngle = fSpeedSteerRatio * m_fSteerAngle;
+                RideAnimData.BarSteerAngle = fSpeedSteerRatio * m_fSteerAngle;
             }
         }
 
@@ -2572,12 +2572,12 @@ void CBike::ProcessControl() // ASM Checked 75%
 
         // Front Wheel Processing (First Pass if not processing rear wheel first)
         if (!m_pHandlingData->m_bProcRearwheelFirst) {
-            if (m_WheelCounts[0] <= 0.0f && m_WheelCounts[1] <= 0.0f) {
+            if (m_aWheelCounts[0] <= 0.0f && m_aWheelCounts[1] <= 0.0f) {
                 m_aWheelAngularVelocity[0] *= 0.95f;
                 m_aWheelPitchAngles[0] += m_aWheelAngularVelocity[0] * CTimer::GetTimeStep();
             } else {
-                float fSin = std::sin(m_RideAnimData.BarSteerAngle);
-                float fCos = std::cos(m_RideAnimData.BarSteerAngle);
+                float fSin = std::sin(RideAnimData.BarSteerAngle);
+                float fCos = std::cos(RideAnimData.BarSteerAngle);
                 CVector vecWheelForward = GetMatrix().TransformVector(CVector(-fSin, fCos, 0.0f));
 
                 const CColPoint& frontColPoint = m_aWheelColPoints[frontWheelIdx];
@@ -2613,7 +2613,7 @@ void CBike::ProcessControl() // ASM Checked 75%
                     fAdhesion *= BURST_GRIP_MULTIPLIER;
                 }
 
-                WheelState[0] = m_WheelStates[0];
+                WheelState[0] = m_aWheelState[0];
                 CVector vecWheelSpeed = GetSpeed(vecFrontWheelOffset);
                 if (m_aGroundPhysicalPtrs[frontWheelIdx]) {
                     vecWheelSpeed -= m_aGroundPhysicalPtrs[frontWheelIdx]->GetSpeed(m_aGroundOffsets[frontWheelIdx]);
@@ -2646,7 +2646,7 @@ void CBike::ProcessControl() // ASM Checked 75%
         }
 
         // Rear Wheel Processing
-        if (m_WheelCounts[2] > 0.0f || m_WheelCounts[3] > 0.0f) {
+        if (m_aWheelCounts[2] > 0.0f || m_aWheelCounts[3] > 0.0f) {
             CVector vecWheelForward = GetForward();
             CVector vecWheelRight = GetRight();
             const CColPoint& rearColPoint = m_aWheelColPoints[rearWheelIdx];
@@ -2672,7 +2672,7 @@ void CBike::ProcessControl() // ASM Checked 75%
                 fRearBrake = 20000.0f;
 #endif
                 m_fTyreTemp = 1.0f;
-            } else if (m_nBrakesOn) {
+            } else if (nBrakesOn) {
                 float fBurnoutSteerForce = m_fSteerAngle * m_fTurnMass * BIKE_BURNOUT_STEER_MULT;
                 fRearBrake = 0.0f;
                 fAdhesionMult = 0.0f;
@@ -2710,7 +2710,7 @@ void CBike::ProcessControl() // ASM Checked 75%
                 fAdhesion *= BURST_GRIP_MULTIPLIER;
             }
 
-            WheelState[1] = m_WheelStates[1];
+            WheelState[1] = m_aWheelState[1];
             CVector vecWheelSpeed = GetSpeed(vecRearWheelOffset);
             if (m_aGroundPhysicalPtrs[rearWheelIdx]) {
                 vecWheelSpeed -= m_aGroundPhysicalPtrs[rearWheelIdx]->GetSpeed(m_aGroundOffsets[rearWheelIdx]);
@@ -2754,7 +2754,7 @@ void CBike::ProcessControl() // ASM Checked 75%
             m_aWheelPitchAngles[1] += CTimer::GetTimeStep() * m_aWheelAngularVelocity[1];
         }
 
-        if (m_nBrakesOn && m_WheelStates[1] == WHEEL_STATE_SPINNING) {
+        if (nBrakesOn && m_aWheelState[1] == WHEEL_STATE_SPINNING) {
             m_fTyreTemp = std::max(m_fTyreTemp - CTimer::GetTimeStep() * 0.002f, 0.0f);
         } else if (m_fTyreTemp < 1.0f) {
             m_fTyreTemp = std::min(m_fTyreTemp + CTimer::GetTimeStep() * 0.005f, 1.0f);
@@ -2762,12 +2762,12 @@ void CBike::ProcessControl() // ASM Checked 75%
 
         // Front Wheel Processing (Second Pass if processing rear wheel first)
         if (m_pHandlingData->m_bProcRearwheelFirst) {
-            if (m_WheelCounts[0] <= 0.0f && m_WheelCounts[1] <= 0.0f) {
+            if (m_aWheelCounts[0] <= 0.0f && m_aWheelCounts[1] <= 0.0f) {
                 m_aWheelAngularVelocity[0] *= 0.95f;
                 m_aWheelPitchAngles[0] += m_aWheelAngularVelocity[0] * CTimer::GetTimeStep();
             } else {
-                float fSin = std::sin(m_RideAnimData.BarSteerAngle);
-                float fCos = std::cos(m_RideAnimData.BarSteerAngle);
+                float fSin = std::sin(RideAnimData.BarSteerAngle);
+                float fCos = std::cos(RideAnimData.BarSteerAngle);
                 CVector vecWheelForward = GetMatrix().TransformVector(CVector(-fSin, fCos, 0.0f));
 
                 const CColPoint& frontColPoint = m_aWheelColPoints[frontWheelIdx];
@@ -2803,7 +2803,7 @@ void CBike::ProcessControl() // ASM Checked 75%
                     fAdhesion *= BURST_GRIP_MULTIPLIER;
                 }
 
-                WheelState[0] = m_WheelStates[0];
+                WheelState[0] = m_aWheelState[0];
                 CVector vecWheelSpeed = GetSpeed(vecFrontWheelOffset);
                 if (m_aGroundPhysicalPtrs[frontWheelIdx]) {
                     vecWheelSpeed -= m_aGroundPhysicalPtrs[frontWheelIdx]->GetSpeed(m_aGroundOffsets[frontWheelIdx]);
@@ -2855,16 +2855,16 @@ void CBike::ProcessControl() // ASM Checked 75%
             m_vecAveGroundNormal.Normalise();
         }
 
-        if ((nBikePCFlags & 2) != 0 || bikeFlags.bGettingPickedUp) {
+        if ((nBikePCFlags & 2) != 0 || m_nBikeFlags.bGettingPickedUp) {
             m_vecGroundRight = CrossProduct(GetForward(), m_vecAveGroundNormal);
             m_vecGroundRight.Normalise();
 
             float fLateralAccel;
             if (m_pAttachedTo) {
                 fLateralAccel = 0.0f;
-            } else if (m_nNoOfContactWheels) {
+            } else if (nNoOfContactWheels) {
                 CVector vecSpeedDiff;
-                if (physicalFlags.bDisableSimpleCollision) {
+                if (m_nPhysicalFlags.bDontProcessCollisionOurSelves) {
                     vecSpeedDiff = vecMoveSpeedBeforePhysics - m_vecOldSpeedForPlayback;
                     m_vecOldSpeedForPlayback = vecMoveSpeedBeforePhysics;
                 } else {
@@ -2878,30 +2878,30 @@ void CBike::ProcessControl() // ASM Checked 75%
             float fTimeStepClamped = std::max(CTimer::GetTimeStep(), 0.01f);
             float fLateralRatio = fLateralAccel / (fTimeStepClamped * 0.008f);
 
-            float fMaxBank = m_BikeHandling->m_fMaxLean;
+            float fMaxBank = pBikeHandling->m_fMaxLean;
             if (m_nWheelStatus[0] == eCarWheelStatus::WHEEL_STATUS_BURST) {
                 fMaxBank *= 0.4f;
             }
             fLateralRatio = std::clamp(fLateralRatio, -fMaxBank, fMaxBank);
 
-            float fReturnFrac = std::pow(m_BikeHandling->m_fDesLean, CTimer::GetTimeStep());
-            m_RideAnimData.DesiredLeanAngle = (std::asin(fLateralRatio) - fBikeStillBlend) * (1.0f - fReturnFrac) + fReturnFrac * m_RideAnimData.DesiredLeanAngle;
-        } else if (bikeFlags.bOnSideStand) {
+            float fReturnFrac = std::pow(pBikeHandling->m_fDesLean, CTimer::GetTimeStep());
+            RideAnimData.DesiredLeanAngle = (std::asin(fLateralRatio) - fBikeStillBlend) * (1.0f - fReturnFrac) + fReturnFrac * RideAnimData.DesiredLeanAngle;
+        } else if (m_nBikeFlags.bOnSideStand) {
             float fReturnFrac = std::pow(0.97f, CTimer::GetTimeStep());
             float fZ = std::clamp(GetRight().z, -1.0f, 1.0f);
             float fAsin = std::asin(fZ);
-            m_RideAnimData.DesiredLeanAngle = fReturnFrac * m_RideAnimData.DesiredLeanAngle - (fAsin + fBikeStillBlend + 0.2617994f) * (1.0f - fReturnFrac);
+            RideAnimData.DesiredLeanAngle = fReturnFrac * RideAnimData.DesiredLeanAngle - (fAsin + fBikeStillBlend + 0.2617994f) * (1.0f - fReturnFrac);
         } else {
-            m_RideAnimData.DesiredLeanAngle *= std::pow(0.95f, CTimer::GetTimeStep());
+            RideAnimData.DesiredLeanAngle *= std::pow(0.95f, CTimer::GetTimeStep());
         }
 
-        m_RideAnimData.LeanAngle = m_RideAnimData.DesiredLeanAngle;
+        RideAnimData.LeanAngle = RideAnimData.DesiredLeanAngle;
 
-        m_WheelStates[0] = WheelState[0];
-        m_WheelStates[1] = WheelState[1];
+        m_aWheelState[0] = WheelState[0];
+        m_aWheelState[1] = WheelState[1];
 
-        if (m_GasPedal < 0.0f && m_WheelStates[1] == WHEEL_STATE_SPINNING) {
-            m_WheelStates[1] = WHEEL_STATE_NORMAL;
+        if (m_GasPedal < 0.0f && m_aWheelState[1] == WHEEL_STATE_SPINNING) {
+            m_aWheelState[1] = WHEEL_STATE_NORMAL;
         }
 
         if (GetStatus() != STATUS_PLAYER) {
@@ -2932,7 +2932,7 @@ void CBike::ProcessControl() // ASM Checked 75%
 
         m_BlowUpTimer += (CTimer::GetTimeStep() / 50.0f) * 1000.0f;
         if (m_BlowUpTimer > 5000.0f) {
-            BlowUpCar(m_Damager, false);
+            BlowUpCar(pEntityThatSetUsOnFire, false);
         }
     }
 
@@ -2990,7 +2990,7 @@ void CBike::ProcessControl() // ASM Checked 75%
         CCarCtrl::ScanForPedDanger(this);
     }
 
-    if (physicalFlags.bDisableSimpleCollision && physicalFlags.bForceHitReturnFalse) {
+    if (m_nPhysicalFlags.bDontProcessCollisionOurSelves && m_nPhysicalFlags.bForceHitReturnFalse) {
         m_vecMoveSpeed = CVector(0.0f, 0.0f, 0.0f);
         m_vecTurnSpeed = CVector(0.0f, 0.0f, 0.0f);
         m_vecFrictionMoveSpeed = CVector(0.0f, 0.0f, 0.0f);
@@ -3006,7 +3006,7 @@ void CBike::ProcessControl() // ASM Checked 75%
         }
     }
 
-    if ((nBikePCFlags & 2) == 0 && !bikeFlags.bGettingPickedUp && !bikeFlags.bOnSideStand) {
+    if ((nBikePCFlags & 2) == 0 && !m_nBikeFlags.bGettingPickedUp && !m_nBikeFlags.bOnSideStand) {
         return;
     }
 
@@ -3020,7 +3020,7 @@ void CBike::ProcessControl() // ASM Checked 75%
     CVector vecCOM = GetMatrix().TransformVector(m_vecCentreOfMass);
     if ((nBikePCFlags & 2) != 0) {
         ApplyTurnForce(GetUp() * ((fDotProd * fRiderStabiliseForce) * m_fTurnMass * CTimer::GetTimeStep()), vecCOM + GetRight());
-        bikeFlags.bOnSideStand = false;
+        m_nBikeFlags.bOnSideStand = false;
     } else {
         ApplyTurnForce(GetUp() * ((fDotProd * fPickUpStabiliseForce) * m_fTurnMass * CTimer::GetTimeStep()), vecCOM + GetRight());
     }
@@ -3029,12 +3029,12 @@ void CBike::ProcessControl() // ASM Checked 75%
         return;
     }
 
-    if (m_WheelCounts[0] <= 0.0f
-        && m_WheelCounts[1] <= 0.0f
+    if (m_aWheelCounts[0] <= 0.0f
+        && m_aWheelCounts[1] <= 0.0f
         && GetForward().z > 0.0f
-        && (m_WheelCounts[2] > 0.0f || m_WheelCounts[3] > 0.0f)) {
+        && (m_aWheelCounts[2] > 0.0f || m_aWheelCounts[3] > 0.0f)) {
         // Wheelie
-        float fWheelieStabiliseForce = m_BikeHandling->m_fWheelieAng - GetForward().z;
+        float fWheelieStabiliseForce = pBikeHandling->m_fWheelieAng - GetForward().z;
         if (fWheelieStabiliseForce <= 0.15f) {
             if (fWheelieStabiliseForce < -0.08f) {
                 fWheelieStabiliseForce = std::min(-0.14f - fWheelieStabiliseForce, 0.0f);
@@ -3043,25 +3043,25 @@ void CBike::ProcessControl() // ASM Checked 75%
             fWheelieStabiliseForce = std::max(0.3f - fWheelieStabiliseForce, 0.0f);
         }
 
-        fWheelieStabiliseForce = fWheelieStabiliseForce * (m_BikeHandling->m_fWheelieStabMult * std::min(m_vecMoveSpeed.Magnitude(), 0.1f));
+        fWheelieStabiliseForce = fWheelieStabiliseForce * (pBikeHandling->m_fWheelieStabMult * std::min(m_vecMoveSpeed.Magnitude(), 0.1f));
         float fFatMuscleMod = CStats::GetFatAndMuscleModifier(STAT_MOD_12);
         float fForceVal = m_fTurnMass * ((CTimer::GetTimeStep() * 0.5f) * (fFatMuscleMod * fWheelieStabiliseForce));
         ApplyTurnForce(GetUp() * fForceVal, vecCOM + GetForward());
 
-        float fSteerTurnForce = (((CTimer::GetTimeStep() * 0.5f) * m_RideAnimData.BarSteerAngle) * m_BikeHandling->m_fWheelieSteer) * m_fTurnMass;
+        float fSteerTurnForce = (((CTimer::GetTimeStep() * 0.5f) * RideAnimData.BarSteerAngle) * pBikeHandling->m_fWheelieSteer) * m_fTurnMass;
         ApplyTurnForce(GetRight() * fSteerTurnForce, vecCOM + GetForward());
 
-        CVector vecMoveForce = GetRight() * (m_vecMoveSpeed.Magnitude() * m_fMass * m_BikeHandling->m_fWheelieSteer * m_RideAnimData.BarSteerAngle * CTimer::GetTimeStep() * WHEELIE_STEER_MOVE_FORCE_MULT);
+        CVector vecMoveForce = GetRight() * (m_vecMoveSpeed.Magnitude() * m_fMass * pBikeHandling->m_fWheelieSteer * RideAnimData.BarSteerAngle * CTimer::GetTimeStep() * WHEELIE_STEER_MOVE_FORCE_MULT);
         float fSpeedMag = m_vecMoveSpeed.Magnitude();
         ApplyMoveForce(vecMoveForce * fSpeedMag);
 
-        m_RideAnimData.LeanAngle += CTimer::GetTimeStep() * m_RideAnimData.BarSteerAngle * WHEELIE_STEER_LEAN_ANGLE_MULT;
-    } else if (m_WheelCounts[2] <= 0.0f
-        && m_WheelCounts[3] <= 0.0f
+        RideAnimData.LeanAngle += CTimer::GetTimeStep() * RideAnimData.BarSteerAngle * WHEELIE_STEER_LEAN_ANGLE_MULT;
+    } else if (m_aWheelCounts[2] <= 0.0f
+        && m_aWheelCounts[3] <= 0.0f
         && GetForward().z < 0.0f
-        && (m_WheelCounts[0] > 0.0f || m_WheelCounts[1] > 0.0f)) {
+        && (m_aWheelCounts[0] > 0.0f || m_aWheelCounts[1] > 0.0f)) {
         // Stoppie
-        float fWheelieStabiliseForce = m_BikeHandling->m_fStoppieAng - GetForward().z;
+        float fWheelieStabiliseForce = pBikeHandling->m_fStoppieAng - GetForward().z;
         if (fWheelieStabiliseForce <= 0.15f) {
             if (fWheelieStabiliseForce < -0.15f) {
                 fWheelieStabiliseForce = std::min(-0.3f - fWheelieStabiliseForce, 0.0f);
@@ -3070,7 +3070,7 @@ void CBike::ProcessControl() // ASM Checked 75%
             fWheelieStabiliseForce = std::max(0.3f - fWheelieStabiliseForce, 0.0f);
         }
 
-        fWheelieStabiliseForce = fWheelieStabiliseForce * (m_BikeHandling->m_fStoppieStabMult * std::min(m_vecMoveSpeed.Magnitude(), 0.1f));
+        fWheelieStabiliseForce = fWheelieStabiliseForce * (pBikeHandling->m_fStoppieStabMult * std::min(m_vecMoveSpeed.Magnitude(), 0.1f));
         float fFatMuscleMod = CStats::GetFatAndMuscleModifier(STAT_MOD_12);
         float fForceVal = m_fTurnMass * ((CTimer::GetTimeStep() * 0.5f) * (fFatMuscleMod * fWheelieStabiliseForce));
         ApplyTurnForce(GetUp() * fForceVal, vecCOM + GetForward());
@@ -3209,8 +3209,8 @@ void CBike::ProcessControlCollisionCheck(bool applySpeed) {
     const CMatrix oldMat = GetMatrix();
     SetIsStuck(false);
     SkipPhysics();
-    physicalFlags.bSkipLineCol     = false;
-    physicalFlags.bProcessingShift = false;
+    m_nPhysicalFlags.bSkipLineCol     = false;
+    m_nPhysicalFlags.bHalfSpeedCollision = false;
     m_fMovingSpeed                 = 0.0f;
     rng::fill(m_aWheelRatios, 1.0f);
 

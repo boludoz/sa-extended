@@ -19,7 +19,7 @@ auto& ToBeStreamed = StaticRef<std::array<bool, NUM_PATH_MAP_AREAS>>(0x96EFD0);
 auto& XCoorGiven = StaticRef<std::array<float, 64>>(0x96EE80);
 auto& YCoorGiven = StaticRef<std::array<float, 64>>(0x96ED80);
 auto& ZCoorGiven = StaticRef<std::array<float, 64>>(0x96EC80);
-auto& ConnectsToGiven = StaticRef<std::array<std::array<int8, 8>, 64>>(0x96EAC0);
+auto& ConnectsToGiven = StaticRef<std::array<std::array<int8, 6>, 64>>(0x96EAC0); // 6 links per node (stride 6 in 0x44DED0/0x44DF60)
 auto& DontWanderGiven = StaticRef<std::array<bool, 64>>(0x96EC40);
 
 auto& aInteriorNodeLinkedToExterior = StaticRef<std::array<int32, NUM_PATH_INTERIOR_AREAS>>(0x96EA98);
@@ -44,6 +44,7 @@ void CPathFind::InjectHooks() {
     RH_ScopedInstall(FindXRegionForCoors, 0x44D890);
     RH_ScopedInstall(AddInteriorLinkToExternalNode, 0x44DF30);
     RH_ScopedInstall(AddInteriorLink, 0x44DED0);
+    RH_ScopedInstall(RemoveInteriorLinks, 0x44DF60, { .reversed = true, .enabled = false, .locked = false });
     RH_ScopedInstall(MarkRegionsForCoors, 0x44DB60);
     RH_ScopedOverloadedInstall(FindStartPointOfRegion, "", 0x44D930, void(CPathFind::*)(size_t, size_t, float&, float&));
     RH_ScopedInstall(FindYCoorsForRegion, 0x44D910);
@@ -124,10 +125,10 @@ void CPathFind::Init() {
     for (auto i = 0u; i < NUM_TOTAL_PATH_NODE_AREAS; ++i) {
         m_pPathNodes[i] = nullptr;
         m_pNaviNodes[i] = nullptr;
-        m_pNodeLinks[i] = nullptr;
+        pAdjacentNodes[i] = nullptr;
         m_pLinkLengths[i] = nullptr;
         m_pPathIntersections[i] = nullptr;
-        m_pNaviLinks[i] = nullptr; // BUG: Out of array bounds write, same as in original code
+        pAdjacentLinks[i] = nullptr; // BUG: Out of array bounds write, same as in original code
         m_aTempNodes[i] = nullptr;    // BUG: Out of array bounds write, same as in original code
     }
 
@@ -183,14 +184,14 @@ bool CPathFind::ThisNodeWillLeadIntoADeadEnd(CPathNode* startNode, CPathNode* en
     while (true) {
         CPathNode* next = nullptr;
 
-        for (int32 neighbour = 0; neighbour < (int32)curr->m_nNumLinks; ++neighbour) {
-            const auto linkIndex = curr->m_wBaseLinkId + neighbour;
-            const CNodeAddress newNode = m_pNodeLinks[curr->m_wAreaId][linkIndex];
+        for (int32 neighbour = 0; neighbour < (int32)curr->NumberAdjNodes; ++neighbour) {
+            const auto linkIndex = curr->IndexAdjacentNodes + neighbour;
+            const CNodeAddress newNode = pAdjacentNodes[curr->Region][linkIndex];
 
             if (IsAreaNodesAvailable(newNode)) {
                 CPathNode* pNewNode = GetPathNode(newNode);
 
-                if (pNewNode && pNewNode != prev && (pNewNode->m_nBehaviourType == 0 || pNewNode->m_nBehaviourType > 10)) {
+                if (pNewNode && pNewNode != prev && (pNewNode->SpecialFunction == 0 || pNewNode->SpecialFunction > 10)) {
                     if (next) {
                         return false;
                     }
@@ -220,7 +221,7 @@ void CPathFind::UnMarkAllRoadNodesAsDontWander() {
             continue;
 
         for (auto nodeInd = 0u; nodeInd < m_anNumVehicleNodes[i]; ++nodeInd) {
-            m_pPathNodes[i][nodeInd].m_bDontWander = false;
+            m_pPathNodes[i][nodeInd].DontWanderHere = false;
         }
     }
 }
@@ -241,11 +242,11 @@ auto CPathFind::FindIntersection(const CNodeAddress& startNodeAddress, const CNo
     }
 
     const auto& startNode = *GetPathNode(startNodeAddress);
-    const auto& nodeLinks = m_pNodeLinks[startNodeAddress.m_wAreaId];
-    for (auto i = 0u; i < startNode.m_nNumLinks; i++) {
-        const auto linkedNodeIdx = startNode.m_wBaseLinkId + i;
+    const auto& nodeLinks = pAdjacentNodes[startNodeAddress.Region];
+    for (auto i = 0u; i < startNode.NumberAdjNodes; i++) {
+        const auto linkedNodeIdx = startNode.IndexAdjacentNodes + i;
         if (nodeLinks[linkedNodeIdx] == targetNodeAddress) {
-            return &m_pPathIntersections[startNodeAddress.m_wAreaId][linkedNodeIdx];
+            return &m_pPathIntersections[startNodeAddress.Region][linkedNodeIdx];
         }
     }
 
@@ -278,8 +279,8 @@ CVector CPathFind::TakeWidthIntoAccountForWandering(CNodeAddress nodeAddress, in
 
     auto node         = GetPathNode(nodeAddress);
     auto basePosition = node->GetPosition();
-    auto offsetX      = float(node->m_nPathWidth * ((randomSeed % 16) - 7)); // bottom 8 bits remapped to [-7 : +8]
-    auto offsetY      = float(node->m_nPathWidth * (((randomSeed / 16) % 16) - 7)); // top 8 bits remapped to [-7 : +8]
+    auto offsetX      = float(node->Width * ((randomSeed % 16) - 7)); // bottom 8 bits remapped to [-7 : +8]
+    auto offsetY      = float(node->Width * (((randomSeed / 16) % 16) - 7)); // top 8 bits remapped to [-7 : +8]
     auto offset       = CVector{ offsetX * 0.00775f, offsetY * 0.00775f, 0.f };
     return basePosition + offset;
 }
@@ -348,7 +349,7 @@ void CPathFind::FindNextNodeWandering(uint8 nodeType, CVector vecPos, CNodeAddre
         }
     }
 
-    if (!originAddress || !originAddress->IsValid() || (vecPos - GetPathNode(*originAddress)->GetPosition()).Magnitude() > std::max(7.0f, float(GetPathNode(*originAddress)->m_nPathWidth) * 0.125f)) {
+    if (!originAddress || !originAddress->IsValid() || (vecPos - GetPathNode(*originAddress)->GetPosition()).Magnitude() > std::max(7.0f, float(GetPathNode(*originAddress)->Width) * 0.125f)) {
         StartNode = FindNodeClosestToCoors(vecPos, static_cast<ePathType>(nodeType), 999999.0f, false, false, false, false, false);
     } else {
         StartNode = *originAddress;
@@ -363,18 +364,18 @@ void CPathFind::FindNextNodeWandering(uint8 nodeType, CVector vecPos, CNodeAddre
 
         HighestDotProd = -999999.0f;
 
-        for (int16 i = 0; i < (int16)pStartNode->m_nNumLinks; i++) {
-            AdjNode = m_pNodeLinks[pStartNode->m_wAreaId][pStartNode->m_wBaseLinkId + i];
+        for (int16 i = 0; i < (int16)pStartNode->NumberAdjNodes; i++) {
+            AdjNode = pAdjacentNodes[pStartNode->Region][pStartNode->IndexAdjacentNodes + i];
             if (!IsAreaNodesAvailable(AdjNode)) {
                 continue;
             }
 
             pAdjNode = GetPathNode(AdjNode);
-            if (!pStartNode->m_isSwitchedOff && pAdjNode->m_isSwitchedOff) {
+            if (!pStartNode->SwitchedOff && pAdjNode->SwitchedOff) {
                 continue;
             }
 
-            if (!pStartNode->m_bDontWander && pAdjNode->m_bDontWander) {
+            if (!pStartNode->DontWanderHere && pAdjNode->DontWanderHere) {
                 continue;
             }
 
@@ -431,8 +432,8 @@ void CPathFind::FindNextNodeWandering(uint8 nodeType, CVector vecPos, CNodeAddre
     if (*targetAddress == OriginalNode) {
         if (OriginalNode.IsValid() && IsAreaNodesAvailable(OriginalNode)) {
             pSourceNode = GetPathNode(OriginalNode);
-            for (int32 N = 0; N < (int32)pSourceNode->m_nNumLinks; N++) {
-                CNodeAddress CandidateNode = m_pNodeLinks[pSourceNode->m_wAreaId][pSourceNode->m_wBaseLinkId + N];
+            for (int32 N = 0; N < (int32)pSourceNode->NumberAdjNodes; N++) {
+                CNodeAddress CandidateNode = pAdjacentNodes[pSourceNode->Region][pSourceNode->IndexAdjacentNodes + N];
                 if (IsAreaNodesAvailable(CandidateNode)) {
                     *targetAddress = CandidateNode;
                     break;
@@ -499,7 +500,7 @@ void CPathFind::DoPathSearch(
     CPathNode* pTargetNode = GetPathNode(targetNode);
     CPathNode* pStartNode = GetPathNode(startNode);
 
-    if (pTargetNode->m_nFloodFill != pStartNode->m_nFloodFill) {
+    if (pTargetNode->Group != pStartNode->Group) {
         outNodesCount = 0;
         if (outDistance) {
             *outDistance = 100000.0f;
@@ -524,22 +525,22 @@ void CPathFind::DoPathSearch(
                 bStartNodeFound = true;
             }
 
-            for (int32 neighbours = 0; neighbours < (int32)pCurrNode->m_nNumLinks; ++neighbours) {
-                const auto linkIndex = neighbours + pCurrNode->m_wBaseLinkId;
-                const CNodeAddress neighbourNode = m_pNodeLinks[pCurrNode->m_wAreaId][linkIndex];
+            for (int32 neighbours = 0; neighbours < (int32)pCurrNode->NumberAdjNodes; ++neighbours) {
+                const auto linkIndex = neighbours + pCurrNode->IndexAdjacentNodes;
+                const CNodeAddress neighbourNode = pAdjacentNodes[pCurrNode->Region][linkIndex];
                 if (IsAreaNodesAvailable(neighbourNode)) {
                     CPathNode* pCandidateNode = GetPathNode(neighbourNode);
                     bool bDontConsiderThisNeighbour = false;
 
                     if (oneSideOnly) {
-                        const CCarPathLinkAddress candidateLink = m_pNaviLinks[pCurrNode->m_wAreaId][linkIndex];
-                        if (m_pPathNodes[candidateLink.m_wAreaId]) {
-                            const CCarPathLink& candidateLinkRef = m_pNaviNodes[candidateLink.m_wAreaId][candidateLink.m_wCarPathLinkId];
+                        const CCarPathLinkAddress candidateLink = pAdjacentLinks[pCurrNode->Region][linkIndex];
+                        if (m_pPathNodes[candidateLink.Region]) {
+                            const CCarPathLink& candidateLinkRef = m_pNaviNodes[candidateLink.Region][candidateLink.m_wCarPathLinkId];
                             int32 lanesGoingOurWay;
-                            if (candidateLinkRef.m_attachedTo == neighbourNode) {
-                                lanesGoingOurWay = candidateLinkRef.m_numOppositeDirLanes;
+                            if (candidateLinkRef.Node1 == neighbourNode) {
+                                lanesGoingOurWay = candidateLinkRef.LanesTo;
                             } else {
-                                lanesGoingOurWay = candidateLinkRef.m_numSameDirLanes;
+                                lanesGoingOurWay = candidateLinkRef.LanesFro;
                             }
 
                             if (lanesGoingOurWay == 0) {
@@ -552,19 +553,19 @@ void CPathFind::DoPathSearch(
                         bDontConsiderThisNeighbour = true;
                     }
 
-                    if (pCurrNode->m_bWaterNode != pCandidateNode->m_bWaterNode) {
+                    if (pCurrNode->WaterNode != pCandidateNode->WaterNode) {
                         if (!includeNodesWithoutLinks) {
                             bDontConsiderThisNeighbour = true;
                         }
                     }
 
                     if (!bDontConsiderThisNeighbour) {
-                        const int32 candidateDist = pCurrNode->m_totalDistFromOrigin + m_pLinkLengths[pCurrNode->m_wAreaId][linkIndex];
-                        if (candidateDist < pCandidateNode->m_totalDistFromOrigin) {
-                            if (pCandidateNode->m_totalDistFromOrigin != 0x7FFE) {
+                        const int32 candidateDist = pCurrNode->DistanceToTarget + m_pLinkLengths[pCurrNode->Region][linkIndex];
+                        if (candidateDist < pCandidateNode->DistanceToTarget) {
+                            if (pCandidateNode->DistanceToTarget != 0x7FFE) {
                                 RemoveNodeFromList(pCandidateNode);
                             }
-                            if (pCandidateNode->m_totalDistFromOrigin == 0x7FFE) {
+                            if (pCandidateNode->DistanceToTarget == 0x7FFE) {
                                 if (numNodesToBeCleared < 5000) {
                                     aNodesToBeCleared[numNodesToBeCleared++] = pCandidateNode->GetAddress();
                                 }
@@ -584,7 +585,7 @@ void CPathFind::DoPathSearch(
         if (m_totalNumNodesInPathFindHashTable == 0 || static_cast<float>(currentRoughDist) > maxUnkLimit || numNodesToBeCleared >= 4950) {
             outNodesCount = 0;
             for (int32 node = 0; node < numNodesToBeCleared; ++node) {
-                GetPathNode(aNodesToBeCleared[node])->m_totalDistFromOrigin = 0x7FFE;
+                GetPathNode(aNodesToBeCleared[node])->DistanceToTarget = 0x7FFE;
             }
             return;
         }
@@ -592,7 +593,7 @@ void CPathFind::DoPathSearch(
 
     outNodesCount = 0;
     if (outDistance) {
-        *outDistance = static_cast<float>(pStartNode->m_totalDistFromOrigin);
+        *outDistance = static_cast<float>(pStartNode->DistanceToTarget);
     }
 
     if (outResultNodes) {
@@ -601,12 +602,12 @@ void CPathFind::DoPathSearch(
 
     CPathNode* pBacktrackNode = pStartNode;
     while (outNodesCount < maxNodesToFind && pBacktrackNode != pTargetNode) {
-        for (int32 c = 0; c < (int32)pBacktrackNode->m_nNumLinks; ++c) {
-            const auto linkIndex = pBacktrackNode->m_wBaseLinkId + c;
-            const CNodeAddress candidateNode = m_pNodeLinks[pBacktrackNode->m_wAreaId][linkIndex];
+        for (int32 c = 0; c < (int32)pBacktrackNode->NumberAdjNodes; ++c) {
+            const auto linkIndex = pBacktrackNode->IndexAdjacentNodes + c;
+            const CNodeAddress candidateNode = pAdjacentNodes[pBacktrackNode->Region][linkIndex];
             if (IsAreaNodesAvailable(candidateNode)) {
                 CPathNode* pCandidateNode = GetPathNode(candidateNode);
-                if (pBacktrackNode->m_totalDistFromOrigin - m_pLinkLengths[pBacktrackNode->m_wAreaId][linkIndex] == pCandidateNode->m_totalDistFromOrigin) {
+                if (pBacktrackNode->DistanceToTarget - m_pLinkLengths[pBacktrackNode->Region][linkIndex] == pCandidateNode->DistanceToTarget) {
                     pBacktrackNode = pCandidateNode;
                     if (outResultNodes) {
                         outResultNodes[outNodesCount++] = pCandidateNode->GetAddress();
@@ -620,7 +621,7 @@ void CPathFind::DoPathSearch(
     }
 
     for (int32 node = 0; node < numNodesToBeCleared; node++) {
-        GetPathNode(aNodesToBeCleared[node])->m_totalDistFromOrigin = 0x7FFE;
+        GetPathNode(aNodesToBeCleared[node])->DistanceToTarget = 0x7FFE;
     }
 }
 
@@ -671,7 +672,7 @@ void CPathFind::SetLinksBridgeLights(float fXMin, float fXMax, float fYMin, floa
         for (auto n = 0u; n < m_anNumCarPathLinks[areaId]; n++) {
             auto& node = GetCarPathLink({ areaId, n });
             if (areaRect.IsPointInside(node.GetNodeCoors())) {
-                node.m_bridgeLights = value;
+                node.BridgeLights = value;
             }
         }
     }
@@ -680,7 +681,7 @@ void CPathFind::SetLinksBridgeLights(float fXMin, float fXMax, float fYMin, floa
 namespace detail {
 // NOTSA
 CVector GetPosnBetweenNodesForScript(CPathNode* nodeA, CVector2D dir) {
-    return nodeA->GetPosition() + CVector{dir.GetPerpLeft() * ((float)nodeA->m_nPathWidth / 16.f + 2.7f)};
+    return nodeA->GetPosition() + CVector{dir.GetPerpLeft() * ((float)nodeA->Width / 16.f + 2.7f)};
 }
 };
 
@@ -701,8 +702,8 @@ CVector CPathFind::FindNodeCoorsForScript(CNodeAddress address, bool* bFound) {
         const auto nodePos = node->GetPosition();
  
         // If this node has a link return some kind of position between this and the first link
-        if (node->m_nPathWidth && node->m_nNumLinks) {
-            if (const auto firstLink = m_pNodeLinks[node->m_wBaseLinkId]) {
+        if (node->Width && node->NumberAdjNodes) {
+            if (const auto firstLink = pAdjacentNodes[node->IndexAdjacentNodes]) {
                 if (const auto firstLinkedNode = GetPathNode(*firstLink)) {
                     auto dir = CVector2D{ firstLinkedNode->GetPosition() - nodePos }.Normalized();
 
@@ -735,7 +736,7 @@ CVector CPathFind::FindNodeCoorsForScript(CNodeAddress nodeAddrA, CNodeAddress n
 
         outHeadingDeg = RWRAD2DEG(dir.Heading());
 
-        return nodeA->m_nPathWidth
+        return nodeA->Width
             ? detail::GetPosnBetweenNodesForScript(nodeA, dir)
             : posA;
     } else {
@@ -749,7 +750,7 @@ void CPathFind::MarkRoadNodeAsDontWander(float x, float y, float z) {
     CVector pos = {x, y, z};
     auto node = FindNodeClosestToCoors(pos, PATH_TYPE_VEH, 999999.88f, 0, 0, 0, 0, 0);
     if (node.IsValid()) {
-        m_pPathNodes[node.m_wAreaId][node.m_wNodeId].m_bDontWander = true;
+        m_pPathNodes[node.Region][node.Index].DontWanderHere = true;
     }
 }
 
@@ -771,7 +772,7 @@ void CPathFind::SwitchRoadsOffInAreaForOneRegion(float xMin, float xMax, float y
         if (position.x < xMin || position.x > xMax || position.y < yMin || position.y > yMax || position.z < zMin || position.z > zMax) {
             continue;
         }
-        if (!ThisNodeHasToBeSwitchedOff(&node) || node.m_isSwitchedOff == (bBackToOriginal ? node.m_isSwitchedOffOriginal : bSwitchOff)) {
+        if (!ThisNodeHasToBeSwitchedOff(&node) || node.SwitchedOff == (bBackToOriginal ? node.SwitchedOffOriginal : bSwitchOff)) {
             continue;
         }
         CPathNode* next1{};
@@ -792,14 +793,14 @@ void CPathFind::SwitchRoadsOffInAreaForOneRegion(float xMin, float xMax, float y
 CPathNode* CPathFind::GetPathNode(CNodeAddress address) {
     assert(address.IsValid());
     assert(IsAreaNodesAvailable(address));
-    return &m_pPathNodes[address.m_wAreaId][address.m_wNodeId];
+    return &m_pPathNodes[address.Region][address.Index];
 }
 
 // notsa
 CCarPathLinkAddress CPathFind::GetNaviLink(uint16 area, uint16 linkId) const {
     assert(area < NUM_PATH_MAP_AREAS);
     assert(linkId < m_anNumAddresses[area]);
-    return m_pNaviLinks[area][linkId];
+    return pAdjacentLinks[area][linkId];
 }
 
 // NOTSA
@@ -847,24 +848,24 @@ void CPathFind::LoadPathFindData(RwStream* stream, int32 areaId) {
     auto numAddresses = m_anNumAddresses[areaId];
     if (numAddresses) {
         auto numToAdd = numAddresses + NUM_DYNAMIC_LINKS_PER_AREA * 12;
-        m_pNodeLinks[areaId] = new CNodeAddress[numToAdd];
-        m_pNaviLinks[areaId] = new CCarPathLinkAddress[numAddresses];
+        pAdjacentNodes[areaId] = new CNodeAddress[numToAdd];
+        pAdjacentLinks[areaId] = new CCarPathLinkAddress[numAddresses];
         m_pLinkLengths[areaId] = new uint8[numToAdd];
         m_pPathIntersections[areaId] = new CPathIntersectionInfo[numToAdd];
-        RwStreamRead(stream, m_pNodeLinks[areaId], sizeof(CNodeAddress) * numToAdd);
-        RwStreamRead(stream, m_pNaviLinks[areaId], sizeof(CCarPathLinkAddress) * numAddresses);
+        RwStreamRead(stream, pAdjacentNodes[areaId], sizeof(CNodeAddress) * numToAdd);
+        RwStreamRead(stream, pAdjacentLinks[areaId], sizeof(CCarPathLinkAddress) * numAddresses);
         RwStreamRead(stream, m_pLinkLengths[areaId], sizeof(uint8) * numToAdd);
         RwStreamRead(stream, m_pPathIntersections[areaId], sizeof(CPathIntersectionInfo) * numToAdd);
     } else {
-        m_pNodeLinks[areaId] = nullptr;
-        m_pNaviLinks[areaId] = nullptr;
+        pAdjacentNodes[areaId] = nullptr;
+        pAdjacentLinks[areaId] = nullptr;
         m_pLinkLengths[areaId] = nullptr;
         m_pPathIntersections[areaId] = nullptr;
     }
 
     for (auto i = 0u; i < numNodes; ++i) {
         auto& node = m_pPathNodes[areaId][i];
-        node.m_isSwitchedOffOriginal = node.m_isSwitchedOff;
+        node.SwitchedOffOriginal = node.SwitchedOff;
     }
 
     for (auto i = 0u; i < m_nNumNodeSwitches; ++i) {
@@ -881,15 +882,15 @@ void CPathFind::LoadPathFindData(RwStream* stream, int32 areaId) {
 void CPathFind::UnLoadPathFindData(int32 index) {
     delete[] m_pPathNodes[index];
     delete[] m_pNaviNodes[index];
-    delete[] m_pNodeLinks[index];
-    delete[] m_pNaviLinks[index];
+    delete[] pAdjacentNodes[index];
+    delete[] pAdjacentLinks[index];
     delete[] m_pLinkLengths[index];
     delete[] m_pPathIntersections[index];
 
     m_pPathNodes[index] = nullptr;
     m_pNaviNodes[index] = nullptr;
-    m_pNodeLinks[index] = nullptr;
-    m_pNaviLinks[index] = nullptr;
+    pAdjacentNodes[index] = nullptr;
+    pAdjacentLinks[index] = nullptr;
     m_pLinkLengths[index] = nullptr;
     m_pPathIntersections[index] = nullptr;
 }
@@ -909,7 +910,7 @@ void CPathFind::LoadSceneForPathNodes(CVector point) {
 bool CPathFind::IsWaterNodeNearby(CVector position, float radius) {
     for (auto areaId = 0u; areaId < NUM_PATH_MAP_AREAS; areaId++) {
         for (const auto& node : GetPathNodesInArea(areaId, PATH_TYPE_VEH)) {
-            if (node.m_bWaterNode) {
+            if (node.WaterNode) {
                 if ((node.GetPosition() - position).SquaredMagnitude() <= sq(radius)) {
                     return true;
                 }
@@ -928,19 +929,19 @@ float CPathFind::CalcRoadDensity(float x, float y) {
             for (uint32 Node = 0; Node < m_anNumVehicleNodes[Region]; ++Node) {
                 CPathNode* pNode = &m_pPathNodes[Region][Node];
 
-                if (std::abs(pNode->GetPosition().x - x) < 80.0f && std::abs(pNode->GetPosition().y - y) < 80.0f && pNode->m_nNumLinks > 0) {
-                    for (int32 Link = 0; Link < (int32)pNode->m_nNumLinks; ++Link) {
-                        CNodeAddress OtherNode = m_pNodeLinks[Region][pNode->m_wBaseLinkId + Link];
+                if (std::abs(pNode->GetPosition().x - x) < 80.0f && std::abs(pNode->GetPosition().y - y) < 80.0f && pNode->NumberAdjNodes > 0) {
+                    for (int32 Link = 0; Link < (int32)pNode->NumberAdjNodes; ++Link) {
+                        CNodeAddress OtherNode = pAdjacentNodes[Region][pNode->IndexAdjacentNodes + Link];
                         if (IsAreaNodesAvailable(OtherNode)) {
                             CPathNode* pOtherNode = GetPathNode(OtherNode);
                             float DeltaX = pNode->GetPosition().x - pOtherNode->GetPosition().x;
                             float DeltaY = pNode->GetPosition().y - pOtherNode->GetPosition().y;
                             float Length = std::sqrt(DeltaX * DeltaX + DeltaY * DeltaY);
 
-                            CCarPathLinkAddress pLinkAddress = m_pNaviLinks[Region][pNode->m_wBaseLinkId + Link];
-                            if (m_pPathNodes[pLinkAddress.m_wAreaId] != nullptr) {
-                                DensityCount += Length * GetCarPathLink(pLinkAddress).m_numSameDirLanes;
-                                DensityCount += Length * GetCarPathLink(pLinkAddress).m_numOppositeDirLanes;
+                            CCarPathLinkAddress pLinkAddress = pAdjacentLinks[Region][pNode->IndexAdjacentNodes + Link];
+                            if (m_pPathNodes[pLinkAddress.Region] != nullptr) {
+                                DensityCount += Length * GetCarPathLink(pLinkAddress).LanesFro;
+                                DensityCount += Length * GetCarPathLink(pLinkAddress).LanesTo;
                             }
                         }
                     }
@@ -956,8 +957,8 @@ float CPathFind::CalcRoadDensity(float x, float y) {
 float CPathFind::CalcDistToAnyConnectingLinks(CPathNode* node, CVector pos) {
     float SmallestDist = 999999.9f;
 
-    for (int32 AdjNode = 0; AdjNode < (int32)node->m_nNumLinks; ++AdjNode) {
-        CNodeAddress OtherNode = m_pNodeLinks[node->m_wAreaId][node->m_wBaseLinkId + AdjNode];
+    for (int32 AdjNode = 0; AdjNode < (int32)node->NumberAdjNodes; ++AdjNode) {
+        CNodeAddress OtherNode = pAdjacentNodes[node->Region][node->IndexAdjacentNodes + AdjNode];
         if (IsAreaNodesAvailable(OtherNode)) {
             CPathNode* pOtherNode = GetPathNode(OtherNode);
             CVector Crs1 = node->GetPosition();
@@ -994,7 +995,7 @@ void CPathFind::FindNodeClosestInRegion(CNodeAddress* outAddress, uint16 areaId,
     for (uint32 nodeIdx = startNode; nodeIdx < endNode; ++nodeIdx) {
         CPathNode* node = &m_pPathNodes[areaId][nodeIdx];
 
-        if (bLowTraffic && node->m_isSwitchedOff) {
+        if (bLowTraffic && node->SwitchedOff) {
             continue;
         }
 
@@ -1002,7 +1003,7 @@ void CPathFind::FindNodeClosestInRegion(CNodeAddress* outAddress, uint16 areaId,
             continue;
         }
 
-        if (node->m_bWaterNode != bBoats) {
+        if (node->WaterNode != bBoats) {
             continue;
         }
 
@@ -1012,8 +1013,8 @@ void CPathFind::FindNodeClosestInRegion(CNodeAddress* outAddress, uint16 areaId,
 
         if (totalDist < *outDist) {
             *outDist = totalDist;
-            outAddress->m_wAreaId = areaId;
-            outAddress->m_wNodeId = static_cast<uint16>(nodeIdx);
+            outAddress->Region = areaId;
+            outAddress->Index = static_cast<uint16>(nodeIdx);
         }
     }
 }
@@ -1316,10 +1317,10 @@ CNodeAddress CPathFind::ReturnInteriorNodeIndex(int32 unkn, uint32 intId, int16 
 CCarPathLinkAddress CPathFind::FindLinkBetweenNodes(CNodeAddress nodeAddrA, CNodeAddress nodeAddrB) {
     if (AreNodeAreasLoaded({ nodeAddrA, nodeAddrB })) {
         const auto nodeA = GetPathNode(nodeAddrA);
-        for (auto i = 0u; i < nodeA->m_nNumLinks; i++) {
-            const auto linkIdx = nodeA->m_wBaseLinkId + i;
-            if (m_pNodeLinks[nodeA->m_wAreaId][linkIdx] == nodeAddrB) {
-                return m_pNaviLinks[nodeA->m_wAreaId][linkIdx];
+        for (auto i = 0u; i < nodeA->NumberAdjNodes; i++) {
+            const auto linkIdx = nodeA->IndexAdjacentNodes + i;
+            if (pAdjacentNodes[nodeA->Region][linkIdx] == nodeAddrB) {
+                return pAdjacentLinks[nodeA->Region][linkIdx];
             }
         }
     }
@@ -1345,7 +1346,7 @@ CVector CPathFind::FindParkingNodeInArea(float minX, float maxX, float minY, flo
                 CPathNode& node = m_pPathNodes[region][nodeIdx];
                 CVector pos = node.GetPosition();
                 if (pos.x > minX && pos.x < maxX && pos.y > minY && pos.y < maxY && pos.z > minZ && pos.z < maxZ) {
-                    if (node.m_nBehaviourType == 2) {
+                    if (node.SpecialFunction == 2) {
                         if (index == 0) {
                             found0 = pos;
                             bFound0 = true;
@@ -1400,14 +1401,14 @@ void CPathFind::AddDynamicLinkBetween2Nodes(CNodeAddress NodeAddress1, CNodeAddr
 void CPathFind::AddDynamicLinkBetween2Nodes_For1Node(CNodeAddress first, CNodeAddress second) {
     assert(IsAreaNodesAvailable(first));
 
-    auto& firstPathInfo = m_pPathNodes[first.m_wAreaId][first.m_wNodeId];
-    auto numAddresses = m_anNumAddresses[first.m_wAreaId];
+    auto& firstPathInfo = m_pPathNodes[first.Region][first.Index];
+    auto numAddresses = m_anNumAddresses[first.Region];
 
     uint32 firstLinkId;
-    if (static_cast<uint32>(firstPathInfo.m_wBaseLinkId) >= numAddresses)
-        firstLinkId = firstPathInfo.m_wBaseLinkId;
+    if (static_cast<uint32>(firstPathInfo.IndexAdjacentNodes) >= numAddresses)
+        firstLinkId = firstPathInfo.IndexAdjacentNodes;
     else {
-        auto* nodeLink = &m_pNodeLinks[first.m_wAreaId][numAddresses];
+        auto* nodeLink = &pAdjacentNodes[first.Region][numAddresses];
         auto linkCounter = 0u;
         while (!nodeLink->IsValid()) {
             nodeLink += 12; // No clue why we jump 12 objects each time (Search: MAGIC_NUM_12)
@@ -1415,36 +1416,36 @@ void CPathFind::AddDynamicLinkBetween2Nodes_For1Node(CNodeAddress first, CNodeAd
         }
 
         firstLinkId = numAddresses + 12 * linkCounter;
-        for (auto i = 0u; i < firstPathInfo.m_nNumLinks; ++i) {
-            m_pNodeLinks[first.m_wAreaId][firstLinkId + i] = m_pNodeLinks[first.m_wAreaId][firstPathInfo.m_wBaseLinkId + i];
-            m_pLinkLengths[first.m_wAreaId][firstLinkId + i] = m_pLinkLengths[first.m_wAreaId][firstPathInfo.m_wBaseLinkId + i];
-            m_pPathIntersections[first.m_wAreaId][firstLinkId + i] = m_pPathIntersections[first.m_wAreaId][firstPathInfo.m_wBaseLinkId + i];
+        for (auto i = 0u; i < firstPathInfo.NumberAdjNodes; ++i) {
+            pAdjacentNodes[first.Region][firstLinkId + i] = pAdjacentNodes[first.Region][firstPathInfo.IndexAdjacentNodes + i];
+            m_pLinkLengths[first.Region][firstLinkId + i] = m_pLinkLengths[first.Region][firstPathInfo.IndexAdjacentNodes + i];
+            m_pPathIntersections[first.Region][firstLinkId + i] = m_pPathIntersections[first.Region][firstPathInfo.IndexAdjacentNodes + i];
         }
 
-        if (first.m_wAreaId < NUM_PATH_MAP_AREAS) {
-            auto& linkInfo = m_aDynamicLinksBaseIds[first.m_wAreaId];
+        if (first.Region < NUM_PATH_MAP_AREAS) {
+            auto& linkInfo = m_aDynamicLinksBaseIds[first.Region];
             for (auto i = 0u; i < NUM_DYNAMIC_LINKS_PER_AREA; ++i) {
                 if (linkInfo[i] == -1) {
-                    m_aDynamicLinksBaseIds[first.m_wAreaId][i] = firstPathInfo.m_wBaseLinkId;
-                    m_aDynamicLinksIds[first.m_wAreaId][i] = firstLinkId;
+                    m_aDynamicLinksBaseIds[first.Region][i] = firstPathInfo.IndexAdjacentNodes;
+                    m_aDynamicLinksIds[first.Region][i] = firstLinkId;
                     break;
                 }
             }
         }
     }
 
-    m_pNodeLinks[first.m_wAreaId][firstLinkId + firstPathInfo.m_nNumLinks] = second;
-    m_pLinkLengths[first.m_wAreaId][firstLinkId + firstPathInfo.m_nNumLinks] = 5;
-    m_pPathIntersections[first.m_wAreaId][firstLinkId + firstPathInfo.m_nNumLinks].Clear();
-    firstPathInfo.m_nNumLinks++;
-    firstPathInfo.m_wBaseLinkId = firstLinkId;
+    pAdjacentNodes[first.Region][firstLinkId + firstPathInfo.NumberAdjNodes] = second;
+    m_pLinkLengths[first.Region][firstLinkId + firstPathInfo.NumberAdjNodes] = 5;
+    m_pPathIntersections[first.Region][firstLinkId + firstPathInfo.NumberAdjNodes].Clear();
+    firstPathInfo.NumberAdjNodes++;
+    firstPathInfo.IndexAdjacentNodes = firstLinkId;
 }
 
 // 0x44D230
 bool CPathFind::These2NodesAreAdjacent(CNodeAddress nodeAddress1, CNodeAddress nodeAddress2) {
     const auto node1 = GetPathNode(nodeAddress1);
-    for (auto i = 0u; i < node1->m_nNumLinks; i++) {
-        if (m_pNodeLinks[node1->m_wAreaId][node1->m_wBaseLinkId + i] == nodeAddress2) {
+    for (auto i = 0u; i < node1->NumberAdjNodes; i++) {
+        if (pAdjacentNodes[node1->Region][node1->IndexAdjacentNodes + i] == nodeAddress2) {
             return true;
         }
     }
@@ -1572,7 +1573,7 @@ void CPathFind::MarkRegionsForCoors(CVector pos, float radius) {
 
 // 0x44D3E0
 bool CPathFind::ThisNodeHasToBeSwitchedOff(CPathNode* node) {
-    if (node->m_nBehaviourType != 1 && node->m_nBehaviourType != 2) {
+    if (node->SpecialFunction != 1 && node->SpecialFunction != 2) {
         return true;
     }
     return false;
@@ -1582,10 +1583,10 @@ bool CPathFind::ThisNodeHasToBeSwitchedOff(CPathNode* node) {
 int32 CPathFind::CountNeighboursToBeSwitchedOff(CPathNode* node) {
     int32 result = 0;
 
-    for (int32 neighbour = 0; neighbour < (int32)node->m_nNumLinks; ++neighbour) {
-        CNodeAddress neighbourNode = m_pNodeLinks[node->m_wAreaId][node->m_wBaseLinkId + neighbour];
-        if (IsAreaLoaded(neighbourNode.m_wAreaId)) {
-            CPathNode* pNeighbourNode = &m_pPathNodes[neighbourNode.m_wAreaId][neighbourNode.m_wNodeId];
+    for (int32 neighbour = 0; neighbour < (int32)node->NumberAdjNodes; ++neighbour) {
+        CNodeAddress neighbourNode = pAdjacentNodes[node->Region][node->IndexAdjacentNodes + neighbour];
+        if (IsAreaLoaded(neighbourNode.Region)) {
+            CPathNode* pNeighbourNode = &m_pPathNodes[neighbourNode.Region][neighbourNode.Index];
             if (ThisNodeHasToBeSwitchedOff(pNeighbourNode)) {
                 result++;
             }
@@ -1624,28 +1625,28 @@ void CPathFind::FindNodePairClosestToCoors(CVector pos, uint8 nodeType, CNodeAdd
             for (int32 Node = StartNode; Node < EndNode; Node++) {
                 CPathNode* pNode = &m_pPathNodes[Region][Node];
 
-                if (bLowTraffic && pNode->m_isSwitchedOff) {
+                if (bLowTraffic && pNode->SwitchedOff) {
                     continue;
                 }
 
-                if (bBoats != (bool)pNode->m_bWaterNode) {
+                if (bBoats != (bool)pNode->WaterNode) {
                     continue;
                 }
 
                 ThisDist = std::abs(pNode->GetPosition().x - pos.x) + std::abs(pNode->GetPosition().y - pos.y) + 3.0f * std::abs(pNode->GetPosition().z - pos.z);
 
                 if (ThisDist < ClosestDist) {
-                    for (int32 Neighbour = 0; Neighbour < (int32)pNode->m_nNumLinks; Neighbour++) {
-                        OtherNode = m_pNodeLinks[Region][pNode->m_wBaseLinkId + Neighbour];
+                    for (int32 Neighbour = 0; Neighbour < (int32)pNode->NumberAdjNodes; Neighbour++) {
+                        OtherNode = pAdjacentNodes[Region][pNode->IndexAdjacentNodes + Neighbour];
 
                         if (IsAreaNodesAvailable(OtherNode)) {
                             CPathNode* pOtherNode = GetPathNode(OtherNode);
 
-                            if (bLowTraffic && pOtherNode->m_isSwitchedOff) {
+                            if (bLowTraffic && pOtherNode->SwitchedOff) {
                                 continue;
                             }
 
-                            if (bBoats != (bool)pOtherNode->m_bWaterNode) {
+                            if (bBoats != (bool)pOtherNode->WaterNode) {
                                 continue;
                             }
 
@@ -1683,38 +1684,38 @@ void CPathFind::FindNodePairClosestToCoors(CVector pos, uint8 nodeType, CNodeAdd
 
 // 0x450320
 float CPathFind::FindNodeOrientationForCarPlacement(CNodeAddress address) {
-    if (!address.IsValid() || !IsAreaLoaded(address.m_wAreaId)) {
+    if (!address.IsValid() || !IsAreaLoaded(address.Region)) {
         return 0.0f;
     }
 
-    CPathNode* node = &m_pPathNodes[address.m_wAreaId][address.m_wNodeId];
-    if (node->m_nNumLinks == 0) {
+    CPathNode* node = &m_pPathNodes[address.Region][address.Index];
+    if (node->NumberAdjNodes == 0) {
         return 0.0f;
     }
 
     int32 nodeToUse = 0;
-    for (; nodeToUse < (int32)node->m_nNumLinks - 1; nodeToUse++) {
-        CCarPathLinkAddress linkAddr = m_pNaviLinks[address.m_wAreaId][node->m_wBaseLinkId + nodeToUse];
-        if (IsAreaLoaded(linkAddr.m_wAreaId)) {
-            const CCarPathLink& link = m_pNaviNodes[linkAddr.m_wAreaId][linkAddr.m_wCarPathLinkId];
-            if (link.m_attachedTo == address) {
-                if (link.m_numOppositeDirLanes != 0) {
+    for (; nodeToUse < (int32)node->NumberAdjNodes - 1; nodeToUse++) {
+        CCarPathLinkAddress linkAddr = pAdjacentLinks[address.Region][node->IndexAdjacentNodes + nodeToUse];
+        if (IsAreaLoaded(linkAddr.Region)) {
+            const CCarPathLink& link = m_pNaviNodes[linkAddr.Region][linkAddr.m_wCarPathLinkId];
+            if (link.Node1 == address) {
+                if (link.LanesTo != 0) {
                     break;
                 }
             } else {
-                if (link.m_numSameDirLanes != 0) {
+                if (link.LanesFro != 0) {
                     break;
                 }
             }
         }
     }
 
-    CNodeAddress adjAddr = m_pNodeLinks[address.m_wAreaId][node->m_wBaseLinkId + nodeToUse];
-    if (!adjAddr.IsValid() || !IsAreaLoaded(adjAddr.m_wAreaId)) {
+    CNodeAddress adjAddr = pAdjacentNodes[address.Region][node->IndexAdjacentNodes + nodeToUse];
+    if (!adjAddr.IsValid() || !IsAreaLoaded(adjAddr.Region)) {
         return 0.0f;
     }
 
-    CPathNode* adjNode = &m_pPathNodes[adjAddr.m_wAreaId][adjAddr.m_wNodeId];
+    CPathNode* adjNode = &m_pPathNodes[adjAddr.Region][adjAddr.Index];
 
     CVector diff = adjNode->GetPosition() - node->GetPosition();
     diff.z = 0.0f;
@@ -1725,7 +1726,7 @@ float CPathFind::FindNodeOrientationForCarPlacement(CNodeAddress address) {
 
 // 0x452160
 void CPathFind::SwitchOffNodeAndNeighbours(CPathNode* node, CPathNode*& outNext1, CPathNode** outNext2, bool bWhatToSwitchTo, bool bBackToOriginal) {
-    node->m_isSwitchedOff = bBackToOriginal ? node->m_isSwitchedOffOriginal : bWhatToSwitchTo;
+    node->SwitchedOff = bBackToOriginal ? node->SwitchedOffOriginal : bWhatToSwitchTo;
    
     outNext1 = nullptr;
     if (outNext2) {
@@ -1740,7 +1741,7 @@ void CPathFind::SwitchOffNodeAndNeighbours(CPathNode* node, CPathNode*& outNext1
         if (!linked.HasToBeSwitchedOff()) {
             continue;
         }
-        if (linked.m_isSwitchedOff == bWhatToSwitchTo) {
+        if (linked.SwitchedOff == bWhatToSwitchTo) {
             continue;
         }
         if (CountNeighboursToBeSwitchedOff(&linked) > 2) {
@@ -1776,7 +1777,7 @@ static void MakeSureLinkExists(int8 Node, int8 LinkedTo) {
 }
 
 static void SetOneAdjacentNodeForThisNode(int32 Region, int8 Node, int32 AdjRegion, int32 AdjNode, int32 FreeSlot, int32& CurrentAdjacentNode) {
-    ThePaths.m_pNodeLinks[FreeSlot + 64][CurrentAdjacentNode] = CNodeAddress((uint16)AdjRegion, (uint16)AdjNode);
+    ThePaths.pAdjacentNodes[FreeSlot + 64][CurrentAdjacentNode] = CNodeAddress((uint16)AdjRegion, (uint16)AdjNode);
     float Length = (ThePaths.m_pPathNodes[Region][Node].GetPosition() - ThePaths.m_pPathNodes[AdjRegion][AdjNode].GetPosition()).Magnitude();
     if (Length > 255.0f) {
         Length = 255.0f;
@@ -1786,7 +1787,7 @@ static void SetOneAdjacentNodeForThisNode(int32 Region, int8 Node, int32 AdjRegi
     }
     ThePaths.m_pLinkLengths[FreeSlot + 64][CurrentAdjacentNode] = static_cast<uint8>(Length);
     ThePaths.m_pPathIntersections[FreeSlot + 64][CurrentAdjacentNode].Clear();
-    ThePaths.m_pPathNodes[FreeSlot + 64][Node].m_nNumLinks++;
+    ThePaths.m_pPathNodes[FreeSlot + 64][Node].NumberAdjNodes++;
     CurrentAdjacentNode++;
 }
 
@@ -1804,7 +1805,7 @@ void CPathFind::CompleteNewInterior(CNodeAddress* outAddress) {
     uint8 InteriorGroup = (uint8)(NewInteriorSlot + 100);
     if (NumLinksToExteriorNodes > 0) {
         CPathNode* pNode = GetPathNode(aExteriorNodeLinkedTo[0]);
-        InteriorGroup = pNode->m_nFloodFill;
+        InteriorGroup = pNode->Group;
     }
 
     m_interiorIDs[NewInteriorSlot] = InteriorIDBeingBuilt;
@@ -1813,25 +1814,24 @@ void CPathFind::CompleteNewInterior(CNodeAddress* outAddress) {
     for (int32 Node = 0; Node < (int32)NumNodesGiven; Node++) {
         auto& node = m_pPathNodes[NewInteriorSlot + 64][Node];
         node.m_vPos = CompressedLargeVector{ CVector{ XCoorGiven[Node], YCoorGiven[Node], ZCoorGiven[Node] } };
-        node.m_wAreaId = (uint16)(NewInteriorSlot + 64);
-        node.m_wNodeId = (uint16)Node;
-        node.m_nPathWidth = 0;
-        node.m_nFloodFill = InteriorGroup;
-        node.m_onDeadEnd = 0;
-        node.m_isSwitchedOff = 1;
-        node.m_isSwitchedOffOriginal = 1;
-        node.m_bRoadBlocks = 0;
-        node.m_bWaterNode = 0;
+        node.Region = (uint16)(NewInteriorSlot + 64);
+        node.Index = (uint16)Node;
+        node.Width = 0;
+        node.Group = InteriorGroup;
+        node.OnDeadEnd = 0;
+        node.SwitchedOff = 1;
+        node.SwitchedOffOriginal = 1;
+        node.RoadBlock = 0;
+        node.WaterNode = 0;
         node.unk1 = 0;
-        node.m_bDontWander = DontWanderGiven[Node];
+        node.DontWanderHere = DontWanderGiven[Node];
         node.unk2 = 1;
-        node.m_bNotHighway = 0;
-        node.m_bHighway = 0;
+        node.Speed = 0;
         node.unk3 = 0;
         node.unk4 = 0;
-        node.m_nSpawnProbability = 15;
-        node.m_nBehaviourType = 0;
-        node.m_totalDistFromOrigin = 32766;
+        node.Density = 15;
+        node.SpecialFunction = 0;
+        node.DistanceToTarget = 32766;
     }
 
     for (int32 Node = 0; Node < (int32)NumNodesGiven; Node++) {
@@ -1851,14 +1851,14 @@ void CPathFind::CompleteNewInterior(CNodeAddress* outAddress) {
         }
     }
 
-    m_pNodeLinks[NewInteriorSlot + 64] = (CNodeAddress*)CMemoryMgr::Malloc((TotalAdjacentNodes + 192) * sizeof(CNodeAddress));
+    pAdjacentNodes[NewInteriorSlot + 64] = (CNodeAddress*)CMemoryMgr::Malloc((TotalAdjacentNodes + 192) * sizeof(CNodeAddress));
     m_pLinkLengths[NewInteriorSlot + 64] = (uint8*)CMemoryMgr::Malloc(TotalAdjacentNodes + 192);
     m_pPathIntersections[NewInteriorSlot + 64] = (CPathIntersectionInfo*)CMemoryMgr::Malloc(TotalAdjacentNodes + 192);
 
     int32 CurrentAdjacentNode = 0;
     for (int32 Node = 0; Node < (int32)NumNodesGiven; Node++) {
-        m_pPathNodes[NewInteriorSlot + 64][Node].m_wBaseLinkId = (int16)CurrentAdjacentNode;
-        m_pPathNodes[NewInteriorSlot + 64][Node].m_nNumLinks = 0;
+        m_pPathNodes[NewInteriorSlot + 64][Node].IndexAdjacentNodes = (int16)CurrentAdjacentNode;
+        m_pPathNodes[NewInteriorSlot + 64][Node].NumberAdjNodes = 0;
 
         for (int32 C = 0; C < 6; C++) {
             if (ConnectsToGiven[Node][C] >= 0) {
@@ -1868,7 +1868,7 @@ void CPathFind::CompleteNewInterior(CNodeAddress* outAddress) {
     }
 
     for (int32 C = TotalAdjacentNodes; C < TotalAdjacentNodes + 192; C++) {
-        m_pNodeLinks[NewInteriorSlot + 64][C] = EmptyNodeAddress;
+        pAdjacentNodes[NewInteriorSlot + 64][C] = EmptyNodeAddress;
     }
 
     m_anNumNodes[NewInteriorSlot + 64] = NumNodesGiven;
@@ -1904,18 +1904,18 @@ void CPathFind::RemoveInterior(uint32 intId) {
         for (auto areaId = 0u; areaId < NUM_TOTAL_PATH_NODE_AREAS; areaId++) {
             for (auto& node : GetPathNodesInArea(areaId, PATH_TYPE_PED)) {
                 // I assume this checks if the link is an interior link?
-                if ((int32)node.m_wBaseLinkId < (int32)m_anNumAddresses[areaId]) {
+                if ((int32)node.IndexAdjacentNodes < (int32)m_anNumAddresses[areaId]) {
                     continue;
                 }
 
                 // Remove all link of this node that point to a node int the current interior
                 bool foundNodeFromOtherInt{}, foundNodeFromThisInt{};
                 (void)rng::remove_if(GetNodeLinkedNodes(node, false), [&](CPathNode& linkedNode) {
-                    if (linkedNode.m_wAreaId == intSlotAreaId) {
-                        node.m_nNumLinks--;
+                    if (linkedNode.Region == intSlotAreaId) {
+                        node.NumberAdjNodes--;
                         foundNodeFromOtherInt = true;
                         return true;
-                    } else if (linkedNode.m_wAreaId >= NUM_PATH_MAP_AREAS) {
+                    } else if (linkedNode.Region >= NUM_PATH_MAP_AREAS) {
                         foundNodeFromThisInt = true;
                     }
                     return false;
@@ -1928,15 +1928,15 @@ void CPathFind::RemoveInterior(uint32 intId) {
 
                 // TODO: Magic number `12` (Search: MAGIC_NUM_12)
                 // Null out all links of this node
-                rng::fill(std::span{ &m_pNodeLinks[node.m_wAreaId][node.m_wBaseLinkId], 12 }, CNodeAddress{});
+                rng::fill(std::span{ &pAdjacentNodes[node.Region][node.IndexAdjacentNodes], 12 }, CNodeAddress{});
 
                 // Delete dynamic link of this area
                 // Honestly, this doesn't make much sense... As in, I don't think these are dynamic areas? We'll see.. TODO
                 const auto& dynLinks  = m_aDynamicLinksIds[intSlot];
-                const auto  dynLinkIt = rng::find(dynLinks, (int32)node.m_wBaseLinkId);
+                const auto  dynLinkIt = rng::find(dynLinks, (int32)node.IndexAdjacentNodes);
                 if (dynLinkIt != rng::end(dynLinks)) {
                     const auto dynLinkIdx = rng::distance(rng::begin(dynLinks), dynLinkIt);
-                    node.m_wBaseLinkId = m_aDynamicLinksBaseIds[intSlot][dynLinkIdx];
+                    node.IndexAdjacentNodes = m_aDynamicLinksBaseIds[intSlot][dynLinkIdx];
                     m_aDynamicLinksBaseIds[intSlot][dynLinkIdx] = -1;
                     m_aDynamicLinksIds[intSlot][dynLinkIdx] = -1;
                 }
@@ -2049,8 +2049,8 @@ void CPathFind::AddNodeToList(CPathNode* node, int32 distFromOrigin) {
 
     head = node;
 
-    assert(distFromOrigin <= std::numeric_limits<decltype(node->m_totalDistFromOrigin)>::max()); // Prevent bugs from overflow
-    node->m_totalDistFromOrigin = (int16)distFromOrigin;
+    assert(distFromOrigin <= std::numeric_limits<decltype(node->DistanceToTarget)>::max()); // Prevent bugs from overflow
+    node->DistanceToTarget = (int16)distFromOrigin;
 
     m_totalNumNodesInPathFindHashTable++;
 }
@@ -2113,4 +2113,43 @@ void CPathFind::SwitchRoadsOffInArea(float xMin, float xMax, float yMin, float y
 // 0x452F00
 void CPathFind::SwitchPedRoadsOffInArea(float xMin, float xMax, float yMin, float yMax, float zMin, float zMax, bool bSwitchOff, bool bBackToOriginal) {
     SwitchRoadsOffInArea(xMin, xMax, yMin, yMax, zMin, zMax, bSwitchOff, false, bBackToOriginal);
+}
+
+// Inlined in retail (no address)
+// AI Stub - checked against the Android binary (libGTASA)
+void CPathFind::RemoveBadStartNode(CVector pos, CNodeAddress* address, int16* numPathFindNodes) {
+    if (*numPathFindNodes < 2) {
+        return;
+    }
+    if (!IsRegionLoaded(address[0]) || !IsRegionLoaded(address[1])) {
+        return;
+    }
+
+    const CPathNode* pNode0 = FindNodePointer(address[0]);
+    const CPathNode* pNode1 = FindNodePointer(address[1]);
+
+    const float DeltaX1 = pNode0->GetCoors().x - pos.x;
+    const float DeltaY1 = pNode0->GetCoors().y - pos.y;
+    const float DeltaX2 = pNode1->GetCoors().x - pos.x;
+    const float DeltaY2 = pNode1->GetCoors().y - pos.y;
+
+    // The first node is behind us (relative to the second one) - drop it
+    if (DeltaX1 * DeltaX2 + DeltaY1 * DeltaY2 < 0.0f) {
+        (*numPathFindNodes)--;
+        for (int16 C = 0; C < *numPathFindNodes; C++) {
+            address[C] = address[C + 1];
+        }
+    }
+}
+
+// 0x44DF60
+// AI Stub
+void CPathFind::RemoveInteriorLinks(uint32 intIdx) {
+    for (int32 TestNode = 0; TestNode < (int32)NumNodesGiven; TestNode++) {
+        for (int32 Link = 0; Link < 6; Link++) {
+            if (TestNode == (int32)intIdx || ConnectsToGiven[TestNode][Link] == (int8)intIdx) {
+                ConnectsToGiven[TestNode][Link] = -1;
+            }
+        }
+    }
 }

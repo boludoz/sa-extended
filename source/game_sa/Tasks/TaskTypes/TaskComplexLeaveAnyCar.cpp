@@ -29,7 +29,7 @@ CTaskComplexLeaveAnyCar::CTaskComplexLeaveAnyCar(int32 delayTime, bool sensibleL
 // 0x63BCE0
 CTask* CTaskComplexLeaveAnyCar::CreateFirstSubTask(CPed* ped) {
     if (ped->IsInVehicle()) {
-        return new CTaskComplexLeaveCar(ped->m_pVehicle, TARGET_DOOR_FRONT_LEFT, m_nDelayTime, m_sensibleLeaveCar, m_forceGetOut);
+        return new CTaskComplexLeaveCar(ped->m_pMyVehicle, TARGET_DOOR_FRONT_LEFT, m_nDelayTime, m_sensibleLeaveCar, m_forceGetOut);
     }
     return new CTaskSimpleNone();
 }

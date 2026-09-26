@@ -348,29 +348,37 @@ void CAEWeaponAudioEntity::PlayGunSounds(
     float        tailFrequencyScalingFactor
 ) {
     if (!AEAudioHardware.EnsureSoundBankIsLoaded(SND_BANK_GENRL_WEAPONS, SND_BANK_SLOT_WEAPON_GEN, true)) {
+        if (!AudioEngine.IsLoadingTuneActive()) {
+            AEAudioHardware.LoadSoundBank(SND_BANK_GENRL_WEAPONS, SND_BANK_SLOT_WEAPON_GEN);
+        }
         return;
     }
 
     if (CTimer::GetTimeInMS() < m_LastGunFireTimeMs + 25) {
         return;
     }
-    m_LastGunFireTimeMs = CTimer::GetTimeInMS();
+    m_LastGunFireTimeMs     = CTimer::GetTimeInMS();
 
-    auto baseVolume = GetDefaultVolume(audioEvent) + volumeOffsetdB;
-    auto [baseRollOffFactor, baseSpeed] = [&]() -> std::pair<float, float> {
-        switch (audioEvent) {
-        case AE_WEAPON_FIRE_PLANE: {
-            m_LastWeaponPlaneFrequencyIndex = (m_LastWeaponPlaneFrequencyIndex + 1) % 2;
-            return {1.6f, gfWeaponPlaneFrequencyVariations[m_LastWeaponPlaneFrequencyIndex] * primarySpeed * 0.7937f};
-        }
-        case AE_WEAPON_FIRE_MINIGUN_PLANE: {
-            return {1.8f, primarySpeed * 0.7937f};
-        }
-        default: {
-            return {1.f, primarySpeed};
-        }
-        }
-    }();
+    auto baseVolume         = GetDefaultVolume(audioEvent) + volumeOffsetdB;
+
+    float baseRollOffFactor = 1.0f;
+    float baseSpeed         = primarySpeed;
+
+    switch (audioEvent) {
+    case AE_WEAPON_FIRE_PLANE: {
+        m_LastWeaponPlaneFrequencyIndex = (m_LastWeaponPlaneFrequencyIndex + 1) % 2;
+        baseRollOffFactor               = 1.6f;
+        baseSpeed                       = gfWeaponPlaneFrequencyVariations[m_LastWeaponPlaneFrequencyIndex] * primarySpeed * 0.7937f;
+        break;
+    }
+    case AE_WEAPON_FIRE_MINIGUN_PLANE: {
+        baseRollOffFactor = 1.8f;
+        baseSpeed         = primarySpeed * 0.7937f;
+        break;
+    }
+    default:
+        break;
+    }
 
     const auto PlaySound = [&](int16 sfxID, CVector pos, float volume, float rollOffFactor, float speed, uint32 flags, eAudioEvents event = AE_UNDEFINED) {
         if (event == AE_UNDEFINED) {
@@ -378,22 +386,23 @@ void CAEWeaponAudioEntity::PlayGunSounds(
             case AE_WEAPON_FIRE_MINIGUN_PLANE:
             case AE_WEAPON_FIRE_MINIGUN_AMMO:
                 event = AE_FRONTEND_PICKUP_WEAPON;
+                break;
+            default:
+                break;
             }
         }
-        AESoundManager.PlaySound({
-            .BankSlotID         = SND_BANK_SLOT_WEAPON_GEN,
-            .SoundID            = sfxID,
-            .AudioEntity        = this,
-            .Pos                = pos,
-            .Volume             = volume,
-            .RollOffFactor      = rollOffFactor,
-            .Speed              = speed,
-            .Doppler            = 0.f,
-            .FrameDelay         = 0,
-            .Flags              = flags,
-            .RegisterWithEntity = (flags & SOUND_LIFESPAN_TIED_TO_PHYSICAL_ENTITY) ? entity : nullptr,
-            .EventID            = event
-        });
+        AESoundManager.PlaySound({ .BankSlotID         = SND_BANK_SLOT_WEAPON_GEN,
+                                   .SoundID            = sfxID,
+                                   .AudioEntity        = this,
+                                   .Pos                = pos,
+                                   .Volume             = volume,
+                                   .RollOffFactor      = rollOffFactor,
+                                   .Speed              = speed,
+                                   .Doppler            = 0.f,
+                                   .FrameDelay         = 0,
+                                   .Flags              = flags,
+                                   .RegisterWithEntity = (flags & SOUND_LIFESPAN_TIED_TO_PHYSICAL_ENTITY) ? entity : nullptr,
+                                   .EventID            = event });
     };
 
     if (dryFireSfxID != -1) { // 0x503DFF
@@ -401,7 +410,7 @@ void CAEWeaponAudioEntity::PlayGunSounds(
             dryFireSfxID,
             entity->GetPosition(),
             baseVolume,
-            baseRollOffFactor * (2.f / 3.f),
+            baseRollOffFactor * 0.66f,
             baseSpeed,
             SOUND_LIFESPAN_TIED_TO_PHYSICAL_ENTITY | SOUND_REQUEST_UPDATES
         );
@@ -420,24 +429,25 @@ void CAEWeaponAudioEntity::PlayGunSounds(
     // 0x503F21
     float frontEndVolume = -100.f;
     if (!notsa::contains({ AE_WEAPON_FIRE_PLANE, AE_WEAPON_FIRE_MINIGUN_PLANE }, audioEvent)) {
-        const auto dist = CAEAudioEnvironment::GetPositionRelativeToCamera(entity).Magnitude() / (baseRollOffFactor * 1.25f);
-        if (dist < (5.f / baseRollOffFactor)) { // Inverted
-            baseVolume    -= 3.f;
+        const auto dist    = CAEAudioEnvironment::GetPositionRelativeToCamera(entity).Magnitude() / (baseRollOffFactor * 1.25f);
+        const auto minDist = 5.f / baseRollOffFactor;
+        const auto maxDist = 12.f / baseRollOffFactor;
+
+        if (dist <= minDist) {
+            baseVolume -= 3.f;
             frontEndVolume = baseVolume + CAEAudioEnvironment::GetDistanceAttenuation(dist);
-        } else if (dist < (12.f / baseRollOffFactor)) {
-            const auto t   = ((12.f / baseRollOffFactor) - dist) / (12.f / baseRollOffFactor) - (5.f / baseRollOffFactor);
-            frontEndVolume = baseVolume + CAEAudioEnvironment::GetDistanceAttenuation(dist) + std::log10f(t * (SQRT_2 / 2.f)) * 20.f;
-            baseVolume    += std::log10f(((1.f - t) * 0.2929f) + (SQRT_2 / 2.f)) * 20.f;
+        } else if (dist < maxDist) {
+            const auto t   = (maxDist - dist) / (maxDist - minDist);
+            frontEndVolume = baseVolume + CAEAudioEnvironment::GetDistanceAttenuation(dist) + std::log10f(t * 0.7071f) * 20.f;
+            baseVolume += std::log10f(((1.f - t) * 0.2929f) + 0.7071f) * 20.f;
         }
     }
 
-    const auto PlayMainSound = [
-        &,
-        mainSoundSpeed = (CAEAudioUtility::GetRandomNumberInRange(-0.02f, 0.02f) + 1.f) * baseSpeed
-    ](int16 sfxID, bool isRight) {
+    const float mainSoundSpeed = baseSpeed + (CAEAudioUtility::GetRandomNumberInRange(-0.02f, 0.02f) * baseSpeed);
+    const auto  PlayMainSound  = [&](int16 sfxID, bool isRight) {
         PlaySound(
             sfxID,
-            CVector{isRight ? 1.f : -1.f, 0.f, 0.f},
+            CVector{ isRight ? 1.f : -1.f, 0.f, 0.f },
             frontEndVolume,
             baseRollOffFactor * 1.25f,
             mainSoundSpeed,
@@ -452,6 +462,7 @@ void CAEWeaponAudioEntity::PlayGunSounds(
             SOUND_LIFESPAN_TIED_TO_PHYSICAL_ENTITY | SOUND_REQUEST_UPDATES
         );
     };
+
     if (mainLeftSfxID != -1) { // 0x5040DC + 0x5041DF
         PlayMainSound(mainLeftSfxID, false);
     }
@@ -459,30 +470,34 @@ void CAEWeaponAudioEntity::PlayGunSounds(
         PlayMainSound(mainRightSfxID, true);
     }
 
-    if (tailSfxID != -1 && !notsa::contains({AE_WEAPON_FIRE_PLANE, AE_WEAPON_FIRE_MINIGUN_PLANE}, audioEvent)) {
+    if (tailSfxID != -1 && !notsa::contains({ AE_WEAPON_FIRE_PLANE, AE_WEAPON_FIRE_MINIGUN_PLANE }, audioEvent)) {
         const auto tailSoundRollOff    = baseRollOffFactor * 3.5f;
-        const auto tailSoundVolume     = CAEAudioEnvironment::GetDistanceAttenuation(CAEAudioEnvironment::GetPositionRelativeToCamera(entity).Magnitude() / tailSoundRollOff) + baseVolume - 20.f;
+        const auto camDist             = CAEAudioEnvironment::GetPositionRelativeToCamera(entity).Magnitude() / tailSoundRollOff;
+        const auto tailSoundVolume     = std::min((baseVolume - 20.f) + CAEAudioEnvironment::GetDistanceAttenuation(camDist), 0.0f);
         const auto tailSoundAudioEvent = audioEvent == AE_WEAPON_FIRE_MINIGUN_AMMO
             ? AE_FRONTEND_PICKUP_MONEY
             : AE_FRONTEND_SELECT;
-        const auto PlayTailSound = [&](bool isRight, float speedMult) {
+
+        float speedMultA               = tailFrequencyScalingFactor;
+        float speedMultB               = tailFrequencyScalingFactor * 1.1892f;
+        if (!CAEAudioUtility::ResolveProbability(0.5f)) {
+            std::swap(speedMultA, speedMultB);
+        }
+
+        const auto PlayTailSound = [&](bool isRight, float speed) {
             PlaySound(
                 tailSfxID,
-                CVector{ isRight ? 1.f : -1, 0.f, 0.f },
+                CVector{ isRight ? 1.f : -1.f, 0.f, 0.f },
                 tailSoundVolume,
                 tailSoundRollOff,
-                tailFrequencyScalingFactor * speedMult,
+                speed,
                 SOUND_FORCED_FRONT | SOUND_ROLLED_OFF | SOUND_REQUEST_UPDATES | SOUND_FRONT_END,
                 tailSoundAudioEvent
             );
         };
-        float speedMultA = 1.f,
-              speedMultB = 1.1892101f;
-        if (CAEAudioUtility::ResolveProbability(0.5f)) {
-            std::swap(speedMultA, speedMultB);
-        }
+
         PlayTailSound(false, speedMultA);
-        PlayTailSound(true,  speedMultB);
+        PlayTailSound(true, speedMultB);
     }
 }
 

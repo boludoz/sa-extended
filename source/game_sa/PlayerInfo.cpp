@@ -40,11 +40,10 @@ void CPlayerInfo::InjectHooks() {
 }
 
 // 0x571920
-CPlayerInfo::CPlayerInfo() {
-    plugin::CallMethod<0x571920, CPlayerInfo*>(this); // see hook
-    return;
-
-    m_PlayerData = CPlayerPedData();
+// ASM Match: not measured
+CPlayerInfo::CPlayerInfo()
+{
+    PlayerPedData = CPlayerPedData();
 
     m_pSkinTexture = nullptr;
     m_bParachuteReferenced = false;
@@ -104,7 +103,7 @@ void CPlayerInfo::EvaluateCarPosition(CEntity* car, CPed* ped, float pedToVehDis
 // 0x56F7D0
 void CPlayerInfo::LoadPlayerSkin() {
     DeletePlayerSkin();
-    m_pSkinTexture = CPlayerSkin::GetSkinTexture(m_szSkinName);
+    m_pSkinTexture = CPlayerSkin::GetSkinTexture(m_skinName);
 }
 
 // 0x56EA80
@@ -117,15 +116,15 @@ void CPlayerInfo::DeletePlayerSkin() {
 
 // 0x5717F0
 void CPlayerInfo::SetPlayerSkin(const char* name) {
-    strcpy_s(m_szSkinName, name); // NOTSA: They used `strcpy`, we use `_s` for safety
+    strcpy_s(m_skinName, name); // NOTSA: They used `strcpy`, we use `_s` for safety
     LoadPlayerSkin();
 }
 
 // 0x56DA80
 void CPlayerInfo::SetLastTargetVehicle(CVehicle* vehicle) {
-    CEntity::SafeCleanUpRef(m_pLastTargetVehicle);
-    m_pLastTargetVehicle = vehicle;
-    CEntity::SafeRegisterRef(m_pLastTargetVehicle);
+    CEntity::SafeCleanUpRef(pLastTargetVehicle);
+    pLastTargetVehicle = vehicle;
+    CEntity::SafeRegisterRef(pLastTargetVehicle);
 }
 
 // 0x56F8D0
@@ -144,59 +143,59 @@ void CPlayerInfo::Clear() {
     // like to just swap ourselves to a default constructed object
     // and do all the cleanup in the destructor
 
-    m_pPed = nullptr;
-    m_pRemoteVehicle = nullptr;
-    if (m_pSpecCar) {
-        m_pSpecCar->physicalFlags.bAddMovingCollisionSpeed = false;
-        m_pSpecCar = nullptr;
+    pPed = nullptr;
+    pRemoteVehicle = nullptr;
+    if (pSpecCar) {
+        pSpecCar->m_nPhysicalFlags.bUsingSpecialColModel = false;
+        pSpecCar = nullptr;
     }
-    m_nDisplayMoney = 0;
-    m_nMoney = 0;
-    m_nPlayerState = PLAYERSTATE_PLAYING;
-    m_nCarDensityForCurrentZone = 0;
-    m_fRoadDensityAroundPlayer = 1.0f;
-    m_bAfterRemoteVehicleExplosion = false;
-    m_bCreateRemoteVehicleExplosion = false;
-    m_bFadeAfterRemoteVehicleExplosion = false;
+    DisplayScore = 0;
+    Score = 0;
+    PlayerState = PLAYERSTATE_PLAYING;
+    CarDensityForCurrentZone = 0;
+    RoadDensityAroundPlayer = 1.0f;
+    bAfterRemoteVehicleExplosion = false;
+    bCreateRemoteVehicleExplosion = false;
+    bFadeAfterRemoteVehicleExplosion = false;
     m_bTryingToExitCar = false;
-    m_bTaxiTimerScore = false;
-    m_nTaxiTimer = 0;
-    m_nVehicleTimeCounter = CTimer::GetTimeInMS();
-    m_nMaxArmour = 100;
-    m_nMaxHealth = 100;
-    m_bCanDoDriveBy = true;
-    m_nCollectablesPickedUp = 0;
-    m_nTotalNumCollectables = 3;
-    m_nLastTimeEnergyLost = 0;
-    m_nLastTimeArmourLost = 0;
-    m_nLastTimeBigGunFired = 0;
-    m_nTimesStuckInARow = 0;
-    m_nTimesUpsideDownInARow = 0;
-    m_nCarTwoWheelCounter = 0;
-    m_fCarTwoWheelDist = 0.0f;
-    m_nCarLess3WheelCounter = 0;
-    m_nBikeRearWheelCounter = 0;
-    m_fBikeRearWheelDist = 0.0f;
-    m_nBikeFrontWheelCounter = 0;
-    m_fBikeFrontWheelDist = 0.0f;
-    m_nTempBufferCounter = 0;
-    m_nBestCarTwoWheelsTimeMs = 0;
-    m_fBestCarTwoWheelsDistM = 0.0f;
-    m_nBestBikeWheelieTimeMs = 0;
-    m_fBestBikeWheelieDistM = 0.0f;
-    m_nBestBikeStoppieTimeMs = 0;
-    m_fBestBikeStoppieDistM = 0.0f;
-    m_bDoesNotGetTired = false;
-    m_bFastReload = false;
-    m_bFireProof = false;
-    m_bGetOutOfJailFree = false;
-    m_bFreeHealthCare = false;
-    m_nTimeOfLastCarExplosionCaused = 0;
-    m_nExplosionMultiplier = 0;
-    m_nHavocCaused = 0;
-    FindPlayerInfo().m_nNumHoursDidntEat = 0;
+    bTaxiTimerScore = false;
+    TaxiTimer = 0;
+    vehicle_time_counter = CTimer::GetTimeInMS();
+    MaxArmour = 100;
+    MaxHealth = 100;
+    bCanDoDriveBy = true;
+    CollectablesPickedUp = 0;
+    TotalNumCollectables = 3;
+    LastTimeEnergyLost = 0;
+    LastTimeArmourLost = 0;
+    LastTimeBigGunFired = 0;
+    TimesStuckInARow = 0;
+    TimesUpsideDownInARow = 0;
+    nCarTwoWheelCounter = 0;
+    fCarTwoWheelDist = 0.0f;
+    nCarLess3WheelCounter = 0;
+    nBikeRearWheelCounter = 0;
+    fBikeRearWheelDist = 0.0f;
+    nBikeFrontWheelCounter = 0;
+    fBikeFrontWheelDist = 0.0f;
+    nTempBufferCounter = 0;
+    nBestCarTwoWheelsTimeMs = 0;
+    fBestCarTwoWheelsDistM = 0.0f;
+    nBestBikeWheelieTimeMs = 0;
+    fBestBikeWheelieDistM = 0.0f;
+    nBestBikeStoppieTimeMs = 0;
+    fBestBikeStoppieDistM = 0.0f;
+    DoesNotGetTired = false;
+    FastReload = false;
+    FireProof = false;
+    bGetOutOfJailFree = false;
+    bFreeHealthCare = false;
+    TimeOfLastCarExplosionCaused = 0;
+    ExplosionMultiplier = 0;
+    HavocCaused = 0;
+    FindPlayerInfo().TimeLastEaten = 0;
     m_nLastBustMessageNumber = 1;
-    m_fCurrentChaseValue = 0.0f;
+    CurrentChaseValue = 0.0f;
     m_nBustedAudioStatus = 0;
     m_nCrosshairActivated = 0;
 
@@ -216,8 +215,8 @@ void CPlayerInfo::Clear() {
 void CPlayerInfo::GivePlayerParachute() const {
     if (m_nRequireParachuteTimer) {
         if (CStreaming::IsModelLoaded(MODEL_GUN_PARA)) {
-            m_pPed->GiveWeapon(WEAPON_PARACHUTE, 1, true);
-            m_pPed->SetSavedWeapon(WEAPON_PARACHUTE);
+            pPed->GiveWeapon(WEAPON_PARACHUTE, 1, true);
+            pPed->SetSavedWeapon(WEAPON_PARACHUTE);
         }
     }
 }
@@ -236,11 +235,11 @@ void CPlayerInfo::StreamParachuteWeapon(bool unk) {
         return;
     }
 
-    if (m_pPed && m_pPed->IsInVehicle()) {
-        if (m_pPed->m_pVehicle->IsSubPlane() || m_pPed->m_pVehicle->IsSubHeli()) {
+    if (pPed && pPed->IsInVehicle()) {
+        if (pPed->m_pMyVehicle->IsSubPlane() || pPed->m_pMyVehicle->IsSubHeli()) {
             if (m_nRequireParachuteTimer <= (uint32)CTimer::GetTimeStepInMS()) {
                 const auto groundHeight = TheCamera.CalculateGroundHeight(eGroundHeightType::ENTITY_BB_BOTTOM);
-                const auto vehToGroundZDist = m_pPed->m_pVehicle->GetPosition().z - groundHeight;
+                const auto vehToGroundZDist = pPed->m_pMyVehicle->GetPosition().z - groundHeight;
                 m_nRequireParachuteTimer = (vehToGroundZDist <= 50.f) ? 0 : 5000;
             } else {
                 m_nRequireParachuteTimer -= (uint32)CTimer::GetTimeStepInMS();
@@ -263,48 +262,48 @@ void CPlayerInfo::StreamParachuteWeapon(bool unk) {
 
 // 0x56EAB0
 void CPlayerInfo::AddHealth(int32 amount) const {
-    const auto newValue = std::min((float)m_nMaxHealth, m_pPed->m_fHealth + (float)amount); // Clamp to m_nMaxHealth
-    m_pPed->m_fHealth = std::max(newValue, m_pPed->m_fHealth); // Don't change health to a lower value
+    const auto newValue = std::min((float)MaxHealth, pPed->m_fHealth + (float)amount); // Clamp to m_nMaxHealth
+    pPed->m_fHealth = std::max(newValue, pPed->m_fHealth); // Don't change health to a lower value
 }
 
 // 0x56EA30
 void CPlayerInfo::BlowUpRCBuggy(bool bExplode) const {
-    if (m_pRemoteVehicle && !m_pRemoteVehicle->m_bRemoveFromWorld) {
+    if (pRemoteVehicle && !pRemoteVehicle->m_bRemoveFromWorld) {
         CRemote::TakeRemoteControlledCarFromPlayer(bExplode);
         if (bExplode)
-            m_pRemoteVehicle->BlowUpCar(FindPlayerPed(), false);
+            pRemoteVehicle->BlowUpCar(FindPlayerPed(), false);
     }
 }
 
 // 0x56E870
 void CPlayerInfo::MakePlayerSafe(bool enable, float radius) {
     // Not quite SA, but this is the way to do it (instead of copy pasting it twice)
-    auto& flags = m_pPed->physicalFlags;
-    flags.bInvulnerable = enable;
-    flags.bBulletProof = enable;
-    flags.bFireProof = enable;
-    flags.bExplosionProof = enable;
-    flags.bCollisionProof = enable;
-    flags.bMeleeProof = enable;
-    m_PlayerData.m_bCanBeDamaged = !enable;
-    m_PlayerData.m_pWanted->m_bEverybodyBackOff = enable;
-    m_pPed->GetPadFromPlayer()->bPlayerSafe = enable;
+    auto& flags = pPed->m_nPhysicalFlags;
+    flags.bOnlyDamagedByPlayer = enable;
+    flags.bNotDamagedByBullets = enable;
+    flags.bNotDamagedByFlames = enable;
+    flags.bIgnoresExplosions = enable;
+    flags.bNotDamagedByCollisions = enable;
+    flags.bNotDamagedByMelee = enable;
+    PlayerPedData.m_bCanBeDamaged = !enable;
+    PlayerPedData.m_pWanted->m_bEverybodyBackOff = enable;
+    pPed->GetPadFromPlayer()->bPlayerSafe = enable;
     CWorld::SetAllCarsCanBeDamaged(!enable);
 
     if (enable) {
         CWorld::StopAllLawEnforcersInTheirTracks();
         CPad::StopPadsShaking();
 
-        m_pPed->ClearAdrenaline();
-        m_PlayerData.m_fTimeCanRun = std::max(m_PlayerData.m_fTimeCanRun, 0.f);
-        m_pPed->GetIntelligence()->ClearTasks(true, false);
+        pPed->ClearAdrenaline();
+        PlayerPedData.m_fTimeCanRun = std::max(PlayerPedData.m_fTimeCanRun, 0.f);
+        pPed->GetIntelligence()->ClearTasks(true, false);
 
         gFireManager.ExtinguishPoint(GetPos(), radius);
         CExplosion::RemoveAllExplosionsInArea(GetPos(), 4000.f);
         CProjectileInfo::RemoveAllProjectiles();
         CWorld::ExtinguishAllCarFiresInArea(GetPos(), radius);
         CReplay::DisableReplays();
-        m_pPed->ClearWeaponTarget();
+        pPed->ClearWeaponTarget();
     } else {
         CReplay::EnableReplays();
     }
@@ -312,8 +311,8 @@ void CPlayerInfo::MakePlayerSafe(bool enable, float radius) {
 
 // 0x56E830
 void CPlayerInfo::PlayerFailedCriticalMission() {
-    if (m_nPlayerState == PLAYERSTATE_PLAYING) {
-        m_nPlayerState = PLAYERSTATE_FAILED_MISSION;
+    if (PlayerState == PLAYERSTATE_PLAYING) {
+        PlayerState = PLAYERSTATE_FAILED_MISSION;
         CGameLogic::SetMissionFailed();
         CDarkel::ResetOnPlayerDeath();
     }
@@ -342,30 +341,30 @@ void CPlayerInfo::WorkOutEnergyFromHunger() {
         || TheCamera.m_bWideScreenOn
         || CCutsceneMgr::ms_running
         || CGameLogic::IsCoopGameGoingOn()
-        || m_pRemoteVehicle
+        || pRemoteVehicle
     ) {
         return;
     }
 
-    if (!m_pPed)
+    if (!pPed)
         return;
 
-    if (m_pPed->m_pAttachedTo)
+    if (pPed->m_pAttachedTo)
         return;
 
     if (CClock::GetGameClockHours() != s_lastTimeHungryStateProcessed) {
-        if (!m_nNumHoursDidntEat)
+        if (!TimeLastEaten)
             s_LastHungryState = 0;
-        m_nNumHoursDidntEat += 1;
+        TimeLastEaten += 1;
     }
 
-    if (m_nNumHoursDidntEat <= 48) {
+    if (TimeLastEaten <= 48) {
         s_bHungryMessageShown = false;
     } else {
         if (CClock::GetGameClockHours() == s_lastTimeHungryStateProcessed)
             return;
 
-        m_pPed->Say(CTX_GLOBAL_STOMACH_RUMBLE);
+        pPed->Say(CTX_GLOBAL_STOMACH_RUMBLE);
         pad->StartShake(400, 110u, 0);
 
         if (s_bHungryMessageShown) {
@@ -375,13 +374,13 @@ void CPlayerInfo::WorkOutEnergyFromHunger() {
                 CStats::DisplayScriptStatUpdateMessage(STAT_UPDATE_DECREASE, STAT_FAT, 25.0f);
                 bDecreaseHealth = true;
                 if (!s_LastHungryState) {
-                    s_LastHungryState = m_nNumHoursDidntEat + 24;
+                    s_LastHungryState = TimeLastEaten + 24;
                 }
             }
 
-            if (CStats::GetStatValue(STAT_MUSCLE) <= 0.0f || m_nNumHoursDidntEat <= s_LastHungryState && s_LastHungryState) {
+            if (CStats::GetStatValue(STAT_MUSCLE) <= 0.0f || TimeLastEaten <= s_LastHungryState && s_LastHungryState) {
                 if (!bDecreaseHealth) {
-                    m_pPed->m_fHealth -= 2.0f;
+                    pPed->m_fHealth -= 2.0f;
                 }
             } else {
                 CStats::DecrementStat(STAT_MUSCLE, 25.0);
@@ -400,8 +399,8 @@ void CPlayerInfo::WorkOutEnergyFromHunger() {
 
 // 0x56E5D0
 void CPlayerInfo::ArrestPlayer() {
-    if (m_nPlayerState == PLAYERSTATE_PLAYING) {
-        m_nPlayerState = PLAYERSTATE_HAS_BEEN_ARRESTED;
+    if (PlayerState == PLAYERSTATE_PLAYING) {
+        PlayerState = PLAYERSTATE_HAS_BEEN_ARRESTED;
         m_nBustedAudioStatus = 0;
         CDarkel::ResetOnPlayerDeath();
         CStats::IncrementStat(STAT_TIMES_BUSTED, 1.0f);
@@ -411,8 +410,8 @@ void CPlayerInfo::ArrestPlayer() {
 
 // 0x56E580
 void CPlayerInfo::KillPlayer() {
-    if (m_nPlayerState == PLAYERSTATE_PLAYING) {
-        m_nPlayerState = PLAYERSTATE_HAS_DIED;
+    if (PlayerState == PLAYERSTATE_PLAYING) {
+        PlayerState = PLAYERSTATE_HAS_DIED;
         CDarkel::ResetOnPlayerDeath();
         CMessages::AddBigMessage(TheText.Get("DEAD"), 4000, STYLE_WHITE_MIDDLE);
         CStats::IncrementStat(STAT_NUMBER_OF_HOSPITAL_VISITS, 1.0f);
@@ -422,34 +421,34 @@ void CPlayerInfo::KillPlayer() {
 
 // 0x56E570
 bool CPlayerInfo::IsRestartingAfterMissionFailed() const {
-    return m_nPlayerState == PLAYERSTATE_FAILED_MISSION;
+    return PlayerState == PLAYERSTATE_FAILED_MISSION;
 }
 
 // 0x56E560
 bool CPlayerInfo::IsRestartingAfterArrest() const {
-    return m_nPlayerState == PLAYERSTATE_HAS_BEEN_ARRESTED;
+    return PlayerState == PLAYERSTATE_HAS_BEEN_ARRESTED;
 }
 
 // 0x56E550
 bool CPlayerInfo::IsRestartingAfterDeath() const {
-    return m_nPlayerState == PLAYERSTATE_HAS_DIED;
+    return PlayerState == PLAYERSTATE_HAS_DIED;
 }
 
 // 0x56DAB0
 bool CPlayerInfo::IsPlayerInRemoteMode() const {
-    return m_pRemoteVehicle || m_bAfterRemoteVehicleExplosion;
+    return pRemoteVehicle || bAfterRemoteVehicleExplosion;
 }
 
 // 0x56DFB0
 // Return occupied vehicle's (if in any) or player's ped position
 CVector CPlayerInfo::GetPos() const {
-    return m_pPed->IsInVehicle() ? m_pPed->m_pVehicle->GetPosition() : m_pPed->GetPosition();
+    return pPed->IsInVehicle() ? pPed->m_pMyVehicle->GetPosition() : pPed->GetPosition();
 }
 
 // 0x56DF50
 // Return occupied vehicle's (if in any) or player's ped move speed
 CVector CPlayerInfo::GetSpeed() const {
-    return m_pPed->IsInVehicle() ? m_pPed->m_pVehicle->GetMoveSpeed() : m_pPed->GetMoveSpeed();
+    return pPed->IsInVehicle() ? pPed->m_pMyVehicle->GetMoveSpeed() : pPed->GetMoveSpeed();
 }
 
 // 0x5D3B00
@@ -471,59 +470,59 @@ bool CPlayerInfo::Save() {
 
 // 0x45DEF0
 CPlayerInfo& CPlayerInfo::operator=(const CPlayerInfo& rhs) {
-    m_pPed                             = rhs.m_pPed;
-    m_PlayerData                       = rhs.m_PlayerData;
-    m_pRemoteVehicle                   = rhs.m_pRemoteVehicle;
-    m_pSpecCar                         = rhs.m_pSpecCar;
-    m_nMoney                           = rhs.m_nMoney;
-    m_nDisplayMoney                    = rhs.m_nDisplayMoney;
-    m_nCollectablesPickedUp            = rhs.m_nCollectablesPickedUp;
-    m_nTotalNumCollectables            = rhs.m_nTotalNumCollectables;
-    m_nLastBumpPlayerCarTimer          = rhs.m_nLastBumpPlayerCarTimer;
-    m_nTaxiTimer                       = rhs.m_nTaxiTimer;
-    m_nVehicleTimeCounter              = rhs.m_nVehicleTimeCounter;
-    m_bTaxiTimerScore                  = rhs.m_bTaxiTimerScore;
+    pPed                             = rhs.pPed;
+    PlayerPedData                       = rhs.PlayerPedData;
+    pRemoteVehicle                   = rhs.pRemoteVehicle;
+    pSpecCar                         = rhs.pSpecCar;
+    Score                           = rhs.Score;
+    DisplayScore                    = rhs.DisplayScore;
+    CollectablesPickedUp            = rhs.CollectablesPickedUp;
+    TotalNumCollectables            = rhs.TotalNumCollectables;
+    nLastBumpPlayerCarTimer          = rhs.nLastBumpPlayerCarTimer;
+    TaxiTimer                       = rhs.TaxiTimer;
+    vehicle_time_counter              = rhs.vehicle_time_counter;
+    bTaxiTimerScore                  = rhs.bTaxiTimerScore;
     m_bTryingToExitCar                 = rhs.m_bTryingToExitCar;
-    m_pLastTargetVehicle               = rhs.m_pLastTargetVehicle;
-    m_nPlayerState                     = rhs.m_nPlayerState;
-    m_bAfterRemoteVehicleExplosion     = rhs.m_bAfterRemoteVehicleExplosion;
-    m_bCreateRemoteVehicleExplosion    = rhs.m_bCreateRemoteVehicleExplosion;
-    m_bFadeAfterRemoteVehicleExplosion = rhs.m_bFadeAfterRemoteVehicleExplosion;
-    m_nTimeOfRemoteVehicleExplosion    = rhs.m_nTimeOfRemoteVehicleExplosion;
-    m_nLastTimeEnergyLost              = rhs.m_nLastTimeEnergyLost;
-    m_nLastTimeArmourLost              = rhs.m_nLastTimeArmourLost;
-    m_nLastTimeBigGunFired             = rhs.m_nLastTimeBigGunFired;
-    m_nTimesUpsideDownInARow           = rhs.m_nTimesUpsideDownInARow;
-    m_nTimesStuckInARow                = rhs.m_nTimesStuckInARow;
-    m_nCarTwoWheelCounter              = rhs.m_nCarTwoWheelCounter;
-    m_fCarTwoWheelDist                 = rhs.m_fCarTwoWheelDist;
-    m_nCarLess3WheelCounter            = rhs.m_nCarLess3WheelCounter;
-    m_nBikeRearWheelCounter            = rhs.m_nBikeRearWheelCounter;
-    m_fBikeRearWheelDist               = rhs.m_fBikeRearWheelDist;
-    m_nBikeFrontWheelCounter           = rhs.m_nBikeFrontWheelCounter;
-    m_fBikeFrontWheelDist              = rhs.m_fBikeFrontWheelDist;
-    m_nTempBufferCounter               = rhs.m_nTempBufferCounter;
-    m_nBestCarTwoWheelsTimeMs          = rhs.m_nBestCarTwoWheelsTimeMs;
-    m_fBestCarTwoWheelsDistM           = rhs.m_fBestCarTwoWheelsDistM;
-    m_nBestBikeWheelieTimeMs           = rhs.m_nBestBikeWheelieTimeMs;
-    m_fBestBikeWheelieDistM            = rhs.m_fBestBikeWheelieDistM;
-    m_nBestBikeStoppieTimeMs           = rhs.m_nBestBikeStoppieTimeMs;
-    m_fBestBikeStoppieDistM            = rhs.m_fBestBikeStoppieDistM;
-    m_nCarDensityForCurrentZone        = rhs.m_nCarDensityForCurrentZone;
-    m_fRoadDensityAroundPlayer         = rhs.m_fRoadDensityAroundPlayer;
-    m_nTimeOfLastCarExplosionCaused    = rhs.m_nTimeOfLastCarExplosionCaused;
-    m_nExplosionMultiplier             = rhs.m_nExplosionMultiplier;
-    m_nHavocCaused                     = rhs.m_nHavocCaused;
-    m_nNumHoursDidntEat                = rhs.m_nNumHoursDidntEat;
-    m_fCurrentChaseValue               = rhs.m_fCurrentChaseValue;
-    m_bDoesNotGetTired                 = rhs.m_bDoesNotGetTired;
-    m_bFastReload                      = rhs.m_bFastReload;
-    m_bFireProof                       = rhs.m_bFireProof;
-    m_nMaxHealth                       = rhs.m_nMaxHealth;
-    m_nMaxArmour                       = rhs.m_nMaxArmour;
-    m_bGetOutOfJailFree                = rhs.m_bGetOutOfJailFree;
-    m_bFreeHealthCare                  = rhs.m_bFreeHealthCare;
-    m_bCanDoDriveBy                    = rhs.m_bCanDoDriveBy;
+    pLastTargetVehicle               = rhs.pLastTargetVehicle;
+    PlayerState                     = rhs.PlayerState;
+    bAfterRemoteVehicleExplosion     = rhs.bAfterRemoteVehicleExplosion;
+    bCreateRemoteVehicleExplosion    = rhs.bCreateRemoteVehicleExplosion;
+    bFadeAfterRemoteVehicleExplosion = rhs.bFadeAfterRemoteVehicleExplosion;
+    TimeOfRemoteVehicleExplosion    = rhs.TimeOfRemoteVehicleExplosion;
+    LastTimeEnergyLost              = rhs.LastTimeEnergyLost;
+    LastTimeArmourLost              = rhs.LastTimeArmourLost;
+    LastTimeBigGunFired             = rhs.LastTimeBigGunFired;
+    TimesUpsideDownInARow           = rhs.TimesUpsideDownInARow;
+    TimesStuckInARow                = rhs.TimesStuckInARow;
+    nCarTwoWheelCounter              = rhs.nCarTwoWheelCounter;
+    fCarTwoWheelDist                 = rhs.fCarTwoWheelDist;
+    nCarLess3WheelCounter            = rhs.nCarLess3WheelCounter;
+    nBikeRearWheelCounter            = rhs.nBikeRearWheelCounter;
+    fBikeRearWheelDist               = rhs.fBikeRearWheelDist;
+    nBikeFrontWheelCounter           = rhs.nBikeFrontWheelCounter;
+    fBikeFrontWheelDist              = rhs.fBikeFrontWheelDist;
+    nTempBufferCounter               = rhs.nTempBufferCounter;
+    nBestCarTwoWheelsTimeMs          = rhs.nBestCarTwoWheelsTimeMs;
+    fBestCarTwoWheelsDistM           = rhs.fBestCarTwoWheelsDistM;
+    nBestBikeWheelieTimeMs           = rhs.nBestBikeWheelieTimeMs;
+    fBestBikeWheelieDistM            = rhs.fBestBikeWheelieDistM;
+    nBestBikeStoppieTimeMs           = rhs.nBestBikeStoppieTimeMs;
+    fBestBikeStoppieDistM            = rhs.fBestBikeStoppieDistM;
+    CarDensityForCurrentZone        = rhs.CarDensityForCurrentZone;
+    RoadDensityAroundPlayer         = rhs.RoadDensityAroundPlayer;
+    TimeOfLastCarExplosionCaused    = rhs.TimeOfLastCarExplosionCaused;
+    ExplosionMultiplier             = rhs.ExplosionMultiplier;
+    HavocCaused                     = rhs.HavocCaused;
+    TimeLastEaten                = rhs.TimeLastEaten;
+    CurrentChaseValue               = rhs.CurrentChaseValue;
+    DoesNotGetTired                 = rhs.DoesNotGetTired;
+    FastReload                      = rhs.FastReload;
+    FireProof                       = rhs.FireProof;
+    MaxHealth                       = rhs.MaxHealth;
+    MaxArmour                       = rhs.MaxArmour;
+    bGetOutOfJailFree                = rhs.bGetOutOfJailFree;
+    bFreeHealthCare                  = rhs.bFreeHealthCare;
+    bCanDoDriveBy                    = rhs.bCanDoDriveBy;
     m_nBustedAudioStatus               = rhs.m_nBustedAudioStatus;
     m_nLastBustMessageNumber           = rhs.m_nLastBustMessageNumber;
     m_nCrosshairActivated              = rhs.m_nCrosshairActivated;
@@ -531,6 +530,6 @@ CPlayerInfo& CPlayerInfo::operator=(const CPlayerInfo& rhs) {
     m_pSkinTexture                     = rhs.m_pSkinTexture;
     m_bParachuteReferenced             = rhs.m_bParachuteReferenced;
     m_nRequireParachuteTimer           = rhs.m_nRequireParachuteTimer;
-    strcpy_s(m_szSkinName, rhs.m_szSkinName);
+    strcpy_s(m_skinName, rhs.m_skinName);
     return *this;
 }

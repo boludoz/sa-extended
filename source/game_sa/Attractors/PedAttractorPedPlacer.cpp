@@ -27,6 +27,6 @@ void CPedAttractorPedPlacer::PlacePedAtEffect(C2dEffectPedAttractor const& fx, C
 
     const auto angle = CVector2D{ fxUseDir }.Heading();
     ped->GetMatrix().SetRotateZOnly(angle);
-    ped->m_fAimingRotation = angle;
-    ped->m_fCurrentRotation = angle;
+    ped->m_fDesiredHeading = angle;
+    ped->m_fCurrentHeading = angle;
 }

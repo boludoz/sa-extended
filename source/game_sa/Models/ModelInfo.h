@@ -91,6 +91,7 @@ public:
 
     static CBaseModelInfo* GetModelInfo(int32 index) { return ms_modelInfoPtrs[index]; }
     static CColModel& GetColModel(int32 index) { return *GetModelInfo(index)->GetColModel(); }
+    static CBoundingBox& GetBoundingBox(int32 index) { return GetColModel(index).GetBoundingBox(); } //!< calineva API
     static auto GetPedModelInfo(int32 index) { return GetModelInfo(index)->AsPedModelInfoPtr(); }
     static auto GetVehicleModelInfo(int32 index) { return GetModelInfo(index)->AsVehicleModelInfoPtr(); }
     static void SetModelInfo(int32 index, CBaseModelInfo* pInfo) { ms_modelInfoPtrs[index] = pInfo; }

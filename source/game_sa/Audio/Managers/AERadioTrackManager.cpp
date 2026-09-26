@@ -81,7 +81,7 @@ CAERadioTrackManager::CAERadioTrackManager(int32 hwClientHandle) :
 
 // 0x5B9390
 bool CAERadioTrackManager::Initialise(int32 channelId) {
-    *this = CAERadioTrackManager{};
+    *this = CAERadioTrackManager{channelId};
     return true;
 }
 

@@ -18,6 +18,7 @@ public:
     static inline auto& ms_bIsPlayerOnAMission = StaticRef<bool>(0xC098E8);
     static inline auto& ms_iNoOfPlayerKills = StaticRef<uint32>(0xC098EC);
     static inline auto& ms_groups = StaticRef<std::array<CPedGroup, 8>>(0xC09920);
+    static constexpr int32 MAX_NUM_GROUPS = 8; //!< calineva API
 
 public:
     static void InjectHooks();

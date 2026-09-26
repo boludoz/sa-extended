@@ -143,13 +143,13 @@ void CTaskSimpleJump::Launch(CPed* ped) {
     if (m_bClimbJump) {
         ped->m_vecMoveSpeed.x = 0.0F;
         ped->m_vecMoveSpeed.y = 0.0F;
-    } else if (!m_pClimbEntity && (ped->m_standingOnEntity || ped->m_vecMoveSpeed.SquaredMagnitude2D() < fHorizontalJumpSpeed)) {
-        ped->m_vecMoveSpeed.x = -fHorizontalJumpSpeed * sin(ped->m_fCurrentRotation);
-        ped->m_vecMoveSpeed.y = fHorizontalJumpSpeed * cos(ped->m_fCurrentRotation);
+    } else if (!m_pClimbEntity && (ped->m_pGroundPhysical || ped->m_vecMoveSpeed.SquaredMagnitude2D() < fHorizontalJumpSpeed)) {
+        ped->m_vecMoveSpeed.x = -fHorizontalJumpSpeed * sin(ped->m_fCurrentHeading);
+        ped->m_vecMoveSpeed.y = fHorizontalJumpSpeed * cos(ped->m_fCurrentHeading);
 
-        if (ped->m_standingOnEntity) {
-            ped->m_vecMoveSpeed.x += ped->m_standingOnEntity->AsPhysical()->m_vecMoveSpeed.x;
-            ped->m_vecMoveSpeed.y += ped->m_standingOnEntity->AsPhysical()->m_vecMoveSpeed.y;
+        if (ped->m_pGroundPhysical) {
+            ped->m_vecMoveSpeed.x += ped->m_pGroundPhysical->AsPhysical()->m_vecMoveSpeed.x;
+            ped->m_vecMoveSpeed.y += ped->m_pGroundPhysical->AsPhysical()->m_vecMoveSpeed.y;
         }
     }
 
@@ -220,7 +220,7 @@ bool CTaskSimpleJump::StartLaunchAnim(CPed* ped) {
     if (ped->GetPlayerData())
         m_pAnim->m_Speed = CStats::GetFatAndMuscleModifier(STAT_MOD_2);
     m_pAnim->SetFinishCallback(JumpAnimFinishCB, this);
-    ped->m_fAimingRotation = ped->m_fCurrentRotation;
+    ped->m_fDesiredHeading = ped->m_fCurrentHeading;
 
     return true;
 }

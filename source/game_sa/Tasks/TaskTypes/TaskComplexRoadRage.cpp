@@ -49,24 +49,24 @@ CTask* CTaskComplexRoadRage::CreateSubTask(eTaskType taskType, CPed* ped) {
     case TASK_COMPLEX_TURN_TO_FACE_ENTITY:
         return new CTaskComplexTurnToFaceEntityOrCoord{ m_rageWith };
     case TASK_COMPLEX_LEAVE_CAR:
-        return new CTaskComplexLeaveCar{ ped->m_pVehicle,eTargetDoor::TARGET_DOOR_FRONT_LEFT, 0, true, false };
+        return new CTaskComplexLeaveCar{ ped->m_pMyVehicle,eTargetDoor::TARGET_DOOR_FRONT_LEFT, 0, true, false };
     case TASK_SIMPLE_SHAKE_FIST:
         return new CTaskSimpleShakeFist{};
     case TASK_COMPLEX_ENTER_CAR_AS_DRIVER:
-        return new CTaskComplexEnterCarAsDriver{ ped->m_pVehicle };
+        return new CTaskComplexEnterCarAsDriver{ ped->m_pMyVehicle };
     case TASK_COMPLEX_SEEK_ENTITY:
         return new CTaskComplexSeekEntityStandard{
-            ped->m_pVehicle,
+            ped->m_pMyVehicle,
             20'000,
             1'000,
-            m_rageWith->m_pVehicle->GetModelInfo()->GetColModel()->GetBoundRadius() + 1.f,
+            m_rageWith->m_pMyVehicle->GetModelInfo()->GetColModel()->GetBoundRadius() + 1.f,
             2.f,
             2.f,
             true,
             true
         };
     case TASK_COMPLEX_DESTROY_CAR:
-        return new CTaskComplexDestroyCar{ m_rageWith->m_pVehicle };
+        return new CTaskComplexDestroyCar{ m_rageWith->m_pMyVehicle };
     case TASK_COMPLEX_KILL_PED_ON_FOOT:
         return new CTaskComplexKillPedOnFoot{ m_rageWith, -1, 0, 0, 0, true };
     case TASK_FINISHED:
@@ -102,9 +102,9 @@ CTask* CTaskComplexRoadRage::CreateNextSubTask(CPed* ped) {
             ped
         );
     case TASK_COMPLEX_ENTER_CAR_AS_DRIVER: {
-        if (ped->m_pVehicle) {
-            ped->m_pVehicle->m_autoPilot.SetCarMission(MISSION_CRUISE);
-            ped->m_pVehicle->m_autoPilot.SetCruiseSpeed(10);
+        if (ped->m_pMyVehicle) {
+            ped->m_pMyVehicle->m_autoPilot.SetCarMission(MISSION_CRUISE);
+            ped->m_pMyVehicle->m_autoPilot.SetCruiseSpeed(10);
         }
         return CreateSubTask(TASK_FINISHED, ped);
     }
@@ -156,7 +156,7 @@ CTask* CTaskComplexRoadRage::ControlSubTask(CPed* ped) {
         [[fallthrough]];
     }
     case TASK_COMPLEX_KILL_PED_ON_FOOT: {
-        if (ped->m_pVehicle && (ped->GetPosition() - m_rageWith->GetPosition()).SquaredMagnitude() <= sq(20.f)) {
+        if (ped->m_pMyVehicle && (ped->GetPosition() - m_rageWith->GetPosition()).SquaredMagnitude() <= sq(20.f)) {
             return CreateSubTask(TASK_COMPLEX_ENTER_CAR_AS_DRIVER, ped);
         }
         break;

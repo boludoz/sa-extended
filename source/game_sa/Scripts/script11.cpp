@@ -40,12 +40,81 @@
 #include "Hud.h"
 #include "extensions/File.hpp"
 #include "TaskSimpleFinishBrain.h"
+#include "TaskSimpleRunNamedAnim.h"
+#include "TaskSimpleAffectSecondaryBehaviour.h"
+#include "TaskSequences.h"
 
 
 
 // 0x470150
 void CRunningScript::PlayAnimScriptCommand(int32 commandId) {
-    plugin::CallMethod<0x470150, CRunningScript*, int32>(this, commandId);
+    char AnimName[24];
+    char AnimGroupName[16];
+    CTask* pTask;
+    bool bRepositionWhenFinished = false;
+    bool bInterruptable = true;
+
+    CollectParameters(1);
+    const int32 iPedID = ScriptParams[0].iParam;
+    ReadTextLabelFromScript(AnimName, 24);
+    ReadTextLabelFromScript(AnimGroupName, 16);
+
+    switch (commandId) {
+    case COMMAND_TASK_PLAY_ANIM:
+        CollectParameters(6);
+        break;
+    case COMMAND_TASK_PLAY_ANIM_NON_INTERRUPTABLE:
+        bInterruptable = false;
+        CollectParameters(6);
+        break;
+    case COMMAND_TASK_PLAY_ANIM_WITH_FLAGS:
+        CollectParameters(8);
+        bInterruptable = ScriptParams[6].iParam != 0;
+        bRepositionWhenFinished = ScriptParams[7].iParam != 0;
+        break;
+    case COMMAND_TASK_PLAY_ANIM_SECONDARY:
+        CollectParameters(6);
+        break;
+    default:
+        break;
+    }
+
+    const float fBlendDelta = ScriptParams[0].fParam;
+    const int32 iTime = ScriptParams[5].iParam;
+    uint32 flags = 0x10;
+
+    if (ScriptParams[1].iParam || (iTime > 0 && !ScriptParams[4].iParam)) {
+        flags = 0x12;
+    }
+    if (ScriptParams[2].iParam) {
+        flags |= 0x40;
+    }
+    if (ScriptParams[3].iParam) {
+        flags |= 0x80;
+    }
+    if (!ScriptParams[4].iParam) {
+        flags |= 8;
+    }
+    if (commandId == COMMAND_TASK_PLAY_ANIM_SECONDARY) {
+        flags |= 0x400;
+    }
+
+    bool bRunInSequence = (CTaskSequences::ms_iActiveSequence >= 0);
+
+    if (iTime > 0) {
+        pTask = new CTaskSimpleRunNamedAnim(AnimName, AnimGroupName, flags, fBlendDelta, static_cast<uint32>(iTime), !bInterruptable, bRunInSequence, bRepositionWhenFinished, false);
+    } else {
+        pTask = new CTaskSimpleRunNamedAnim(AnimName, AnimGroupName, flags, fBlendDelta, static_cast<uint32>(-1), !bInterruptable, bRunInSequence, bRepositionWhenFinished, false);
+    }
+
+    CTask* pTaskSecond;
+    if (commandId == COMMAND_TASK_PLAY_ANIM_SECONDARY) {
+        pTaskSecond = new CTaskSimpleAffectSecondaryBehaviour(true, TASK_SECONDARY_PARTIAL_ANIM, pTask);
+    } else {
+        pTaskSecond = pTask;
+    }
+
+    GivePedScriptedTask(iPedID, pTaskSecond, commandId);
 }
 
 
@@ -154,7 +223,7 @@ void InjectHooks_Script11() {
         RH_ScopedClass(CRunningScript);
         RH_ScopedCategory("Scripts");
 
-        RH_ScopedInstall(PlayAnimScriptCommand, 0x470150, { .reversed = false });
+        RH_ScopedInstall(PlayAnimScriptCommand, 0x470150);
     }
     {
         RH_ScopedClass(CTheScripts);

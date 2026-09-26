@@ -96,10 +96,11 @@ void CCollision::RemoveTrianglePlanes(CCollisionData* colData) {
 }
 
 // 0x411E70
+// ASM Match
 bool CCollision::TestSphereSphere(CColSphere const& sphere1, CColSphere const& sphere2) { // Yes, it's __stdcall
     ZoneScoped;
 
-    return (sphere1.m_vecCenter - sphere2.m_vecCenter).SquaredMagnitude() <= sq(sphere1.m_fRadius + sphere2.m_fRadius);
+    return (sphere1.m_vecCenter - sphere2.m_vecCenter).SquaredMagnitude() < sq(sphere1.m_fRadius + sphere2.m_fRadius);
 }
 
 // 0x411EC0
@@ -132,20 +133,22 @@ void CalculateColPointInsideBox(CBox const& box, CVector const& point, CColPoint
     }
 }
 
+// 0x4120C0
+// ASM Match: 99.95%
 /*!
-* @addr 0x4120C0
 * @brief Tests if the \a bb is fully inside \a sphere
 */
-bool CCollision::TestSphereBox(CSphere const& sphere, CBox const& box) {
+bool CCollision::TestSphereBox(CSphere const& sphere, CBox const& box)
+{
     ZoneScoped;
 
-    for (auto i = 0u; i < 3u; i++) {
-        if (sphere.m_vecCenter[i] + sphere.m_fRadius < box.m_vecMin[i] ||
-            sphere.m_vecCenter[i] - sphere.m_fRadius > box.m_vecMax[i]
-        ) {
-            return false;
-        }
+    if (sphere.m_vecCenter.x + sphere.m_fRadius < box.m_vecMin.x || sphere.m_vecCenter.x - sphere.m_fRadius > box.m_vecMax.x
+        || sphere.m_vecCenter.y + sphere.m_fRadius < box.m_vecMin.y || sphere.m_vecCenter.y - sphere.m_fRadius > box.m_vecMax.y
+        || sphere.m_vecCenter.z + sphere.m_fRadius < box.m_vecMin.z || sphere.m_vecCenter.z - sphere.m_fRadius > box.m_vecMax.z)
+    {
+        return false;
     }
+
     return true;
 }
 
@@ -364,57 +367,34 @@ bool __stdcall CCollision::PointInTriangle(CVector const& point, CVector const* 
     return false;
 }
 
-/*!
-* @addr 0x412850
-*
-* @param ln0 Origin of line seg.
-* @param ln1 End of line seg.
-* @param pt  The point
-* 
-* @returns Sq. dist. from `pt` to point closest to `pt` on the line segment (ln0, ln1) 
-*/
-float CCollision::DistToLineSqr(CVector const& ln0, CVector const& ln1, CVector const& pt) {
+// 0x412850
+// ASM Match: 99.85%
+float CCollision::DistToLineSqr(CVector const& ln0, CVector const& ln1, CVector const& pt)
+{
     ZoneScoped;
 
-    // Make line end (l) and pt (pl_ip) relative to ln0 (by this ln0 becomes the space origin)
-    const auto l = ln1 - ln0;
-    const auto p = pt - ln0;
+    CVector vecDirection = ln1 - ln0;
+    CVector vec = pt - ln0;
+    float fDistanceAlongLine = DotProduct(vec, vecDirection);
 
-    //        * P
-    //      / |
-    //   c /  | a
-    //    /   |
-    // O *----+--------* L
-    //     pl  IP
-    //
-    // O    - Origin (line start)
-    // L    - Line end
-    // P    - Point
-    // IP   - Intersection pt
-    // b, c - Triangle sides
-    // a    - The distance we want to find out :D
-
-    const auto ll = l.Dot(l); // Line mag. sq.
-    const auto pl = p.Dot(l);
-
-    if (pl <= 0.f) { // Before origin
-        return p.SquaredMagnitude(); // Dist to origin
+    if (fDistanceAlongLine <= 0.0f)
+    {
+        return vec.SquaredMagnitude();
     }
 
-    if (pl >= ll) { // After end
-        return (p - l).SquaredMagnitude(); // Dist to end
+    float fMagnitudeSqr = vecDirection.SquaredMagnitude();
+    if (fDistanceAlongLine >= fMagnitudeSqr)
+    {
+        return (pt - ln1).SquaredMagnitude();
     }
 
-    // Simple Pythagorean here, we gotta find `a^2`
-   
-    const auto cSq = p.Dot(p);
+    float Val = vec.SquaredMagnitude() - (fDistanceAlongLine * fDistanceAlongLine) / fMagnitudeSqr;
+    if (Val <= 0.0f)
+    {
+        return 0.0f;
+    }
 
-    // Clever trick to divide by |l| without taking it's sqrt
-    // We have to do this, because `pl` is multiplied by |l|
-    // (Result of the dot product)
-    const auto bSq = pl * pl / ll;
-
-    return cSq - bSq; // return a^2
+    return Val;
 }
 
 // 0x417610
@@ -445,17 +425,26 @@ float CCollision::DistToMathematicalLine(CVector const* lineStart, CVector const
     return aSq > 0.0f ? std::sqrt(aSq) : 0.0f; // Little optimization to not call `sqrt` if the dist is 0 (it wont ever be negative)
 }
 
+// 0x412A30
+// ASM Match: 99.66%
 /*!
-* @addr 0x412A30
 * @brief Same as DistToMathematicalLine but in 2D
 */
-float CCollision::DistToMathematicalLine2D(float lineStartX, float lineStartY, float lineEndX, float lineEndY, float pointX, float pointY) {
+float CCollision::DistToMathematicalLine2D(float lineStartX, float lineStartY, float lineEndX, float lineEndY, float pointX, float pointY)
+{
     ZoneScoped;
 
-    const float px{ pointX - lineStartX }, py{ pointY - lineStartY };
-    const auto  dot = px * lineEndX + py * lineEndY;
-    const auto distSq = px * px + py * py - dot * dot;
-    return distSq > 0.f ? std::sqrt(distSq) : 0.f;
+    float DeltaX = pointX - lineStartX;
+    float DeltaY = pointY - lineStartY;
+    float fDistanceAlongLine = DeltaX * lineEndX + DeltaY * lineEndY;
+    float Val = DeltaX * DeltaX + DeltaY * DeltaY - fDistanceAlongLine * fDistanceAlongLine;
+
+    if (Val <= 0.0f)
+    {
+        return 0.0f;
+    }
+
+    return CMaths::Sqrt(Val);
 }
 
 /*!
@@ -593,12 +582,16 @@ float CCollision::ClosestPtSegmentSegment(
 }
 
 // 0x415A40
+// ASM Match: 99.74%
 /*!
-* This one took me quite a bit to figure out.
-* Of course they weren't logical at all and did something weird :)
-* Turns out, they used an algorithm out of a book by Dan Sunday,
-* see here (https://web.archive.org/web/20210330143700/http://geomalgorithms.com/a07-_distance.html)
-* I opted to use something different, but it remains to be seen how much more efficient it is (or isnt)
+* Algorithm by Dan Sunday (geomalgorithms.com, "Distance between segments")
+*
+* Copyright 2001 softSurfer, 2012 Dan Sunday
+* This code may be freely used and modified for any purpose
+* providing that this copyright notice is included with it.
+* SoftSurfer makes no warranty for this code, and cannot be held
+* liable for any real or imagined damage resulting from its use.
+* Users of this code must verify correctness for their application.
 *
 * @param s1p0 Seg. 1 origin
 * @param s2p0 Seg. 2 origin
@@ -612,93 +605,100 @@ float ClosestSquaredDistanceBetweenFiniteLines(
     const CVector& s1p0,
     const CVector& s2p0, const CVector& s2p1,
     const CVector& u, float a
-) {
-    float s, t;
-    CVector c1, c2;
-    CVector d2 = s2p1 - s2p0;
-    return CCollision::ClosestPtSegmentSegment(
-        s1p0, u, a,
-        s2p0, d2, d2.Dot(d2),
-        s, t,
-        c1, c2
-    );
-    
-    /* Original code below:
-    constexpr auto EPSILON = 1e-5f;
+)
+{
+    CVector v;
+    CVector w;
+    float b;
+    float c;
+    float d;
+    float e;
+    float D;
+    float sD, sN, sc;
+    float tD, tN, tc;
 
-    // For completeness sake I'll include the copyright:
-    //
-    // Copyright 2001 softSurfer, 2012 Dan Sunday
-    // This code may be freely used and modified for any purpose
-    // providing that this copyright notice is included with it.
-    // SoftSurfer makes no warranty for this code, and cannot be held
-    // liable for any real or imagined damage resulting from its use.
-    // Users of this code must verify correctness for their application.
+    v = s2p1 - s2p0;
+    w = s1p0 - s2p0;
 
-    //CVector u = s1p1 - s1p0; //S1.P1 - S1.P0;
-    CVector v = s2p1 - s2p0; //S2.P1 - S2.P0;
-    CVector w = s1p0 - s2p0; //S1.P0 - S2.P0;
-    //float   a = u.Dot(u);         // always >= 0
-    float   b = u.Dot(v);
-    float   c = v.Dot(v);// v.Dot(v);         // always >= 0
-    float   d = u.Dot(w);
-    float   e = v.Dot(w);
-    float   D = a*c - b*b;        // always >= 0
-    float   sc, sN, sD = D;       // sc = sN / sD, default sD = D >= 0
-    float   tc, tN, tD = D;       // tc = tN / tD, default tD = D >= 0
+    b = DotProduct(u, v);
+    c = (v.z * v.z + v.x * v.x) + v.y * v.y;
+    d = DotProduct(u, w);
+    e = (v.z * w.z + v.x * w.x) + v.y * w.y;
 
-    // compute the line parameters of the two closest points
-    if (D < EPSILON) { // the lines are almost parallel
-        sN = 0.f;         // force using point P0 on segment S1
-        sD = 1.f;         // to prevent possible division by 0.0 later
+    D = a * c - b * b;
+
+    sD = D;
+    tD = D;
+
+    if (D < 0.00001f)
+    {
+        sN = 0.0f;
+        sD = 1.0f;
         tN = e;
         tD = c;
-    } else {                 // get the closest points on the infinite lines
-        sN = (b*e - c*d);
-        tN = (a*e - b*d);
-        if (sN < 0.f) {        // sc < 0 => the s=0 edge is visible
-            sN = 0.f;
+    }
+    else
+    {
+        sN = b * e - c * d;
+        tN = a * e - b * d;
+
+        if (sN < 0.0f)
+        {
+            sN = 0.0f;
             tN = e;
             tD = c;
         }
-        else if (sN > sD) {  // sc > 1  => the s=1 edge is visible
+        else if (sN > sD)
+        {
             sN = sD;
             tN = e + b;
             tD = c;
         }
     }
 
-    if (tN < 0.f) {            // tc < 0 => the t=0 edge is visible
-        tN = 0.f;
-        // recompute sc for this edge
-        if (-d < 0.f)
-            sN = 0.f;
+    if (tN < 0.0f)
+    {
+        tN = 0.0f;
+        if (-d < 0.0f)
+        {
+            sN = 0.0f;
+        }
         else if (-d > a)
+        {
             sN = sD;
-        else {
+        }
+        else
+        {
             sN = -d;
             sD = a;
         }
-    } else if (tN > tD) {      // tc > 1  => the t=1 edge is visible
+    }
+    else if (tN > tD)
+    {
         tN = tD;
-        // recompute sc for this edge
-        if ((-d + b) < 0.0)
-            sN = 0;
-        else if ((-d + b) > a)
-            sN = sD;
-        else {
-            sN = (-d + b);
-            sD = a;
+        {
+            float x = -d + b;
+            if (x < 0.0f)
+            {
+                sN = 0.0f;
+            }
+            else if (x > a)
+            {
+                sN = sD;
+            }
+            else
+            {
+                sN = x;
+                sD = a;
+            }
         }
     }
-    // finally do the division to get sc and tc
-    sc = (abs(sN) < EPSILON ? 0.f : sN / sD);
-    tc = (abs(tN) < EPSILON ? 0.f : tN / tD);
 
-    // get the difference of the two closest points
-    CVector dP = w + (sc * u) - (tc * v);  // =  S1(sc) - S2(tc)
-    return dP.SquaredMagnitude(); //return norm(dP);   // return the closest distance
-    */
+    sc = (CMaths::Abs(sN) < 0.00001f) ? 0.0f : sN / sD;
+    tc = (CMaths::Abs(tN) < 0.00001f) ? 0.0f : tN / tD;
+
+    CVector dP = w + (sc * u) - (tc * v);
+    return dP.SquaredMagnitude();
 }
 
 /*!
@@ -1036,6 +1036,7 @@ bool CCollision::TestLineBox_DW(CColLine const& line, CBox const& box) {
 }
 
 // 0x413070
+// ASM Match
 bool CCollision::TestLineBox(CColLine const& line, CBox const& box) {
     ZoneScoped;
 
@@ -1231,8 +1232,8 @@ bool CCollision::ProcessDiscCollision(
     const auto cp       = matBA.TransformPoint(tempTriCol.m_vecPoint);
     const auto cpNormal = matBA.TransformVector(tempTriCol.m_vecNormal);
     
-    if (std::abs((cpNormal * disk.m_vThickness).ComponentwiseSum()) >= 0.77f ||
-        std::abs(((cp - disk.m_vecCenter) * disk.m_vThickness).ComponentwiseSum()) >= disk.m_fThickness
+    if (std::abs((cpNormal * disk.m_vecThickness).ComponentwiseSum()) >= 0.77f ||
+        std::abs(((cp - disk.m_vecCenter) * disk.m_vecThickness).ComponentwiseSum()) >= disk.m_fThickness
     ) {
         if (disk.m_Surface.m_nPiece < 17 && tempTriCol.m_fDepth > diskColPoint.m_fDepth) {
             diskColPoint = tempTriCol;
@@ -1875,18 +1876,24 @@ void CCollision::ClosestPointOnPoly(CColTriangle* arg0, CVector* arg1, CVector* 
 }
 
 // 0x418580
-void CCollision::CalculateTrianglePlanes(CColModel* colModel) {
-    ZoneScoped;
-
-    plugin::Call<0x418580, CColModel*>(colModel);
-    if (colModel->m_pColData && colModel->m_pColData->m_pTriangles) {
-        assert(colModel->m_pColData->m_pTrianglePlanes); // If model has triangles it should also have triPls by now (otherwise random crashes will occour)
+// ASM Match
+void CCollision::CalculateTrianglePlanes(CColModel* pModel)
+{
+    if (pModel->GetCollisionData() != nullptr)
+    {
+        CalculateTrianglePlanes(pModel->GetCollisionData());
     }
 }
 
 // 0x4185A0
-void CCollision::RemoveTrianglePlanes(CColModel* colModel) {
-    plugin::Call<0x4185A0, CColModel*>(colModel);
+// ASM Match
+void CCollision::RemoveTrianglePlanes(CColModel* pModel)
+{
+    CCollisionData* pColData = pModel->GetCollisionData();
+    if (pColData != nullptr)
+    {
+        CCollision::RemoveTrianglePlanes(pColData);
+    }
 }
 
 // TODO: This function could be refactored to use ranges instead of these ugly static variables :D
@@ -2307,7 +2314,7 @@ int32 CCollision::ProcessColModels(const CMatrix& transformA, CColModel& cmA,
                         if (ProcessSphereTriangle(sphereAinB, cdB.m_pVertices, cdB.m_pTriangles[triIdx], cdB.m_pTrianglePlanes[triIdx], triCP, diskCPMaxDist)) {
                             // Original: when the wheel rests on a roughly-horizontal face of an upright B (e.g. the roof
                             // of a car still on its wheels), override the contact normal with the triangle's PLANE normal
-                            // before PDC. PDC's `|cpNormal * m_vThickness| < 0.77` test then classifies it as a wheel-tread
+                            // before PDC. PDC's `|cpNormal * m_vecThickness| < 0.77` test then classifies it as a wheel-tread
                             // (line) hit rather than a disk-edge hit, letting the truck settle onto and climb the car.
                             // Constants: 0.3 (0x858c24), 0.9 (0x858c20); B's up.z is transformB matrix offset 0x28.
                             const auto planeNormal = cdB.m_pTrianglePlanes[triIdx].GetNormal();
@@ -2573,7 +2580,7 @@ bool CCollision::IsThisVehicleSittingOnMe(CVehicle* veh, CVehicle* vehOnMe) {
         return notsa::contains(wheelColEntities, veh);
     };
     switch (vehOnMe->GetBaseVehicleType()) {
-    case VEHICLE_TYPE_AUTOMOBILE: return Check(vehOnMe->AsAutomobile()->m_apWheelCollisionEntity);
+    case VEHICLE_TYPE_AUTOMOBILE: return Check(vehOnMe->AsAutomobile()->m_aGroundPhysicalPtrs);
     case VEHICLE_TYPE_BIKE:       return Check(vehOnMe->AsBike()->m_aGroundPhysicalPtrs);
     default:                      return false;
     }
@@ -3106,7 +3113,7 @@ bool CCollision::CheckCameraCollisionBuildings(
     ZoneScoped;
 
     const auto plyrVeh = FindPlayerVehicle();
-    const auto checkFlyerCollision = plyrVeh && plyrVeh->physicalFlags.bDontCollideWithFlyers;
+    const auto checkFlyerCollision = plyrVeh && plyrVeh->m_nPhysicalFlags.bFlyer;
 
     bool anyCollided = false;
     for (auto* const entity : CWorld::GetSector(X, Y).Buildings) {
@@ -3459,6 +3466,8 @@ void CCollision::InjectHooks() {
 
     RH_ScopedOverloadedInstall(CalculateTrianglePlanes, "colData", 0x416330, void (*)(CCollisionData*), { .enabled = bEnableHooks, .locked = !bEnableHooks });
     RH_ScopedOverloadedInstall(RemoveTrianglePlanes, "colData", 0x416400, void (*)(CCollisionData*), { .enabled = bEnableHooks, .locked = !bEnableHooks });
+    RH_ScopedOverloadedInstall(CalculateTrianglePlanes, "colModel", 0x418580, void (*)(CColModel*));
+    RH_ScopedOverloadedInstall(RemoveTrianglePlanes, "colModel", 0x4185A0, void (*)(CColModel*));
 }
 
 void CCollision::Tests(int32 i) {

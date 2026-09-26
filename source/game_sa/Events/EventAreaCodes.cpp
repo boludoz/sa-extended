@@ -50,14 +50,14 @@ bool CEventAreaCodes::AffectsPed(CPed* ped)
     if (targetPed == m_ped) {
         if (m_ped->GetIntelligence()->FindTaskByType(TASK_COMPLEX_GOTO_DOOR_AND_OPEN))
             return true;
-        if (ped->m_pContactEntity && m_ped->m_pContactEntity) {
-            if (ped->m_pContactEntity->GetAreaCode() == m_ped->m_pContactEntity->GetAreaCode())
+        if (ped->m_pEntityStandingOn && m_ped->m_pEntityStandingOn) {
+            if (ped->m_pEntityStandingOn->GetAreaCode() == m_ped->m_pEntityStandingOn->GetAreaCode())
                 return false;
         }
         if (m_ped->IsAlive()
             && ped->IsAlive()
-            && (!ped->m_pContactEntity || ped->m_pContactEntity->GetAreaCode() != AREA_CODE_13)
-            && (!m_ped->m_pContactEntity || m_ped->m_pContactEntity->GetAreaCode() != AREA_CODE_13))
+            && (!ped->m_pEntityStandingOn || ped->m_pEntityStandingOn->GetAreaCode() != AREA_CODE_13)
+            && (!m_ped->m_pEntityStandingOn || m_ped->m_pEntityStandingOn->GetAreaCode() != AREA_CODE_13))
         {
             return true;
         }

@@ -1,3 +1,5 @@
+#include "Remote.h"
+#include "PointLights.h"
 #include "StdInc.h"
 
 #include <extensions/CommandLine.h>
@@ -557,6 +559,8 @@ void InjectHooksMain() {
     #endif
 
     CDoor::InjectHooks();
+    CRemote::InjectHooks();
+    CPointLights::InjectHooks();
     CControllerConfigManager::InjectHooks();
     CFormation::InjectHooks();
     CHandShaker::InjectHooks();

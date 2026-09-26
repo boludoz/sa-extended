@@ -11,8 +11,8 @@ void CEventEscalator::InjectHooks() {
 
 // 0x4B2580
 bool CEventEscalator::AffectsPed(CPed* ped) {
-    if (ped->IsAlive() && !ped->IsPlayer() && ped->m_pContactEntity) {
-        auto modelId = ped->m_pContactEntity->m_nModelIndex;
+    if (ped->IsAlive() && !ped->IsPlayer() && ped->m_pEntityStandingOn) {
+        auto modelId = ped->m_pEntityStandingOn->m_nModelIndex;
         if (modelId == ModelIndices::MI_ESCALATORSTEP || modelId == ModelIndices::MI_ESCALATORSTEP8)
             return true;
     }

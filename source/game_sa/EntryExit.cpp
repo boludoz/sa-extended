@@ -223,11 +223,11 @@ bool CEntryExit::TransitionStarted(CPed* ped) {
 
     // If ped in vehicle check if enex accepts it
     if (ped->bInVehicle) {
-        if (ped->m_pVehicle->m_pHandlingData->m_bIsBig) { // Move before the IsAuto or Bike check
+        if (ped->m_pMyVehicle->m_pHandlingData->m_bIsBig) { // Move before the IsAuto or Bike check
             return false; // No big vehicles allowed :(
         }
 
-        switch (ped->m_pVehicle->GetBaseVehicleType()) {
+        switch (ped->m_pMyVehicle->GetBaseVehicleType()) {
         case eVehicleType::VEHICLE_TYPE_AUTOMOBILE: {
             if (!bCarsAndAircraft) {
                 return false;
@@ -604,7 +604,7 @@ void CEntryExit::WarpGangWithPlayer(CPlayerPed* player) {
         mem->GetIntelligence()->FlushImmediately(false);
 
         // Make the member be heading towards the player
-        mem->m_fCurrentRotation = mem->m_fAimingRotation = memHeading;
+        mem->m_fCurrentHeading = mem->m_fDesiredHeading = memHeading;
         mem->SetHeading(memHeading);
         mem->SetAreaCode(player->GetAreaCode());
         mem->m_pEnex = player->m_pEnex;
@@ -622,7 +622,7 @@ void CEntryExit::ProcessStealableObjects(CPed* ped) {
         return; 
     }
 
-    if (!helde->AsObject()->objectFlags.bIsLiftable) {
+    if (!helde->AsObject()->m_nObjectFlags.bIsStealable) {
         return;
     }
 

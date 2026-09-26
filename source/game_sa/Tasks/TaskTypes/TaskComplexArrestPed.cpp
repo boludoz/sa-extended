@@ -143,7 +143,7 @@ CTask* CTaskComplexArrestPed::CreateNextSubTask(CPed* ped) {
 
     case TASK_COMPLEX_CAR_OPEN_DRIVER_DOOR: {
         if (static_cast<CTaskComplexEnterCar*>(m_pSubTask)->IsQuitAfterOpeningDoor()) {
-            CVehicle* const veh = m_PedToArrest->m_pVehicle;
+            CVehicle* const veh = m_PedToArrest->m_pMyVehicle;
             if (veh && !veh->CanPedOpenLocks(ped)) {
                 m_Vehicle = veh;
             }
@@ -166,7 +166,7 @@ CTask* CTaskComplexArrestPed::CreateNextSubTask(CPed* ped) {
 
     case TASK_COMPLEX_CAR_OPEN_PASSENGER_DOOR: {
         if (static_cast<CTaskComplexEnterCar*>(m_pSubTask)->IsQuitAfterOpeningDoor()) {
-            CVehicle* const veh = m_PedToArrest->m_pVehicle;
+            CVehicle* const veh = m_PedToArrest->m_pMyVehicle;
             if (veh && !veh->CanPedOpenLocks(ped)) {
                 m_Vehicle = veh;
             }
@@ -207,11 +207,11 @@ CTask* CTaskComplexArrestPed::CreateFirstSubTask(CPed* ped) {
         return CreateSubTask(TASK_COMPLEX_KILL_PED_ON_FOOT, ped);
     }
 
-    if (m_PedToArrest->m_pVehicle->IsBike() || m_PedToArrest->m_pVehicle->IsSubQuad()) {
+    if (m_PedToArrest->m_pMyVehicle->IsBike() || m_PedToArrest->m_pMyVehicle->IsSubQuad()) {
         return CreateSubTask(TASK_COMPLEX_DRAG_PED_FROM_CAR, ped);
     }
 
-    if (m_PedToArrest->m_pVehicle->IsSubBoat()) {
+    if (m_PedToArrest->m_pMyVehicle->IsSubBoat()) {
         if (ped->GetActiveWeapon().IsTypeMelee()) {
             if (ped->DoWeHaveWeaponAvailable(WEAPON_SHOTGUN)) {
                 ped->SetCurrentWeapon(WEAPON_SHOTGUN);
@@ -225,7 +225,7 @@ CTask* CTaskComplexArrestPed::CreateFirstSubTask(CPed* ped) {
         return CreateSubTask(TASK_COMPLEX_DESTROY_CAR, ped);
     }
 
-    if (m_PedToArrest->m_pVehicle->IsUpsideDown() || m_PedToArrest->m_pVehicle->IsOnItsSide()) {
+    if (m_PedToArrest->m_pMyVehicle->IsUpsideDown() || m_PedToArrest->m_pMyVehicle->IsOnItsSide()) {
         return CreateSubTask(TASK_COMPLEX_DESTROY_CAR, ped);
     }
 
@@ -266,8 +266,8 @@ CTask* CTaskComplexArrestPed::ControlSubTask(CPed* ped) {
                     } else {
                         taskId = TASK_COMPLEX_SEEK_ENTITY;
                     }
-                } else if (m_PedToArrest->bInVehicle && m_PedToArrest->m_pVehicle) {
-                    CVehicle* const veh = m_PedToArrest->m_pVehicle;
+                } else if (m_PedToArrest->bInVehicle && m_PedToArrest->m_pMyVehicle) {
+                    CVehicle* const veh = m_PedToArrest->m_pMyVehicle;
                     if (veh->GetBaseVehicleType() == VEHICLE_TYPE_BOAT || veh->GetVehicleType() == VEHICLE_TYPE_PLANE || veh->GetVehicleType() == VEHICLE_TYPE_HELI) {
                         if (ped->GetActiveWeapon().IsTypeMelee()) {
                             if (ped->DoWeHaveWeaponAvailable(WEAPON_SHOTGUN)) {
@@ -311,8 +311,8 @@ CTask* CTaskComplexArrestPed::ControlSubTask(CPed* ped) {
                 taskId = TASK_SIMPLE_WAIT_UNTIL_PED_OUT_CAR;
             } else if (!m_PedToArrest->bInVehicle) {
                 taskId = TASK_COMPLEX_KILL_PED_ON_FOOT;
-            } else if (!CCarEnterExit::IsRoomForPedToLeaveCar(m_PedToArrest->m_pVehicle, TARGET_DOOR_FRONT_RIGHT)) {
-                if (CCarEnterExit::IsRoomForPedToLeaveCar(m_PedToArrest->m_pVehicle, TARGET_DOOR_DRIVER)) {
+            } else if (!CCarEnterExit::IsRoomForPedToLeaveCar(m_PedToArrest->m_pMyVehicle, TARGET_DOOR_FRONT_RIGHT)) {
+                if (CCarEnterExit::IsRoomForPedToLeaveCar(m_PedToArrest->m_pMyVehicle, TARGET_DOOR_DRIVER)) {
                     taskId = TASK_COMPLEX_CAR_OPEN_DRIVER_DOOR;
                 } else {
                     if (ped->GetActiveWeapon().IsTypeMelee()) {
@@ -338,8 +338,8 @@ CTask* CTaskComplexArrestPed::ControlSubTask(CPed* ped) {
                 if (hasLeaveCar && m_PedToArrest->bInVehicle && distSq < 25.0f) {
                     taskId = TASK_SIMPLE_WAIT_UNTIL_PED_OUT_CAR;
                 } else if (m_PedToArrest->bInVehicle) {
-                    if (!CCarEnterExit::IsRoomForPedToLeaveCar(m_PedToArrest->m_pVehicle, TARGET_DOOR_DRIVER)
-                        && CCarEnterExit::IsRoomForPedToLeaveCar(m_PedToArrest->m_pVehicle, TARGET_DOOR_FRONT_RIGHT))
+                    if (!CCarEnterExit::IsRoomForPedToLeaveCar(m_PedToArrest->m_pMyVehicle, TARGET_DOOR_DRIVER)
+                        && CCarEnterExit::IsRoomForPedToLeaveCar(m_PedToArrest->m_pMyVehicle, TARGET_DOOR_FRONT_RIGHT))
                     {
                         taskId = TASK_COMPLEX_CAR_OPEN_PASSENGER_DOOR;
                     }
@@ -369,7 +369,7 @@ CTask* CTaskComplexArrestPed::ControlSubTask(CPed* ped) {
 CTask* CTaskComplexArrestPed::CreateSubTask(eTaskType taskType, CPed* ped) {
     switch (taskType) {
     case TASK_SIMPLE_ARREST_PED: {
-        CVehicle* const veh = m_PedToArrest->m_pVehicle;
+        CVehicle* const veh = m_PedToArrest->m_pMyVehicle;
         if (veh && veh->IsDriver(m_PedToArrest)) {
             veh->vehicleFlags.bIsHandbrakeOn = true;
             veh->SetStatus(STATUS_FORCED_STOP);
@@ -380,7 +380,7 @@ CTask* CTaskComplexArrestPed::CreateSubTask(eTaskType taskType, CPed* ped) {
         return new CTaskComplexKillPedOnFoot{m_PedToArrest, -1, 0, 0, 0, true};
 
     case TASK_COMPLEX_DESTROY_CAR:
-        return new CTaskComplexDestroyCar{m_PedToArrest->m_pVehicle, 0, 0, 0};
+        return new CTaskComplexDestroyCar{m_PedToArrest->m_pMyVehicle, 0, 0, 0};
 
     case TASK_COMPLEX_SEEK_ENTITY:
         return new CTaskComplexSeekEntity<>{
@@ -398,10 +398,10 @@ CTask* CTaskComplexArrestPed::CreateSubTask(eTaskType taskType, CPed* ped) {
         return new CTaskComplexDragPedFromCar{m_PedToArrest, 100'000};
 
     case TASK_COMPLEX_CAR_OPEN_DRIVER_DOOR:
-        return new CTaskComplexOpenDriverDoor{m_PedToArrest->m_pVehicle};
+        return new CTaskComplexOpenDriverDoor{m_PedToArrest->m_pMyVehicle};
 
     case TASK_COMPLEX_CAR_OPEN_PASSENGER_DOOR:
-        return new CTaskComplexOpenPassengerDoor{m_PedToArrest->m_pVehicle, TARGET_DOOR_FRONT_RIGHT};
+        return new CTaskComplexOpenPassengerDoor{m_PedToArrest->m_pMyVehicle, TARGET_DOOR_FRONT_RIGHT};
 
     case TASK_SIMPLE_WAIT_UNTIL_PED_OUT_CAR:
         return new CTaskSimpleWaitUntilPedIsOutCar{m_PedToArrest, m_PedToArrest->GetPosition() - ped->GetPosition()};

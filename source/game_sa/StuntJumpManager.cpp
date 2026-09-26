@@ -97,7 +97,7 @@ void CStuntJumpManager::Update() {
     }
 
     const auto plyrInfo = plyr->GetPlayerInfoForThisPlayerPed();
-    const auto plyrVeh  = plyr->m_pVehicle;
+    const auto plyrVeh  = plyr->m_pMyVehicle;
     if (!plyrVeh || !plyrInfo) {
         return;
     }
@@ -107,7 +107,7 @@ void CStuntJumpManager::Update() {
         if (!m_bActive) {
             return;
         }
-        if (plyrInfo->m_nPlayerState != PLAYERSTATE_PLAYING || !plyr->IsInVehicle()) {
+        if (plyrInfo->PlayerState != PLAYERSTATE_PLAYING || !plyr->IsInVehicle()) {
             return;
         }
         if (notsa::contains({ VEHICLE_APPEARANCE_BOAT, VEHICLE_APPEARANCE_PLANE, VEHICLE_APPEARANCE_HELI }, plyrVeh->GetVehicleAppearance())) {
@@ -162,11 +162,11 @@ void CStuntJumpManager::Update() {
         }
 
         const auto ended = failed
-            || plyrInfo->m_nPlayerState != PLAYERSTATE_PLAYING
+            || plyrInfo->PlayerState != PLAYERSTATE_PLAYING
             || !plyr->bInVehicle
             || plyrVeh->GetStatus() == STATUS_WRECKED
             || plyrVeh->vehicleFlags.bIsDrowning
-            || plyrVeh->physicalFlags.bSubmergedInWater;
+            || plyrVeh->m_nPhysicalFlags.bIsInWater;
         if (ended) {
             m_jumpState = eJumpState::END_POINT_INTERSECTED;
         }
@@ -204,7 +204,7 @@ void CStuntJumpManager::Update() {
             const auto reward = all
                 ? 10'000
                 : mp_Active->reward;
-            plyrInfo->m_nMoney += reward;
+            plyrInfo->Score += reward;
             if (all) {
                 if (const auto txt = TheText.Get("USJ_ALL")) { // ALL UNIQUE STUNTS COMPLETED!
                     CHud::SetHelpMessage(txt, false, false, false);

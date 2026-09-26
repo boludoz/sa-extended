@@ -43,7 +43,7 @@ void CTaskAllocatorPlayerCommandAttack::AllocateTasks(CPedGroupIntelligence* int
 
         // 0x69C5C9
         if (p->IsInVehicle()) {
-            tseq.AddTask(new CTaskComplexLeaveCar{ p->m_pVehicle, 0, 0, true, false });
+            tseq.AddTask(new CTaskComplexLeaveCar{ p->m_pMyVehicle, 0, 0, true, false });
         }
 
         // 0x69C60F

@@ -61,7 +61,7 @@ CTaskComplexKillCriminal::~CTaskComplexKillCriminal() {
         m_Cop->m_nTimeTillWeNeedThisPed = CTimer::GetTimeInMS();
         m_Cop->bCullExtraFarAway = false;
         m_Cop->m_fRemovalDistMultiplier = 1.f;
-        if (const auto veh = m_Cop->m_pVehicle) {
+        if (const auto veh = m_Cop->m_pMyVehicle) {
             veh->m_nExtendedRemovalRange = false;
             veh->vehicleFlags.bNeverUseSmallerRemovalRange = false;
             if (veh->IsDriver(m_Cop)) {
@@ -106,22 +106,22 @@ CTask* CTaskComplexKillCriminal::CreateSubTask(eTaskType tt, CPed* ped, bool for
             false
         };
     case TASK_COMPLEX_ENTER_CAR_AS_PASSENGER:
-        return new CTaskComplexEnterCarAsPassenger{ ped->m_pVehicle };
+        return new CTaskComplexEnterCarAsPassenger{ ped->m_pMyVehicle };
     case TASK_COMPLEX_ENTER_CAR_AS_DRIVER:
-        return new CTaskComplexEnterCarAsDriver{ ped->m_pVehicle };
+        return new CTaskComplexEnterCarAsDriver{ ped->m_pMyVehicle };
     case TASK_COMPLEX_LEAVE_CAR:
-        return new CTaskComplexLeaveCar{ ped->m_pVehicle, 0, 0, true, false };
+        return new CTaskComplexLeaveCar{ ped->m_pMyVehicle, 0, 0, true, false };
     case TASK_SIMPLE_CAR_DRIVE:
-        return new CTaskSimpleCarDrive{ ped->m_pVehicle };
+        return new CTaskSimpleCarDrive{ ped->m_pMyVehicle };
     case TASK_COMPLEX_CAR_DRIVE_MISSION: {
-        const auto oveh = ped->m_pVehicle; // (o)ur (veh)icle
+        const auto oveh = ped->m_pMyVehicle; // (o)ur (veh)icle
         if (!oveh) {
             return nullptr;
         }
 
         const auto CreateDriveMission = [&, this](eCarMission mission, float cruiseSpeed, CEntity* traget) {
             return new CTaskComplexCarDriveMission{
-                ped->m_pVehicle,
+                ped->m_pMyVehicle,
                 traget,
                 mission,
                 DRIVING_STYLE_AVOID_CARS,
@@ -134,7 +134,7 @@ CTask* CTaskComplexKillCriminal::CreateSubTask(eTaskType tt, CPed* ped, bool for
                 oveh->IsBike()
                     ? MISSION_FOLLOWCAR_CLOSE
                     : MISSION_BLOCKCAR_CLOSE,
-                (float)(m_Criminal->m_pVehicle->m_autoPilot.CruiseSpeed) + 10.f,
+                (float)(m_Criminal->m_pMyVehicle->m_autoPilot.CruiseSpeed) + 10.f,
                 cveh
             );
         } else {
@@ -263,7 +263,7 @@ CTask* CTaskComplexKillCriminal::CreateNextSubTask(CPed* ped) {
 
         // No criminal, or can't target it, so just bail, so try getting back into the car
         m_HasFinished = true;
-        if (m_CantGetInCar || !ped->m_pVehicle) {
+        if (m_CantGetInCar || !ped->m_pMyVehicle) {
             return CreateSubTask(TASK_FINISHED, ped);
         }
 
@@ -290,7 +290,7 @@ CTask* CTaskComplexKillCriminal::CreateNextSubTask(CPed* ped) {
         const auto copPartnerNoneOrInVeh = NoPedOrNoHp(m_Cop->m_pCopPartner) || m_Cop->m_pCopPartner->bInVehicle;
         if (!m_HasFinished && !NoPedOrNoHp(m_Criminal) && !m_Criminal->IsInVehicle()) {
             return CreateSubTask(
-                !ped->m_pVehicle || m_Criminal->IsEntityInRange(ped->m_pVehicle, 25.f) // 0x68E5D8
+                !ped->m_pMyVehicle || m_Criminal->IsEntityInRange(ped->m_pMyVehicle, 25.f) // 0x68E5D8
                     ? TASK_COMPLEX_KILL_PED_ON_FOOT
                     : copPartnerNoneOrInVeh // otherwise if criminal is too far chase them with the car
                         ? TASK_COMPLEX_CAR_DRIVE_MISSION
@@ -303,7 +303,7 @@ CTask* CTaskComplexKillCriminal::CreateNextSubTask(CPed* ped) {
         }
         // No criminal to kill, so get into *the* vehicle and fuck off
         if (ped->IsInVehicle()) {
-            ped->m_pVehicle->vehicleFlags.bSirenOrAlarm = false;
+            ped->m_pMyVehicle->vehicleFlags.bSirenOrAlarm = false;
         }
         return CreateSubTask(
             copPartnerNoneOrInVeh
@@ -324,7 +324,7 @@ CTask* CTaskComplexKillCriminal::CreateNextSubTask(CPed* ped) {
     }
     case TASK_COMPLEX_LEAVE_CAR: // 0x68E77F
         return CreateSubTask(
-            !ped->m_pVehicle || m_CantGetInCar || (!m_HasFinished && !NoPedOrNoHp(m_Criminal) && !m_Criminal->IsInVehicle() && m_Criminal->IsEntityInRange(ped, 25.f))
+            !ped->m_pMyVehicle || m_CantGetInCar || (!m_HasFinished && !NoPedOrNoHp(m_Criminal) && !m_Criminal->IsInVehicle() && m_Criminal->IsEntityInRange(ped, 25.f))
                 ? TASK_COMPLEX_KILL_PED_ON_FOOT     // Criminal can be killed on foot
                 : TASK_COMPLEX_ENTER_CAR_AS_DRIVER, // We have to chase the criminal with a vehicle
             ped

@@ -510,7 +510,7 @@ void CCam::GetVectorsReadyForRW() {
 void CCam::Get_TwoPlayer_AimVector(CVector& out) {
     const auto player = [&] {
         auto* p1 = FindPlayerPed(PED_TYPE_PLAYER1);
-        if (p1->m_pVehicle && !p1->m_pVehicle->IsDriver(p1)) {
+        if (p1->m_pMyVehicle && !p1->m_pMyVehicle->IsDriver(p1)) {
             return FindPlayerPed(PED_TYPE_PLAYER2);
         }
         return p1;
@@ -1027,7 +1027,7 @@ void CCam::Process() {
     // The Hydra makes that crosshair itself, so leave it alone.
     if (gCrossHair[0].m_bClearImmediately) {
         const auto* const player = FindPlayerPed();
-        if (!player || !player->m_pVehicle || player->m_pVehicle->m_nModelIndex != MODEL_HYDRA) {
+        if (!player || !player->m_pMyVehicle || player->m_pMyVehicle->m_nModelIndex != MODEL_HYDRA) {
             CWeaponEffects::ClearCrossHairImmediately(0);
         }
     }
@@ -1861,7 +1861,7 @@ void CCam::Process_1rstPersonPedOnPC(const CVector& ThisCamsTarget, float Target
         RwMatrixScale(&mat, &scale, rwCOMBINEPRECONCAT);
 
         if (m_bResetStatics) {
-            m_fHorizontalAngle            = targetPed->m_fCurrentRotation + HALF_PI;
+            m_fHorizontalAngle            = targetPed->m_fCurrentHeading + HALF_PI;
             m_fVerticalAngle              = 0.0f;
             m_fInitialPlayerOrientation   = m_fHorizontalAngle;
             FailedTestTwelveFramesAgo     = false;
@@ -1959,8 +1959,8 @@ void CCam::Process_1rstPersonPedOnPC(const CVector& ThisCamsTarget, float Target
         // Keep the entity heading in sync with the camera
         const auto  CamDirection = std::atan2(-m_vecFront.x, m_vecFront.y);
         auto* const camTarget    = TheCamera.m_pTargetEntity->AsPed();
-        camTarget->m_fCurrentRotation = CamDirection;
-        camTarget->m_fAimingRotation  = CamDirection;
+        camTarget->m_fCurrentHeading = CamDirection;
+        camTarget->m_fDesiredHeading  = CamDirection;
         camTarget->SetHeading(CamDirection);
         camTarget->UpdateRwMatrix();
 
@@ -1997,7 +1997,7 @@ void CCam::Process_1stPerson(const CVector& target, float orientation, float spe
         m_fVerticalAngle   = 0.0f;
         m_fHorizontalAngle = [&] {
             if (m_pCamTargetEntity->GetIsTypePed()) {
-                return m_pCamTargetEntity->AsPed()->m_fCurrentRotation + DegreesToRadians(90.0f);
+                return m_pCamTargetEntity->AsPed()->m_fCurrentHeading + DegreesToRadians(90.0f);
             } else {
                 return orientation;
             }
@@ -2019,7 +2019,7 @@ void CCam::Process_1stPerson(const CVector& target, float orientation, float spe
     }
 
     auto* targetVeh = m_pCamTargetEntity->AsVehicle();
-    if (targetVeh->IsBike() && targetVeh->AsBike()->bikeFlags.bWheelieForCamera || TheCamera.m_fAvoidTheGeometryProbsTimer > 0.0f) {
+    if (targetVeh->IsBike() && targetVeh->AsBike()->m_nBikeFlags.bWheelieForCamera || TheCamera.m_fAvoidTheGeometryProbsTimer > 0.0f) {
         if (wheelieTime - s_LastWheelieTime >= 3000.0f) {
             s_LastWheelieTime = static_cast<float>(CTimer::GetTimeInMS());
         }
@@ -2028,16 +2028,16 @@ void CCam::Process_1stPerson(const CVector& target, float orientation, float spe
         if (!pad1->NewState.LeftShoulder2 && !pad1->NewState.RightShoulder2) {
             auto* targetBike = targetVeh->AsBike();
             if (Process_WheelCam(target, orientation, speedVar, speedVarWanted)) {
-                if (targetBike->bikeFlags.bWheelieForCamera) {
+                if (targetBike->m_nBikeFlags.bWheelieForCamera) {
                     TheCamera.m_fAvoidTheGeometryProbsTimer = 50.0f;
                 } else {
                     TheCamera.m_fAvoidTheGeometryProbsTimer -= CTimer::GetTimeStep();
-                    targetBike->bikeFlags.bWheelieForCamera = true;
+                    targetBike->m_nBikeFlags.bWheelieForCamera = true;
                 }
                 return;
             }
             TheCamera.m_fAvoidTheGeometryProbsTimer = 0.0f;
-            targetBike->bikeFlags.bWheelieForCamera = false;
+            targetBike->m_nBikeFlags.bWheelieForCamera = false;
 
             s_LastWheelieTime = 0.0f;
         }
@@ -2046,7 +2046,7 @@ void CCam::Process_1stPerson(const CVector& target, float orientation, float spe
     const auto& entityWorldMat = [&] {
         if (auto* t = targetVeh->AsBike(); t->IsBike()) {
             t->CalculateLeanMatrix();
-            return t->m_mLeanMatrix;
+            return t->m_LeanMatrix;
         } else {
             return targetVeh->GetMatrix();
         }
@@ -2172,7 +2172,7 @@ void CCam::Process_AimWeapon(const CVector& ThisCamsTarget, float TargetOrientat
 
     auto nAimType = AIMWEAPON_ONFOOT;
     if (pPed->bInVehicle) {
-        const auto veh = pPed->m_pVehicle;
+        const auto veh = pPed->m_pMyVehicle;
         nAimType = veh && (veh->IsBike() || veh->IsSubQuad()) ? AIMWEAPON_ONBIKE : AIMWEAPON_INCAR;
     } else if (pPed->GetIntelligence()->GetTaskJetPack()) {
         nAimType = AIMWEAPON_ONBIKE;
@@ -2269,11 +2269,11 @@ void CCam::Process_AimWeapon(const CVector& ThisCamsTarget, float TargetOrientat
             // Keep the direction the camera is already looking in
         } else {
             m_fVerticalAngle = settings.DefaultAlpha;
-            if (pPed->bInVehicle && pPed->m_pVehicle) { // Drive-bys always start looking ahead
-                m_fHorizontalAngle = pPed->m_fCurrentRotation - HALF_PI - fAimAngleBeta;
-                m_fVerticalAngle  += std::asin(std::clamp(pPed->m_pVehicle->GetMatrix().GetForward().z, -1.0f, 1.0f));
+            if (pPed->bInVehicle && pPed->m_pMyVehicle) { // Drive-bys always start looking ahead
+                m_fHorizontalAngle = pPed->m_fCurrentHeading - HALF_PI - fAimAngleBeta;
+                m_fVerticalAngle  += std::asin(std::clamp(pPed->m_pMyVehicle->GetMatrix().GetForward().z, -1.0f, 1.0f));
             } else if (!pPed->m_pTargetedObject) {
-                m_fHorizontalAngle = pPed->m_fCurrentRotation - HALF_PI + fAimAngleBeta;
+                m_fHorizontalAngle = pPed->m_fCurrentHeading - HALF_PI + fAimAngleBeta;
                 if (pPed->bIsStanding) {
                     const auto groundNormalFwd = DotProduct(pPed->m_vecGroundNormal, pPed->GetMatrix().GetForward());
                     m_fVerticalAngle -= std::asin(std::clamp(groundNormalFwd, -1.0f, 1.0f));
@@ -2417,7 +2417,7 @@ void CCam::Process_AimWeapon(const CVector& ThisCamsTarget, float TargetOrientat
         StickBetaOffset  = m_fBetaSpeed;
         StickAlphaOffset = m_fAlphaSpeed;
 
-        const auto veh      = pPed->bInVehicle ? pPed->m_pVehicle : nullptr;
+        const auto veh      = pPed->bInVehicle ? pPed->m_pMyVehicle : nullptr;
         const auto isDriver = veh && veh->m_pDriver == pPed;
 
         if (veh && !isDriver) {
@@ -2442,9 +2442,9 @@ void CCam::Process_AimWeapon(const CVector& ThisCamsTarget, float TargetOrientat
 
             if (ACQUIRED_FREEAIM_INCAR_IDLE_COUNTER > FREEAIM_STATIC_LIM_A) {
                 ACQUIRED_FREEAIM_DIRECTION  = false;
-                ACQUIRED_FREEAIM_PEDHEADING = pPed->m_fCurrentRotation - HALF_PI + fAimAngleBeta;
+                ACQUIRED_FREEAIM_PEDHEADING = pPed->m_fCurrentHeading - HALF_PI + fAimAngleBeta;
             } else if (ACQUIRED_FREEAIM_INCAR_IDLE_COUNTER > FREEAIM_STATIC_LIM_B) {
-                auto angleDiff = (pPed->m_fCurrentRotation - HALF_PI) - fAimAngleBeta - m_fHorizontalAngle;
+                auto angleDiff = (pPed->m_fCurrentHeading - HALF_PI) - fAimAngleBeta - m_fHorizontalAngle;
                 if (angleDiff > TWO_PI) {
                     angleDiff -= TWO_PI;
                 } else if (angleDiff < -TWO_PI) {
@@ -2454,7 +2454,7 @@ void CCam::Process_AimWeapon(const CVector& ThisCamsTarget, float TargetOrientat
                 if (angleDiff < DegreesToRadians(30.0f)) {
                     ACQUIRED_FREEAIM_DIRECTION          = false;
                     ACQUIRED_FREEAIM_INCAR_IDLE_COUNTER = FREEAIM_STATIC_LIM_A + 1;
-                    ACQUIRED_FREEAIM_PEDHEADING         = pPed->m_fCurrentRotation - HALF_PI + fAimAngleBeta;
+                    ACQUIRED_FREEAIM_PEDHEADING         = pPed->m_fCurrentHeading - HALF_PI + fAimAngleBeta;
                 } else {
                     ACQUIRED_FREEAIM_DIRECTION = true;
                 }
@@ -2467,7 +2467,7 @@ void CCam::Process_AimWeapon(const CVector& ThisCamsTarget, float TargetOrientat
         }
 
         if (!ACQUIRED_FREEAIM_DIRECTION) {
-            auto fTargetBeta = pPed->m_fCurrentRotation - HALF_PI;
+            auto fTargetBeta = pPed->m_fCurrentHeading - HALF_PI;
             if (ACQUIRED_FREEAIM_PEDHEADING < -1000.0f) {
                 ACQUIRED_FREEAIM_PEDHEADING = fTargetBeta;
             } else {
@@ -2475,8 +2475,8 @@ void CCam::Process_AimWeapon(const CVector& ThisCamsTarget, float TargetOrientat
             }
 
             if (weaponInfo && !weaponInfo->flags.bAimWithArm && weaponInfo->GetFireType() != WEAPON_FIRE_MELEE) {
-                pPed->m_fCurrentRotation = pPed->m_fAimingRotation = ACQUIRED_FREEAIM_PEDHEADING + HALF_PI;
-                pPed->SetHeading(pPed->m_fCurrentRotation);
+                pPed->m_fCurrentHeading = pPed->m_fDesiredHeading = ACQUIRED_FREEAIM_PEDHEADING + HALF_PI;
+                pPed->SetHeading(pPed->m_fCurrentHeading);
                 pPed->UpdateRwMatrix();
             }
 
@@ -2514,7 +2514,7 @@ void CCam::Process_AimWeapon(const CVector& ThisCamsTarget, float TargetOrientat
             }
 
             if (isDriver) {
-                auto fTargetAlpha = std::asin(std::clamp(pPed->m_pVehicle->GetMatrix().GetForward().z, -1.0f, 1.0f)) + settings.DefaultAlpha;
+                auto fTargetAlpha = std::asin(std::clamp(pPed->m_pMyVehicle->GetMatrix().GetForward().z, -1.0f, 1.0f)) + settings.DefaultAlpha;
                 if (fTargetAlpha - m_fVerticalAngle > PI) {
                     fTargetAlpha -= TWO_PI;
                 } else if (fTargetAlpha - m_fVerticalAngle < -PI) {
@@ -2596,8 +2596,8 @@ void CCam::Process_AimWeapon(const CVector& ThisCamsTarget, float TargetOrientat
         }
 
         if (CamDirection > -100.0f) {
-            pPed->m_fCurrentRotation = CamDirection + fTweakPedAimDirn;
-            pPed->m_fAimingRotation  = CamDirection + fTweakPedAimDirn;
+            pPed->m_fCurrentHeading = CamDirection + fTweakPedAimDirn;
+            pPed->m_fDesiredHeading  = CamDirection + fTweakPedAimDirn;
             pPed->SetHeading(CamDirection); // Keep the entity heading in sync with the camera
             pPed->UpdateRwMatrix();
         }
@@ -2675,8 +2675,8 @@ bool CCam::Process_Cam_TwoPlayer_TestLOSs(const CVector& tempSource) {
     gCurCamColVars = CAM_COL_VARS_PLAYER_OUTSIDE_MED_RANGE; // This should be set back
 
     // If either player is obscured from here, this beta is no good
-    return !CWorld::ProcessLineOfSight(tempSource, CWorld::Players[0].m_pPed->GetPosition(), cp, hitEntity, true, false, false, false, false, true, true, false)
-        && !CWorld::ProcessLineOfSight(tempSource, CWorld::Players[1].m_pPed->GetPosition(), cp, hitEntity, true, false, false, false, false, true, true, false);
+    return !CWorld::ProcessLineOfSight(tempSource, CWorld::Players[0].pPed->GetPosition(), cp, hitEntity, true, false, false, false, false, true, true, false)
+        && !CWorld::ProcessLineOfSight(tempSource, CWorld::Players[1].pPed->GetPosition(), cp, hitEntity, true, false, false, false, false, true, true, false);
 }
 
 // 0x5132D0
@@ -2686,8 +2686,8 @@ void CCam::Process_Cam_TwoPlayer_CalcSource(float beta, CVector& outSource, CVec
 
     const auto lookAtHor = CVector{ outLookAt.x, outLookAt.y, 0.0f }.Normalized();
 
-    const auto& p0 = CWorld::Players[0].m_pPed->GetPosition();
-    const auto& p1 = CWorld::Players[1].m_pPed->GetPosition();
+    const auto& p0 = CWorld::Players[0].pPed->GetPosition();
+    const auto& p1 = CWorld::Players[1].pPed->GetPosition();
 
     const auto camDist = 7.0f + (p0 - p1).Magnitude() * 0.67f;
 
@@ -2732,16 +2732,16 @@ void CCam::Process_Cam_TwoPlayer() {
     // Focused on one player - just run that player's normal camera
     if (CGameLogic::n2PlayerPedInFocus != eFocusedPlayer::NONE) {
         const auto  playerIdx = (int32)CGameLogic::n2PlayerPedInFocus;
-        auto* const ped       = CWorld::Players[playerIdx].m_pPed;
+        auto* const ped       = CWorld::Players[playerIdx].pPed;
 
-        if (ped->bInVehicle && ped->m_pVehicle) {
-            m_pCamTargetEntity = ped->m_pVehicle;
+        if (ped->bInVehicle && ped->m_pMyVehicle) {
+            m_pCamTargetEntity = ped->m_pMyVehicle;
             Process_FollowCar_SA(m_pCamTargetEntity->GetPosition(), 0.0f, 0.0f, 0.0f, false);
         } else {
             m_pCamTargetEntity = ped;
             Process_FollowPed_SA(ped->GetPosition(), 0.0f, 0.0f, 0.0f, false);
         }
-        m_pCamTargetEntity = CWorld::Players[0].m_pPed;
+        m_pCamTargetEntity = CWorld::Players[0].pPed;
         m_bResetStatics    = false;
         return;
     }
@@ -2820,7 +2820,7 @@ void CCam::Process_Cam_TwoPlayer() {
     auto targetDiff = 0.0f;
     if (testCount == 0 && CTimer::GetTimeInMS() >= gLastTime2PlayerCameraCollided + CAM_2PLAYER_STOP_MOVEMENT_INPUT_TIME) {
         // Swing round to face the way the pair is moving
-        const auto aveSpeed = CWorld::Players[0].m_pPed->m_vecMoveSpeed + CWorld::Players[1].m_pPed->m_vecMoveSpeed;
+        const auto aveSpeed = CWorld::Players[0].pPed->m_vecMoveSpeed + CWorld::Players[1].pPed->m_vecMoveSpeed;
         if (aveSpeed.SquaredMagnitude() > 0.01f) {
             const auto diffMult = camSet.fDiffBetaSwing * CTimer::GetTimeStep();
             const auto diffCap  = camSet.fDiffBetaSwingCap * CTimer::GetTimeStep();
@@ -2848,8 +2848,8 @@ void CCam::Process_Cam_TwoPlayer() {
     if (testCount == 0 && CTimer::GetTimeInMS() >= gLastTime2PlayerCameraCollided + CAM_2PLAYER_STOP_STICK_INPUT_TIME) {
         // Either player's right stick can push the camera around
         const auto stick = std::clamp(
-            (float)(-CPad::GetPad(0)->AimWeaponLeftRight(CWorld::Players[0].m_pPed)
-                    -CPad::GetPad(1)->AimWeaponLeftRight(CWorld::Players[1].m_pPed)),
+            (float)(-CPad::GetPad(0)->AimWeaponLeftRight(CWorld::Players[0].pPed)
+                    -CPad::GetPad(1)->AimWeaponLeftRight(CWorld::Players[1].pPed)),
             -128.0f,
             +128.0f
         );
@@ -2923,15 +2923,15 @@ void CCam::Process_Cam_TwoPlayer_InCarAndShooting() {
         return;
     }
 
-    auto* const veh = CWorld::Players[0].m_pPed->m_pVehicle;
+    auto* const veh = CWorld::Players[0].pPed->m_pMyVehicle;
 
     auto       targetCoors      = veh->GetPosition();
     const auto targetOrientation = veh->GetHeading() - HALF_PI;
 
     // Whichever player isn't driving gets to look around and move the crosshair
-    const auto isPlayer0Driving = veh->m_pDriver == CWorld::Players[0].m_pPed;
+    const auto isPlayer0Driving = veh->m_pDriver == CWorld::Players[0].pPed;
     auto* const pad2nd = CPad::GetPad(isPlayer0Driving ? 1 : 0);
-    auto* const ped2nd = CWorld::Players[isPlayer0Driving ? 1 : 0].m_pPed;
+    auto* const ped2nd = CWorld::Players[isPlayer0Driving ? 1 : 0].pPed;
 
     // Speed widens the m_fFOV, and it eases back to 70 when the car slows down
     const auto fwdSpeed = DotProduct(veh->m_vecMoveSpeed, veh->GetForwardVector());
@@ -3139,8 +3139,8 @@ void CCam::Process_Cam_TwoPlayer_Separate_Cars() {
     m_fFOV = 80.0f;
 
     // Look from one car to the other; whichever car we're focussing on stays closest to the camera
-    auto* const car0 = CWorld::Players[0].m_pPed->m_pVehicle;
-    auto* const car1 = CWorld::Players[1].m_pPed->m_pVehicle;
+    auto* const car0 = CWorld::Players[0].pPed->m_pMyVehicle;
+    auto* const car1 = CWorld::Players[1].pPed->m_pMyVehicle;
 
     const auto to2ndCar = (car1->GetPosition() - car0->GetPosition()).Normalized();
 
@@ -3180,8 +3180,8 @@ void CCam::Process_Cam_TwoPlayer_Separate_Cars() {
     m_vecUp.Normalise();
 
     // Looking backwards at speed reads badly, so hand the camera over to the other car
-    auto* const mainCar = CWorld::Players[m_nCarWeAreFocussingOn].m_pPed->m_pVehicle;
-    auto* const otherCar = CWorld::Players[(m_nCarWeAreFocussingOn + 1) & 1].m_pPed->m_pVehicle;
+    auto* const mainCar = CWorld::Players[m_nCarWeAreFocussingOn].pPed->m_pMyVehicle;
+    auto* const otherCar = CWorld::Players[(m_nCarWeAreFocussingOn + 1) & 1].pPed->m_pMyVehicle;
 
     auto frontHor = CVector{ m_vecFront.x, m_vecFront.y, 0.0f };
     frontHor.Normalise();
@@ -4762,7 +4762,7 @@ void CCam::Process_FollowCar_SA(const CVector& ThisCamsTarget, float TargetOrien
     if (auto* const passenger = pVehicle->m_apPassengers[0]) {
         auto* const task = passenger->GetIntelligence()->GetTaskManager().GetActiveTask();
         if (task && task->GetTaskType() == TASK_COMPLEX_PROSTITUTE_SOLICIT
-            && static_cast<CTaskComplexProstituteSolicit*>(task)->bMoveCameraDown
+            && static_cast<CTaskComplexProstituteSolicit*>(task)->m_bSexCamModeEnabled
         ) {
             StickAlphaOffset = m_fVerticalAngle < fAlphaUpLimit - PROSTITUTE_CAM_ALPHA_ANGLE
                 ? PROSTITUTE_CAM_ALPHA_RATE * CTimer::GetTimeStep()
@@ -5114,8 +5114,8 @@ void CCam::Process_FollowPedWithMouse(const CVector& ThisCamsTarget, float Targe
     if (TheCamera.GetFadingDirection() == +eFadeFlag::FADE_IN && CDraw::FadeValue > 128) {
         const auto  CamDirection = std::atan2(-m_vecFront.x, m_vecFront.y);
         auto* const camTarget    = TheCamera.m_pTargetEntity->AsPed();
-        camTarget->m_fCurrentRotation = CamDirection;
-        camTarget->m_fAimingRotation  = CamDirection;
+        camTarget->m_fCurrentHeading = CamDirection;
+        camTarget->m_fDesiredHeading  = CamDirection;
         camTarget->SetHeading(CamDirection);
         camTarget->UpdateRwMatrix();
     }
@@ -5264,8 +5264,8 @@ void CCam::Process_FollowPed_SA(const CVector &ThisCamsTarget, float TargetOrien
         CPad::GetPad(0)->ClearMouseHistory();
     }
 
-	else if (pPed->m_standingOnEntity) {
-        auto* standingPhys = (CPhysical*)pPed->m_standingOnEntity;
+	else if (pPed->m_pGroundPhysical) {
+        auto* standingPhys = (CPhysical*)pPed->m_pGroundPhysical;
         if ((standingPhys->GetIsTypeVehicle() && ((CVehicle*)standingPhys)->IsTrain()) || (standingPhys->m_pAttachedTo && standingPhys->m_pAttachedTo->GetIsTypeVehicle() && ((CVehicle*)standingPhys->m_pAttachedTo)->IsTrain())) {
             static float AMOUNT_OF_SPEED_TO_ADD = 0.01f;
             float fMagnitude = standingPhys->GetMoveSpeed().Magnitude();
@@ -5317,8 +5317,8 @@ void CCam::Process_FollowPed_SA(const CVector &ThisCamsTarget, float TargetOrien
                 fDiffCap *= fForceCamBetaMult;
             }
         } else {
-            if (pPed->m_standingOnEntity)
-                fDiffMult = std::min(1.0f, (pPed->GetMoveSpeed() - ((CPhysical*)pPed->m_standingOnEntity)->GetMoveSpeed()).Magnitude() * fDiffMult);
+            if (pPed->m_pGroundPhysical)
+                fDiffMult = std::min(1.0f, (pPed->GetMoveSpeed() - ((CPhysical*)pPed->m_pGroundPhysical)->GetMoveSpeed()).Magnitude() * fDiffMult);
             else
                 fDiffMult = std::min(1.0f, pPed->GetMoveSpeed().Magnitude() * fDiffMult);
         }
@@ -5544,7 +5544,7 @@ void CCam::Process_FollowPed_SA(const CVector &ThisCamsTarget, float TargetOrien
             fHeadingDiff += TWO_PI;
 
         if (std::abs(fHeadingDiff) < 0.1f * CTimer::GetTimeStep())
-            pPed->m_fAimingRotation = m_fHorizontalAngle + HALF_PI;
+            pPed->m_fDesiredHeading = m_fHorizontalAngle + HALF_PI;
     }
 
     TheCamera.HandleCameraMotionForDucking(pPed, &m_vecSource, &vecTargetCoords, false);
@@ -5635,10 +5635,10 @@ void CCam::Process_M16_1stPerson(const CVector& ThisCamsTarget, float TargetOrie
         } else {
             m_fHorizontalAngle = bAttachedToEntity
                 ? CTheScripts::fCameraHeadingWhenPlayerIsAttached
-                : targetPed->m_fCurrentRotation - HALF_PI;
+                : targetPed->m_fCurrentHeading - HALF_PI;
             m_fVerticalAngle = 0.0f;
         }
-        m_fInitialPlayerOrientation = targetPed->m_fCurrentRotation - HALF_PI;
+        m_fInitialPlayerOrientation = targetPed->m_fCurrentHeading - HALF_PI;
         m_bResetStatics             = false;
         FailedTestTwelveFramesAgo   = false;
         DPadHorizontal              = 0.0f;
@@ -5960,8 +5960,8 @@ void CCam::Process_M16_1stPerson(const CVector& ThisCamsTarget, float TargetOrie
 
     GetVectorsReadyForRW();
     const float CamDirection                               = std::atan2(-m_vecFront.x, m_vecFront.y);
-    TheCamera.m_pTargetEntity->AsPed()->m_fCurrentRotation = CamDirection;
-    TheCamera.m_pTargetEntity->AsPed()->m_fAimingRotation  = CamDirection;
+    TheCamera.m_pTargetEntity->AsPed()->m_fCurrentHeading = CamDirection;
+    TheCamera.m_pTargetEntity->AsPed()->m_fDesiredHeading  = CamDirection;
 }
 
 // 0x511B50
@@ -5979,7 +5979,7 @@ void CCam::Process_Rocket(const CVector& target, float orientation, float speedV
     if (m_bResetStatics) {
         if (!CCamera::m_bUseMouse3rdPerson || targetPed->m_pTargetedObject) {
             m_fVerticalAngle = 0.0f;
-            m_fHorizontalAngle = targetPed->m_fCurrentRotation - DegreesToRadians(90.0f);
+            m_fHorizontalAngle = targetPed->m_fCurrentHeading - DegreesToRadians(90.0f);
         }
         m_fInitialPlayerOrientation = m_fHorizontalAngle;
         m_bResetStatics             = 0;
@@ -6026,8 +6026,8 @@ void CCam::Process_Rocket(const CVector& target, float orientation, float speedV
     GetVectorsReadyForRW();
 
     const auto heading = CGeneral::GetATanOfXY(m_vecFront.x, m_vecFront.y) - DegreesToRadians(90.0f);
-    TheCamera.m_pTargetEntity->AsPed()->m_fCurrentRotation = heading;
-    TheCamera.m_pTargetEntity->AsPed()->m_fAimingRotation  = heading;
+    TheCamera.m_pTargetEntity->AsPed()->m_fCurrentHeading = heading;
+    TheCamera.m_pTargetEntity->AsPed()->m_fDesiredHeading  = heading;
 
     if (isHeatSeeking) {
         auto* player     = FindPlayerPed();
@@ -6148,8 +6148,8 @@ void CCam::Process_SpecialFixedForSyphon(const CVector& target, float orientatio
 
     const auto delta = ped->m_pTargetedObject->GetPosition() - ped->GetPosition();
 
-    ped->m_fAimingRotation = ped->m_fCurrentRotation = std::atan2(-delta.x, delta.y);
-    ped->SetHeading(ped->m_fCurrentRotation);
+    ped->m_fDesiredHeading = ped->m_fCurrentHeading = std::atan2(-delta.x, delta.y);
+    ped->SetHeading(ped->m_fCurrentHeading);
     ped->UpdateRwMatrix();
 }
 

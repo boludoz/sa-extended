@@ -48,7 +48,7 @@ CTask* CTaskComplexUseWaterCannon::CreateNextSubTask(CPed* ped)
 // 0x6597D0
 CTask* CTaskComplexUseWaterCannon::CreateFirstSubTask(CPed* ped)
 {
-    return new CTaskSimpleCarDrive(ped->m_pVehicle, nullptr, false);
+    return new CTaskSimpleCarDrive(ped->m_pMyVehicle, nullptr, false);
 }
 
 // 0x65A640
@@ -56,10 +56,10 @@ CTask* CTaskComplexUseWaterCannon::ControlSubTask(CPed* ped)
 {
     if (m_pSubTask->GetTaskType() == TASK_SIMPLE_CAR_DRIVE)
     {
-        if (ped->m_pVehicle->GetStatus() == STATUS_PHYSICS && m_pFire->IsActive())
-            ped->m_pVehicle->AsAutomobile()->FireTruckControl(m_pFire);
+        if (ped->m_pMyVehicle->GetStatus() == STATUS_PHYSICS && m_pFire->IsActive())
+            ped->m_pMyVehicle->AsAutomobile()->FireTruckControl(m_pFire);
         else
-            return new CTaskSimpleCarDriveTimed(ped->m_pVehicle, 0);
+            return new CTaskSimpleCarDriveTimed(ped->m_pMyVehicle, 0);
     }
 
     return m_pSubTask;

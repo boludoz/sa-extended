@@ -43,12 +43,12 @@ public:
     std::array<RwFrame*, CAR_NUM_NODES> m_aCarNodes;
     std::array<CBouncingPanel, 3>       m_panels;
     CDoor                               m_swingingChassis;
-    std::array<CColPoint, 4>            m_wheelColPoint;                    // 0x724
-    std::array<float, 4>                m_fWheelsSuspensionCompression;     // 0x7D4 - [0-1] with 0 being suspension fully compressed, and 1 being completely relaxed - Filled with 1.f in the ctor
-    std::array<float, 4>                m_fWheelsSuspensionCompressionPrev; // 0x7E4 - Filled with 1.f in the ctor
-    std::array<float, 4>                m_WheelCounts;
+    std::array<CColPoint, 4>            m_aWheelColPoints;                    // 0x724
+    std::array<float, 4>                m_aWheelRatios;     // 0x7D4 - [0-1] with 0 being suspension fully compressed, and 1 being completely relaxed - Filled with 1.f in the ctor
+    std::array<float, 4>                m_aRatioHistory; // 0x7E4 - Filled with 1.f in the ctor
+    std::array<float, 4>                m_aWheelCounts;
 
-    float m_fBrakeCount;
+    float fBrakeCount;
     float m_fIntertiaValue1; //  m_anWheelSurfaceType[2]
     float m_fIntertiaValue2;
 
@@ -56,7 +56,7 @@ public:
     std::array<bool,          4> m_wheelSkidmarkBloodState; // 0x820
     std::array<bool,          4> m_wheelSkidmarkMuddy;      // 0x824
     std::array<float,         4> m_wheelRotation;           // 0x828
-    std::array<float,         4> m_wheelPosition;           // 0x838
+    std::array<float,         4> m_aWheelSuspensionHeights;           // 0x838
     union {                                                 // 0x848
         std::array<float, 4> m_wheelSpeed;
         struct {
@@ -85,21 +85,21 @@ public:
     uint32 m_nBusDoorTimerStart;                    // 0x874
     std::array<float, 4> m_fSuspensionLength; // 0x878 // By default SuspensionUpperLimit - SuspensionLowerLimit
     std::array<float, 4> m_fLineLength;   // 0x888 // By default SuspensionUpperLimit - SuspensionLowerLimit + mi.GetSizeOfWheel(<corresponding wheel>) / 2.f - So I assume line is always longer than the spring
-    float m_fFrontHeightAboveRoad;
+    float m_fHeightAboveRoad;
     float m_fRearHeightAboveRoad;
     float m_fCarTraction;
     float m_fTireTemperature;
     float m_fAircraftGoToHeading;
     float m_fRotationBalance; // Controls destroyed helicopter rotation
-    float m_PrevSpeed;
+    float fPrevSpeed;
     CVector m_moveForce;
     CVector m_turnForce;
     std::array<float, 6> DoorRotation; // Inited in ctor with random values, but seemingly unused.
 
     float m_fBurnTimer;
 
-    std::array<CPhysical*, 4> m_apWheelCollisionEntity{};
-    std::array<CVector, 4>    m_vWheelCollisionPos{}; // Bike::m_avTouchPointsLocalSpace
+    std::array<CPhysical*, 4> m_aGroundPhysicalPtrs{};
+    std::array<CVector, 4>    m_aGroundOffsets{}; // Bike::m_avTouchPointsLocalSpace
 
     CPed* m_pExplosionVictim;
     std::array<char, 24> field_928;
@@ -108,15 +108,15 @@ public:
     float RightDoorOpenForDriveBys;
     float m_fDoomVerticalRotation;
     float m_fDoomHorizontalRotation;
-    float m_fForcedOrientation;
+    float HeliRequestedOrientation;
     float m_fPropRotate;
     float m_fCumulativeDamage;
     uint8 m_nNumContactWheels;
-    uint8 m_NumDriveWheelsOnGround;
-    uint8 m_NumDriveWheelsOnGroundLastFrame;
-    float m_GasPedalAudioRevs; // [0; 1] adjusts the speed of playback of the skiding sound
+    uint8 m_nDriveWheelsOnGround;
+    uint8 m_nDriveWheelsOnGroundLastFrame;
+    float m_fGasPedalAudioRevs; // [0; 1] adjusts the speed of playback of the skiding sound
 
-    std::array<tWheelState, 4> m_WheelStates;
+    std::array<tWheelState, 4> m_aWheelState;
     std::array<FxSystem_c*, 2> m_exhaustNitroFxSystem;
 
     uint8 m_harvesterParticleCounter;
@@ -212,7 +212,7 @@ public:
     void TellHeliToGoToCoors(CVector target, float MinHeightAboveTerrain, float LowestFlightHeight);
     // Force orientation for heli to specified angle (radians)
     void SetHeliOrientation(float angle);
-    // Cancel orientation forcing (m_fForcedOrientation = -1.0f)
+    // Cancel orientation forcing (HeliRequestedOrientation = -1.0f)
     void ClearHeliOrientation();
     // Makes the plane fly to the specified location, keeping a specific Z height/altitude.
     void TellPlaneToGoToCoors(float x, float y, float z, float altitudeMin, float altitudeMax);
@@ -307,27 +307,27 @@ public:
     }
 
     [[nodiscard]] bool AreAllWheelsNotTouchingGround() const {
-        return std::ranges::all_of(m_fWheelsSuspensionCompression, [](float v) {return v >= 1.f; });
+        return std::ranges::all_of(m_aWheelRatios, [](float v) {return v >= 1.f; });
     }
 
     bool IsAnyWheelMakingContactWithGround() {
-        return m_fWheelsSuspensionCompression[0] != 1.0F
-               || m_fWheelsSuspensionCompression[1] != 1.0F
-               || m_fWheelsSuspensionCompression[2] != 1.0F
-               || m_fWheelsSuspensionCompression[3] != 1.0F;
+        return m_aWheelRatios[0] != 1.0F
+               || m_aWheelRatios[1] != 1.0F
+               || m_aWheelRatios[2] != 1.0F
+               || m_aWheelRatios[3] != 1.0F;
     };
 
     bool IsAnyWheelNotMakingContactWithGround() {
-        return m_fWheelsSuspensionCompression[0] == 1.0F
-               || m_fWheelsSuspensionCompression[1] == 1.0F
-               || m_fWheelsSuspensionCompression[2] == 1.0F
-               || m_fWheelsSuspensionCompression[3] == 1.0F;
+        return m_aWheelRatios[0] == 1.0F
+               || m_aWheelRatios[1] == 1.0F
+               || m_aWheelRatios[2] == 1.0F
+               || m_aWheelRatios[3] == 1.0F;
     };
 
     bool IsAnyWheelTouchingSand() {
         for (int32 i = 0; i < 4; i++) {
-            if (m_fWheelsSuspensionCompression[i] < 1.0f) {
-                if (g_surfaceInfos.GetAdhesionGroup(m_wheelColPoint[i].m_nSurfaceTypeB) == ADHESION_GROUP_SAND)
+            if (m_aWheelRatios[i] < 1.0f) {
+                if (g_surfaceInfos.GetAdhesionGroup(m_aWheelColPoints[i].m_nSurfaceTypeB) == ADHESION_GROUP_SAND)
                     return true;
             }
         }
@@ -336,8 +336,8 @@ public:
 
     bool IsAnyWheelTouchingRailTrack() {
         for (int32 i = 0; i < 4; i++) {
-            if (m_fWheelsSuspensionCompression[i] < 1.0f) {
-                if (m_wheelColPoint[i].m_nSurfaceTypeB == SURFACE_RAILTRACK)
+            if (m_aWheelRatios[i] < 1.0f) {
+                if (m_aWheelColPoints[i].m_nSurfaceTypeB == SURFACE_RAILTRACK)
                     return true;
             }
         }
@@ -346,38 +346,38 @@ public:
 
     bool IsAnyWheelTouchingShallowWaterGround() {
         for (int32 i = 0; i < 4; i++) {
-            if (m_fWheelsSuspensionCompression[i] < 1.0f && m_wheelColPoint[i].m_nSurfaceTypeB == SURFACE_WATER_SHALLOW)
+            if (m_aWheelRatios[i] < 1.0f && m_aWheelColPoints[i].m_nSurfaceTypeB == SURFACE_WATER_SHALLOW)
                 return true;
         }
         return false;
     }
 
     bool IsAnyFrontAndRearWheelTouchingGround() {
-        if (m_fWheelsSuspensionCompression[CAR_WHEEL_FRONT_LEFT] < 1.0f  || m_fWheelsSuspensionCompression[CAR_WHEEL_FRONT_RIGHT] < 1.0f) {
-            if (m_fWheelsSuspensionCompression[CAR_WHEEL_REAR_LEFT] < 1.0f || m_fWheelsSuspensionCompression[CAR_WHEEL_REAR_RIGHT] < 1.0f)
+        if (m_aWheelRatios[CAR_WHEEL_FRONT_LEFT] < 1.0f  || m_aWheelRatios[CAR_WHEEL_FRONT_RIGHT] < 1.0f) {
+            if (m_aWheelRatios[CAR_WHEEL_REAR_LEFT] < 1.0f || m_aWheelRatios[CAR_WHEEL_REAR_RIGHT] < 1.0f)
                 return true;
         }
         return false;
     }
 
     [[nodiscard]] bool AreFrontWheelsNotTouchingGround() const {
-        return m_fWheelsSuspensionCompression[CAR_WHEEL_FRONT_LEFT] >= 1.0f && m_fWheelsSuspensionCompression[CAR_WHEEL_FRONT_RIGHT];
+        return m_aWheelRatios[CAR_WHEEL_FRONT_LEFT] >= 1.0f && m_aWheelRatios[CAR_WHEEL_FRONT_RIGHT];
     }
 
     [[nodiscard]] bool AreRearWheelsNotTouchingGround() const {
-        return m_fWheelsSuspensionCompression[CAR_WHEEL_REAR_LEFT] >= 1.0f && m_fWheelsSuspensionCompression[CAR_WHEEL_REAR_RIGHT];
+        return m_aWheelRatios[CAR_WHEEL_REAR_LEFT] >= 1.0f && m_aWheelRatios[CAR_WHEEL_REAR_RIGHT];
     }
 
-    // check the previous compression state using m_fWheelsSuspensionCompressionPrev
+    // check the previous compression state using m_aRatioHistory
     bool DidAnyWheelTouchShallowWaterGroundPrev() {
         for (int32 i = 0; i < 4; i++) {
-            if (m_fWheelsSuspensionCompressionPrev[i] < 1.0f && m_wheelColPoint[i].m_nSurfaceTypeB == SURFACE_WATER_SHALLOW)
+            if (m_aRatioHistory[i] < 1.0f && m_aWheelColPoints[i].m_nSurfaceTypeB == SURFACE_WATER_SHALLOW)
                 return true;
         }
         return false;
     }
     bool DidAnyWheelTouchGroundPrev() {
-        for (float prevSuspension : m_fWheelsSuspensionCompressionPrev) {
+        for (float prevSuspension : m_aRatioHistory) {
             if (prevSuspension < 1.0f)
                 return true;
         }
@@ -403,11 +403,11 @@ private:
 
 VALIDATE_SIZE(CAutomobile, 0x988);
 VALIDATE_OFFSET(CAutomobile, m_damageManager, 0x5A0);
-VALIDATE_OFFSET(CAutomobile, m_wheelColPoint, 0x724);
+VALIDATE_OFFSET(CAutomobile, m_aWheelColPoints, 0x724);
 VALIDATE_OFFSET(CAutomobile, autoFlags, 0x868);
 VALIDATE_OFFSET(CAutomobile, m_bDoingBurnout, 0x86A);
 VALIDATE_OFFSET(CAutomobile, m_wMiscComponentAngle, 0x86C);
-VALIDATE_OFFSET(CAutomobile, m_GasPedalAudioRevs, 0x964);
+VALIDATE_OFFSET(CAutomobile, m_fGasPedalAudioRevs, 0x964);
 
 // Disable matfx (material effects) for material (callback), "data" parameter is unused
 RpMaterial *DisableMatFx(RpMaterial* material, void* data);

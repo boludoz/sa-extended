@@ -245,8 +245,8 @@ bool CGangWars::CreateDefendingGroup(int32 unused) {
 
         auto ped = new CCivilianPed(static_cast<ePedType>(Gang1 + 7), outPedId);
         ped->SetPosn(pedPos);
-        ped->m_fAimingRotation = angle;
-        ped->m_fCurrentRotation = angle;
+        ped->m_fDesiredHeading = angle;
+        ped->m_fCurrentHeading = angle;
         ped->SetHeading(angle);
         ped->SetCharCreatedBy(PED_MISSION);
         CWorld::Add(ped);

@@ -9,7 +9,7 @@ void CRope::InjectHooks() {
 
     RH_ScopedInstall(ReleasePickedUpObject, 0x556030);
     RH_ScopedInstall(CreateHookObjectForRope, 0x556070);
-    RH_ScopedInstall(UpdateWeightInRope, 0x5561B0, { .reversed = false });
+    RH_ScopedInstall(UpdateWeightInRope, 0x5561B0);
     RH_ScopedInstall(Remove, 0x556780);
     RH_ScopedInstall(Render, 0x556800);
     RH_ScopedInstall(PickUpObject, 0x5569C0);
@@ -32,8 +32,8 @@ bool CRope::DoControlsApply() const {
 // 0x556030
 void CRope::ReleasePickedUpObject() {
     if (m_pRopeAttachObject) {
-        m_pRopeAttachObject->AsPhysical()->physicalFlags.bAttachedToEntity = false;
-        m_pRopeAttachObject->AsPhysical()->physicalFlags.bCarriedByRope = false;
+        m_pRopeAttachObject->AsPhysical()->m_nPhysicalFlags.bNeverGoStatic = false;
+        m_pRopeAttachObject->AsPhysical()->m_nPhysicalFlags.bCarriedByRope = false;
         m_pRopeAttachObject = nullptr;
     }
     m_pAttachedEntity->SetUsesCollision(true);
@@ -77,7 +77,7 @@ void CRope::CreateHookObjectForRope() {
     obj->SetPosn(m_aSegments[NUM_ROPE_SEGMENTS - 1]);
     obj->m_nObjectType = OBJECT_TYPE_DECORATION;
     obj->SetIsStatic(false);
-    obj->physicalFlags.bAttachedToEntity = true;
+    obj->m_nPhysicalFlags.bNeverGoStatic = true;
 
     CWorld::Add(m_pAttachedEntity);
 
@@ -86,8 +86,10 @@ void CRope::CreateHookObjectForRope() {
 }
 
 // 0x5561B0
-int8 CRope::UpdateWeightInRope(float a2, float a3, float a4, int32 a5, float* a6) {
-    return plugin::CallMethodAndReturn<int8, 0x5561B0, CRope*, float, float, float, int32, float*>(this, a2, a3, a4, a5, a6);
+// ASM Match: not measured
+bool CRope::UpdateWeightInRope(CVector WeightCoors, float RelativeWeight, CVector* pNewWeightCoors)
+{
+    return false;
 }
 
 // 0x556780
@@ -177,7 +179,7 @@ void CRope::PickUpObject(CEntity* obj) {
     m_pAttachedEntity->SetPosn(obj->GetPosition() + obj->GetMatrix().TransformVector(height));
     m_pAttachedEntity->SetUsesCollision(false);
 
-    obj->AsPhysical()->physicalFlags.bAttachedToEntity = true;
+    obj->AsPhysical()->m_nPhysicalFlags.bNeverGoStatic = true;
     if (obj->GetIsTypeVehicle()) {
         if (obj->GetStatus() == STATUS_SIMPLE)
         {

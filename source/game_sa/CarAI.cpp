@@ -657,7 +657,7 @@ void CCarAI::UpdateCarAI(CVehicle* veh) {
             if (sq(FindSwitchDistanceFar(veh)) < vehPlyrDist2DSq) { // 0x41DD4F | 0x41E13A
                 if (!CCarCtrl::JoinCarWithRoadSystemGotoCoors(veh, FindPlayerCoors(), true, false)) {
                     ap->Mission               = MISSION_RAMPLAYER_FARAWAY;
-                    veh->m_HornCounter             = 0;
+                    veh->m_cHorn             = 0;
                     veh->vehicleFlags.bSirenOrAlarm = false;
                 }
                 if (veh->vehicleFlags.bIsLawEnforcer) {
@@ -681,17 +681,17 @@ void CCarAI::UpdateCarAI(CVehicle* veh) {
             }
 
             if (plyrVeh && plyrVeh->GetMoveSpeed().SquaredMagnitude() < maxSpeedSq) { // 0x41DE22 | 0x41E18D
-                veh->m_nCopsInCarTimer += (int16)(CTimer::GetTimeStep() * (1000.f / 60.f));
+                veh->GetOutOfCarTimer += (int16)(CTimer::GetTimeStep() * (1000.f / 60.f));
             } else {
-                veh->m_nCopsInCarTimer = 0;
+                veh->GetOutOfCarTimer = 0;
             }
 
             if (   !plyrVeh // 0x41DE95 | 0x41E1F0
                 || plyrVeh->IsUpsideDown()
-                || plyrVeh->GetMoveSpeed().SquaredMagnitude() < maxSpeedSq && veh->m_nCopsInCarTimer > 2500
+                || plyrVeh->GetMoveSpeed().SquaredMagnitude() < maxSpeedSq && veh->GetOutOfCarTimer > 2500
                     ) {
                         if (veh->vehicleFlags.bIsLawEnforcer) { // 0x41DED4 | 0x41E23F
-                            if ((veh->GetModelId() != MODEL_RHINO || veh->m_nRandomSeed > 10'000) && vehPlyrDist2DSq <= sq(10.f)) { // 0x41DEE1 | 0x41E254
+                            if ((veh->GetModelId() != MODEL_RHINO || veh->RandomSeed > 10'000) && vehPlyrDist2DSq <= sq(10.f)) { // 0x41DEE1 | 0x41E254
                                 TellOccupantsToLeaveCar(veh);
                                 ap->SetCruiseSpeed(0);
                                 ap->SetCarMission(MISSION_NONE);
@@ -813,7 +813,7 @@ void CCarAI::UpdateCarAI(CVehicle* veh) {
 
             if ((veh->GetPosition() - ap->pTargetEntity->GetPosition()).SquaredMagnitude2D() >= sq(FindSwitchDistanceClose(veh))) {
                 veh->vehicleFlags.bSirenOrAlarm = false;
-                veh->m_HornCounter              = 0;
+                veh->m_cHorn              = 0;
                 CCarCtrl::JoinCarWithRoadSystem(veh);
             }
 
@@ -896,12 +896,12 @@ void CCarAI::UpdateCarAI(CVehicle* veh) {
 
             if (vehToPlyrDist2DSq <= sq(FindSwitchDistanceFar(veh))) {
                 if (plyrVeh && plyrVeh->GetMoveSpeed().SquaredMagnitude() <= sq(0.05f)) {
-                    veh->m_nCopsInCarTimer += (uint32)CTimer::GetTimeStepInMS();
+                    veh->GetOutOfCarTimer += (uint32)CTimer::GetTimeStepInMS();
                 } else {
-                    veh->m_nCopsInCarTimer = 0;
+                    veh->GetOutOfCarTimer = 0;
                 }
 
-                if ((!plyrVeh || plyrVeh->IsUpsideDown() || veh->m_nCopsInCarTimer >= (veh->GetModelId() == MODEL_COPBIKE ? 2500 : 20'000)) && veh->vehicleFlags.bIsLawEnforcer && vehToPlyrDist2DSq <= sq(10.f)) {
+                if ((!plyrVeh || plyrVeh->IsUpsideDown() || veh->GetOutOfCarTimer >= (veh->GetModelId() == MODEL_COPBIKE ? 2500 : 20'000)) && veh->vehicleFlags.bIsLawEnforcer && vehToPlyrDist2DSq <= sq(10.f)) {
                     TellOccupantsToLeaveCar(veh);
                     ap->ClearCarMission();
                     ap->SetCruiseSpeed(0);
@@ -925,7 +925,7 @@ void CCarAI::UpdateCarAI(CVehicle* veh) {
                 }
             } else if (!CCarCtrl::JoinCarWithRoadSystemGotoCoors(veh, FindPlayerCoors())) {
                 veh->vehicleFlags.bSirenOrAlarm = false;
-                veh->m_HornCounter              = 0;
+                veh->m_cHorn              = 0;
                 ap->SetCarMission(MISSION_APPROACHPLAYER_FARAWAY);
             }
 
@@ -1126,7 +1126,7 @@ void CCarAI::UpdateCarAI(CVehicle* veh) {
 
             if (vehMvSpeed2DSq <= sq(0.012f)) { // 0x41FBB6
                 const auto updateInterval = notsa::contains({ DRIVING_STYLE_STOP_FOR_CARS, DRIVING_STYLE_STOP_FOR_CARS_IGNORE_LIGHTS }, ap->DrivingMode)
-                    ? 500u * (veh->m_nRandomSeed % 16) + 40u
+                    ? 500u * (veh->RandomSeed % 16) + 40u
                     : 1000u;
                 if ((CTimer::GetTimeInMS() - ap->LastTimeNotStuck) > updateInterval) {
                     ap->WhatToTryForReverse = CTimer::GetTimeInMS() >= ap->LastTimeWeStartedTempActReverse + 10'000 // 0x41FC02
@@ -1170,7 +1170,7 @@ void CCarAI::UpdateCarAI(CVehicle* veh) {
         }
     }
 
-    if (veh->m_nRandomSeed % 8 == 0) { // 0x41FD3C
+    if (veh->RandomSeed % 8 == 0) { // 0x41FD3C
         if (   CTimer::GetTimeInMS() - ap->LastTimeMoving > 30'000
             && CTimer::GetPreviousTimeInMS() - ap->LastTimeMoving < 30'000
             && ap->Mission == MISSION_CRUISE
@@ -1261,8 +1261,8 @@ void CCarAI::UpdateCarAI(CVehicle* veh) {
     }
 
     //> 0x4203C1
-    if (veh->vehicleFlags.bSirenOrAlarm && ((uint8)veh->m_nRandomSeed ^ (uint8)rand()) == 0xAD) {
-        veh->m_HornCounter = 45;
+    if (veh->vehicleFlags.bSirenOrAlarm && ((uint8)veh->RandomSeed ^ (uint8)rand()) == 0xAD) {
+        veh->m_cHorn = 45;
     }
 
     //> 0x4203F0 - Handle speed mult change based on time

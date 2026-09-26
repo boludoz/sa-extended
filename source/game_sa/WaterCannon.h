@@ -10,7 +10,7 @@ public:
 
     uint32                    m_nId;
     int32                     m_nSectionsCount;
-    uint32                    m_nCreationTime;
+    uint32                    m_TimeOfCreation;
     CVector                   m_sectionPoint[SECTIONS_COUNT];
     CVector                   m_sectionMoveSpeed[SECTIONS_COUNT];
     bool                      m_abUsed[SECTIONS_COUNT];

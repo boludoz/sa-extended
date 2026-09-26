@@ -33,7 +33,7 @@ void CPedGeometryAnalyser::InjectHooks() {
     RH_ScopedOverloadedInstall(ComputeEntityHitSide, "3", 0x5F3AC0, int32 (*)(const CVector& point, CEntity& entity), {.reversed = false});
     RH_ScopedOverloadedInstall(ComputePedHitSide, "physical", 0x5F3640, int32(*)(const CPed&,const CPhysical&), { .reversed = false });
     RH_ScopedOverloadedInstall(ComputePedHitSide, "posn", 0x5F1E70, int32(*)(const CPed&,const CVector&), { .reversed = false });
-    RH_ScopedInstall(ComputePedShotSide, 0x5F13F0, { .reversed = false });
+    RH_ScopedInstall(ComputePedShotSide, 0x5F13F0);
     RH_ScopedOverloadedInstall(ComputeRouteRoundEntityBoundingBox, "1", 0x5F6110, int32(*)(const CPed&,CEntity&,const CVector&,CPointRoute&,int32), { .reversed = false });
     RH_ScopedOverloadedInstall(ComputeRouteRoundEntityBoundingBox, "2", 0x5F3DD0, int32(*)(const CPed&,const CVector&,CEntity&,const CVector&,CPointRoute&,int32), { .reversed = false });
     RH_ScopedInstall(ComputeRouteRoundSphere, 0x5F1890, { .reversed = false });
@@ -249,8 +249,22 @@ int32 CPedGeometryAnalyser::ComputePedHitSide(const CPed& ped, const CVector& po
 }
 
 // 0x5F13F0
-int32 CPedGeometryAnalyser::ComputePedShotSide(const CPed& ped, const CVector& posn) {
-    return plugin::CallAndReturn<int32, 0x5F13F0, const CPed&, const CVector&>(ped, posn);
+// ASM Match: not measured
+int32 CPedGeometryAnalyser::ComputePedShotSide(const CPed& ped, const CVector& ShotOrigin)
+{
+    CVector2D vec2DPedDist = CVector2D(ShotOrigin.x - ped.GetPosition().x, ShotOrigin.y - ped.GetPosition().y);
+
+    float theta = CMaths::ATan2(-vec2DPedDist.x, vec2DPedDist.y);
+
+    float angle = theta - ped.GetCurrentHeading() + QUARTER_PI;
+    if (angle < 0.0f)
+    {
+        angle += TWO_PI;
+    }
+
+    int32 quadrant = static_cast<int32>(angle * 2 / PI);
+
+    return quadrant;
 }
 
 // 0x5F6110

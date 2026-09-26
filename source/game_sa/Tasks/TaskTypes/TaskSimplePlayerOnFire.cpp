@@ -28,7 +28,7 @@ bool CTaskSimplePlayerOnFire::ProcessPed(CPed* ped) {
         return true;
     }
 
-    if (FindPlayerPed(0) == ped && FindPlayerInfo().m_bFireProof) {
+    if (FindPlayerPed(0) == ped && FindPlayerInfo().FireProof) {
         return false;
     }
 

@@ -28,44 +28,53 @@ public:
     uint8                         m_nObjectType; // see enum eObjectType
     uint8                         m_nBonusValue;
     uint16                        m_wCostValue;
+    //! calineva API
+    enum {
+        OBJECT_DOESNT_USE_SCRIPT_BRAIN,
+        OBJECT_SCRIPT_BRAIN_NOT_LOADED,
+        OBJECT_WAITING_FOR_SCRIPT_BRAIN_TO_LOAD,
+        OBJECT_RUNNING_SCRIPT_BRAIN
+    };
+
+    struct CObjectFlags {
+        uint32 bIsPickUp : 1;               // 0x1
+        uint32 bNoPickUpEffects : 1;                   // 0x2 - collision related
+        uint32 bPickUpCostsMoney : 1;  // 0x4
+        uint32 bPickUpOutOfStock : 1; // 0x8
+        uint32 bGlassShattered : 1;         // 0x10
+        uint32 bGlassBrokenAltogether : 1;  // 0x20
+        uint32 bHasExploded : 1;             // 0x40
+        uint32 bParentIsACar : 1;        // 0x80
+
+        uint32 bLampPostCollision : 1;
+        uint32 bCanBeTargettedByPlayer : 1;
+        uint32 bHasBeenShattered : 1;
+        uint32 bTrainNearby : 1;
+        uint32 bHasBeenPhotographed : 1;
+        uint32 bIsStealable : 1;
+        uint32 bWasDoorLocked : 1;
+        uint32 bDoorOpenedEnough : 1;
+
+        uint32 bReferencedCollision : 1;
+        uint32 bScaled : 1;
+        uint32 bWinchCanPickMeUp : 1;
+        uint32 bLandedOnMovingCol : 1;
+        uint32 ScriptBrainStatus : 2; // something something scripts for brains
+        uint32 bFadeOut : 1; // works only for objects with type 2 (OBJECT_MISSION)
+        uint32 bCalculateLighting : 1;
+
+        uint32 bEnableDisabledAttractors : 1;
+        uint32 bDoPreRenderButDontRender : 1;
+        uint32 bFadingIn2 : 1;
+        uint32 b0x08000000 : 1;
+        uint32 b0x10000000 : 1;
+        uint32 b0x20000000 : 1;
+        uint32 b0x40000000 : 1;
+        uint32 b0x80000000 : 1;
+    };
     union {
-        struct {
-            uint32 bIsPickup : 1;               // 0x1
-            uint32 b0x02 : 1;                   // 0x2 - collision related
-            uint32 bPickupPropertyForSale : 1;  // 0x4
-            uint32 bPickupInShopOutOfStock : 1; // 0x8
-            uint32 bHasBrokenGlass : 1;         // 0x10
-            uint32 bGlassBrokenAltogether : 1;  // 0x20
-            uint32 bIsExploded : 1;             // 0x40
-            uint32 bChangesVehColor : 1;        // 0x80
-
-            uint32 bIsLampPost : 1;
-            uint32 bIsTargetable : 1;
-            uint32 bIsBroken : 1;
-            uint32 bTrainCrossEnabled : 1;
-            uint32 bIsPhotographed : 1;
-            uint32 bIsLiftable : 1;
-            uint32 bIsDoorMoving : 1;
-            uint32 bIsDoorOpen : 1;
-
-            uint32 bHasNoModel : 1;
-            uint32 bIsScaled : 1;
-            uint32 bCanBeAttachedToMagnet : 1;
-            uint32 bDamaged : 1;
-            uint32 b0x100000_0x200000 : 2; // something something scripts for brains
-            uint32 bFadingIn : 1; // works only for objects with type 2 (OBJECT_MISSION)
-            uint32 bAffectedByColBrightness : 1;
-
-            uint32 bEnableDisabledAttractors : 1;
-            uint32 bDoNotRender : 1;
-            uint32 bFadingIn2 : 1;
-            uint32 b0x08000000 : 1;
-            uint32 b0x10000000 : 1;
-            uint32 b0x20000000 : 1;
-            uint32 b0x40000000 : 1;
-            uint32 b0x80000000 : 1;
-        } objectFlags;
-        uint32 m_nObjectFlags;
+        CObjectFlags m_nObjectFlags;
+        uint32 m_nObjectFlagsRaw;
     };
     uint8         m_nColDamageEffect;        // see eObjectColDamageEffect
     uint8         m_nSpecialColResponseCase; // see eObjectSpecialColResponseCases
@@ -81,7 +90,7 @@ public:
     float         m_fScale;
     CObjectData*  m_pObjectInfo;
     CFire*        m_pFire;
-    int16         m_nStreamedScriptBrainToLoad;
+    int16         StreamedScriptBrainToLoad;
     int16         m_wRemapTxd;     // this is used for detached car parts
     RwTexture*    m_pRemapTexture; // this is used for detached car parts
     CDummyObject* m_pDummyObject;  // used for dynamic objects like garage doors, train crossings etc.
@@ -124,7 +133,7 @@ public:
     bool     TryToExplode();
     void     SetObjectTargettable(bool targetable);
     [[nodiscard]] bool CanBeTargetted() const;
-    [[nodiscard]] bool IsObjectDamaged() const { return objectFlags.bDamaged; }
+    [[nodiscard]] bool IsObjectDamaged() const { return m_nObjectFlags.bLandedOnMovingCol; }
     void     RefModelInfo(int32 modelIndex);
     void     SetRemapTexture(RwTexture* remapTexture, int16 txdIndex);
     float    GetRopeHeight();
@@ -161,8 +170,8 @@ public:
     [[nodiscard]] bool IsTemporary() const     { return m_nObjectType == OBJECT_TEMPORARY; }
     [[nodiscard]] bool IsMissionObject() const { return m_nObjectType == OBJECT_MISSION || m_nObjectType == OBJECT_MISSION2; }
     [[nodiscard]] bool IsCraneMovingPart() const;
-    [[nodiscard]] bool IsFallenLampPost() const { return objectFlags.bIsLampPost && m_matrix->GetUp().z < 0.66F; }
-    [[nodiscard]] bool IsExploded() const       { return objectFlags.bIsExploded; }
+    [[nodiscard]] bool IsFallenLampPost() const { return m_nObjectFlags.bLampPostCollision && m_matrix->GetUp().z < 0.66F; }
+    [[nodiscard]] bool IsExploded() const       { return m_nObjectFlags.bHasExploded; }
     [[nodiscard]] bool CanBeSmashed() const     { return m_nColDamageEffect >= COL_DAMAGE_EFFECT_SMASH_COMPLETELY; }
 
 private:

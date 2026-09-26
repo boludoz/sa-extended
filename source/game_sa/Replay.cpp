@@ -173,7 +173,7 @@ void CReplay::StorePedUpdate(CPed* ped, uint8 index) {
 
     Record.Write<tReplayPedUpdateBlock>({
         .poolRef                  = index,
-        .heading                  = (int8)(ped->m_fCurrentRotation * HEADING_COMPRESS_VALUE),
+        .heading                  = (int8)(ped->m_fCurrentHeading * HEADING_COMPRESS_VALUE),
         .vehicleIndex             = (uint8)vehicleIdx,
         .animState                = animState,
         .matrix                   = CCompressedMatrixNotAligned::Compress(ped->GetMatrix()),
@@ -479,14 +479,14 @@ void CReplay::ProcessPedUpdate(CPed* ped, float interpValue, CAddressInReplayBuf
     if (!ped)
         return;
 
-    ped->m_fCurrentRotation = (float)packet.heading / HEADING_COMPRESS_VALUE;
-    ped->m_fAimingRotation  = (float)packet.heading / HEADING_COMPRESS_VALUE;
+    ped->m_fCurrentHeading = (float)packet.heading / HEADING_COMPRESS_VALUE;
+    ped->m_fDesiredHeading  = (float)packet.heading / HEADING_COMPRESS_VALUE;
 
     ped->GetMatrix() = Lerp(ped->GetMatrix(), CCompressedMatrixNotAligned::Decompress(packet.matrix), interpValue);
 
     if (const auto vehIdx = packet.vehicleIndex) {
-        auto& vehicle = ped->m_pVehicle;
-        CEntity::SafeCleanUpRef(ped->m_pVehicle);
+        auto& vehicle = ped->m_pMyVehicle;
+        CEntity::SafeCleanUpRef(ped->m_pMyVehicle);
         vehicle = nullptr;
 
         if (auto poolRef = FindPoolIndexForVehicle(vehIdx - 1); !GetVehiclePool()->IsFreeSlotAtIndex(poolRef)) {
@@ -495,8 +495,8 @@ void CReplay::ProcessPedUpdate(CPed* ped, float interpValue, CAddressInReplayBuf
             ped->bInVehicle = true;
         }
     } else {
-        CEntity::SafeCleanUpRef(ped->m_pVehicle);
-        ped->m_pVehicle = nullptr;
+        CEntity::SafeCleanUpRef(ped->m_pMyVehicle);
+        ped->m_pMyVehicle = nullptr;
         ped->bInVehicle = false;
     }
     if (const auto ag = packet.animGroup; ag != ped->m_nAnimGroup) {
@@ -677,20 +677,20 @@ void CReplay::StorePlayerInfoVariables() {
     auto& playerInfo = FindPlayerInfo(PED_TYPE_PLAYER1);
 
     PlayerInfo = playerInfo;
-    playerInfo.m_PlayerData.m_pWanted = nullptr;
-    playerInfo.m_PlayerData.m_pPedClothesDesc = nullptr;
-    playerInfo.m_PlayerData.m_pArrestingCop = nullptr;
-    playerInfo.m_PlayerData.m_nMeleeWeaponAnimReferenced = 0;
-    playerInfo.m_PlayerData.m_nMeleeWeaponAnimReferencedExtra = 0;
+    playerInfo.PlayerPedData.m_pWanted = nullptr;
+    playerInfo.PlayerPedData.m_pPedClothesDesc = nullptr;
+    playerInfo.PlayerPedData.m_pArrestingCop = nullptr;
+    playerInfo.PlayerPedData.m_nMeleeWeaponAnimReferenced = 0;
+    playerInfo.PlayerPedData.m_nMeleeWeaponAnimReferencedExtra = 0;
     playerInfo.m_pSkinTexture = nullptr;
 }
 
 // 0x45E1F0
 void CReplay::RestorePlayerInfoVariables() {
     FindPlayerInfo(PED_TYPE_PLAYER1) = PlayerInfo;
-    PlayerInfo.m_PlayerData.m_pWanted = nullptr;
-    PlayerInfo.m_PlayerData.m_pPedClothesDesc = nullptr;
-    PlayerInfo.m_PlayerData.m_pArrestingCop = nullptr;
+    PlayerInfo.PlayerPedData.m_pWanted = nullptr;
+    PlayerInfo.PlayerPedData.m_pPedClothesDesc = nullptr;
+    PlayerInfo.PlayerPedData.m_pArrestingCop = nullptr;
     PlayerInfo.m_pSkinTexture = nullptr;
 }
 
@@ -884,7 +884,7 @@ void CReplay::RecordThisFrame() {
     }
 
     auto cameraPacket = tReplayCameraBlock{
-        .isUsingRemoteVehicle = FindPlayerInfo().m_pRemoteVehicle != nullptr,
+        .isUsingRemoteVehicle = FindPlayerInfo().pRemoteVehicle != nullptr,
         .matrix               = 0 /* to be filled */,
         .firstFocusPosn       = FindPlayerCoors()
     };
@@ -927,8 +927,8 @@ void CReplay::RecordThisFrame() {
                 *packet.As<tReplayVehicleBlock>() = tReplayVehicleBlock::MakeVehicleUpdateData(veh, i);
 
                 packet.type = REPLAY_PACKET_PLANE;
-                packet.field_9C8 = veh.AsPlane()->field_9C8;
-                packet.propSpeed = veh.AsPlane()->m_fPropSpeed;
+                packet.field_9C8 = veh.AsPlane()->m_fPropellerAngle;
+                packet.propSpeed = veh.AsPlane()->m_fEngineSpeed;
                 Record.Write(packet);
                 break;
             }
@@ -1276,8 +1276,8 @@ bool CReplay::PlayBackThisFrameInterpolation(CAddressInReplayBuffer& buffer, flo
                 auto vehicle = GetVehiclePool()->GetAt(poolIdx);
 
                 planePacket.ExtractVehicleUpdateData(*vehicle, interpolation);
-                vehicle->AsPlane()->field_9C8 = planePacket.field_9C8;
-                vehicle->AsPlane()->m_fPropSpeed = planePacket.propSpeed;
+                vehicle->AsPlane()->m_fPropellerAngle = planePacket.field_9C8;
+                vehicle->AsPlane()->m_fEngineSpeed = planePacket.propSpeed;
             }
             break;
         }
@@ -1548,7 +1548,7 @@ void CReplay::TriggerPlayback(eReplayCamMode mode, CVector fixedCamPos, bool loa
     CSkidmarks::Clear();
     StreamAllNecessaryCarsAndPeds();
 
-    CWorld::Players[0].m_pPed = CreatePlayerPed();
+    CWorld::Players[0].pPed = CreatePlayerPed();
 
     bDoLoadSceneWhenDone = [&] {
         if (!loadScene) {

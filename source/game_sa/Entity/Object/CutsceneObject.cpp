@@ -73,7 +73,7 @@ void CCutsceneObject::ProcessControl() {
         else
             m_vecMoveSpeed *= 100.0F;
 
-        if (physicalFlags.bDontApplySpeed || physicalFlags.bDisableMoveForce)
+        if (m_nPhysicalFlags.bCoorsFrozenByScript || m_nPhysicalFlags.bDoorPhysics)
             ResetMoveSpeed();
         else {
             m_vForce += m_vecMoveSpeed * CTimer::GetTimeStep();
@@ -149,7 +149,7 @@ bool CCutsceneObject::SetupLighting() {
 
 // 0x5533F0
 void CCutsceneObject::RemoveLighting(bool bRemove) {
-    if (!physicalFlags.bRenderScorched)
+    if (!m_nPhysicalFlags.bRenderScorched)
         CPointLights::RemoveLightsAffectingObject();
 
     SetAmbientColours();
