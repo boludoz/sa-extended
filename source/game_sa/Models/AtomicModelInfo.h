@@ -33,7 +33,7 @@ public:
     virtual void SetAtomic(RpAtomic* atomic);
 
     // class methods
-    struct RpAtomic* GetAtomicFromDistance(float distance);
+    RpAtomic* GetAtomicFromDistance(float distance);
     void SetupVehicleUpgradeFlags(const char* name);
 };
 

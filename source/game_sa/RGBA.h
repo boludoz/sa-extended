@@ -8,7 +8,9 @@
 
 #include <common.h> // lerp
 
+#ifndef LIBRW
 struct RwRGBA;
+#endif
 
 class CRGBA {
 public:

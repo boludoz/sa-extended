@@ -53,7 +53,9 @@ public:
 };
 VALIDATE_SIZE(CPath, 0x10);
 
+#ifndef LIBRW
 struct RwStream;
+#endif
 
 class CVehicleRecording {
 public:

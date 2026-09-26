@@ -76,7 +76,9 @@ class CPedModelInfo;
 class CTimeModelInfo;
 class CVehicleModelInfo;
 class CWeaponModelInfo;
+#ifndef LIBRW
 struct RwObject;
+#endif
 
 // originally an abstract class
 class NOTSA_EXPORT_VTABLE CBaseModelInfo {

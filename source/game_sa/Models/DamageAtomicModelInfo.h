@@ -14,8 +14,8 @@ public:
     CDamageAtomicModelInfo* AsDamageAtomicModelInfoPtr() override;
     void Init() override;
     void DeleteRwObject() override;
-    struct RwObject* CreateInstance() override;
-    struct RwObject* CreateInstance(RwMatrix* matrix) override;
+    RwObject* CreateInstance() override;
+    RwObject* CreateInstance(RwMatrix* matrix) override;
 
     void SetDamagedAtomic(RpAtomic* atomic);
 

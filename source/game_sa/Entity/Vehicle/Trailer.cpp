@@ -478,7 +478,7 @@ void CTrailer::PreRender() {
         auto* colData = CModelInfo::GetModelInfo(m_nModelIndex)->m_pColModel->m_pColData;
         if (colData->m_nNumLines > NUM_TRAILER_WHEELS && (!m_vecMoveSpeed.IsZero() || !m_vecTurnSpeed.IsZero() || !m_nFakePhysics)) {
             CMatrix mat;
-            mat.Attach(&m_aCarNodes[TRAILER_MISC_A]->modelling, false);
+            mat.Attach(RwFrameGetMatrix(m_aCarNodes[TRAILER_MISC_A]), false);
 
             const float avgSupportRatio = (m_supportRatios[0] + m_supportRatios[1]) * 0.5f;
             const float supportExtensionRatio = std::min(avgSupportRatio, m_fTrailerTowedRatio);

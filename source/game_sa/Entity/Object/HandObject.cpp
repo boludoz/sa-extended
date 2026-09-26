@@ -77,7 +77,7 @@ void CHandObject::PreRender()
             *RwMatrixGetUp(boneMat) = { 0.0F, 0.0F, 0.0F };
             *RwMatrixGetRight(boneMat) = { 0.0F, 0.0F, 0.0F };
 
-            const auto unFlags = static_cast<uint32>(animHierarchy->pNodeInfo[nBoneInd].flags);
+            const auto unFlags = static_cast<uint32>(RpHAnimHierarchyGetNodeFlags(animHierarchy, nBoneInd));
             if ((unFlags & rpHANIMPUSHPARENTMATRIX) != 0)
                 ++iStackCounter;
             else if ((unFlags & rpHANIMPOPPARENTMATRIX) != 0)

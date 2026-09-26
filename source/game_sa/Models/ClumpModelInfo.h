@@ -9,9 +9,15 @@
 #include "BaseModelInfo.h"
 #include "RwObjectNameIdAssocation.h"
 
+#ifndef LIBRW
 struct RwFrame;
+#endif
+#ifndef LIBRW
 struct RpAtomic;
+#ifndef LIBRW
 struct RpClump;
+#endif
+#endif
 
 struct tCompSearchStructByName {
     const char* m_pName;

@@ -126,8 +126,7 @@ static bool LoadModels(std::initializer_list<const char*> models, RpAtomic** ato
 
         auto geometry = RpAtomicGetGeometry(firstAtomic);
         RpGeometryLock(geometry, rpGEOMETRYLOCKALL);
-        RpGeometryGetFlags(geometry) &= 0xFFFFFF8F; // Negate bit 5 and 6, nothing seems to match it currently
-        RpGeometryGetFlags(geometry) |= rpGEOMETRYMODULATEMATERIALCOLOR;
+        RpGeometrySetFlags(geometry, (RpGeometryGetFlags(geometry) & 0xFFFFFF8F) | rpGEOMETRYMODULATEMATERIALCOLOR); // Negate bit 5 and 6, nothing seems to match it currently
         RpGeometryUnlock(geometry);
         GeometrySetPrelitConstantColor(geometry, RwRGBA{ 255, 255, 255, 255 });
 

@@ -30,16 +30,16 @@ VALIDATE_SIZE(BreakInfoColor, 0xC);
 struct BreakInfo_t {
     eBreakablePluginPositionRule m_uiPosRule;
     uint16                       m_usNumVertices;
-    struct RwV3d*                m_pVertexPos;
-    struct RwTexCoords*          m_pTexCoors;
-    struct RwRGBA*               m_pVertexColors;
+    RwV3d*                m_pVertexPos;
+    RwTexCoords*          m_pTexCoors;
+    RwRGBA*               m_pVertexColors;
 
     uint16                       m_usNumTriangles;
     struct BreakInfoTriangle*    m_pTriangles;
     uint16*                      m_pTrianglesMaterialIndices;
 
     uint16                       m_usNumMaterials;
-    struct RwTexture**           m_pTextures;
+    RwTexture**           m_pTextures;
     char*                        m_pTextureNames;
     char*                        m_pMaskNames;
     struct BreakInfoColor*       m_pMaterialProperties;

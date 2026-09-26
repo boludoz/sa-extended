@@ -140,7 +140,7 @@ void CClothesBuilder::StoreBoneArray(RpClump* clump, int32 idx) {
     
     rng::fill(gBoneIndices[idx], -1);
     for (auto i = h->numNodes; i-- > 0;) {
-        gBoneIndices[idx][i] = static_cast<int16>(h->pNodeInfo[i].nodeID);
+        gBoneIndices[idx][i] = static_cast<int16>(RpHAnimHierarchyGetNodeID(h, i));
     }
 }
 
@@ -626,7 +626,7 @@ RpClump* CClothesBuilder::CreateSkinnedClump(RpClump* bones, RwTexDictionary* di
     const auto hier = RpHAnimHierarchyCreateFromHierarchy(
         boneAnimHr,
         (RpHAnimHierarchyFlag)boneAnimHr->flags,       // TODO: Use function to access
-        boneAnimHr->currentAnim->maxInterpKeyFrameSize // TODO: Use function to access
+        RpHAnimHierarchyGetInterpolator(boneAnimHr)->maxInterpKeyFrameSize // TODO: Use function to access
     );
 
     const auto childFrame = RwFrameCreate();

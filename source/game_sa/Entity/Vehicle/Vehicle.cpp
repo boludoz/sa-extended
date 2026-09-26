@@ -3866,7 +3866,7 @@ void CVehicle::SetComponentRotation(RwFrame* component, eRotationAxis axis, floa
 // 0x6DBBB0
 void CVehicle::SetTransmissionRotation(RwFrame* component, float angleL, float angleR, CVector wheelPos, bool isFront) {
     if (component) {
-        CMatrix mat(&component->modelling);
+        CMatrix mat(RwFrameGetMatrix(component));
         CVector savedPos = mat.GetPosition();
         float angleX = -std::atan2(
             (angleL + angleR) / 2.0f - wheelPos.z,

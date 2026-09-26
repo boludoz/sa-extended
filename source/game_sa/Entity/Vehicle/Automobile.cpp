@@ -7384,25 +7384,25 @@ void CAutomobile::Render() {
 
     if (CCheat::IsActive(ONLYRENDERWHEELS_CHEAT)) {
         if (auto atomic = reinterpret_cast<RpAtomic*>(GetFirstObject(m_aCarNodes[CAR_WHEEL_RB]))) {
-            atomic->renderCallBack(atomic);
+            RpAtomicGetRenderCallBack(atomic)(atomic);
         }
         if (auto atomic = reinterpret_cast<RpAtomic*>(GetFirstObject(m_aCarNodes[CAR_WHEEL_LB]))) {
-            atomic->renderCallBack(atomic);
+            RpAtomicGetRenderCallBack(atomic)(atomic);
         }
         if (auto atomic = reinterpret_cast<RpAtomic*>(GetFirstObject(m_aCarNodes[CAR_WHEEL_RF]))) {
-            atomic->renderCallBack(atomic);
+            RpAtomicGetRenderCallBack(atomic)(atomic);
         }
         if (auto atomic = reinterpret_cast<RpAtomic*>(GetFirstObject(m_aCarNodes[CAR_WHEEL_LF]))) {
-            atomic->renderCallBack(atomic);
+            RpAtomicGetRenderCallBack(atomic)(atomic);
         }
         if (m_aCarNodes[CAR_WHEEL_RM]) {
             if (auto atomic = reinterpret_cast<RpAtomic*>(GetFirstObject(m_aCarNodes[CAR_WHEEL_RM]))) {
-                atomic->renderCallBack(atomic);
+                RpAtomicGetRenderCallBack(atomic)(atomic);
             }
         }
         if (m_aCarNodes[CAR_WHEEL_LM]) {
             if (auto atomic = reinterpret_cast<RpAtomic*>(GetFirstObject(m_aCarNodes[CAR_WHEEL_LM]))) {
-                atomic->renderCallBack(atomic);
+                RpAtomicGetRenderCallBack(atomic)(atomic);
             }
         }
     } else {
@@ -7437,7 +7437,7 @@ void CAutomobile::Render() {
                 RwMatrixTranslate(modelling, reinterpret_cast<RwV3d*>(&translation), rwCOMBINEPOSTCONCAT);
                 RwFrameUpdateObjects(wheelNode);
                 if (auto atomic = reinterpret_cast<RpAtomic*>(GetFirstObject(wheelNode))) {
-                    atomic->renderCallBack(atomic);
+                    RpAtomicGetRenderCallBack(atomic)(atomic);
                 }
 
                 translation *= -1.0f;

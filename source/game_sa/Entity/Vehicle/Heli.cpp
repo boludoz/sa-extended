@@ -471,7 +471,7 @@ void CHeli::BlowUpCar(CEntity* damager, bool bHideExplosion) {
             // Hide top rotor
             auto pCurrentAtomic = (void *)nullptr;
             if (RwFrameForAllObjects(m_aCarNodes[PLANE_STATIC_PROP], GetCurrentAtomicObjectCB, &pCurrentAtomic); pCurrentAtomic) {
-                RpAtomicSetFlags(pCurrentAtomic, 0);
+                RpAtomicSetFlags(static_cast<RpAtomic*>(pCurrentAtomic), 0);
             }
         }
 
@@ -713,11 +713,7 @@ void CHeli::ProcessFlyingCarStuff() {
                 RwFrameForAllObjects(bladeFrame, GetCurrentAtomicObjectCB, &atomic);
 
                 if (atomic) {
-                    if ((atomic->interpolator.flags & rpINTERPOLATORDIRTYSPHERE) != 0) {
-                        _rpAtomicResyncInterpolatedSphere(atomic);
-                    }
-
-                    float bladeRadius = atomic->boundingSphere.radius;
+                    float bladeRadius = RpAtomicGetBoundingSphere(atomic)->radius; // resyncs the interpolated sphere
                     if (bladeRadius > 0.1f) {
                         float collisionFactor = 1.0f;
                         switch (m_nModelIndex) {

@@ -2,7 +2,9 @@
 
 #include "RenderWare.h"
 
+#ifndef LIBRW
 struct RxOpenGLMeshInstanceData;
+#endif
 struct CustomEnvMapPipeMaterialData;
 
 /*!

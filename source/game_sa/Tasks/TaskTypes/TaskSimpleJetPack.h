@@ -9,7 +9,9 @@
 #include "TaskSimple.h"
 #include "Vector.h"
 
+#ifndef LIBRW
 struct RpClump;
+#endif
 class  FxSystem_c;
 class  CAnimBlendAssociation;
 class  CEntity;

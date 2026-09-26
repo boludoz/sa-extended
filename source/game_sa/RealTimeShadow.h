@@ -28,13 +28,13 @@ public:
     * @param elevation  [unused] In degrees
     * @param setLight            Whenever to set the light to be used
     */
-    struct RwFrame*   SetLightProperties(float azimuth, float elevation, bool doSetCamLight);
+    RwFrame*   SetLightProperties(float azimuth, float elevation, bool doSetCamLight);
 
     /*!
     * @addr 0x7059F0
     * @return The texture of the currently used camera
     */
-    struct RwTexture* GetShadowRwTexture();
+    RwTexture* GetShadowRwTexture();
 
     void              Destroy();
     CShadowCamera*    GetShadowCamera();

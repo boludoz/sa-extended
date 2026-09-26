@@ -7,9 +7,14 @@ AP.add_argument("--build", action="store_true", help="build instead of setting u
 AP.add_argument("--no-unity-build", action="store_true", help="disable unity build")
 AP.add_argument("--buildconf", default="Debug", choices=["Debug", "Release", "RelWithDebInfo"], help="cmake compilation type")
 AP.add_argument("--standalone", default=False, action="store_true", help="Build standalone executable instead of .asi plugin (for debugging purposes)")
+AP.add_argument("--librw", default=False, action="store_true", help="Use librw instead of the game's RenderWare (requires --standalone)")
 AP.add_argument("--dump-hooks-only", default=False, action="store_true", help="Don't try to write to memory at all, just dump the hooks that would be applied (for debugging purposes) and exit - To provide a path use the `--dump-hooks-to` argument on the resulting executable")
 AP.add_argument("--profile", default="conanprofile.txt", help="custom profile")
 args = AP.parse_args()
+
+if not args.standalone and args.librw:
+    AP.error("The --librw option can only be used with the --standalone option")
+    exit(1)
 
 if not args.standalone and args.dump_hooks_only:
     AP.error("The --dump-hooks-only option can only be used with the --standalone option")
@@ -20,6 +25,7 @@ try:
     defines: dict[str, bool] = {
         "GTASA_STANDALONE": args.standalone,
         "GTASA_DUMP_HOOKS_ONLY": args.dump_hooks_only,
+        "GTASA_WITH_LIBRW": args.librw,
         "GTASA_UNITY_BUILD": not args.no_unity_build
     }
     

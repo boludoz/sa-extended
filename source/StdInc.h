@@ -41,6 +41,7 @@
 #endif
 
 // RenderWare
+#ifndef LIBRW
 #include "RenderWare/D3DIndexDataBuffer.h"
 #include "RenderWare/D3DResourceSystem.h"
 #include "RenderWare/D3DTextureBuffer.h"
@@ -61,6 +62,7 @@
 #include "RenderWare/rw/rwplcore.h"
 #include "RenderWare/rw/rwtexdict.h"
 #include "RenderWare/rw/skeleton.h"
+#endif
 #include "RenderWare/RenderWare.h"
 #include <PluginBase.h>
 

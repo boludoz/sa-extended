@@ -11,8 +11,10 @@
 #include "RGBA.h"
 #include "Vector.h"
 
+#ifndef LIBRW
 struct RpClump;
 struct RpAtomic;
+#endif
 
 struct tUser3dMarker {
     bool    m_bIsUsed;

@@ -154,7 +154,7 @@ RpAtomic* SkinAtomicGetHAnimHierarchCB(RpAtomic* atomic, void* data) {
 RpAtomic* AtomicRemoveAnimFromSkinCB(RpAtomic* atomic, void* data) {
     if (RpSkinGeometryGetSkin(RpAtomicGetGeometry(atomic))) {
         if (RpHAnimHierarchy* hier = RpSkinAtomicGetHAnimHierarchy(atomic)) {
-            RtAnimAnimation*& currAnim = hier->currentAnim->pCurrentAnim;
+            RtAnimAnimation*& currAnim = RtAnimInterpolatorCurrentAnim(RpHAnimHierarchyGetInterpolator(hier));
             if (currAnim) {
                 RtAnimAnimationDestroy(currAnim);
             }

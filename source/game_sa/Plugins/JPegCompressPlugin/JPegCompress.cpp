@@ -40,8 +40,8 @@ void JPegCompressScreen(RwCamera* camera, jpeg_destination_mgr& dst) {
     cinfo.in_color_space = JCS_EXT_RGBA;
     jpeg_set_defaults(&cinfo);
 
-    cinfo.image_width      = RwRasterGetWidth(image);
-    cinfo.image_height     = RwRasterGetHeight(image);
+    cinfo.image_width      = RwImageGetWidth(image);
+    cinfo.image_height     = RwImageGetHeight(image);
     cinfo.dest             = &dst;
     cinfo.dct_method       = JDCT_FLOAT;
     cinfo.input_components = 4;

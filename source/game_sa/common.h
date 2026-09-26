@@ -77,7 +77,9 @@ extern RwRGBAReal& AmbientLightColourForFrame;
 // taken from rpplugin.h
 #define rwVENDORID_DEVELOPER 0x0253F2
 
+#ifndef LIBRW
 #define RpGeometryGetMesh(_geometry, _index) (&((RpMesh*)(((char*)(_geometry)->mesh) + sizeof(RpMeshHeader) + ((_geometry)->mesh->firstMeshOffset)))[_index])
+#endif
 
 constexpr float E               = 2.71828f;          // e
 constexpr float E_CONST         = 0.577f;            // Euler-Mascheroni constant

@@ -2,7 +2,9 @@
 
 class CVector;
 class CRGBA;
+#ifndef LIBRW
 struct RwTexture;
+#endif
 
 class PPTriPlant {
 public:

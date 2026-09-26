@@ -6,7 +6,7 @@
 */
 #pragma once
 
-#include "rw/rwplcore.h" // for RwRGBA struct
+#include "rwplcore.h" // for RwRGBA struct
 #include "eLevelName.h"
 
 enum eZoneType : uint8 {

@@ -12,8 +12,12 @@
 #include "Vector.h"
 #include "Matrix.h"
 
+#ifndef LIBRW
 struct RpAtomic;
+#endif
+#ifndef LIBRW
 struct RpMaterial;
+#endif
 
 enum e3dMarkerType : uint16 {
     MARKER3D_ARROW = 0,

@@ -9,7 +9,9 @@
 #include "Entity.h"
 #include "Rect.h"
 
+#ifndef LIBRW
 struct RpAtomic;
+#endif
 
 struct tTagDesc {
     CEntity* Entity; //!< The physical tag entity (Pretty much just a model with a single atomic and material)

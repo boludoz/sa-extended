@@ -1,6 +1,17 @@
 
 #include "StdInc.h"
-#ifdef NOTSA_WINDOWED_MODE
+#if defined(NOTSA_WINDOWED_MODE) && defined(LIBRW)
+#include "WindowedMode.hpp"
+
+// librw owns the D3D device and the window, so none of the RW internals patched here exist.
+namespace notsa {
+void InjectWindowedModeHooks() {}
+namespace WindowedMode {
+void AdjustVideoModeOnResize(int32 w, int32 h) {}
+};
+};
+
+#elif defined(NOTSA_WINDOWED_MODE)
 
 #include "WindowedMode.hpp"
 #include <HookSystem.h>

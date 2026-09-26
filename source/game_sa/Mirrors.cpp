@@ -178,8 +178,8 @@ void CMirrors::RenderMirrorBuffer() {
             RwIm2DVertexSetScreenY(&vertices[i], pos[i].y);
             RwIm2DVertexSetScreenZ(&vertices[i], RwIm2DGetNearScreenZ());
 
-            RwIm3DVertexSetU(&vertices[i], uvs[i].x);
-            RwIm3DVertexSetV(&vertices[i], uvs[i].y);
+            RwIm2DVertexSetU(&vertices[i], uvs[i].x, 1.0f);
+            RwIm2DVertexSetV(&vertices[i], uvs[i].y, 1.0f);
         }
         RwIm2DRenderIndexedPrimitive(rwPRIMTYPETRILIST, vertices, std::size(vertices), indices, std::size(indices));
     }

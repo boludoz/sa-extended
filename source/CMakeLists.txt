@@ -5,6 +5,7 @@ option(${RE_PROJECT}_WITH_OPENAL "Use OpenAL" OFF)
 option(${RE_PROJECT}_WITH_SDL3 "Use SDL3" OFF)
 option(${RE_PROJECT}_STANDALONE "Build standalone executable" OFF)
 option(${RE_PROJECT}_DUMP_HOOKS_ONLY "Dump hooks only" OFF)
+option(${RE_PROJECT}_WITH_LIBRW "Use librw instead of the game's RenderWare (standalone only)" OFF)
 
 if (${RE_PROJECT}_WITH_SDL3)
     add_compile_definitions(NOTSA_USE_SDL3)
@@ -17,6 +18,9 @@ if (${RE_PROJECT}_DUMP_HOOKS_ONLY)
         message(FATAL_ERROR "${RE_PROJECT}_DUMP_HOOKS_ONLY requires ${RE_PROJECT}_STANDALONE=ON")
     endif()
     add_compile_definitions(NOTSA_DUMP_HOOKS_ONLY)
+endif()
+if (${RE_PROJECT}_WITH_LIBRW AND NOT ${RE_PROJECT}_STANDALONE)
+    message(FATAL_ERROR "${RE_PROJECT}_WITH_LIBRW requires ${RE_PROJECT}_STANDALONE=ON")
 endif()
 
 #--------------------------------------------------------------------
@@ -71,6 +75,16 @@ file(
 )
 list(REMOVE_ITEM SOURCE_FILES_LIST ${SCRIPT_COMMANDS_FILES})
 
+# librw replaces the thunks into the game's RenderWare and the D3D9 resource code;
+# the SA custom pipelines are not ported yet. Without librw the fake layer is not built.
+if (${RE_PROJECT}_WITH_LIBRW)
+    list(FILTER SOURCE_FILES_LIST EXCLUDE REGEX "^game_sa/RenderWare/rw/")
+    list(FILTER SOURCE_FILES_LIST EXCLUDE REGEX "^game_sa/RenderWare/D3D[^/]*$")
+    list(FILTER SOURCE_FILES_LIST EXCLUDE REGEX "^game_sa/Pipelines/")
+else()
+    list(FILTER SOURCE_FILES_LIST EXCLUDE REGEX "^game_sa/RenderWare/fakerw/")
+endif()
+
 if (${RE_PROJECT}_STANDALONE)
     add_executable(${RE_PROJECT_LIB_NAME} WIN32 ${SOURCE_FILES_LIST})
 else()
@@ -98,6 +112,21 @@ set_target_properties(${RE_PROJECT_LIB_NAME}
     COMPILE_WARNING_AS_ERROR ON
 )
 target_link_options(${RE_PROJECT_LIB_NAME} PRIVATE "/SUBSYSTEM:WINDOWS")
+
+#--------------------------------------------------------------------
+# librw
+#--------------------------------------------------------------------
+if (${RE_PROJECT}_WITH_LIBRW)
+    set(LIBRW_PLATFORM "D3D9" CACHE STRING "" FORCE)
+    set(LIBRW_INSTALL OFF CACHE BOOL "" FORCE)
+    set(LIBRW_TOOLS OFF CACHE BOOL "" FORCE)
+    set(LIBRW_EXAMPLES OFF CACHE BOOL "" FORCE)
+    add_subdirectory(${PROJECT_SOURCE_DIR}/vendor/librw ${CMAKE_CURRENT_BINARY_DIR}/librw)
+
+    target_link_libraries(${RE_PROJECT_LIB_NAME} PRIVATE librw)
+    target_include_directories(${RE_PROJECT_LIB_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/vendor/librw)
+    target_compile_definitions(${RE_PROJECT_LIB_NAME} PRIVATE LIBRW RW_D3D9)
+endif()
 
 #--------------------------------------------------------------------
 # Add dependencies
@@ -180,7 +209,7 @@ target_include_directories(${RE_PROJECT_LIB_NAME} PRIVATE
     game_sa/Pipelines/CustomBuilding
     game_sa/Pipelines/CustomCarEnvMap
     game_sa/RenderWare/
-    game_sa/RenderWare/rw/
+    $<IF:$<BOOL:${${RE_PROJECT}_WITH_LIBRW}>,${CMAKE_CURRENT_SOURCE_DIR}/game_sa/RenderWare/fakerw,${CMAKE_CURRENT_SOURCE_DIR}/game_sa/RenderWare/rw>
     game_sa/Scripts/
     game_sa/Tasks/
     game_sa/Tasks/TaskTypes/

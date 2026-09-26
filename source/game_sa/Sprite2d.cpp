@@ -180,7 +180,7 @@ void CSprite2d::InitPerFrame() {
     nextBufferVertex = 0;
     nextBufferIndex = 0;
     RecipNearClip = 1.0f / RwCameraGetNearClipPlane(Scene.m_pRwCamera);
-    NearScreenZ = RWSRCGLOBAL(dOpenDevice).zBufferNear;
+    NearScreenZ = RwIm2DGetNearScreenZ();
 }
 
 bool CSprite2d::IsVertexBufferEmpty()

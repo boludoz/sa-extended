@@ -485,10 +485,7 @@ uint16 CVisibilityPlugins::GetUserValue(const RpAtomic* atomic) {
 // unused
 // 0x732990
 bool CVisibilityPlugins::IsAtomicVisible(RpAtomic* atomic) {
-    if (atomic->interpolator.flags & rpINTERPOLATORDIRTYSPHERE) {
-        _rpAtomicResyncInterpolatedSphere(atomic);
-    }
-    RwSphere sphere = atomic->boundingSphere;
+    RwSphere sphere = *RpAtomicGetBoundingSphere(atomic); // resyncs the interpolated sphere
     RwMatrix* transformMatrix = RwFrameGetMatrix(RpAtomicGetFrame(atomic));
     RwV3d point;
     RwV3dTransformPoints(&point, &sphere.center, 1, transformMatrix);

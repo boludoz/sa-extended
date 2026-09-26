@@ -1204,7 +1204,7 @@ RpAtomic* CVehicleModelInfo::StoreAtomicUsedMaterialsCB(RpAtomic* atomic, void* 
 {
     auto matList = reinterpret_cast<RpMaterialList*>(data);
     auto geometry = RpAtomicGetGeometry(atomic);
-    auto pMeshHeader = geometry->mesh;
+    auto pMeshHeader = RpGeometryGetMeshHeader(geometry);
     if (CVisibilityPlugins::GetAtomicId(atomic) & eAtomicComponentFlag::ATOMIC_UNIQUE_MATERIALS)
         return atomic;
 

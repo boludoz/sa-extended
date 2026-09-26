@@ -6,6 +6,20 @@
 */
 #pragma once
 
+#ifdef LIBRW
+// librw-backed build: the fake RW layer (fakerw/) maps the RW C API onto rw::
+#include <rwcore.h>
+#include <rpworld.h>
+#include <rphanim.h>
+#include <rpskin.h>
+#include <rpmatfx.h>
+#include <rpanisot.h>
+#include <rtbmp.h>
+#include <rtpng.h>
+#include <rtquat.h>
+#include <rtcharse.h>
+#include "fakerw/rwsa.h"
+#else
 #include "rw/rwcore.h"
 #include "rw/rphanim.h"
 #include "rw/rpuvanim.h"
@@ -13,12 +27,14 @@
 #include "rw/rpmatfx.h"
 #include "rw/skeleton.h"
 #include "rw/rwplcore.h"
+#endif
 #include <type_traits>
 
 #ifdef _DX9_SDK_INSTALLED
 #include "d3d9.h"
 #endif
 
+#ifndef LIBRW
 static inline auto& RwInitialized = StaticRef<bool>(0xC920E8);
 static inline auto& RwEngineInstance =  StaticRef<RwGlobals*>(0xC97B24);
 static inline auto& RsGlobal =  StaticRef<RsGlobalType>(0xC17040);
@@ -45,14 +61,28 @@ inline void _rpMaterialSetDefaultSurfaceProperties(RwSurfaceProperties *surfProp
     ((void(__cdecl *)(RwSurfaceProperties*))0x74D870)(surfProps);
 }
 
+#endif
+
 #define RWRSTATE(a) (reinterpret_cast<void *>(a))
 #define PSGLOBAL(var) (((psGlobalType *)(RsGlobal.ps))->var)
 
+#ifndef LIBRW
 struct RwResEntrySA : RwResEntry {
     RxD3D9ResEntryHeader header;
     RxD3D9InstanceData meshData;
 };
 
+
+#endif
+
+#ifndef LIBRW
+// Field accessors; fakerw/rwsa.h has the librw versions.
+inline RwInt32   RpHAnimHierarchyGetNodeID(const RpHAnimHierarchy* h, RwInt32 i)    { return h->pNodeInfo[i].nodeID; }
+inline RwInt32   RpHAnimHierarchyGetNodeFlags(const RpHAnimHierarchy* h, RwInt32 i) { return h->pNodeInfo[i].flags; }
+inline RtAnimInterpolator* RpHAnimHierarchyGetInterpolator(const RpHAnimHierarchy* h) { return h->currentAnim; }
+inline RpMeshHeader* RpGeometryGetMeshHeader(const RpGeometry* g) { return g->mesh; }
+inline RtAnimAnimation*& RtAnimInterpolatorCurrentAnim(RtAnimInterpolator* i) { return i->pCurrentAnim; }
+#endif
 
 void RwCoreInjectHooks();
 

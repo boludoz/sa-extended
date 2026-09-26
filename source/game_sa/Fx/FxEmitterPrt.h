@@ -5,7 +5,9 @@
 #include "Particle.h"
 #include "extensions/FixedFloat.hpp"
 
+#ifndef LIBRW
 struct RwRGBA;
+#endif
 class FxSystem_c;
 
 class FxEmitterPrt_c : public Particle_c, ListItem_c<FxEmitterPrt_c> {

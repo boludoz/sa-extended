@@ -2432,7 +2432,7 @@ RwTexture* AddTextureCB(RwTexture* texture, void* dict) {
  */
 RpAtomic* CloneAtomicToClumpCB(RpAtomic* atomic, void* data) {
     RpAtomic* clone = RpAtomicClone(atomic);
-    auto frame = RpClumpGetFrame(atomic);
+    auto frame = RpAtomicGetFrame(atomic);
     RpAtomicSetFrame(clone, frame->root);
     RpClumpAddAtomic(static_cast<RpClump*>(data), clone);
     return atomic;

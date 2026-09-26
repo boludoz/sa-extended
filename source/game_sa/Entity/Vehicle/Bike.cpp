@@ -1258,7 +1258,7 @@ void CBike::FixHandsToBars(CPed* rider) {
     }
 
     CMatrix matChassis;
-    matChassis.Attach(&pFrame->modelling, false);
+    matChassis.Attach(RwFrameGetMatrix(pFrame), false);
 
     CMatrix vehMatrix;
     vehMatrix = *m_matrix;
@@ -1936,12 +1936,12 @@ void CBike::SetupSuspensionLines() {
             }
 
             RwMatrix tempNodeMatrx;
-            tempNodeMatrx = pFrame->modelling;
+            tempNodeMatrx = *RwFrameGetMatrix(pFrame);
             RwFrame* pRootFrame = RpClumpGetFrame(GetRpClump());
             RwFrame* pParent = RwFrameGetParent(pFrame);
             if (pParent) {
                 do {
-                    RwMatrixTransform(&tempNodeMatrx, &pParent->modelling, rwCOMBINEPOSTCONCAT);
+                    RwMatrixTransform(&tempNodeMatrx, RwFrameGetMatrix(pParent), rwCOMBINEPOSTCONCAT);
                     pParent = RwFrameGetParent(pParent);
                 } while (pParent != pRootFrame && pParent);
             }
@@ -1953,11 +1953,11 @@ void CBike::SetupSuspensionLines() {
             } else if (i == 2) {
                 m_aWheelOrigHeights[1] = posn.z;
                 if (m_aBikeNodes[BIKE_FORKS_REAR]) {
-                    tempNodeMatrx = m_aBikeNodes[BIKE_FORKS_REAR]->modelling;
+                    tempNodeMatrx = *RwFrameGetMatrix(m_aBikeNodes[BIKE_FORKS_REAR]);
                     pParent = RwFrameGetParent(m_aBikeNodes[BIKE_FORKS_REAR]);
                     if (pParent) {
                         do {
-                            RwMatrixTransform(&tempNodeMatrx, &pParent->modelling, rwCOMBINEPOSTCONCAT);
+                            RwMatrixTransform(&tempNodeMatrx, RwFrameGetMatrix(pParent), rwCOMBINEPOSTCONCAT);
                             pParent = RwFrameGetParent(pParent);
                         } while (pParent != pRootFrame && pParent);
                     }
@@ -1983,12 +1983,12 @@ void CBike::SetupSuspensionLines() {
 
     if (!bResetSuspension) {
         RwMatrix tempNodeMatrx;
-        tempNodeMatrx = m_aBikeNodes[BIKE_FORKS_FRONT]->modelling;
+        tempNodeMatrx = *RwFrameGetMatrix(m_aBikeNodes[BIKE_FORKS_FRONT]);
         RwFrame* pRootFrame = RpClumpGetFrame(GetRpClump());
         RwFrame* pParent = RwFrameGetParent(m_aBikeNodes[BIKE_FORKS_FRONT]);
         if (pParent) {
             do {
-                RwMatrixTransform(&tempNodeMatrx, &pParent->modelling, rwCOMBINEPOSTCONCAT);
+                RwMatrixTransform(&tempNodeMatrx, RwFrameGetMatrix(pParent), rwCOMBINEPOSTCONCAT);
                 pParent = RwFrameGetParent(pParent);
             } while (pParent != pRootFrame && pParent);
         }
@@ -3169,22 +3169,22 @@ bool CBike::SetUpWheelColModel(CColModel* wheelCol) {
     wheelCol->GetBoundingBox() = colModel->GetBoundingBox();
 
     RwMatrix matWheel;
-    matWheel = m_aBikeNodes[BIKE_WHEEL_FRONT]->modelling;
+    matWheel = *RwFrameGetMatrix(m_aBikeNodes[BIKE_WHEEL_FRONT]);
     RwFrame* pParent = RwFrameGetParent(m_aBikeNodes[BIKE_WHEEL_FRONT]);
     if (pParent) {
         do {
-            RwMatrixTransform(&matWheel, &pParent->modelling, rwCOMBINEPOSTCONCAT);
+            RwMatrixTransform(&matWheel, RwFrameGetMatrix(pParent), rwCOMBINEPOSTCONCAT);
             pParent = RwFrameGetParent(pParent);
         } while (pParent != pRootFrame && pParent);
     }
 
     pColData->m_pSpheres[0].Set(pModelInfo->m_fWheelSizeFront * 0.5f, CVector(matWheel.pos.x, matWheel.pos.y, matWheel.pos.z), SURFACE_WHEELBASE, 13);
 
-    matWheel = m_aBikeNodes[BIKE_WHEEL_REAR]->modelling;
+    matWheel = *RwFrameGetMatrix(m_aBikeNodes[BIKE_WHEEL_REAR]);
     pParent = RwFrameGetParent(m_aBikeNodes[BIKE_WHEEL_REAR]);
     if (pParent) {
         do {
-            RwMatrixTransform(&matWheel, &pParent->modelling, rwCOMBINEPOSTCONCAT);
+            RwMatrixTransform(&matWheel, RwFrameGetMatrix(pParent), rwCOMBINEPOSTCONCAT);
             pParent = RwFrameGetParent(pParent);
         } while (pParent != pRootFrame && pParent);
     }
